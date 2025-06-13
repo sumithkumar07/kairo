@@ -23,8 +23,8 @@ const WorkflowNodeSchema = z.object({
     x: z.number(),
     y: z.number(),
   }).describe('The X, Y coordinates of the node in the visual editor. Nodes should be laid out logically, e.g., left-to-right or top-to-bottom flow. Stagger nodes if they are in sequence.'),
-  config: z.any().describe("Configuration parameters for the node. This should be a valid JSON object. Populate relevant fields based on the node's 'type' and its corresponding 'configSchema' (e.g., for 'httpRequest', include 'url' and 'method'; for 'aiTask', include 'prompt' and optionally 'model'). Use placeholders like '{{previous_node_id.output_handle_name.property}}' to reference outputs from preceding nodes. For credentials, use placeholders like '{{secrets.API_KEY}}' or '{{env.SERVICE_TOKEN}}' and mention this in aiExplanation. For conditional execution, include a '_flow_run_condition' field with a placeholder pointing to a boolean output, e.g., '{{conditional_node.result}}'."),
-  aiExplanation: z.string().optional().describe('AI-generated explanation for this node: why it was chosen, its configuration (especially how placeholders are used for data flow, any credential placeholders like {{secrets.API_KEY}} or {{env.VARIABLE}}, and any _flow_run_condition), any assumptions made, and its role. This corresponds to the ##COMMENTS requirement.'),
+  config: z.any().describe("Configuration parameters for the node. This should be a valid JSON object. Populate relevant fields based on the node's 'type' and its corresponding 'configSchema' (e.g., for 'httpRequest', include 'url' and 'method'; for 'aiTask', include 'prompt' and optionally 'model'). Use placeholders like '{{previous_node_id.output_handle_name.property}}' to reference outputs from preceding nodes. For credentials, prefer using `{{env.YOUR_VARIABLE_NAME}}` and mention this in aiExplanation. For conditional execution, include a '_flow_run_condition' field with a placeholder pointing to a boolean output, e.g., '{{conditional_node.result}}'."),
+  aiExplanation: z.string().optional().describe('AI-generated explanation for this node: why it was chosen, its configuration (especially how placeholders are used for data flow, any credential placeholders like `{{env.YOUR_VARIABLE_NAME}}` that need to be set by the user, and any _flow_run_condition), any assumptions made, and its role. This corresponds to the ##COMMENTS requirement.'),
 });
 
 // Define the schema for a workflow connection (an edge in the graph). Describes how nodes are connected.
@@ -80,11 +80,11 @@ Node Requirements: For each node, you MUST provide:
 - 'config': A JSON object for node-specific parameters.
     - Populate fields relevant to the node's 'type' and its 'configSchema'. For example, an 'httpRequest' node should have 'url' and 'method' in its config. An 'aiTask' should have a 'prompt' and can optionally specify a 'model'.
     - Data Flow: Use placeholders like '{{source_node_id.output_handle_name.optional_property}}' within config values to reference outputs from preceding nodes. For example, if 'node_1' (type: httpRequest) outputs data on its 'response' handle, a subsequent 'parseJson' node might have config: { "jsonString": "{{node_1.response}}" }.
-    - Credential Handling: For nodes requiring credentials (e.g., API keys, tokens), use placeholders like '{{secrets.MY_API_KEY}}' or '{{env.SERVICE_TOKEN}}' within the 'config' and clearly state this requirement (including the placeholder used) in the 'aiExplanation'.
+    - Credential Handling: For nodes requiring credentials (e.g., API keys, tokens), PREFER using placeholders like \`{{env.YOUR_DESCRIPTIVE_VARIABLE_NAME}}\` (e.g., \`{{env.GOOGLE_API_KEY}}\`, \`{{env.STRIPE_SECRET_KEY}}\`) within the 'config'. Clearly state this requirement and the specific environment variable placeholder used in the 'aiExplanation', noting that the user must set this environment variable. \`{{secrets.KEY_NAME}}\` can also be used but will be treated as unresolved placeholders by the current engine.
     - Conditional Execution: If a node should only run if a certain condition is met (e.g., based on the output of a 'conditionalLogic' node), add a '_flow_run_condition' field to its 'config'. The value should be a placeholder resolving to a boolean, like '_flow_run_condition: "{{id_of_conditional_node.result}}"'.
 - 'aiExplanation': Your detailed explanation for this node:
     - Why this node type was chosen.
-    - Explanation of its configuration, especially how placeholders facilitate data flow, any important parameters (including credential placeholders like '{{secrets.API_KEY}}'), and if applicable, how '_flow_run_condition' is used.
+    - Explanation of its configuration, especially how placeholders facilitate data flow, any important parameters (including credential placeholders like \`{{env.YOUR_VARIABLE_NAME}}\` that the user needs to set up), and if applicable, how '_flow_run_condition' is used.
     - Any assumptions made (e.g., about data format from a previous step, or if an API key or environment variable is needed).
     - Its specific role in achieving the overall workflow goal.
 
@@ -101,7 +101,7 @@ Key Instructions:
 3.  Data Flow: Explicitly manage data flow using placeholders in node 'config' that reference outputs from previous nodes via their 'outputHandles'.
 4.  Conditional Paths: If the workflow has conditional paths (e.g., "if X then do Y, else do Z"), use a 'conditionalLogic' node. Then, for nodes on a conditional path, use the '_flow_run_condition' field in their 'config' to specify the condition under which they should run, referencing the 'result' output of the 'conditionalLogic' node.
 5.  Node Type Selection: Choose the most specific node 'type' available that matches the requested function.
-6.  Configuration: Provide sensible default or placeholder configurations for each node, referencing its purpose and expected inputs/outputs. This includes using \\\`{{secrets.KEY_NAME}}\\\` or \\\`{{env.VAR_NAME}}\\\` for any necessary credentials and noting this in the \\\`aiExplanation\\\`.
+6.  Configuration: Provide sensible default or placeholder configurations for each node, referencing its purpose and expected inputs/outputs. This includes using \`{{env.VARIABLE_NAME}}\` for any necessary credentials and noting this in the \`aiExplanation\`.
 7.  Production Focus: Aim for workflows that are robust and make sense in a production environment.
 
 Output Format:
@@ -112,7 +112,7 @@ ${GenerateWorkflowFromPromptOutputSchema.description}
 Nodes Schema: ${WorkflowNodeSchema.description}
 Connections Schema: ${WorkflowConnectionSchema.description}
 
-Analyze the user's request carefully and construct the complete workflow. Be meticulous about node types, configurations (with data flow placeholders, credential placeholders, and conditional execution fields), and connections (with port/handle names where appropriate).
+Analyze the user's request carefully and construct the complete workflow. Be meticulous about node types, configurations (with data flow placeholders, credential placeholders using \`{{env.VARIABLE_NAME}}\` where possible, and conditional execution fields), and connections (with port/handle names where appropriate).
 `,
 });
 

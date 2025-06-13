@@ -24,7 +24,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Network,
     description: 'Makes an HTTP request to a specified URL.',
     category: 'action', 
-    defaultConfig: { url: '', method: 'GET', headers: '{}', body: '' },
+    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '' },
     configSchema: {
       url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data' },
       method: { 
@@ -33,7 +33,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         defaultValue: 'GET',
       },
-      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{secrets.MY_API_TOKEN}}"\n}' },
+      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}' },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
     },
     inputHandles: ['input'],
@@ -57,12 +57,12 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Mail,
     description: 'Sends an email notification.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '', mailServiceApiKey: '{{secrets.MAIL_SERVICE_API_KEY}}' },
+    defaultConfig: { to: '', subject: '', body: '', mailServiceApiKey: '{{env.MAIL_SERVICE_API_KEY}}' },
     configSchema: {
       to: { label: 'To', type: 'string', placeholder: 'recipient@example.com' },
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification' },
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Your workflow has completed.' },
-      mailServiceApiKey: { label: 'Mail Service API Key', type: 'string', placeholder: '{{secrets.MAIL_SERVICE_API_KEY}}' }
+      mailServiceApiKey: { label: 'Mail Service API Key', type: 'string', placeholder: '{{env.MAIL_SERVICE_API_KEY}}' }
     },
     inputHandles: ['input'],
     outputHandles: ['status'],
@@ -73,9 +73,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Database,
     description: 'Executes a query on a database.',
     category: 'io',
-    defaultConfig: { connectionString: '{{secrets.DB_CONNECTION_STRING}}', query: '' },
+    defaultConfig: { connectionString: '{{env.DB_CONNECTION_STRING}}', query: '' },
     configSchema: {
-      connectionString: { label: 'Database Connection String', type: 'string', placeholder: '{{secrets.DB_CONNECTION_STRING}}' },
+      connectionString: { label: 'Database Connection String', type: 'string', placeholder: '{{env.DB_CONNECTION_STRING}}' },
       query: { label: 'SQL Query', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = {{input.userId}};' },
     },
     inputHandles: ['input'],
@@ -139,14 +139,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'dataTransform',
     name: 'Transform Data',
     icon: FunctionSquare,
-    description: 'Modifies data using JavaScript or expressions (conceptual - currently logs intent).',
+    description: 'Conceptually transforms data using a script. Currently logs intent and passes data through.',
     category: 'logic',
-    defaultConfig: { script: 'return data;' },
+    defaultConfig: { script: 'return data; /* Example: return { ...data, new_field: data.old_field.toUpperCase() }; */' },
     configSchema: {
-        script: { label: 'JavaScript (e.g., return data.name.toUpperCase();)', type: 'textarea' },
+        script: { label: 'Intended Transformation Script (e.g., return data.name.toUpperCase();)', type: 'textarea', placeholder: 'return { ...data, transformed_value: data.input_value * 2 };' },
     },
-    inputHandles: ['input'],
-    outputHandles: ['output', 'error'],
+    inputHandles: ['input_data'],
+    outputHandles: ['output_data', 'error'],
   },
   {
     type: 'youtubeFetchTrending',
@@ -154,11 +154,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: TrendingUp,
     description: 'Fetches trending videos from YouTube (conceptual - currently logs intent).',
     category: 'trigger',
-    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{secrets.YOUTUBE_API_KEY}}' },
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}' },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
-      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{secrets.YOUTUBE_API_KEY}}'}
+      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}'}
     },
     outputHandles: ['videos', 'status', 'error'],
   },
@@ -197,14 +197,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: UploadCloud,
     description: 'Uploads a video short to YouTube (conceptual - currently logs intent).',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secrets.YOUTUBE_OAUTH_TOKEN}}' },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{env.YOUTUBE_OAUTH_TOKEN}}' },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
-      credentials: { label: 'YouTube Credentials/Token (e.g. OAuth Access Token)', type: 'string', placeholder: '{{secrets.YOUTUBE_OAUTH_TOKEN}}'}
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}'}
     },
     inputHandles: ['input'],
     outputHandles: ['uploadStatus', 'videoId', 'status', 'error'],
@@ -343,3 +343,4 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'workflownode': 'workflowNode', 
   'unknown': 'unknown'
 };
+
