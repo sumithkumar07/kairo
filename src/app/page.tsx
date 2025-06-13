@@ -82,6 +82,8 @@ export default function FlowAIPage() {
     setConnections(newConnections);
     setSelectedNodeId(null); 
     setExecutionLogs([]); 
+    // Automatically hide assistant and select nothing to show canvas if workflow generated
+    // setIsAssistantVisible(true); // Keep assistant panel visible by default or let user toggle
   }, [mapAiWorkflowToInternal, toast]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
@@ -102,6 +104,7 @@ export default function FlowAIPage() {
       draft.push(newNode);
     }));
     setSelectedNodeId(newNodeId);
+    setIsAssistantVisible(true); // Ensure right panel is visible to show config
   }, []);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
@@ -186,9 +189,20 @@ export default function FlowAIPage() {
     }
   }, [nodes, connections, toast]);
   
+  const handleNodeClick = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setIsAssistantVisible(true); // Ensure right panel is visible to show config
+  };
+
   const toggleAssistantPanel = () => {
-    setIsAssistantVisible(prev => !prev);
-    if (!isAssistantVisible) setSelectedNodeId(null); // Clear selection if opening assistant
+    setIsAssistantVisible(prev => {
+      const newVisibility = !prev;
+      // If we are hiding the assistant, and a node was selected, deselect the node.
+      if (!newVisibility && selectedNodeId) {
+        setSelectedNodeId(null);
+      }
+      return newVisibility;
+    });
   };
 
   const selectedNode = useMemo(() => {
@@ -215,45 +229,38 @@ export default function FlowAIPage() {
           nodes={nodes}
           connections={connections}
           selectedNodeId={selectedNodeId}
-          onNodeClick={setSelectedNodeId}
+          onNodeClick={handleNodeClick}
           onNodeDragStop={updateNodePosition}
           onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
           isAssistantVisible={isAssistantVisible}
         />
         
-        {/* Right Sidebar Content */}
-        <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-y-auto">
-          {selectedNode && selectedNodeType ? (
-            <NodeConfigPanel
-              node={selectedNode}
-              nodeType={selectedNodeType}
-              onConfigChange={handleNodeConfigChange}
-              onNodeNameChange={handleNodeNameChange}
-              onNodeDescriptionChange={handleNodeDescriptionChange}
-            />
-          ) : isAssistantVisible ? (
-            <AIWorkflowAssistantPanel
-              onWorkflowGenerated={handleAiPromptSubmit}
-              setIsLoadingGlobal={setIsLoadingAi}
-            />
-          ) : (
-            <div className="p-4 text-muted-foreground flex-1 flex items-center justify-center">
-              <p className="text-center">
-                Select a node to configure it,
-                <br />
-                or toggle the AI Assistant to generate a new workflow.
-              </p>
+        {isAssistantVisible && (
+          <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-y-auto">
+            {selectedNode && selectedNodeType ? (
+              <NodeConfigPanel
+                node={selectedNode}
+                nodeType={selectedNodeType}
+                onConfigChange={handleNodeConfigChange}
+                onNodeNameChange={handleNodeNameChange}
+                onNodeDescriptionChange={handleNodeDescriptionChange}
+              />
+            ) : (
+              <AIWorkflowAssistantPanel
+                onWorkflowGenerated={handleAiPromptSubmit}
+                setIsLoadingGlobal={setIsLoadingAi}
+              />
+            )}
+            <div className="mt-auto border-t">
+              <ExecutionLogPanel 
+                logs={executionLogs} 
+                onRunWorkflow={handleRunWorkflow} 
+                isWorkflowRunning={isWorkflowRunning} 
+              />
             </div>
-          )}
-          <div className="mt-auto border-t"> {/* Ensures LogPanel is at bottom */}
-            <ExecutionLogPanel 
-              logs={executionLogs} 
-              onRunWorkflow={handleRunWorkflow} 
-              isWorkflowRunning={isWorkflowRunning} 
-            />
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );
