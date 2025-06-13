@@ -50,10 +50,10 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
         const successMsg = `[ENGINE] Resolved placeholder '{{env.${envVarName}}}' from environment.`;
-        console.log(successMsg);
-        // serverLogs.push({ message: successMsg, type: 'info' }); // Can be too verbose
+        // console.log(successMsg); // Can be too verbose
+        // serverLogs.push({ message: successMsg, type: 'info' }); 
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
-        if (placeholder === value) { // If the entire string was the placeholder
+        if (placeholder === value) { 
             resolvedValue = envVarValue;
         }
         continue; 
@@ -112,12 +112,12 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     }
     
     if (found) {
-      if (placeholder === value && typeof dataAtPath !== 'string') { // If the entire string was the placeholder, and resolved value is not a string, return it as is
+      if (placeholder === value && typeof dataAtPath !== 'string') { 
         resolvedValue = dataAtPath; 
-      } else { // Otherwise, perform string replacement or convert to string if needed
-        const replacementValue = (typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean') 
+      } else { 
+        const replacementValue = (typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean' || dataAtPath === null) 
           ? String(dataAtPath) 
-          : JSON.stringify(dataAtPath); // Stringify objects/arrays if part of a larger string
+          : JSON.stringify(dataAtPath); 
         resolvedValue = resolvedValue.replace(placeholder, replacementValue);
       }
     }
@@ -297,7 +297,8 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
 
       if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
         const conditionValue = resolvedConfig._flow_run_condition;
-        if (conditionValue === false || conditionValue === "false" || conditionValue === 0 || conditionValue === '' || conditionValue === null || conditionValue === undefined) {
+        // Explicitly check for boolean false or string "false"
+        if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
           serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
           console.log(`[ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
           workflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
@@ -455,78 +456,81 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           break;
 
         case 'conditionalLogic':
-          let resolvedCondition = resolvedConfig.condition;
-          if (resolvedCondition === undefined || resolvedCondition === null || typeof resolvedCondition !== 'string') { 
-            throw new Error(`Node ${nodeIdentifier}: Condition string is missing, null, or not a string. Received: ${JSON.stringify(resolvedCondition)}`);
-          }
-          serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Evaluating condition: "${resolvedCondition}"`, type: 'info' });
-          
-          let evaluationResult = false;
-          try {
-            const lowerCondition = resolvedCondition.toLowerCase();
-            if (lowerCondition === 'true') {
-                evaluationResult = true;
-            } else if (lowerCondition === 'false') {
-                evaluationResult = false;
-            } else {
+            const conditionString = resolvedConfig.condition;
+            if (typeof conditionString !== 'string' || conditionString.trim() === '') {
+                throw new Error(`Node ${nodeIdentifier}: Condition string is missing or empty.`);
+            }
+            serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Evaluating condition: "${conditionString}"`, type: 'info' });
+            
+            let evaluationResult = false;
+            try {
                 const operators = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
                 let operatorFound: string | null = null;
-                let conditionParts: string[] = [];
-
+                let parts: string[] = [];
+    
                 for (const op of operators) {
-                    if (resolvedCondition.includes(op)) {
+                    const splitIndex = conditionString.indexOf(op);
+                    if (splitIndex !== -1) {
                         operatorFound = op;
-                        const splitIndex = resolvedCondition.indexOf(op);
-                        conditionParts = [
-                            resolvedCondition.substring(0, splitIndex).trim(),
-                            resolvedCondition.substring(splitIndex + op.length).trim()
+                        parts = [
+                            conditionString.substring(0, splitIndex).trim(),
+                            conditionString.substring(splitIndex + op.length).trim()
                         ];
                         break;
                     }
                 }
-
-                if (operatorFound && conditionParts.length === 2) {
-                    let val1: any = conditionParts[0];
-                    let val2: any = conditionParts[1];
-
-                    const parseOperand = (operand: string) => {
-                        if (operand.toLowerCase() === 'true') return true;
-                        if (operand.toLowerCase() === 'false') return false;
-                        if (operand.toLowerCase() === 'null') return null;
-                        if (operand.toLowerCase() === 'undefined') return undefined;
-                        if ((operand.startsWith("'") && operand.endsWith("'")) || (operand.startsWith('"') && operand.endsWith('"'))) {
-                            return operand.substring(1, operand.length -1);
-                        }
-                        const num = parseFloat(operand);
-                        return isNaN(num) ? operand : num; 
-                    };
-                    
-                    val1 = parseOperand(val1);
-                    val2 = parseOperand(val2);
-
+    
+                const parseOperand = (operandStr: string) => {
+                    operandStr = operandStr.trim();
+                    if (operandStr.toLowerCase() === 'true') return true;
+                    if (operandStr.toLowerCase() === 'false') return false;
+                    if (operandStr.toLowerCase() === 'null') return null;
+                    if (operandStr.toLowerCase() === 'undefined') return undefined;
+                    if ((operandStr.startsWith("'") && operandStr.endsWith("'")) || (operandStr.startsWith('"') && operandStr.endsWith('"'))) {
+                        return operandStr.substring(1, operandStr.length - 1);
+                    }
+                    const num = parseFloat(operandStr);
+                    return isNaN(num) ? operandStr : num;
+                };
+    
+                if (operatorFound && parts.length === 2) {
+                    let val1 = parseOperand(parts[0]);
+                    let val2 = parseOperand(parts[1]);
+    
                     switch(operatorFound) {
                         case '===': evaluationResult = val1 === val2; break;
                         case '!==': evaluationResult = val1 !== val2; break;
-                        case '==': evaluationResult = val1 == val2; break; 
-                        case '!=': evaluationResult = val1 != val2; break; 
-                        case '<':  evaluationResult = val1 < val2; break;
-                        case '>':  evaluationResult = val1 > val2; break;
-                        case '<=': evaluationResult = val1 <= val2; break;
-                        case '>=': evaluationResult = val1 >= val2; break;
+                        case '==':  evaluationResult = val1 == val2; break; 
+                        case '!=':  evaluationResult = val1 != val2; break; 
+                        case '<':   evaluationResult = (typeof val1 === typeof val2) && val1 < val2; break;
+                        case '>':   evaluationResult = (typeof val1 === typeof val2) && val1 > val2; break;
+                        case '<=':  evaluationResult = (typeof val1 === typeof val2) && val1 <= val2; break;
+                        case '>=':  evaluationResult = (typeof val1 === typeof val2) && val1 >= val2; break;
                     }
-                } else { // Treat as truthy/falsy if no operator recognized
-                      evaluationResult = !!resolvedCondition && resolvedCondition.toLowerCase() !== 'false';
+                } else { // No operator, evaluate truthiness/falsiness of the resolved condition string itself
+                    const singleValue = parseOperand(conditionString);
+                    evaluationResult = !!singleValue; 
                 }
+            } catch (e: any) {
+                throw new Error(`Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`);
             }
-          } catch (e: any) {
-            throw new Error(`Node ${nodeIdentifier}: Error evaluating condition "${resolvedCondition}": ${e.message}`);
-          }
-          serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Condition "${resolvedCondition}" evaluated to ${evaluationResult}.`, type: 'success' });
-          nodeOutput = { result: evaluationResult };
-          break;
+            serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
+            nodeOutput = { result: evaluationResult }; // Ensure output is boolean
+            break;
         
         case 'dataTransform':
-            const { transformType, inputString, inputObject, fieldsToExtract, stringsToConcatenate, separator } = resolvedConfig;
+            const { 
+                transformType, 
+                inputString, 
+                inputObject, 
+                inputArray,
+                fieldsToExtract, 
+                stringsToConcatenate, 
+                separator,
+                delimiter,
+                index,
+                propertyName
+            } = resolvedConfig;
             let transformedData: any = null;
             serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
 
@@ -546,23 +550,46 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                 }
                 transformedData = {};
                 for (const field of fieldsToExtract) {
-                  // Basic field extraction, does not support deep paths yet for simplicity
                   if (inputObject.hasOwnProperty(field)) {
                     (transformedData as Record<string, any>)[field] = inputObject[field];
                   }
                 }
                 break;
               case 'concatenateStrings':
-                if (!Array.isArray(stringsToConcatenate) || !stringsToConcatenate.every(s => typeof s === 'string')) {
-                  throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings.');
+                let stringsToJoin = stringsToConcatenate;
+                if (typeof stringsToConcatenate === 'string') { // AI might pass a single string placeholder
+                    stringsToJoin = [stringsToConcatenate];
                 }
-                transformedData = stringsToConcatenate.join(separator || '');
+                if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean')) {
+                    throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, or booleans.');
+                }
+                transformedData = stringsToJoin.map(String).join(separator || '');
                 break;
+              case 'stringSplit':
+                if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.');
+                if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.');
+                transformedData = { array: inputString.split(delimiter) }; // Output as object with 'array' key
+                break;
+              case 'arrayLength':
+                if (!Array.isArray(inputArray)) throw new Error('arrayLength requires inputArray to be an array.');
+                transformedData = { length: inputArray.length }; // Output as object with 'length' key
+                break;
+              case 'getItemAtIndex':
+                if (!Array.isArray(inputArray)) throw new Error('getItemAtIndex requires inputArray to be an array.');
+                const idx = Number(index);
+                if (isNaN(idx) || idx < 0 || idx >= inputArray.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.');
+                transformedData = { item: inputArray[idx] }; // Output as object with 'item' key
+                break;
+              case 'getObjectProperty':
+                 if (typeof inputObject !== 'object' || inputObject === null) throw new Error('getObjectProperty requires inputObject to be an object.');
+                 if (typeof propertyName !== 'string' || propertyName.trim() === '') throw new Error('getObjectProperty requires a non-empty propertyName string.');
+                 transformedData = { propertyValue: inputObject[propertyName] }; // Output as object with 'propertyValue' key
+                 break;
               default:
-                throw new Error(`Unsupported transformType: ${transformType}`);
+                throw new Error(`Unsupported dataTransform type: ${transformType}`);
             }
-            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output (first 200 chars): ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
-            nodeOutput = { output_data: transformedData };
+            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
+            nodeOutput = { output_data: transformedData }; // Ensure consistent output_data handle
             break;
 
         case 'sendEmail':
@@ -571,13 +598,13 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               throw new Error(`Node ${nodeIdentifier}: 'to', 'subject', and 'body' are required for sendEmail.`);
             }
             if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) {
-              throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration.`);
+              throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration. Needed: EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE (optional, defaults to false).`);
             }
             
             const transporter = nodemailer.createTransport({
               host: process.env.EMAIL_HOST,
               port: parseInt(process.env.EMAIL_PORT, 10),
-              secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+              secure: process.env.EMAIL_SECURE === 'true', 
               auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS,
@@ -588,7 +615,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               from: process.env.EMAIL_FROM,
               to: to,
               subject: subject,
-              html: emailBody, // Assuming body is HTML, could also support text
+              html: emailBody, 
             };
 
             serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
@@ -624,6 +651,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               throw new Error(`Database query failed: ${dbError.message}`);
             } finally {
               client.release();
+              await pool.end(); // Ensure pool is closed after query
             }
             break;
 
@@ -667,3 +695,4 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'info' }); 
   return serverLogs;
 }
+

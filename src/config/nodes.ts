@@ -1,9 +1,9 @@
 
 import type { AvailableNodeType } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
-export const NODE_HEIGHT = 90; // Slightly increased height for better text fit
+export const NODE_HEIGHT = 90; 
 
 export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
@@ -63,7 +63,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}' },
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
     },
-    inputHandles: ['input'], // Receives data to use in email template
+    inputHandles: ['input'],
     outputHandles: ['status', 'error'],
   },
   {
@@ -77,7 +77,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;' },
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
     },
-    inputHandles: ['input'], // Receives data to use in query params
+    inputHandles: ['input'], 
     outputHandles: ['results', 'error'],
   },
   {
@@ -125,11 +125,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'conditionalLogic',
     name: 'Condition',
     icon: Filter,
-    description: 'Evaluates a condition. Use its output in a subsequent node\'s `_flow_run_condition` config field (e.g. {{this_node_id.result}}) to control execution.',
+    description: 'Evaluates a condition. Use its boolean `result` in a subsequent node\'s `_flow_run_condition` config field (e.g. {{this_node_id.result}}) to control execution.',
     category: 'logic',
     defaultConfig: { condition: '' },
     configSchema: {
-        condition: { label: 'Condition (e.g., {{data.value}} == "success" or {{data.count}} > 10)', type: 'string', placeholder: '{{data.temperature}} > 30' },
+        condition: { label: 'Condition string (e.g., {{data.value}} == "success", {{data.count}} > 10, {{data.isValid}} === true)', type: 'string', placeholder: '{{data.temperature}} > 30' },
     },
     inputHandles: ['input'],
     outputHandles: ['result'],
@@ -137,22 +137,46 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'dataTransform',
     name: 'Transform Data',
-    icon: FunctionSquare, // Changed icon for clarity
-    description: 'Performs predefined data transformations.',
+    icon: FunctionSquare, 
+    description: 'Performs various predefined data transformations.',
     category: 'logic',
-    defaultConfig: { transformType: 'toUpperCase', inputString: '', fieldsToExtract: '[]', stringsToConcatenate: '[]', separator: '' },
+    defaultConfig: { 
+      transformType: 'toUpperCase', 
+      inputString: '', 
+      inputObject: {},
+      inputArray: [],
+      fieldsToExtract: '[]', 
+      stringsToConcatenate: '[]', 
+      separator: '',
+      delimiter: ',',
+      index: 0,
+      propertyName: '',
+    },
     configSchema: {
         transformType: { 
           label: 'Transformation Type', 
           type: 'select', 
-          options: ['toUpperCase', 'toLowerCase', 'extractFields', 'concatenateStrings'],
+          options: [
+            {value: 'toUpperCase', label: 'To Uppercase'}, 
+            {value: 'toLowerCase', label: 'To Lowercase'}, 
+            {value: 'extractFields', label: 'Extract Fields from Object'}, 
+            {value: 'concatenateStrings', label: 'Concatenate Strings'},
+            {value: 'stringSplit', label: 'Split String to Array'},
+            {value: 'arrayLength', label: 'Get Array Length'},
+            {value: 'getItemAtIndex', label: 'Get Item From Array at Index'},
+            {value: 'getObjectProperty', label: 'Get Property From Object'},
+          ],
           defaultValue: 'toUpperCase'
         },
-        inputString: { label: 'Input String (for case change)', type: 'textarea', placeholder: '{{input.text}}' },
-        inputObject: { label: 'Input Object (for extractFields)', type: 'textarea', placeholder: '{{input.data}}' },
+        inputString: { label: 'Input String (for case, split, concat)', type: 'textarea', placeholder: '{{input.text}}' },
+        inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'textarea', placeholder: '{{input.data}}' },
+        inputArray: { label: 'Input Array (for length, getItem, concat)', type: 'textarea', placeholder: '{{input.list}}' },
         fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' },
-        stringsToConcatenate: { label: 'Strings to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' },
-        separator: { label: 'Separator (for concatenateStrings)', type: 'string', placeholder: ' (space character)' },
+        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' },
+        separator: { label: 'Separator (for concatenateStrings)', type: 'string', placeholder: '(empty for direct join)' },
+        delimiter: { label: 'Delimiter (for stringSplit)', type: 'string', placeholder: ',' },
+        index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' },
+        propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' },
     },
     inputHandles: ['input_data'],
     outputHandles: ['output_data', 'error'],
@@ -248,6 +272,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   }
 ];
 
+// Add more specific icons for transform types later if needed
 export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // General & Triggers
   'trigger': 'trigger',
@@ -289,7 +314,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // Logic & Data
   'parsejson': 'parseJson',
   'parse json': 'parseJson',
-  'json transform': 'parseJson',
+  'json transform': 'parseJson', // Could also be dataTransform
   'extract from json': 'parseJson',
   'conditionallogic': 'conditionalLogic',
   'conditional': 'conditionalLogic',
@@ -302,16 +327,30 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'route based on condition': 'conditionalLogic',
   'datatransform': 'dataTransform',
   'transform data': 'dataTransform',
+  'manipulate data': 'dataTransform',
   'map data': 'dataTransform',
-  'script': 'dataTransform', // AI might still use this, maps to our new transform
+  'script': 'dataTransform', 
   'custom script': 'dataTransform',
   'run code': 'dataTransform',
   'javascript': 'dataTransform',
   'code': 'dataTransform',
-  'uppercase': 'dataTransform', // Specific transform types
+  'uppercase': 'dataTransform', 
+  'touppercase': 'dataTransform',
   'lowercase': 'dataTransform',
+  'tolowercase': 'dataTransform',
   'extractfields': 'dataTransform',
   'concatenate': 'dataTransform',
+  'concatenatestrings': 'dataTransform',
+  'stringsplit': 'dataTransform',
+  'split string': 'dataTransform',
+  'arraylength': 'dataTransform',
+  'get array length': 'dataTransform',
+  'count items in array': 'dataTransform',
+  'getitematindex': 'dataTransform',
+  'get item from array': 'dataTransform',
+  'getobjectproperty': 'dataTransform',
+  'get property from object': 'dataTransform',
+
 
   // AI
   'aitask': 'aiTask',
@@ -356,3 +395,24 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'workflownode': 'workflowNode', 
   'unknown': 'unknown'
 };
+
+// Helper to get appropriate icon for specific dataTransform types, not currently used in UI but can be for future.
+export const getDataTransformIcon = (transformType?: string): LucideIcon => {
+  switch (transformType) {
+    case 'toUpperCase':
+    case 'toLowerCase':
+      return CaseSensitive;
+    case 'stringSplit':
+      return SplitSquareHorizontal;
+    case 'arrayLength':
+    case 'getItemAtIndex':
+      return ListOrdered;
+    case 'getObjectProperty':
+    case 'extractFields':
+      return Milestone; // Placeholder, consider specific icon
+    case 'concatenateStrings':
+      return Combine;
+    default:
+      return FunctionSquare;
+  }
+}
