@@ -23,7 +23,7 @@ const WorkflowNodeSchema = z.object({
     x: z.number(),
     y: z.number(),
   }).describe('The X, Y coordinates of the node in the visual editor. Nodes should be laid out logically, e.g., left-to-right or top-to-bottom flow. Stagger nodes if they are in sequence.'),
-  config: z.any().describe("Configuration parameters for the node. This should be a valid JSON object. Populate relevant fields based on the node's 'type' and its corresponding 'configSchema'. Examples:\n- 'httpRequest': include 'url', 'method'.\n- 'aiTask': include 'prompt', 'model'.\n- 'sendEmail': include 'to', 'subject', 'body'. Expect EMAIL_* env vars for server settings.\n- 'databaseQuery': include 'queryText' (SQL with $1, $2 placeholders) and 'queryParams' (JSON array of values). Expect DB_CONNECTION_STRING env var.\n- 'dataTransform': include 'transformType' (e.g., 'toUpperCase', 'extractFields'), and specific params like 'inputString', 'inputObject', 'fieldsToExtract' (JSON array), 'stringsToConcatenate' (JSON array), 'separator'.\n- Use placeholders like '{{previous_node_id.output_handle_name.property}}' to reference outputs. For credentials, PREFER `{{env.YOUR_VARIABLE_NAME}}` and mention this in aiExplanation. For conditional execution, include a '_flow_run_condition' field with a placeholder pointing to a boolean output, e.g., '{{conditional_node.result}}'."),
+  config: z.any().describe("Configuration parameters for the node. This should be a valid JSON object. Populate relevant fields based on the node's 'type' and its corresponding 'configSchema'. Examples:\n- 'httpRequest': include 'url', 'method'.\n- 'aiTask': include 'prompt', 'model'.\n- 'sendEmail': include 'to', 'subject', 'body'. Expect EMAIL_* env vars for server settings.\n- 'databaseQuery': include 'queryText' (SQL with $1, $2 placeholders) and 'queryParams' (JSON array of values). Expect DB_CONNECTION_STRING env var.\n- 'dataTransform': include 'transformType' (e.g., 'toUpperCase', 'extractFields'), and specific params like 'inputString', 'inputObject', 'fieldsToExtract' (JSON array of *top-level* field names), 'stringsToConcatenate' (JSON array), 'separator'.\n- Use placeholders like '{{previous_node_id.output_handle_name.property}}' to reference outputs. For credentials, PREFER `{{env.YOUR_VARIABLE_NAME}}` and mention this in aiExplanation. For conditional execution, include a '_flow_run_condition' field with a placeholder pointing to a boolean output, e.g., '{{conditional_node.result}}'."),
   aiExplanation: z.string().optional().describe('AI-generated explanation for this node: why it was chosen, its configuration (especially data flow placeholders, credential placeholders like `{{env.YOUR_VARIABLE_NAME}}` to be set by user, conditional execution fields, and specific config for sendEmail/databaseQuery/dataTransform like parameters for $1,$2 or transformType), assumptions made, and its role.'),
 });
 
@@ -73,7 +73,7 @@ The workflow consists of 'nodes' and 'connections'.
 
 Node Requirements: For each node, you MUST provide:
 - 'id': A unique, snake_case string identifier.
-- 'type': The most appropriate node type. Examples: 'httpRequest', 'parseJson', 'aiTask', 'sendEmail', 'databaseQuery', 'dataTransform', 'conditionalLogic'.
+- 'type': The most appropriate node type. Examples: 'httpRequest', 'parseJson', 'aiTask', 'sendEmail', 'databaseQuery', 'dataTransform', 'conditionalLogic'. If the user mentions "code" or "script", try to map it to a 'dataTransform' node with a suitable 'transformType' if possible.
 - 'name': A short, descriptive name for this node instance.
 - 'description': (Optional) A brief sentence explaining this node's purpose.
 - 'position': An object with 'x' and 'y' coordinates for visual layout.
@@ -83,12 +83,12 @@ Node Requirements: For each node, you MUST provide:
     - Credential Handling: For nodes requiring credentials (e.g., API keys, tokens, DB connections, Email server settings), PREFER using placeholders like \`{{env.YOUR_DESCRIPTIVE_VARIABLE_NAME}}\` (e.g., \`{{env.GOOGLE_API_KEY}}\`, \`{{env.DB_CONNECTION_STRING}}\`, \`{{env.EMAIL_HOST}}\`). Clearly state this requirement and the specific environment variable placeholder used in the 'aiExplanation'.
     - Conditional Execution: If a node should only run if a certain condition is met, add a '_flow_run_condition' field to its 'config', like '_flow_run_condition: "{{id_of_conditional_node.result}}"'.
     - Specific Node Config Examples:
-        - 'sendEmail': 'to', 'subject', 'body'. The system expects EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE as env vars for Nodemailer.
+        - 'sendEmail': 'to', 'subject', 'body'. The system expects EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE (true/false) as env vars for Nodemailer.
         - 'databaseQuery': 'queryText' (SQL with $1, $2... for parameters) and 'queryParams' (a JSON array of values/placeholders for $1, $2...). The system expects DB_CONNECTION_STRING (e.g. 'postgresql://user:pass@host:port/db') as an env var. Example: config: { "queryText": "SELECT name FROM users WHERE id = $1 AND active = $2", "queryParams": ["{{trigger.userId}}", true] }
         - 'dataTransform': Must include 'transformType'.
             - 'toUpperCase': Needs 'inputString'. Config: { "transformType": "toUpperCase", "inputString": "{{some_node.text_output}}" }
             - 'toLowerCase': Needs 'inputString'. Config: { "transformType": "toLowerCase", "inputString": "{{some_node.text_output}}" }
-            - 'extractFields': Needs 'inputObject' and 'fieldsToExtract' (JSON array of strings). Config: { "transformType": "extractFields", "inputObject": "{{api_node.response}}", "fieldsToExtract": ["user.id", "user.name", "order.total"] }
+            - 'extractFields': Needs 'inputObject' and 'fieldsToExtract' (JSON array of *top-level* field names, e.g., ["userId", "status"], NOT "user.id"). Config: { "transformType": "extractFields", "inputObject": "{{api_node.response}}", "fieldsToExtract": ["name", "orderTotal"] }
             - 'concatenateStrings': Needs 'stringsToConcatenate' (JSON array of strings/placeholders) and optionally 'separator'. Config: { "transformType": "concatenateStrings", "stringsToConcatenate": ["User: ", "{{user_node.name}}", " - Status: ", "{{status_node.result}}"], "separator": "" } (empty separator for direct join)
 - 'aiExplanation': Your detailed explanation for this node: why chosen, config details (data flow, env vars, conditions, specific params for complex nodes), assumptions, role.
 
@@ -101,7 +101,7 @@ Key Instructions:
 2.  Connectivity: Form a coherent data flow.
 3.  Data Flow: Use placeholders for inter-node data.
 4.  Conditional Paths: Use 'conditionalLogic' nodes and '_flow_run_condition'.
-5.  Node Type Selection: Be specific.
+5.  Node Type Selection: Be specific. If "script" or "code" is requested, attempt to use a 'dataTransform' type or 'aiTask' if appropriate.
 6.  Configuration: Provide sensible defaults/placeholders. Crucially, use \`{{env.VARIABLE_NAME}}\` for credentials/sensitive configs and note these in \`aiExplanation\`. Ensure configuration for implemented nodes like 'sendEmail', 'databaseQuery', 'dataTransform' matches their requirements.
 7.  Production Focus: Aim for robust, sensible workflows.
 
@@ -135,3 +135,4 @@ const generateWorkflowFromPromptFlow = ai.defineFlow(
     return output;
   }
 );
+

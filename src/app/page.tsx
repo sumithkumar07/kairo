@@ -8,6 +8,7 @@ import { executeWorkflow } from '@/app/actions';
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FolderOpen, Trash2, XCircle, MousePointer2 } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Added Button import
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';

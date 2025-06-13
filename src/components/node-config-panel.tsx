@@ -42,9 +42,10 @@ export function NodeConfigPanel({
             onConfigChange(node.id, newConfig);
             return;
         } catch (e) {
-            // If parsing fails, store as string (or handle error)
-            // For now, we'll let it store as string, user will see invalid JSON.
-            // Or, we could show a validation error.
+            console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Config not updated. Error:`, e);
+            // Do not update config if JSON is invalid. User needs to fix the input.
+            // To make this more user-friendly, a visual error could be shown here.
+            return; 
         }
     }
 
@@ -57,6 +58,7 @@ export function NodeConfigPanel({
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
+        // If the current config value for a JSON field is an object/array, stringify it for the textarea
         currentValue = JSON.stringify(currentValue, null, 2);
     }
 
@@ -79,7 +81,7 @@ export function NodeConfigPanel({
         return (
           <Textarea
             id={`${node.id}-${fieldKey}`}
-            value={currentValue}
+            value={currentValue} // currentValue is already stringified for JSON or is a string for textarea
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
             className="mt-1 min-h-[80px] font-mono text-xs"
@@ -189,9 +191,10 @@ export function NodeConfigPanel({
                     onChange={(e) => {
                         try {
                             const newConfig = JSON.parse(e.target.value);
-                            onConfigChange(node.id, newConfig);
+                            onConfigChange(node.id, newConfig); // For raw config, allow direct update if JSON is valid
                         } catch (err) {
-                           // User will see invalid JSON in text area
+                           // User will see invalid JSON in text area, config won't update
+                           console.warn(`[NodeConfigPanel] Invalid raw JSON for node '${node.id}'. Config not updated. Error:`, err);
                         }
                     }}
                     className="mt-1 font-mono text-xs min-h-[100px]"
