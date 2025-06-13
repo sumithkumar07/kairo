@@ -12,12 +12,13 @@ import {
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
 import type { Workflow, ServerLogOutput } from '@/types/workflow';
+import { ai } from '@/ai/genkit'; // Import the global Genkit ai instance
 
 export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {
   try {
-    console.log("Generating workflow with input:", JSON.stringify(input, null, 2));
+    console.log("[SERVER ACTION] Generating workflow with input:", JSON.stringify(input, null, 2));
     const result = await genkitGenerateWorkflowFromPrompt(input);
-    console.log("Workflow generated:", JSON.stringify(result, null, 2));
+    console.log("[SERVER ACTION] Workflow generated:", JSON.stringify(result, null, 2));
     
     if (!result || !Array.isArray(result.nodes) || !Array.isArray(result.connections)) {
       throw new Error("AI returned an invalid workflow structure.");
@@ -25,7 +26,7 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): 
     
     return result;
   } catch (error) {
-    console.error("Error in generateWorkflow server action:", error);
+    console.error("[SERVER ACTION] Error in generateWorkflow:", error);
     if (error instanceof Error) {
       throw new Error(`Failed to generate workflow from AI: ${error.message}`);
     }
@@ -41,7 +42,7 @@ export async function suggestNextWorkflowNode(input: SuggestNextNodeInput): Prom
     }
     return result;
   } catch (error) {
-    console.error("Error in suggestNextWorkflowNode server action:", error);
+    console.error("[SERVER ACTION] Error in suggestNextWorkflowNode:", error);
     if (error instanceof Error) {
       throw new Error(`Failed to suggest next node: ${error.message}`);
     }
@@ -51,54 +52,93 @@ export async function suggestNextWorkflowNode(input: SuggestNextNodeInput): Prom
 
 export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutput[]> {
   const serverLogs: ServerLogOutput[] = [];
-  console.log("[SERVER EXECUTION ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
-  serverLogs.push({ message: `[SERVER] Workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
+  console.log("[WORKFLOW ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
+  serverLogs.push({ message: `[ENGINE] Workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
 
   // TODO: Implement topological sort for correct execution order based on connections.
   // For now, executing in the order they appear in the nodes array.
   for (const node of workflow.nodes) {
-    console.log(`[SERVER EXECUTION ENGINE] Executing node: ${node.name} (Type: ${node.type})`);
-    serverLogs.push({ message: `[SERVER] Executing node: ${node.name} (Type: ${node.type})`, type: 'info' });
+    console.log(`[WORKFLOW ENGINE] Executing node: ${node.name} (Type: ${node.type})`);
+    serverLogs.push({ message: `[ENGINE] Executing node: ${node.name} (ID: ${node.id}, Type: ${node.type})`, type: 'info' });
 
     try {
       switch (node.type) {
         case 'logMessage':
           const messageToLog = node.config?.message || `Default log message from ${node.name}`;
-          console.log(`[WORKFLOW LOG] ${node.name}: ${messageToLog}`); // Actual server-side log
+          console.log(`[WORKFLOW LOG] ${node.name}: ${messageToLog}`); 
           serverLogs.push({ message: `[LOG] ${node.name}: ${messageToLog}`, type: 'info' });
           break;
+
         case 'httpRequest':
-          // Placeholder for actual HTTP request logic
-          console.log(`[SERVER EXECUTION ENGINE] HTTP Request node '${node.name}' would make a call to: ${node.config?.url}`);
-          serverLogs.push({ message: `[HTTP] Node '${node.name}' to ${node.config?.url} - (Execution not yet implemented)`, type: 'info' });
-          // Example: const response = await fetch(node.config.url, { method: node.config.method, headers: node.config.headers, body: node.config.body });
-          // const data = await response.json();
-          // serverLogs.push({ message: `[HTTP] Response from ${node.name}: ${JSON.stringify(data)}`, type: 'info' });
+          const { url, method = 'GET', headers: headersString = '{}', body } = node.config;
+          if (!url) {
+            throw new Error(`Node '${node.name}': URL is not configured.`);
+          }
+          serverLogs.push({ message: `[HTTP] Node '${node.name}': Attempting ${method} request to ${url}`, type: 'info' });
+          
+          let parsedHeaders: Record<string, string> = {};
+          try {
+            if (headersString && typeof headersString === 'string' && headersString.trim() !== '') {
+                 parsedHeaders = JSON.parse(headersString);
+            } else if (typeof headersString === 'object' && headersString !== null) {
+                parsedHeaders = headersString;
+            }
+          } catch (e: any) {
+            throw new Error(`Node '${node.name}': Invalid headers JSON: ${e.message}`);
+          }
+
+          const fetchOptions: RequestInit = { method, headers: parsedHeaders };
+          if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+            fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+            if (!parsedHeaders['Content-Type'] && typeof body !== 'string') {
+                (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+            }
+          }
+          
+          const response = await fetch(url, fetchOptions);
+          const responseText = await response.text(); // Read response body once
+
+          if (!response.ok) {
+            serverLogs.push({ message: `[HTTP] Node '${node.name}': Request to ${url} FAILED with status ${response.status}. Response: ${responseText}`, type: 'error' });
+            throw new Error(`HTTP request failed with status ${response.status}: ${responseText}`);
+          }
+          serverLogs.push({ message: `[HTTP] Node '${node.name}': Request to ${url} SUCCEEDED with status ${response.status}. Response: ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
+          // TODO: Store response data for subsequent nodes
           break;
+
         case 'aiTask':
-          console.log(`[SERVER EXECUTION ENGINE] AI Task node '${node.name}' would run with prompt: ${node.config?.prompt}`);
-          serverLogs.push({ message: `[AI TASK] Node '${node.name}' prompt: "${node.config?.prompt}" - (Execution not yet implemented)`, type: 'info' });
-          // Example: const aiResult = await someGenkitFlow({ prompt: node.config.prompt, model: node.config.model });
-          // serverLogs.push({ message: `[AI TASK] Result from ${node.name}: ${aiResult}`, type: 'info' });
+          const { prompt: aiPrompt, model: aiModel = 'googleai/gemini-1.5-flash-latest' } = node.config;
+          if (!aiPrompt) {
+            throw new Error(`Node '${node.name}': AI Prompt is not configured.`);
+          }
+          serverLogs.push({ message: `[AI TASK] Node '${node.name}': Sending prompt to model ${aiModel}. Prompt: "${aiPrompt.substring(0, 100)}${aiPrompt.length > 100 ? '...' : ''}"`, type: 'info' });
+          
+          const { text: aiResponseText } = await ai.generate({
+            prompt: aiPrompt,
+            model: aiModel as any, // Cast because model can be specific, ai.generate is generic
+          });
+          
+          serverLogs.push({ message: `[AI TASK] Node '${node.name}': Received response from AI. Response: ${aiResponseText().substring(0, 200)}${aiResponseText().length > 200 ? '...' : ''}`, type: 'success' });
+          // TODO: Store AI response data for subsequent nodes
           break;
+          
         default:
-          console.log(`[SERVER EXECUTION ENGINE] Node type '${node.type}' not yet implemented for real execution. Skipping.`);
-          serverLogs.push({ message: `[SERVER] Node type '${node.type}' execution is not yet implemented. Skipped.`, type: 'info' });
+          console.log(`[WORKFLOW ENGINE] Node type '${node.type}' not yet implemented for real execution. Skipping.`);
+          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' execution is not yet implemented. Skipped.`, type: 'info' });
           break;
       }
-      // Simulate some processing time if actual work was done
-      // await new Promise(resolve => setTimeout(resolve, 100)); 
-      serverLogs.push({ message: `[SERVER] Node '${node.name}' processed.`, type: 'success' });
+      serverLogs.push({ message: `[ENGINE] Node '${node.name}' (ID: ${node.id}) processed successfully.`, type: 'success' });
 
     } catch (error: any) {
-      console.error(`[SERVER EXECUTION ENGINE] Error executing node ${node.name}:`, error);
-      serverLogs.push({ message: `[SERVER] Error executing node ${node.name}: ${error.message || 'Unknown error'}`, type: 'error' });
+      console.error(`[WORKFLOW ENGINE] Error executing node ${node.name} (ID: ${node.id}):`, error);
+      serverLogs.push({ message: `[ENGINE] Error executing node ${node.name} (ID: ${node.id}): ${error.message || 'Unknown error'}`, type: 'error' });
       // For now, we'll let the workflow continue even if a node fails.
-      // In a real engine, this would be configurable.
+      // In a real engine, this would be configurable (e.g., stop on error, continue on error).
     }
   }
 
-  console.log("[SERVER EXECUTION ENGINE] Workflow execution finished.");
-  serverLogs.push({ message: "[SERVER] Workflow execution finished.", type: 'success' });
+  console.log("[WORKFLOW ENGINE] Workflow execution finished.");
+  serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'success' });
   return serverLogs;
 }
+
