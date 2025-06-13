@@ -7,6 +7,11 @@ import {
   type GenerateWorkflowFromPromptOutput
 } from '@/ai/flows/generate-workflow-from-prompt';
 import {
+  enhanceUserPrompt as genkitEnhanceUserPrompt,
+  type EnhanceUserPromptInput,
+  type EnhanceUserPromptOutput
+} from '@/ai/flows/enhance-user-prompt-flow';
+import {
   suggestNextNode as genkitSuggestNextNode,
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
@@ -38,14 +43,14 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
 
     const firstPart = pathParts[0];
 
-    if (firstPart === 'env' && pathParts.length === 2) {
-      const envVarName = pathParts[1];
+    if (firstPart === 'env' && pathParts.length >= 2) {
+      const envVarName = pathParts.slice(1).join('.'); // Handle env vars with dots if ever needed, though typically simple
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
         const successMsg = `[ENGINE] Resolved placeholder '{{env.${envVarName}}}' from environment.`;
+        console.log(successMsg);
         serverLogs.push({ message: successMsg, type: 'info' });
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
-        // If the entire value was just this placeholder, make sure to assign the potentially non-string value directly
         if (placeholder === value) {
             resolvedValue = envVarValue;
         }
@@ -58,15 +63,15 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
       }
     }
     
-    if (firstPart === 'secrets' && pathParts.length === 2) {
-        const secretName = pathParts[1];
+    if (firstPart === 'secrets' && pathParts.length >= 2) {
+        const secretName = pathParts.slice(1).join('.');
         const infoMsg = `[ENGINE] Placeholder '{{secrets.${secretName}}}' recognized. Actual secret resolution from a vault is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in .env.local.`;
         console.info(infoMsg); 
         serverLogs.push({ message: infoMsg, type: 'info'});
         continue; 
     }
 
-    let currentData = workflowData[firstPart]; // firstPart is nodeId here
+    let currentData = workflowData[firstPart]; 
 
     if (currentData === undefined) {
       const warningMsg = `[ENGINE] No data found for node ID '${firstPart}' in workflow data when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs in data: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
@@ -113,8 +118,6 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
           : JSON.stringify(dataAtPath);
         resolvedValue = resolvedValue.replace(placeholder, replacementValue);
       }
-    } else {
-        // Warning already logged by the loop
     }
   }
   return resolvedValue;
@@ -141,10 +144,33 @@ function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record
   return resolvedConfig;
 }
 
+export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string }): Promise<GenerateWorkflowFromPromptOutput> {
+  try {
+    console.log("[SERVER ACTION] Enhancing prompt:", input.originalPrompt);
+    const enhancementResult = await genkitEnhanceUserPrompt({ originalPrompt: input.originalPrompt });
+    
+    let promptForGeneration = input.originalPrompt;
+    if (enhancementResult && enhancementResult.enhancedPrompt) {
+      console.log("[SERVER ACTION] Enhanced prompt received:", enhancementResult.enhancedPrompt);
+      promptForGeneration = enhancementResult.enhancedPrompt;
+    } else {
+      console.warn("[SERVER ACTION] Prompt enhancement failed or returned empty. Using original prompt.");
+    }
+    
+    return generateWorkflow({ prompt: promptForGeneration });
+  } catch (error) {
+    console.error("[SERVER ACTION] Error in enhanceAndGenerateWorkflow:", error);
+    if (error instanceof Error) {
+      throw new Error(`Failed during prompt enhancement or workflow generation: ${error.message}`);
+    }
+    throw new Error("Failed during prompt enhancement or workflow generation due to an unknown error.");
+  }
+}
+
 
 export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {
   try {
-    console.log("[SERVER ACTION] Generating workflow with input:", JSON.stringify(input, null, 2));
+    console.log("[SERVER ACTION] Generating workflow with prompt:", JSON.stringify(input.prompt, null, 2));
     const result = await genkitGenerateWorkflowFromPrompt(input);
     console.log("[SERVER ACTION] Workflow generated:", JSON.stringify(result, null, 2));
     
@@ -245,7 +271,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   const { executionOrder, error: sortError } = getExecutionOrder(workflow.nodes, workflow.connections);
 
   if (sortError) {
-    serverLogs.push({ message: sortError, type: 'error' }); // Error message already includes [ENGINE]
+    serverLogs.push({ message: sortError, type: 'error' });
     serverLogs.push({ message: "[ENGINE] Workflow execution HALTED due to graph error.", type: 'error' });
     return serverLogs;
   }
@@ -494,17 +520,14 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
         
         case 'dataTransform':
             const scriptToLog = resolvedConfig?.script || '(No script provided)';
-            const inputDataForTransform = workflowData[node.inputHandles?.[0] || ''] || resolvedConfig.input_data || null; // Try to get from connected input first
-
+            const inputDataForTransform = workflowData[(node.inputHandles && node.inputHandles.length > 0 ? node.inputHandles[0] : "")] || resolvedConfig.input_data || null; 
+            
             serverLogs.push({ 
-                message: `[NODE DATATRANSFORM] ${nodeIdentifier}: SIMULATE: Intended script: "${scriptToLog}". Actual script execution is not implemented for security. Passing input data through.`, 
+                message: `[NODE DATATRANSFORM] ${nodeIdentifier}: SIMULATE: Intended script: "${scriptToLog}". Input data (passed through): ${JSON.stringify(inputDataForTransform, null, 2).substring(0,200)}${JSON.stringify(inputDataForTransform, null, 2).length > 200 ? '...' : ''}`, 
                 type: 'info' 
             });
             console.log(`[NODE DATATRANSFORM] ${nodeIdentifier}: Simulating data transformation. Intended script: ${scriptToLog}. Input data (passed through):`, JSON.stringify(inputDataForTransform, null, 2).substring(0, 500));
             
-            // Pass through input data as output_data
-            // If inputHandles[0] was used to get data, it's likely already in workflowData[node.id].
-            // For direct config, we use inputDataForTransform
             nodeOutput = { output_data: inputDataForTransform, status: "simulated_transform_pass_through" };
             break;
 

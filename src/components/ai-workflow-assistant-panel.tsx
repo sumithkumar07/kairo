@@ -3,11 +3,11 @@
 
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import { generateWorkflow } from '@/app/actions';
+import { enhanceAndGenerateWorkflow } from '@/app/actions'; // Updated to use the new action
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send } from 'lucide-react'; // Using Send icon
+import { Lightbulb, Loader2, Send } from 'lucide-react';
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
@@ -39,11 +39,12 @@ export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlob
     setIsLoading(true);
     setIsLoadingGlobal(true);
     try {
-      const result = await generateWorkflow({ prompt });
+      // Call the new action that includes the enhancement step
+      const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
       toast({
         title: 'Workflow Generated!',
-        description: 'The AI has generated a workflow based on your prompt.',
+        description: 'The AI has processed your prompt and generated a workflow.',
       });
       // setPrompt(''); // Keep prompt for potential refinement
     } catch (error: any) {
@@ -75,7 +76,7 @@ export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlob
       
       <div className="p-4 space-y-4 flex-1 overflow-y-auto">
         <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
-            Hi! I&apos;m your AI workflow assistant. Describe what you want to automate and I&apos;ll generate a complete workflow for you.
+            Hi! I&apos;m your AI workflow assistant. Describe what you want to automate and I&apos;ll generate a complete workflow for you. I can even try to enhance your prompt first!
         </div>
 
         <div>
@@ -115,7 +116,7 @@ export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlob
             {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Send className="h-5 w-5" /> // Changed to Send icon
+              <Send className="h-5 w-5" />
             )}
           </Button>
         </div>
