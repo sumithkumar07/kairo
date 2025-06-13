@@ -15,22 +15,24 @@ import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection } from
 import { ai } from '@/ai/genkit'; 
 
 // Helper function to resolve placeholder values from workflowData
-function resolveValue(value: any, workflowData: Record<string, any>): any {
+function resolveValue(value: any, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): any {
   if (typeof value !== 'string') {
     return value;
   }
 
   const placeholderRegex = /{{\s*([^{}\s]+)\s*}}/g;
   let resolvedValue = value;
-
   let match;
+
   while ((match = placeholderRegex.exec(value)) !== null) {
     const placeholder = match[0]; 
     const path = match[1]; 
     const pathParts = path.split('.'); 
     
     if (pathParts.length === 0) {
-      console.warn(`[WORKFLOW ENGINE] Invalid placeholder path: '${path}' in '${value}'`);
+      const warningMsg = `[WORKFLOW ENGINE] Invalid placeholder path: '${path}' in '${value}'. Placeholder remains unresolved.`;
+      console.warn(warningMsg);
+      serverLogs.push({ message: warningMsg, type: 'info' });
       continue;
     }
 
@@ -38,7 +40,9 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
     let currentData = workflowData[nodeId];
 
     if (currentData === undefined) {
-      console.warn(`[WORKFLOW ENGINE] No data found for node '${nodeId}' in placeholder '${placeholder}'. Placeholder remains unresolved.`);
+      const warningMsg = `[WORKFLOW ENGINE] No data found for node '${nodeId}' in placeholder '${placeholder}'. Placeholder remains unresolved.`;
+      console.warn(warningMsg);
+      serverLogs.push({ message: warningMsg, type: 'info' });
       continue; 
     }
     
@@ -53,42 +57,48 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
         if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
           dataAtPath = dataAtPath[arrayKey][index];
         } else {
-          console.warn(`[WORKFLOW ENGINE] Array access failed for '${part}' in placeholder '${placeholder}'. Path: ${pathParts.slice(0, i+1).join('.')}`);
+          const warningMsg = `[WORKFLOW ENGINE] Array access failed for '${part}' in placeholder '${placeholder}'. Path: ${pathParts.slice(0, i+1).join('.')}. Data for ${nodeId}: ${JSON.stringify(dataAtPath, null, 2).substring(0,100)}`;
+          console.warn(warningMsg);
+          serverLogs.push({ message: warningMsg, type: 'info' });
           found = false; break;
         }
       } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
         dataAtPath = dataAtPath[part];
       } else {
-        console.warn(`[WORKFLOW ENGINE] Path part '${part}' not found in data for node '${nodeId}' using placeholder '${placeholder}'. Path: ${pathParts.slice(0, i+1).join('.')}`);
+        const warningMsg = `[WORKFLOW ENGINE] Path part '${part}' not found in data for node '${nodeId}' using placeholder '${placeholder}'. Path: ${pathParts.slice(0, i+1).join('.')}. Data for ${nodeId}: ${JSON.stringify(dataAtPath, null, 2).substring(0,100)}`;
+        console.warn(warningMsg);
+        serverLogs.push({ message: warningMsg, type: 'info' });
         found = false;
         break;
       }
     }
     
     if (found) {
-      if (placeholder === value) {
+      if (placeholder === value) { // If the entire string is the placeholder
         resolvedValue = dataAtPath; 
-      } else {
-        resolvedValue = resolvedValue.replace(placeholder, String(dataAtPath));
+      } else { // If placeholder is part of a larger string
+        resolvedValue = resolvedValue.replace(placeholder, typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean' ? String(dataAtPath) : JSON.stringify(dataAtPath));
       }
     } else {
-      console.warn(`[WORKFLOW ENGINE] Placeholder '${placeholder}' could not be fully resolved. Remaining: ${pathParts.slice(1).join('.')}`);
+      const warningMsg = `[WORKFLOW ENGINE] Placeholder '${placeholder}' could not be fully resolved. Path segment '${pathParts.slice(1).join('.')}' not found or invalid. Placeholder remains in string.`;
+      console.warn(warningMsg);
+      serverLogs.push({ message: warningMsg, type: 'info' });
     }
   }
   return resolvedValue;
 }
 
-function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record<string, any>): Record<string, any> {
+function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): Record<string, any> {
   const resolvedConfig: Record<string, any> = {};
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
       if (typeof value === 'string') {
-        resolvedConfig[key] = resolveValue(value, workflowData);
+        resolvedConfig[key] = resolveValue(value, workflowData, serverLogs);
       } else if (Array.isArray(value)) {
-        resolvedConfig[key] = value.map(item => resolveValue(item, workflowData)); // Resolve for items in array if they are strings
+        resolvedConfig[key] = value.map(item => resolveValue(item, workflowData, serverLogs));
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = resolveNodeConfig(value, workflowData); 
+        resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs); 
       } else {
         resolvedConfig[key] = value; 
       }
@@ -146,12 +156,10 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
   }
 
   for (const conn of connections) {
-    // Ensure nodes exist before creating an edge
     if (nodeMap[conn.sourceNodeId] && nodeMap[conn.targetNodeId]) {
         adj[conn.sourceNodeId].push(conn.targetNodeId);
         inDegree[conn.targetNodeId]++;
     } else {
-        // This case should ideally be caught by UI or validation before execution
         console.warn(`[WORKFLOW ENGINE] Invalid connection: ${conn.sourceNodeId} -> ${conn.targetNodeId}. One or both nodes not found during graph build.`);
     }
   }
@@ -168,7 +176,7 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
     const u = queue.shift()!;
     executionOrder.push(nodeMap[u]);
 
-    if(adj[u]){ // Check if u exists in adj, could be an isolated node not in connections
+    if(adj[u]){ 
         for (const v of adj[u]) {
         inDegree[v]--;
         if (inDegree[v] === 0) {
@@ -213,12 +221,32 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
     serverLogs.push({ message: `[ENGINE] Processing node: ${node.name || node.id} (ID: ${node.id}, Type: ${node.type})`, type: 'info' });
 
     try {
-      const resolvedConfig = resolveNodeConfig(node.config || {}, workflowData);
+      const resolvedConfig = resolveNodeConfig(node.config || {}, workflowData, serverLogs);
       console.log(`[WORKFLOW ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
+
+      // Conditional Execution Check
+      if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
+        const conditionValue = resolvedConfig._flow_run_condition;
+        // The conditionValue itself is the result of placeholder resolution, so it should be a boolean or evaluate to one.
+        if (!conditionValue) { // Checks for false, 0, "", null, undefined
+          serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) SKIPPED due to _flow_run_condition evaluating to falsy (${conditionValue}).`, type: 'info' });
+          console.log(`[WORKFLOW ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
+          workflowData[node.id] = { status: 'skipped', reason: '_flow_run_condition was falsy' };
+          continue; // Skip to the next node in executionOrder
+        }
+        serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) proceeding: _flow_run_condition evaluated to truthy (${conditionValue}).`, type: 'info' });
+      }
+
 
       let nodeOutput: any = null; 
 
       switch (node.type) {
+        case 'trigger': // Example: Manual Trigger
+        case 'schedule': // Example: Schedule Trigger
+          serverLogs.push({ message: `[SIMULATE] Node '${node.name || node.id}' (Type: ${node.type}): Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
+          nodeOutput = { status: "simulated_trigger_activated", details: resolvedConfig, triggeredAt: new Date().toISOString() };
+          break;
+
         case 'logMessage':
           const messageToLog = resolvedConfig?.message || `Default log message from ${node.name || node.id}`;
           console.log(`[WORKFLOW LOG] ${node.name || node.id}: ${messageToLog}`); 
@@ -267,7 +295,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           } catch (e) {
              parsedResponse = responseText; 
           }
-          nodeOutput = { response: parsedResponse };
+          nodeOutput = { response: parsedResponse, status_code: response.status };
           break;
 
         case 'aiTask':
@@ -351,34 +379,68 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           
           let evaluationResult = false;
           try {
-            // Basic evaluation: check for truthiness of the resolved condition string.
-            // This is very simplistic. For "a == b", user must ensure condition is "{{a}} == {{b}}" which resolves to "val_a == val_b"
-            // A more robust solution would involve a proper expression parser.
             if (typeof condition === 'string') {
-                 // Attempt to handle simple equality for demo purposes, not a full expression engine
-                const parts = condition.split('==').map(p => p.trim());
+                const parts = condition.split(/==|!=|<=|>=|<|>/); // Split by common comparison operators
                 if (parts.length === 2) {
-                    // If parts resolve to 'true' or 'false' strings, convert to boolean
-                    const p1 = parts[0] === 'true' ? true : parts[0] === 'false' ? false : parts[0];
-                    const p2 = parts[1] === 'true' ? true : parts[1] === 'false' ? false : parts[1];
-                    evaluationResult = p1 == p2; // Use loose equality for resolved string/number comparisons
+                    const operatorMatch = condition.match(/==|!=|<=|>=|<|>/);
+                    const operator = operatorMatch ? operatorMatch[0] : null;
+                    let p1 = parts[0].trim();
+                    let p2 = parts[1].trim();
+
+                    // Attempt to convert to number if they look like numbers
+                    const n1 = Number(p1);
+                    const n2 = Number(p2);
+                    if (!isNaN(n1) && !isNaN(n2)) {
+                        p1 = n1 as any;
+                        p2 = n2 as any;
+                    } else {
+                       // Convert 'true'/'false' strings to booleans
+                       if (p1.toLowerCase() === 'true') p1 = true as any;
+                       else if (p1.toLowerCase() === 'false') p1 = false as any;
+                       if (p2.toLowerCase() === 'true') p2 = true as any;
+                       else if (p2.toLowerCase() === 'false') p2 = false as any;
+                    }
+                    
+                    switch(operator) {
+                        case '==': evaluationResult = p1 == p2; break; // Loose equality
+                        case '!=': evaluationResult = p1 != p2; break;
+                        case '<': evaluationResult = p1 < p2; break;
+                        case '>': evaluationResult = p1 > p2; break;
+                        case '<=': evaluationResult = p1 <= p2; break;
+                        case '>=': evaluationResult = p1 >= p2; break;
+                        default: evaluationResult = Boolean(condition); // Fallback for unhandled operators or simple truthiness
+                    }
                 } else if (condition.toLowerCase() === 'true') {
                     evaluationResult = true;
                 } else if (condition.toLowerCase() === 'false') {
                     evaluationResult = false;
                 } else {
-                    // For any other string, consider it "truthy" if not empty, or try to parse as boolean/number
                     evaluationResult = Boolean(condition);
                 }
             } else {
-                 evaluationResult = Boolean(condition); // If already resolved to boolean/number
+                 evaluationResult = Boolean(condition); 
             }
 
           } catch (e: any) {
             throw new Error(`Node '${node.name || node.id}': Error evaluating condition: ${e.message}`);
           }
           serverLogs.push({ message: `[CONDITIONAL] Node '${node.name || node.id}': Condition evaluated to ${evaluationResult}.`, type: 'success' });
-          nodeOutput = { result: evaluationResult }; // Output handle name is 'result'
+          nodeOutput = { result: evaluationResult };
+          break;
+
+        // Stubbed Nodes
+        case 'sendEmail':
+        case 'databaseQuery':
+        case 'dataTransform':
+        case 'youtubeFetchTrending':
+        case 'youtubeDownloadVideo':
+        case 'videoConvertToShorts':
+        case 'youtubeUploadShort':
+        case 'workflowNode': // Generic node, treat as stub for now
+          const simulationMessage = `[SIMULATE] Node '${node.name || node.id}' (Type: ${node.type}): Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
+          console.log(simulationMessage);
+          serverLogs.push({ message: simulationMessage, type: 'info' });
+          nodeOutput = { status: "simulated_execution", simulated_config: resolvedConfig };
           break;
           
         default:
@@ -396,7 +458,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
       serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) processed successfully.`, type: 'success' });
 
     } catch (error: any) {
-      console.error(`[WORKFLOW ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}):`, error.message);
+      console.error(`[WORKFLOW ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}):`, error.message, error.stack);
       serverLogs.push({ message: `[ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}): ${error.message || 'Unknown error'}`, type: 'error' });
       workflowData[node.id] = { error: error.message || 'Unknown error' }; 
       serverLogs.push({ message: `[ENGINE] Workflow execution HALTED due to error in node ${node.name || node.id}.`, type: 'error' });

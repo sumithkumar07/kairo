@@ -22,7 +22,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'httpRequest',
     name: 'HTTP Request',
     icon: Network,
-    description: 'Makes an HTTP request to a specified URL.', // General action
+    description: 'Makes an HTTP request to a specified URL.',
     category: 'action', 
     defaultConfig: { url: '', method: 'GET', headers: '{}', body: '' },
     configSchema: {
@@ -37,7 +37,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
     },
     inputHandles: ['input'],
-    outputHandles: ['response', 'error'], // 'response' for successful data
+    outputHandles: ['response', 'status_code', 'error'],
   },
   {
     type: 'schedule',
@@ -64,7 +64,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Your workflow has completed.' },
     },
     inputHandles: ['input'],
-    outputHandles: ['status'], // 'status' for success/failure
+    outputHandles: ['status'],
   },
   {
     type: 'databaseQuery',
@@ -105,7 +105,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       message: { label: 'Message to Log', type: 'textarea', placeholder: 'Current value: {{data.value}}' },
     },
     inputHandles: ['input'],
-    outputHandles: ['output'], // The logged message itself
+    outputHandles: ['output'],
   },
   {
     type: 'aiTask',
@@ -124,21 +124,21 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'conditionalLogic',
     name: 'Condition',
-    icon: Filter, // Changed icon to Filter
-    description: 'Routes workflow based on a condition.',
+    icon: Filter,
+    description: 'Evaluates a condition. Use its output in a subsequent node\'s `_flow_run_condition` config field (e.g. {{this_node_id.result}}) to control execution.',
     category: 'logic',
     defaultConfig: { condition: '' },
     configSchema: {
-        condition: { label: 'Condition (e.g., {{data.value}} == "success")', type: 'string', placeholder: '{{data.value}} == "success"' },
+        condition: { label: 'Condition (e.g., {{data.value}} == "success" or {{data.count}} > 10)', type: 'string', placeholder: '{{data.temperature}} > 30' },
     },
     inputHandles: ['input'],
-    outputHandles: ['result'], // 'result' will be true or false
+    outputHandles: ['result'],
   },
   {
     type: 'dataTransform',
     name: 'Transform Data',
     icon: FunctionSquare,
-    description: 'Modifies data using JavaScript or expressions (conceptual).',
+    description: 'Modifies data using JavaScript or expressions (conceptual - currently logs intent).',
     category: 'logic',
     defaultConfig: { script: 'return data;' },
     configSchema: {
@@ -151,20 +151,21 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeFetchTrending',
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
-    description: 'Fetches trending videos from YouTube (conceptual).',
-    category: 'trigger', // Can also be an action if triggered by something else
-    defaultConfig: { region: 'US', maxResults: 3 },
+    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent).',
+    category: 'trigger',
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{secrets.YOUTUBE_API_KEY}}' },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
+      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{secrets.YOUTUBE_API_KEY}}'}
     },
-    outputHandles: ['videos', 'error'],
+    outputHandles: ['videos', 'status', 'error'],
   },
   {
     type: 'youtubeDownloadVideo',
     name: 'YouTube: Download Video',
     icon: DownloadCloud,
-    description: 'Downloads a YouTube video (conceptual).',
+    description: 'Downloads a YouTube video (conceptual - currently logs intent).',
     category: 'action',
     defaultConfig: { videoUrl: '', quality: 'best' },
     configSchema: {
@@ -172,13 +173,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best' },
     },
     inputHandles: ['input'],
-    outputHandles: ['filePath', 'error'],
+    outputHandles: ['filePath', 'status', 'error'],
   },
   {
     type: 'videoConvertToShorts',
     name: 'Video: Convert to Shorts',
     icon: Scissors,
-    description: 'Converts a video to a short format (conceptual).',
+    description: 'Converts a video to a short format (conceptual - currently logs intent).',
     category: 'action',
     defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut' },
     configSchema: {
@@ -187,31 +188,32 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut'},
     },
     inputHandles: ['input'],
-    outputHandles: ['shortFilePath', 'error'],
+    outputHandles: ['shortFilePath', 'status', 'error'],
   },
   {
     type: 'youtubeUploadShort',
     name: 'YouTube: Upload Short',
     icon: UploadCloud,
-    description: 'Uploads a video short to YouTube (conceptual).',
+    description: 'Uploads a video short to YouTube (conceptual - currently logs intent).',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public' },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secrets.YOUTUBE_CREDENTIALS}}' },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secrets.YOUTUBE_CREDENTIALS}}'}
     },
     inputHandles: ['input'],
-    outputHandles: ['uploadStatus', 'videoId', 'error'],
+    outputHandles: ['uploadStatus', 'videoId', 'status', 'error'],
   },
   {
-    type: 'workflowNode', // Renamed from 'customAction' for broader use by AI if no specific type matches
-    name: 'Generic Workflow Step', // Renamed for clarity
+    type: 'workflowNode', 
+    name: 'Custom Action', 
     icon: WorkflowIcon,
     description: 'A generic, configurable step in the workflow. Used by AI when a specific node type isn\'t matched.',
-    category: 'action', // General action
+    category: 'action', 
     defaultConfig: { task_description: '', parameters: {} },
     configSchema: {
       task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do'},
@@ -241,7 +243,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'trigger': 'trigger',
   'manual trigger': 'trigger',
   'start': 'trigger',
-  'webhook': 'httpRequest', // Webhook is essentially an HTTP trigger
+  'webhook': 'httpRequest', 
   'http trigger': 'httpRequest',
   'schedule': 'schedule',
   'cron': 'schedule',
@@ -255,36 +257,47 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'fetch data': 'httpRequest',
   'get request': 'httpRequest',
   'post request': 'httpRequest',
+  'put request': 'httpRequest',
+  'delete request': 'httpRequest',
+  'patch request': 'httpRequest',
+  'sendemail': 'sendEmail',
   'send email': 'sendEmail',
   'email': 'sendEmail',
   'notify by email': 'sendEmail',
+  'databasequery': 'databaseQuery',
   'database query': 'databaseQuery',
   'sql query': 'databaseQuery',
   'query database': 'databaseQuery',
   'read database': 'databaseQuery',
-  'write database': 'databaseQuery', // Could map to a more specific "databaseWrite" if created
+  'write database': 'databaseQuery', 
   'logmessage': 'logMessage',
   'log message': 'logMessage',
   'print to console': 'logMessage',
   'debug log': 'logMessage',
+  'output message': 'logMessage',
 
   // Logic & Data
   'parsejson': 'parseJson',
   'parse json': 'parseJson',
   'json transform': 'parseJson',
   'extract from json': 'parseJson',
+  'conditionallogic': 'conditionalLogic',
   'conditional': 'conditionalLogic',
   'condition': 'conditionalLogic',
   'if/else': 'conditionalLogic',
   'if condition': 'conditionalLogic',
   'branch': 'conditionalLogic',
-  'filter': 'conditionalLogic', // "filter" can also map to conditional
-  'transform': 'dataTransform',
+  'filter': 'conditionalLogic', 
+  'switch': 'conditionalLogic',
+  'route based on condition': 'conditionalLogic',
+  'datatransform': 'dataTransform',
   'transform data': 'dataTransform',
   'map data': 'dataTransform',
   'script': 'dataTransform',
   'custom script': 'dataTransform',
   'run code': 'dataTransform',
+  'javascript': 'dataTransform',
+  'code': 'dataTransform',
 
   // AI
   'aitask': 'aiTask',
@@ -292,25 +305,40 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'llm call': 'aiTask',
   'genai': 'aiTask',
   'generate text': 'aiTask',
-  'summarize': 'aiTask', // Could be a specific AI task type or a general one
+  'summarize': 'aiTask', 
   'translate': 'aiTask',
+  'analyze sentiment': 'aiTask',
+  'classify text': 'aiTask',
 
   // YouTube Specific (Conceptual)
+  'youtubefetchtrending': 'youtubeFetchTrending',
   'youtube fetch trending': 'youtubeFetchTrending',
   'get trending youtube videos': 'youtubeFetchTrending',
+  'fetch youtube videos': 'youtubeFetchTrending',
+  'youtubedownloadvideo': 'youtubeDownloadVideo',
   'youtube download': 'youtubeDownloadVideo',
   'download youtube video': 'youtubeDownloadVideo',
+  'save youtube video': 'youtubeDownloadVideo',
+  'videoconverttoshorts': 'videoConvertToShorts',
   'video convert to shorts': 'videoConvertToShorts',
   'make youtube short': 'videoConvertToShorts',
   'edit video for shorts': 'videoConvertToShorts',
+  'create short video': 'videoConvertToShorts',
+  'youtubeuploadshort': 'youtubeUploadShort',
   'youtube upload short': 'youtubeUploadShort',
-  'upload youtube short': 'youtubeUploadShort',
   'post youtube short': 'youtubeUploadShort',
-  'youtube upload': 'youtubeUploadShort', // Generic upload might map to shorts or a general video upload node
+  'upload youtube short': 'youtubeUploadShort',
+  'youtube upload': 'youtubeUploadShort', 
   
   // Default/Fallback
-  'default': 'workflowNode', // AI will use 'workflowNode' if it cannot map to anything more specific
+  'default': 'workflowNode', 
+  'customaction': 'workflowNode',
   'custom action': 'workflowNode',
   'generic step': 'workflowNode',
-  'unknown': 'unknown' // For explicitly unknown types identified post-generation
+  'workflowstep': 'workflowNode',
+  'action': 'workflowNode',
+  'task': 'workflowNode',
+  'step': 'workflowNode',
+  'workflownode': 'workflowNode', // Explicitly keep this for AI's schema
+  'unknown': 'unknown'
 };
