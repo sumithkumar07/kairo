@@ -57,10 +57,12 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
       }
     }
     
-    if (firstPart === 'secrets') {
-        const warningMsg = `[WORKFLOW ENGINE] Placeholder '${placeholder}' refers to 'secrets.'. Secret resolution is not yet implemented. Placeholder remains unresolved.`;
-        console.info(warningMsg); 
-        serverLogs.push({ message: warningMsg, type: 'info'});
+    if (firstPart === 'secrets' && pathParts.length === 2) {
+        const secretName = pathParts[1];
+        const infoMsg = `[WORKFLOW ENGINE] Placeholder '{{secrets.${secretName}}}' refers to a secret. Actual secret resolution is not yet implemented. Placeholder remains unresolved.`;
+        console.info(infoMsg); 
+        serverLogs.push({ message: infoMsg, type: 'info'});
+        // Keep the placeholder string as is
         continue; 
     }
 
