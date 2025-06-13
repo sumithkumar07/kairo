@@ -41,14 +41,14 @@ export function AIWorkflowBuilderPanel({
             <Radio className="h-4 w-4 mr-2" />
             AI Ready
           </Button>
-          <Button 
-            variant={isAssistantVisible ? "default" : "outline"} 
+          <Button
+            variant={isAssistantVisible ? "default" : "outline"}
             size="sm"
             onClick={onToggleAssistant}
             aria-pressed={isAssistantVisible}
           >
             <Bot className="h-4 w-4 mr-2" />
-            AI Assistant
+            {isAssistantVisible ? "Hide Assistant" : "Show Assistant"}
           </Button>
         </div>
       </div>
