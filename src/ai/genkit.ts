@@ -1,8 +1,8 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
 
-// Example of defining a Google AI model.
-// You can define multiple models from different providers if needed.
+import {genkit} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai'; // Import Google AI plugin
+
+// Define a Google AI model.
 const geminiFlash = googleAI.model('gemini-1.5-flash-latest');
 
 export const ai = genkit({
@@ -11,8 +11,8 @@ export const ai = genkit({
   ],
   models: [
     geminiFlash,
-    // You can add other models here, for example:
-    // googleAI.model('gemini-1.5-pro-latest'),
+    // You can add other Google AI models here if needed:
+    // googleAI.model('gemini-pro'),
   ],
   // Set the default model for the `ai` instance.
   // Genkit automatically prefixes models with the plugin name, e.g., 'googleai/gemini-1.5-flash-latest'.
