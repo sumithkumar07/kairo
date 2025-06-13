@@ -44,3 +44,9 @@ export interface AvailableNodeType {
   inputHandles?: string[];
   outputHandles?: string[];
 }
+
+export interface LogEntry {
+  timestamp: string;
+  message: string;
+  type: 'info' | 'error' | 'success';
+}

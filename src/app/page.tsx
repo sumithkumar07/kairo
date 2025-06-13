@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useState, useRef } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,8 @@ export default function FlowAIPage() {
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
+  const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
   
   const { toast } = useToast();
   const nextNodeIdRef = useRef(1); 
@@ -77,6 +79,7 @@ export default function FlowAIPage() {
     setNodes(newNodes);
     setConnections(newConnections);
     setSelectedNodeId(null); 
+    setExecutionLogs([]); // Clear logs when a new workflow is generated
   }, [mapAiWorkflowToInternal, toast]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
@@ -90,7 +93,7 @@ export default function FlowAIPage() {
       config: { ...nodeType.defaultConfig },
       inputHandles: nodeType.inputHandles,
       outputHandles: nodeType.outputHandles,
-      aiExplanation: `Manually added ${nodeType.name} node.`, // Default explanation for manually added nodes
+      aiExplanation: `Manually added ${nodeType.name} node.`,
     };
     setNodes((prevNodes) => produce(prevNodes, draft => {
       draft.push(newNode);
@@ -133,17 +136,39 @@ export default function FlowAIPage() {
       })
     );
   }, []);
-  
-  // Placeholder for future:
-  // const handleNodeAiExplanationChange = useCallback((nodeId: string, newExplanation: string) => {
-  //   setNodes((prevNodes) =>
-  //     produce(prevNodes, draft => {
-  //       const node = draft.find(n => n.id === nodeId);
-  //       if (node) node.aiExplanation = newExplanation;
-  //     })
-  //   );
-  // }, []);
 
+  const runMockWorkflow = useCallback(async () => {
+    if (nodes.length === 0) {
+      toast({ title: "Empty Workflow", description: "Cannot run an empty workflow. Add some nodes first.", variant: "default" });
+      return;
+    }
+
+    setIsWorkflowRunning(true);
+    setExecutionLogs([]);
+    
+    const addLog = (message: string, type: LogEntry['type'] = 'info') => {
+      setExecutionLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString(), message, type }]);
+    };
+
+    addLog("Mock workflow run started...", "info");
+    toast({ title: "Mock Run Started", description: "Simulating workflow execution..." });
+
+    for (const node of nodes) {
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate async work
+      addLog(`Simulating execution of: ${node.name} (Type: ${node.type}, ID: ${node.id})`, "info");
+      // Here you could add mock success/failure based on node type or config
+      // For example: if (node.type === 'httpRequest' && !node.config.url) addLog(`Error: URL missing for ${node.name}`, 'error');
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    addLog("Mock workflow run completed.", "success");
+    toast({ title: "Mock Run Finished", description: "Workflow simulation complete." });
+    
+    setIsWorkflowRunning(false);
+    console.log("Final mock workflow state:", { nodes, connections });
+
+  }, [nodes, connections, toast]);
+  
 
   const selectedNodeFull = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
   const selectedNodeTypeConfig = selectedNodeFull ? 
@@ -182,7 +207,7 @@ export default function FlowAIPage() {
         />
 
         <aside className="w-96 border-l bg-card shadow-md flex flex-col shrink-0 overflow-y-auto">
-          <div className="p-4 flex-grow min-h-0"> {/* min-h-0 allows scrollarea to shrink properly */}
+          <div className="p-4 flex-grow min-h-0">
             {selectedNodeFull && (
               <NodeConfigPanel
                 node={selectedNodeFull}
@@ -190,7 +215,6 @@ export default function FlowAIPage() {
                 onConfigChange={handleNodeConfigChange}
                 onNodeNameChange={handleNodeNameChange}
                 onNodeDescriptionChange={handleNodeDescriptionChange}
-                // onNodeAiExplanationChange={handleNodeAiExplanationChange} // For future use
               />
             )}
             {!selectedNodeFull && (
@@ -204,11 +228,12 @@ export default function FlowAIPage() {
               </div>
             )}
           </div>
-          <div className="p-4 border-t mt-auto shrink-0"> {/* mt-auto pushes this to bottom if content above is short */}
-             <ExecutionLogPanel logs={[]} onRunWorkflow={() => {
-                toast({ title: "Mock Run", description: "Workflow execution is not yet implemented." });
-                console.log("Current workflow:", { nodes, connections });
-             }} />
+          <div className="p-4 border-t mt-auto shrink-0">
+             <ExecutionLogPanel 
+                logs={executionLogs} 
+                onRunWorkflow={runMockWorkflow} 
+                isWorkflowRunning={isWorkflowRunning} 
+             />
           </div>
         </aside>
       </div>

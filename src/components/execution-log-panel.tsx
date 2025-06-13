@@ -1,16 +1,12 @@
+
 'use client';
 
+import type { LogEntry } from '@/types/workflow'; // Import LogEntry
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play } from 'lucide-react';
+import { Play, RotateCcw } from 'lucide-react'; // Using RotateCcw for running state
 import { Separator } from './ui/separator';
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-  type: 'info' | 'error' | 'success';
-}
 
 interface ExecutionLogPanelProps {
   logs: LogEntry[];
@@ -27,8 +23,12 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
       </CardHeader>
       <CardContent className="space-y-3 flex-grow flex flex-col">
         <Button onClick={onRunWorkflow} disabled={isWorkflowRunning} className="w-full">
-          <Play className="mr-2 h-4 w-4" />
-          {isWorkflowRunning ? 'Running...' : 'Run Workflow (Mock)'}
+          {isWorkflowRunning ? (
+            <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="mr-2 h-4 w-4" />
+          )}
+          {isWorkflowRunning ? 'Running Simulation...' : 'Run Workflow (Mock)'}
         </Button>
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">Logs:</p>
@@ -38,12 +38,12 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
           ) : (
             <div className="space-y-1">
               {logs.map((log, index) => (
-                <div key={index} className="text-xs p-1 rounded bg-background/50">
+                <div key={index} className="text-xs p-1 rounded bg-background/50 break-words">
                   <span className="font-mono text-muted-foreground mr-2">[{log.timestamp}]</span>
                   <span
                     className={
                       log.type === 'error' ? 'text-destructive' : 
-                      log.type === 'success' ? 'text-green-600' : 
+                      log.type === 'success' ? 'text-green-600 dark:text-green-400' : 
                       'text-foreground'
                     }
                   >
