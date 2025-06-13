@@ -40,6 +40,7 @@ export default function FlowAIPage() {
         id: aiNode.id || `${nodeConfigDef.type}_${nextNodeIdRef.current++}`,
         type: nodeConfigDef.type, 
         name: aiNode.name || nodeConfigDef.name || `Node ${aiNode.id}`,
+        description: aiNode.description || '',
         position: aiNode.position || { x: (index % 5) * (NODE_WIDTH + 60) + 30, y: Math.floor(index / 5) * (NODE_HEIGHT + 40) + 30 },
         config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
         inputHandles: nodeConfigDef.inputHandles,
@@ -82,6 +83,7 @@ export default function FlowAIPage() {
       id: newNodeId,
       type: nodeType.type,
       name: nodeType.name,
+      description: '',
       position,
       config: { ...nodeType.defaultConfig },
       inputHandles: nodeType.inputHandles,
@@ -120,6 +122,15 @@ export default function FlowAIPage() {
     );
   }, []);
 
+  const handleNodeDescriptionChange = useCallback((nodeId: string, newDescription: string) => {
+    setNodes((prevNodes) =>
+      produce(prevNodes, draft => {
+        const node = draft.find(n => n.id === nodeId);
+        if (node) node.description = newDescription;
+      })
+    );
+  }, []);
+
 
   const selectedNodeFull = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
   const selectedNodeTypeConfig = selectedNodeFull ? 
@@ -127,8 +138,8 @@ export default function FlowAIPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      <header className="p-3 border-b flex justify-between items-center bg-card shadow-sm shrink-0">
-        <h1 className="text-xl font-bold text-primary font-headline">FlowAI</h1>
+      <header className="p-4 border-b flex justify-between items-center bg-primary text-primary-foreground shadow-lg shrink-0">
+        <h1 className="text-xl font-bold font-headline">FlowAI</h1>
       </header>
 
       <AIPromptBar
@@ -165,6 +176,7 @@ export default function FlowAIPage() {
                 nodeType={selectedNodeTypeConfig}
                 onConfigChange={handleNodeConfigChange}
                 onNodeNameChange={handleNodeNameChange}
+                onNodeDescriptionChange={handleNodeDescriptionChange}
               />
             )}
             {!selectedNodeFull && (

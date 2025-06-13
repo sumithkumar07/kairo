@@ -13,12 +13,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-// Define the schema for a node in the workflow.  This is a simplified example; a real workflow would have
-// many more node types and configuration options.
+// Define the schema for a node in the workflow.
 const WorkflowNodeSchema = z.object({
   id: z.string().describe('Unique identifier for the node.'),
   type: z.string().describe('Type of the node (e.g., httpRequest, parseJson, databaseInsert).'),
   name: z.string().optional().describe('A descriptive name for the node instance.'),
+  description: z.string().optional().describe('A brief description of what this node does or its purpose in the workflow.'),
   position: z.object({
     x: z.number(),
     y: z.number(),
@@ -68,7 +68,7 @@ Here is the description of the workflow to generate:
 
 {{prompt}}
 
-Be sure to include the 'id', 'type', 'name' (optional friendly name for the node), 'position', and 'config' fields for each node.
+Be sure to include the 'id', 'type', 'name' (optional friendly name for the node), 'description' (optional brief purpose of the node), 'position', and 'config' fields for each node.
 For connections, include 'source', 'sourcePort' (optional), 'target', and 'targetPort' (optional) fields.
 The 'config' field for each node should be a JSON object containing specific settings for that node type.
 
@@ -88,4 +88,3 @@ const generateWorkflowFromPromptFlow = ai.defineFlow(
     return output!;
   }
 );
-

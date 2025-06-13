@@ -4,6 +4,7 @@ export interface WorkflowNode {
   id: string;
   type: string;
   name: string;
+  description?: string; // Added description field
   position: { x: number; y: number };
   config: Record<string, any>;
   inputHandles?: string[]; // Optional: define specific input connection points
