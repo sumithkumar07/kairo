@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { WorkflowNode, AvailableNodeType } from '@/types/workflow';
@@ -32,7 +33,7 @@ export function WorkflowNodeItem({
       className={cn(
         'absolute cursor-grab shadow-md hover:shadow-xl transition-all duration-150 ease-in-out',
         'flex flex-col overflow-hidden',
-        isSelected ? 'ring-2 ring-primary ring-offset-2' : 'ring-1 ring-border',
+        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border',
       )}
       style={{
         left: node.position.x,
@@ -41,7 +42,7 @@ export function WorkflowNodeItem({
         height: `${NODE_HEIGHT}px`,
       }}
     >
-      <CardHeader className="p-2 border-b bg-muted/50 flex-row items-center gap-2 space-y-0">
+      <CardHeader className="p-2 border-b bg-primary/5 flex-row items-center gap-2 space-y-0"> {/* Subtle primary tint */}
         <IconComponent className="h-4 w-4 text-primary shrink-0" />
         <CardTitle className="text-xs font-medium truncate flex-grow" title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
@@ -57,7 +58,7 @@ export function WorkflowNodeItem({
           return (
             <div 
               key={`in-${handleId}`}
-              className="absolute -left-1.5 w-3 h-3 bg-primary rounded-full border-2 border-background transform -translate-y-1/2"
+              className="absolute -left-2 w-4 h-4 bg-primary rounded-full border-2 border-background shadow transform -translate-y-1/2"
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Input: ${handleId}`}
             />
@@ -71,7 +72,7 @@ export function WorkflowNodeItem({
           return (
             <div
               key={`out-${handleId}`}
-              className="absolute -right-1.5 w-3 h-3 bg-accent rounded-full border-2 border-background transform -translate-y-1/2"
+              className="absolute -right-2 w-4 h-4 bg-accent rounded-full border-2 border-background shadow transform -translate-y-1/2"
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Output: ${handleId}`}
             />

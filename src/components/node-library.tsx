@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { AvailableNodeType } from '@/types/workflow';
@@ -15,9 +16,9 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
   };
 
   return (
-    <Card className="w-64 border-r h-full flex flex-col rounded-none shadow-md">
-      <CardHeader className="p-4 border-b">
-        <CardTitle className="text-lg font-semibold">Nodes</CardTitle>
+    <Card className="w-64 border-r h-full flex flex-col rounded-none shadow-md bg-sidebar text-sidebar-foreground">
+      <CardHeader className="p-4 border-b border-sidebar-border">
+        <CardTitle className="text-lg font-semibold text-sidebar-primary-foreground">Nodes</CardTitle>
       </CardHeader>
       <ScrollArea className="flex-1">
         <CardContent className="p-2 space-y-2">
@@ -26,7 +27,7 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
               key={nodeType.type}
               draggable
               onDragStart={(e) => handleDragStart(e, nodeType)}
-              className="p-3 border rounded-md hover:shadow-lg cursor-grab bg-card hover:bg-accent/10 transition-shadow flex items-center gap-3"
+              className="p-3 border border-sidebar-border rounded-md hover:shadow-lg cursor-grab bg-card hover:bg-accent/10 transition-shadow flex items-center gap-3 text-card-foreground hover:text-accent-foreground"
               title={nodeType.description || nodeType.name}
             >
               <nodeType.icon className="h-5 w-5 text-primary" />

@@ -6,7 +6,7 @@ import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, Log
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Workflow as WorkflowIcon } from 'lucide-react'; // Added WorkflowIcon
 
 import { AIPromptBar } from '@/components/ai-prompt-bar';
 import { NodeLibrary } from '@/components/node-library';
@@ -88,7 +88,7 @@ export default function FlowAIPage() {
       id: newNodeId,
       type: nodeType.type,
       name: nodeType.name,
-      description: '',
+      description: '', // Initialize description
       position,
       config: { ...nodeType.defaultConfig },
       inputHandles: nodeType.inputHandles,
@@ -176,7 +176,8 @@ export default function FlowAIPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      <header className="p-4 border-b flex justify-between items-center bg-primary text-primary-foreground shadow-lg shrink-0">
+      <header className="p-4 border-b flex items-center gap-3 bg-primary text-primary-foreground shadow-lg shrink-0">
+        <WorkflowIcon className="h-7 w-7" /> {/* Added icon */}
         <h1 className="text-xl font-bold font-headline">FlowAI</h1>
       </header>
 
