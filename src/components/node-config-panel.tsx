@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { WorkflowNode, AvailableNodeType, ConfigFieldSchema } from '@/types/workflow';
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { produce } from 'immer';
+import { Info } from 'lucide-react'; // Import an icon
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -96,7 +98,7 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
         <CardTitle className="text-lg">Configure: {node.name || nodeType?.name}</CardTitle>
         <CardDescription>Node ID: {node.id} | Type: {node.type}</CardDescription>
       </CardHeader>
-      <ScrollArea className="max-h-[calc(100vh-350px)]"> {/* Adjusted height slightly for new field */}
+      <ScrollArea className="max-h-[calc(100vh-250px)]"> {/* Adjusted height for new field and overall balance */}
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor={`${node.id}-nodeName`} className="font-semibold">Node Name</Label>
@@ -119,7 +121,26 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
               rows={2}
             />
           </div>
-          {nodeType?.configSchema ? (
+
+          {/* AI Explanation Section */}
+          {node.aiExplanation && (
+            <div className="p-3 bg-accent/10 rounded-md border border-accent/30">
+              <Label className="font-semibold text-accent-foreground/90 flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                AI Explanation
+              </Label>
+              <Textarea
+                value={node.aiExplanation}
+                readOnly
+                className="mt-1 text-xs text-muted-foreground bg-background/50 min-h-[100px] max-h-[200px]"
+                rows={5}
+              />
+              <p className="text-xs text-muted-foreground mt-1">This is how the AI understands and configured this node.</p>
+            </div>
+          )}
+
+          {/* Node Specific Configuration Fields */}
+          {nodeType?.configSchema && Object.keys(nodeType.configSchema).length > 0 ? (
             Object.entries(nodeType.configSchema).map(([key, schema]) => (
               <div key={key}>
                  {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="font-semibold">{schema.label}</Label>}
@@ -145,11 +166,13 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
                 <p className="text-xs text-muted-foreground mt-1">Edit raw JSON for this node's config. Use with caution.</p>
              </div>
           )}
-          {(!nodeType?.configSchema && Object.keys(node.config || {}).length === 0) && (
-             <p className="text-sm text-muted-foreground">No specific configuration available for this node type.</p>
+          {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).length === 0) && Object.keys(node.config || {}).length === 0 && (
+             <p className="text-sm text-muted-foreground mt-2">No specific configuration schema or raw config available for this node type.</p>
           )}
         </CardContent>
       </ScrollArea>
     </Card>
   );
 }
+
+    
