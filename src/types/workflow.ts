@@ -10,7 +10,8 @@ export interface WorkflowNode {
   config: Record<string, any>;
   inputHandles?: string[];
   outputHandles?: string[];
-  aiExplanation?: string; // AI-generated explanation for the node
+  aiExplanation?: string; 
+  category: AvailableNodeType['category']; // Ensure category is part of WorkflowNode
 }
 
 export interface WorkflowConnection {
@@ -28,10 +29,11 @@ export interface Workflow {
 
 export interface ConfigFieldSchema {
   label: string;
-  type: 'string' | 'number' | 'textarea' | 'select' | 'boolean';
+  type: 'string' | 'number' | 'textarea' | 'select' | 'boolean' | 'json'; // Added json for array/object inputs
   options?: Array<{value: string; label: string} | string>;
   placeholder?: string;
   defaultValue?: any;
+  helperText?: string; // Optional helper text
 }
 
 export interface AvailableNodeType {
@@ -39,7 +41,7 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'unknown'; // Added category
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'unknown';
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[];
@@ -52,5 +54,4 @@ export interface LogEntry {
   type: 'info' | 'error' | 'success';
 }
 
-// Log entry structure returned from the server, timestamp will be added client-side
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;

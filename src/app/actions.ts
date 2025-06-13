@@ -18,6 +18,8 @@ import {
 } from '@/ai/flows/suggest-next-node';
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
+import nodemailer from 'nodemailer';
+import { Pool } from 'pg';
 
 // Helper function to resolve placeholder values from workflowData
 function resolveValue(value: any, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): any {
@@ -44,14 +46,14 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     const firstPart = pathParts[0];
 
     if (firstPart === 'env' && pathParts.length >= 2) {
-      const envVarName = pathParts.slice(1).join('.'); // Handle env vars with dots if ever needed, though typically simple
+      const envVarName = pathParts.slice(1).join('.');
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
         const successMsg = `[ENGINE] Resolved placeholder '{{env.${envVarName}}}' from environment.`;
         console.log(successMsg);
-        serverLogs.push({ message: successMsg, type: 'info' });
+        // serverLogs.push({ message: successMsg, type: 'info' }); // Can be too verbose
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
-        if (placeholder === value) {
+        if (placeholder === value) { // If the entire string was the placeholder
             resolvedValue = envVarValue;
         }
         continue; 
@@ -110,18 +112,19 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     }
     
     if (found) {
-      if (placeholder === value) { 
+      if (placeholder === value && typeof dataAtPath !== 'string') { // If the entire string was the placeholder, and resolved value is not a string, return it as is
         resolvedValue = dataAtPath; 
-      } else { 
+      } else { // Otherwise, perform string replacement or convert to string if needed
         const replacementValue = (typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean') 
           ? String(dataAtPath) 
-          : JSON.stringify(dataAtPath);
+          : JSON.stringify(dataAtPath); // Stringify objects/arrays if part of a larger string
         resolvedValue = resolvedValue.replace(placeholder, replacementValue);
       }
     }
   }
   return resolvedValue;
 }
+
 
 function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): Record<string, any> {
   const resolvedConfig: Record<string, any> = {};
@@ -294,7 +297,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
 
       if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
         const conditionValue = resolvedConfig._flow_run_condition;
-        if (conditionValue === false || conditionValue === 0 || conditionValue === '' || conditionValue === null || conditionValue === undefined) {
+        if (conditionValue === false || conditionValue === "false" || conditionValue === 0 || conditionValue === '' || conditionValue === null || conditionValue === undefined) {
           serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
           console.log(`[ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
           workflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
@@ -466,7 +469,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             } else if (lowerCondition === 'false') {
                 evaluationResult = false;
             } else {
-                const operators = ['==', '!=', '<=', '>=', '<', '>'];
+                const operators = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
                 let operatorFound: string | null = null;
                 let conditionParts: string[] = [];
 
@@ -489,6 +492,8 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                     const parseOperand = (operand: string) => {
                         if (operand.toLowerCase() === 'true') return true;
                         if (operand.toLowerCase() === 'false') return false;
+                        if (operand.toLowerCase() === 'null') return null;
+                        if (operand.toLowerCase() === 'undefined') return undefined;
                         if ((operand.startsWith("'") && operand.endsWith("'")) || (operand.startsWith('"') && operand.endsWith('"'))) {
                             return operand.substring(1, operand.length -1);
                         }
@@ -500,6 +505,8 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                     val2 = parseOperand(val2);
 
                     switch(operatorFound) {
+                        case '===': evaluationResult = val1 === val2; break;
+                        case '!==': evaluationResult = val1 !== val2; break;
                         case '==': evaluationResult = val1 == val2; break; 
                         case '!=': evaluationResult = val1 != val2; break; 
                         case '<':  evaluationResult = val1 < val2; break;
@@ -507,8 +514,8 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                         case '<=': evaluationResult = val1 <= val2; break;
                         case '>=': evaluationResult = val1 >= val2; break;
                     }
-                } else {
-                      evaluationResult = (resolvedCondition !== '' && resolvedCondition.toLowerCase() !== 'false');
+                } else { // Treat as truthy/falsy if no operator recognized
+                      evaluationResult = !!resolvedCondition && resolvedCondition.toLowerCase() !== 'false';
                 }
             }
           } catch (e: any) {
@@ -519,20 +526,107 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           break;
         
         case 'dataTransform':
-            const scriptToLog = resolvedConfig?.script || '(No script provided)';
-            const inputDataForTransform = workflowData[(node.inputHandles && node.inputHandles.length > 0 ? node.inputHandles[0] : "")] || resolvedConfig.input_data || null; 
-            
-            serverLogs.push({ 
-                message: `[NODE DATATRANSFORM] ${nodeIdentifier}: SIMULATE: Intended script: "${scriptToLog}". Input data (passed through): ${JSON.stringify(inputDataForTransform, null, 2).substring(0,200)}${JSON.stringify(inputDataForTransform, null, 2).length > 200 ? '...' : ''}`, 
-                type: 'info' 
-            });
-            console.log(`[NODE DATATRANSFORM] ${nodeIdentifier}: Simulating data transformation. Intended script: ${scriptToLog}. Input data (passed through):`, JSON.stringify(inputDataForTransform, null, 2).substring(0, 500));
-            
-            nodeOutput = { output_data: inputDataForTransform, status: "simulated_transform_pass_through" };
+            const { transformType, inputString, inputObject, fieldsToExtract, stringsToConcatenate, separator } = resolvedConfig;
+            let transformedData: any = null;
+            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
+
+            switch (transformType) {
+              case 'toUpperCase':
+                if (typeof inputString !== 'string') throw new Error('toUpperCase requires inputString to be a string.');
+                transformedData = inputString.toUpperCase();
+                break;
+              case 'toLowerCase':
+                if (typeof inputString !== 'string') throw new Error('toLowerCase requires inputString to be a string.');
+                transformedData = inputString.toLowerCase();
+                break;
+              case 'extractFields':
+                if (typeof inputObject !== 'object' || inputObject === null) throw new Error('extractFields requires inputObject to be an object.');
+                if (!Array.isArray(fieldsToExtract) || !fieldsToExtract.every(f => typeof f === 'string')) {
+                  throw new Error('extractFields requires fieldsToExtract to be an array of strings.');
+                }
+                transformedData = {};
+                for (const field of fieldsToExtract) {
+                  // Basic field extraction, does not support deep paths yet for simplicity
+                  if (inputObject.hasOwnProperty(field)) {
+                    (transformedData as Record<string, any>)[field] = inputObject[field];
+                  }
+                }
+                break;
+              case 'concatenateStrings':
+                if (!Array.isArray(stringsToConcatenate) || !stringsToConcatenate.every(s => typeof s === 'string')) {
+                  throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings.');
+                }
+                transformedData = stringsToConcatenate.join(separator || '');
+                break;
+              default:
+                throw new Error(`Unsupported transformType: ${transformType}`);
+            }
+            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output (first 200 chars): ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
+            nodeOutput = { output_data: transformedData };
             break;
 
         case 'sendEmail':
+            const { to, subject, body: emailBody } = resolvedConfig;
+            if (!to || !subject || !emailBody) {
+              throw new Error(`Node ${nodeIdentifier}: 'to', 'subject', and 'body' are required for sendEmail.`);
+            }
+            if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) {
+              throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration.`);
+            }
+            
+            const transporter = nodemailer.createTransport({
+              host: process.env.EMAIL_HOST,
+              port: parseInt(process.env.EMAIL_PORT, 10),
+              secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+              auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+              },
+            });
+
+            const mailOptions = {
+              from: process.env.EMAIL_FROM,
+              to: to,
+              subject: subject,
+              html: emailBody, // Assuming body is HTML, could also support text
+            };
+
+            serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
+            try {
+              const info = await transporter.sendMail(mailOptions);
+              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
+              nodeOutput = { status: 'success', messageId: info.messageId };
+            } catch (emailError: any) {
+              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Failed to send email: ${emailError.message}`, type: 'error' });
+              throw new Error(`Failed to send email: ${emailError.message}`);
+            }
+            break;
+            
         case 'databaseQuery':
+            const { queryText, queryParams } = resolvedConfig;
+            if (!queryText) {
+              throw new Error(`Node ${nodeIdentifier}: 'queryText' is required for databaseQuery.`);
+            }
+            if (!process.env.DB_CONNECTION_STRING) {
+              throw new Error(`Node ${nodeIdentifier}: Missing DB_CONNECTION_STRING environment variable.`);
+            }
+
+            const pool = new Pool({ connectionString: process.env.DB_CONNECTION_STRING });
+            const client = await pool.connect();
+            
+            serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
+            try {
+              const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []);
+              serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' });
+              nodeOutput = { results: queryResult.rows, rowCount: queryResult.rowCount };
+            } catch (dbError: any) {
+              serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query failed: ${dbError.message}`, type: 'error' });
+              throw new Error(`Database query failed: ${dbError.message}`);
+            } finally {
+              client.release();
+            }
+            break;
+
         case 'youtubeFetchTrending':
         case 'youtubeDownloadVideo':
         case 'videoConvertToShorts':
@@ -573,4 +667,3 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'info' }); 
   return serverLogs;
 }
-

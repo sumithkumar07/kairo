@@ -1,9 +1,9 @@
 
 import type { AvailableNodeType } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
-export const NODE_HEIGHT = 80;
+export const NODE_HEIGHT = 90; // Slightly increased height for better text fit
 
 export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
@@ -33,7 +33,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         defaultValue: 'GET',
       },
-      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}' },
+      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
     },
     inputHandles: ['input'],
@@ -55,30 +55,29 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'sendEmail',
     name: 'Send Email',
     icon: Mail,
-    description: 'Sends an email notification.',
+    description: 'Sends an email. Configure mail server via EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE environment variables.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '', mailServiceApiKey: '{{env.MAIL_SERVICE_API_KEY}}' },
+    defaultConfig: { to: '', subject: '', body: '' },
     configSchema: {
-      to: { label: 'To', type: 'string', placeholder: 'recipient@example.com' },
-      subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification' },
-      body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Your workflow has completed.' },
-      mailServiceApiKey: { label: 'Mail Service API Key', type: 'string', placeholder: '{{env.MAIL_SERVICE_API_KEY}}' }
+      to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}' },
+      subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}' },
+      body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
     },
-    inputHandles: ['input'],
-    outputHandles: ['status'],
+    inputHandles: ['input'], // Receives data to use in email template
+    outputHandles: ['status', 'error'],
   },
   {
     type: 'databaseQuery',
     name: 'Database Query',
     icon: Database,
-    description: 'Executes a query on a database.',
+    description: 'Executes a SQL query. Configure DB_CONNECTION_STRING (e.g. postgresql://user:pass@host:port/db) environment variable.',
     category: 'io',
-    defaultConfig: { connectionString: '{{env.DB_CONNECTION_STRING}}', query: '' },
+    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]' },
     configSchema: {
-      connectionString: { label: 'Database Connection String', type: 'string', placeholder: '{{env.DB_CONNECTION_STRING}}' },
-      query: { label: 'SQL Query', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = {{input.userId}};' },
+      queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;' },
+      queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
     },
-    inputHandles: ['input'],
+    inputHandles: ['input'], // Receives data to use in query params
     outputHandles: ['results', 'error'],
   },
   {
@@ -138,12 +137,22 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'dataTransform',
     name: 'Transform Data',
-    icon: FunctionSquare,
-    description: 'Conceptually transforms data using a script. Currently logs intent and passes data through.',
+    icon: FunctionSquare, // Changed icon for clarity
+    description: 'Performs predefined data transformations.',
     category: 'logic',
-    defaultConfig: { script: 'return data; /* Example: return { ...data, new_field: data.old_field.toUpperCase() }; */' },
+    defaultConfig: { transformType: 'toUpperCase', inputString: '', fieldsToExtract: '[]', stringsToConcatenate: '[]', separator: '' },
     configSchema: {
-        script: { label: 'Intended Transformation Script (e.g., return data.name.toUpperCase();)', type: 'textarea', placeholder: 'return { ...data, transformed_value: data.input_value * 2 };' },
+        transformType: { 
+          label: 'Transformation Type', 
+          type: 'select', 
+          options: ['toUpperCase', 'toLowerCase', 'extractFields', 'concatenateStrings'],
+          defaultValue: 'toUpperCase'
+        },
+        inputString: { label: 'Input String (for case change)', type: 'textarea', placeholder: '{{input.text}}' },
+        inputObject: { label: 'Input Object (for extractFields)', type: 'textarea', placeholder: '{{input.data}}' },
+        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' },
+        stringsToConcatenate: { label: 'Strings to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' },
+        separator: { label: 'Separator (for concatenateStrings)', type: 'string', placeholder: ' (space character)' },
     },
     inputHandles: ['input_data'],
     outputHandles: ['output_data', 'error'],
@@ -152,13 +161,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeFetchTrending',
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
-    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent).',
+    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var.',
     category: 'trigger',
     defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}' },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
-      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}'}
+      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."}
     },
     outputHandles: ['videos', 'status', 'error'],
   },
@@ -195,7 +204,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeUploadShort',
     name: 'YouTube: Upload Short',
     icon: UploadCloud,
-    description: 'Uploads a video short to YouTube (conceptual - currently logs intent).',
+    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var.',
     category: 'action',
     defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{env.YOUTUBE_OAUTH_TOKEN}}' },
     configSchema: {
@@ -204,7 +213,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
-      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}'}
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}', helperText: "Set YOUTUBE_OAUTH_TOKEN in environment."}
     },
     inputHandles: ['input'],
     outputHandles: ['uploadStatus', 'videoId', 'status', 'error'],
@@ -294,11 +303,15 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'datatransform': 'dataTransform',
   'transform data': 'dataTransform',
   'map data': 'dataTransform',
-  'script': 'dataTransform',
+  'script': 'dataTransform', // AI might still use this, maps to our new transform
   'custom script': 'dataTransform',
   'run code': 'dataTransform',
   'javascript': 'dataTransform',
   'code': 'dataTransform',
+  'uppercase': 'dataTransform', // Specific transform types
+  'lowercase': 'dataTransform',
+  'extractfields': 'dataTransform',
+  'concatenate': 'dataTransform',
 
   // AI
   'aitask': 'aiTask',
@@ -343,4 +356,3 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'workflownode': 'workflowNode', 
   'unknown': 'unknown'
 };
-

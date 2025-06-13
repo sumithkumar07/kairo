@@ -9,8 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { produce } from 'immer';
-import { Info } from 'lucide-react'; // Import an icon
+import { Info, Trash2 } from 'lucide-react'; 
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -18,11 +19,35 @@ interface NodeConfigPanelProps {
   onConfigChange: (nodeId: string, newConfig: Record<string, any>) => void;
   onNodeNameChange: (nodeId: string, newName: string) => void;
   onNodeDescriptionChange: (nodeId: string, newDescription: string) => void;
+  onDeleteNode: (nodeId: string) => void;
 }
 
-export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChange, onNodeDescriptionChange }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ 
+  node, 
+  nodeType, 
+  onConfigChange, 
+  onNodeNameChange, 
+  onNodeDescriptionChange,
+  onDeleteNode 
+}: NodeConfigPanelProps) {
   
   const handleInputChange = (fieldKey: string, value: any) => {
+    // For JSON type fields, try to parse, otherwise store as string
+    if (nodeType?.configSchema?.[fieldKey]?.type === 'json') {
+        try {
+            const parsedValue = JSON.parse(value);
+            const newConfig = produce(node.config, draftConfig => {
+              draftConfig[fieldKey] = parsedValue;
+            });
+            onConfigChange(node.id, newConfig);
+            return;
+        } catch (e) {
+            // If parsing fails, store as string (or handle error)
+            // For now, we'll let it store as string, user will see invalid JSON.
+            // Or, we could show a validation error.
+        }
+    }
+
     const newConfig = produce(node.config, draftConfig => {
       draftConfig[fieldKey] = value;
     });
@@ -30,7 +55,11 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
   };
 
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
-    const currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
+    let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
+    if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
+        currentValue = JSON.stringify(currentValue, null, 2);
+    }
+
 
     switch (fieldSchema.type) {
       case 'string':
@@ -46,14 +75,15 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
           />
         );
       case 'textarea':
+      case 'json': // Treat json for input like textarea, but value is stringified/parsed
         return (
           <Textarea
             id={`${node.id}-${fieldKey}`}
             value={currentValue}
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
-            className="mt-1 min-h-[80px]"
-            rows={3}
+            className="mt-1 min-h-[80px] font-mono text-xs"
+            rows={fieldSchema.type === 'json' ? 5 : 3}
           />
         );
       case 'select':
@@ -93,13 +123,18 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
   };
 
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg flex flex-col h-full">
       <CardHeader>
-        <CardTitle className="text-lg">Configure: {node.name || nodeType?.name}</CardTitle>
+        <div className="flex justify-between items-center">
+            <CardTitle className="text-lg">Configure: {node.name || nodeType?.name}</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => onDeleteNode(node.id)} title="Delete Node">
+                <Trash2 className="h-5 w-5 text-destructive" />
+            </Button>
+        </div>
         <CardDescription>Node ID: {node.id} | Type: {node.type}</CardDescription>
       </CardHeader>
-      <ScrollArea className="max-h-[calc(100vh-250px)]"> {/* Adjusted height for new field and overall balance */}
-        <CardContent className="space-y-4">
+      <ScrollArea className="flex-grow">
+        <CardContent className="space-y-4 pb-6">
           <div>
             <Label htmlFor={`${node.id}-nodeName`} className="font-semibold">Node Name</Label>
             <Input
@@ -122,7 +157,6 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
             />
           </div>
 
-          {/* AI Explanation Section */}
           {node.aiExplanation && (
             <div className="p-3 bg-accent/10 rounded-md border border-accent/30">
               <Label className="font-semibold text-accent-foreground/90 flex items-center gap-2">
@@ -139,12 +173,12 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
             </div>
           )}
 
-          {/* Node Specific Configuration Fields */}
           {nodeType?.configSchema && Object.keys(nodeType.configSchema).length > 0 ? (
             Object.entries(nodeType.configSchema).map(([key, schema]) => (
               <div key={key}>
                  {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="font-semibold">{schema.label}</Label>}
                 {renderFormField(key, schema)}
+                {schema.helperText && <p className="text-xs text-muted-foreground mt-1">{schema.helperText}</p>}
               </div>
             ))
           ) : (
@@ -174,5 +208,3 @@ export function NodeConfigPanel({ node, nodeType, onConfigChange, onNodeNameChan
     </Card>
   );
 }
-
-    
