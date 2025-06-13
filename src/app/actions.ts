@@ -32,11 +32,21 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     if (pathParts.length === 0) {
       const warningMsg = `[WORKFLOW ENGINE] Invalid placeholder path: '${path}' in '${value}'. Placeholder remains unresolved.`;
       console.warn(warningMsg);
-      serverLogs.push({ message: warningMsg, type: 'info' }); // Changed from 'error' to 'info' for warnings
+      serverLogs.push({ message: warningMsg, type: 'info' });
       continue;
     }
 
     const nodeId = pathParts[0];
+    // Special handling for 'secrets.' or 'env.' placeholders - these won't be in workflowData yet.
+    // For now, we let them pass through unresolved if they are not in workflowData.
+    // A future enhancement would be to resolve these from actual environment variables or a secret store.
+    if (nodeId === 'secrets' || nodeId === 'env') {
+        const warningMsg = `[WORKFLOW ENGINE] Placeholder '${placeholder}' refers to '${nodeId}'. These are typically resolved from environment or secret stores, not directly from node outputs. Placeholder remains unresolved.`;
+        console.info(warningMsg); // Use info for this expected case
+        serverLogs.push({ message: warningMsg, type: 'info'});
+        continue; 
+    }
+
     let currentData = workflowData[nodeId];
 
     if (currentData === undefined) {
@@ -74,20 +84,16 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     }
     
     if (found) {
-      if (placeholder === value) { // If the entire string is the placeholder
+      if (placeholder === value) { 
         resolvedValue = dataAtPath; 
-      } else { // If placeholder is part of a larger string
-        // Ensure only primitive types are stringified directly into the resolved string
+      } else { 
         const replacementValue = (typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean') 
           ? String(dataAtPath) 
           : JSON.stringify(dataAtPath);
         resolvedValue = resolvedValue.replace(placeholder, replacementValue);
       }
     } else {
-      // Warning already logged above if 'found' is false.
-      // const warningMsg = `[WORKFLOW ENGINE] Placeholder '${placeholder}' could not be fully resolved. Path segment '${pathParts.slice(1).join('.')}' not found or invalid. Placeholder remains in string.`;
-      // console.warn(warningMsg);
-      // serverLogs.push({ message: warningMsg, type: 'info' });
+        // Warning already logged
     }
   }
   return resolvedValue;
@@ -101,7 +107,6 @@ function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record
       if (typeof value === 'string') {
         resolvedConfig[key] = resolveValue(value, workflowData, serverLogs);
       } else if (Array.isArray(value)) {
-        // Recursively resolve placeholders in array elements if they are strings
         resolvedConfig[key] = value.map(item => (typeof item === 'string' ? resolveValue(item, workflowData, serverLogs) : 
                                                  (typeof item === 'object' && item !== null ? resolveNodeConfig(item, workflowData, serverLogs) : item)
                                            ));
@@ -236,15 +241,13 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
       const resolvedConfig = resolveNodeConfig(node.config || {}, workflowData, serverLogs);
       console.log(`[WORKFLOW ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
-      // Conditional Execution Check
       if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
         const conditionValue = resolvedConfig._flow_run_condition;
-        // The conditionValue itself is the result of placeholder resolution, so it should be a boolean or evaluate to one.
         if (conditionValue === false || conditionValue === 'false' || conditionValue === 0 || conditionValue === '' || conditionValue === null || conditionValue === undefined) {
           serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) SKIPPED due to _flow_run_condition evaluating to falsy (${conditionValue}).`, type: 'info' });
           console.log(`[WORKFLOW ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
           workflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${conditionValue}` };
-          continue; // Skip to the next node in executionOrder
+          continue; 
         }
         serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) proceeding: _flow_run_condition evaluated to truthy (${conditionValue}).`, type: 'info' });
       }
@@ -253,8 +256,8 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
       let nodeOutput: any = null; 
 
       switch (node.type) {
-        case 'trigger': // Example: Manual Trigger
-        case 'schedule': // Example: Schedule Trigger
+        case 'trigger': 
+        case 'schedule': 
           serverLogs.push({ message: `[SIMULATE] Node '${node.name || node.id}' (Type: ${node.type}): Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
           nodeOutput = { status: "simulated_trigger_activated", details: resolvedConfig, triggeredAt: new Date().toISOString() };
           break;
@@ -311,15 +314,16 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           break;
 
         case 'aiTask':
-          const { prompt: aiPrompt, model: aiModel = 'googleai/gemini-1.5-flash-latest' } = resolvedConfig;
+          const { prompt: aiPrompt, model: aiModelFromConfig } = resolvedConfig;
           if (!aiPrompt) {
             throw new Error(`Node '${node.name || node.id}': AI Prompt is not configured or resolved.`);
           }
-          serverLogs.push({ message: `[AI TASK] Node '${node.name || node.id}': Sending prompt to model ${aiModel}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
+          const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; // Fallback if not in config
+          serverLogs.push({ message: `[AI TASK] Node '${node.name || node.id}': Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
           
           const genkitResponse = await ai.generate({ 
             prompt: String(aiPrompt), 
-            model: aiModel as any, // Cast as any if model type causes issues, ensure it's a valid model string
+            model: modelToUse as any, 
           });
           const aiResponseTextContent = genkitResponse.text; 
           
@@ -329,13 +333,12 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
 
         case 'parseJson':
           const { jsonString, path } = resolvedConfig;
-          if (jsonString === undefined || jsonString === null) { // Allow empty string if path is '$' or empty
+          if (jsonString === undefined || jsonString === null) { 
              if (!(path && (path.trim() === '' || path.trim() === '$' || path.trim() === '$.') && jsonString === '')) {
                 throw new Error(`Node '${node.name || node.id}': JSON string input is missing or not resolved. Received: ${jsonString}`);
             }
           }
           
-          // Allow object directly if it's already parsed (e.g. from previous node's output)
           if (typeof jsonString !== 'string' && typeof jsonString !== 'object') { 
             throw new Error(`Node '${node.name || node.id}': JSON input must be a string or an object, received ${typeof jsonString}. Value: ${JSON.stringify(jsonString)}`);
           }
@@ -348,7 +351,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               throw new Error(`Node '${node.name || node.id}': Invalid JSON input string: ${e.message}. Input: '${jsonString.substring(0,100)}...'`);
             }
           } else {
-            dataToParse = jsonString; // Already an object/array
+            dataToParse = jsonString; 
           }
           
           serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
@@ -361,7 +364,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             let currentExtractedData = dataToParse;
             let extractionFound = true;
             for (const part of pathPartsToExtract) {
-              if (part === '') continue; // Skip empty parts if path has consecutive dots like 'a..b'
+              if (part === '') continue; 
               const arrayMatch = part.match(/(\w+)\[(\d+)\]/); 
               if (arrayMatch) {
                 const arrayKey = arrayMatch[1];
@@ -405,7 +408,6 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                 } else if (lowerCondition === 'false') {
                     evaluationResult = false;
                 } else {
-                    // Attempt basic comparison for strings like "value1 == value2"
                     const comparisonOperators = ['==', '!=', '<=', '>=', '<', '>'];
                     let operatorFound = null;
                     for (const op of comparisonOperators) {
@@ -421,33 +423,32 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                             let p1 = parts[0].trim();
                             let p2 = parts[1].trim();
 
-                            // Convert 'true'/'false' strings to booleans, and numbers to numbers
                             const convertOperand = (opVal: string) => {
                                 if (opVal.toLowerCase() === 'true') return true;
                                 if (opVal.toLowerCase() === 'false') return false;
                                 const num = Number(opVal);
-                                return isNaN(num) ? opVal : num; // Keep as string if not a number
+                                return isNaN(num) ? opVal : num; 
                             };
                             
                             const val1 = convertOperand(p1);
                             const val2 = convertOperand(p2);
 
                             switch(operatorFound) {
-                                case '==': evaluationResult = val1 == val2; break; // Loose equality
+                                case '==': evaluationResult = val1 == val2; break; 
                                 case '!=': evaluationResult = val1 != val2; break;
-                                case '<':  evaluationResult = val1 < val2; break;
-                                case '>':  evaluationResult = val1 > val2; break;
-                                case '<=': evaluationResult = val1 <= val2; break;
-                                case '>=': evaluationResult = val1 >= val2; break;
+                                case '<':  evaluationResult = (val1 as any) < (val2 as any); break;
+                                case '>':  evaluationResult = (val1 as any) > (val2 as any); break;
+                                case '<=': evaluationResult = (val1 as any) <= (val2 as any); break;
+                                case '>=': evaluationResult = (val1 as any) >= (val2 as any); break;
                             }
                         } else {
-                             evaluationResult = Boolean(condition); // Fallback for malformed comparisons
+                             evaluationResult = Boolean(condition); 
                         }
                     } else {
-                         evaluationResult = Boolean(condition); // Simple truthiness if no operator
+                         evaluationResult = Boolean(condition); 
                     }
                 }
-            } else { // Could be number or other type resolved from placeholder
+            } else { 
                  evaluationResult = Boolean(condition); 
             }
 
@@ -458,7 +459,6 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           nodeOutput = { result: evaluationResult };
           break;
 
-        // Stubbed Nodes
         case 'sendEmail':
         case 'databaseQuery':
         case 'dataTransform':
@@ -466,7 +466,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
         case 'youtubeDownloadVideo':
         case 'videoConvertToShorts':
         case 'youtubeUploadShort':
-        case 'workflowNode': // Generic node, treat as stub for now
+        case 'workflowNode': 
           const simulationMessage = `[SIMULATE] Node '${node.name || node.id}' (Type: ${node.type}): Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
           console.log(simulationMessage);
           serverLogs.push({ message: simulationMessage, type: 'info' });
@@ -499,9 +499,6 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   }
 
   console.log("[WORKFLOW ENGINE] Workflow execution finished. Final workflowData:", JSON.stringify(workflowData, null, 2).substring(0,1000));
-  serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'success' }); // Changed type to info as it might not always be a 'success' if errors occurred earlier
+  serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'info' }); 
   return serverLogs;
 }
-
-
-    

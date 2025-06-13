@@ -33,7 +33,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         defaultValue: 'GET',
       },
-      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json"\n}' },
+      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{secrets.MY_API_TOKEN}}"\n}' },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
     },
     inputHandles: ['input'],
@@ -57,11 +57,12 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Mail,
     description: 'Sends an email notification.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '' },
+    defaultConfig: { to: '', subject: '', body: '', mailServiceApiKey: '{{secrets.MAIL_SERVICE_API_KEY}}' },
     configSchema: {
       to: { label: 'To', type: 'string', placeholder: 'recipient@example.com' },
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification' },
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Your workflow has completed.' },
+      mailServiceApiKey: { label: 'Mail Service API Key', type: 'string', placeholder: '{{secrets.MAIL_SERVICE_API_KEY}}' }
     },
     inputHandles: ['input'],
     outputHandles: ['status'],
@@ -72,9 +73,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Database,
     description: 'Executes a query on a database.',
     category: 'io',
-    defaultConfig: { connectionId: '', query: '' },
+    defaultConfig: { connectionString: '{{secrets.DB_CONNECTION_STRING}}', query: '' },
     configSchema: {
-      connectionId: { label: 'Database Connection ID', type: 'string', placeholder: '{{secrets.DB_CONNECTION_ID}}' },
+      connectionString: { label: 'Database Connection String', type: 'string', placeholder: '{{secrets.DB_CONNECTION_STRING}}' },
       query: { label: 'SQL Query', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = {{input.userId}};' },
     },
     inputHandles: ['input'],
@@ -116,7 +117,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest' },
     configSchema: {
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}' },
-      model: { label: 'Model', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest' },
+      model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest' },
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
@@ -196,14 +197,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: UploadCloud,
     description: 'Uploads a video short to YouTube (conceptual - currently logs intent).',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secrets.YOUTUBE_CREDENTIALS}}' },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secrets.YOUTUBE_OAUTH_TOKEN}}' },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
-      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secrets.YOUTUBE_CREDENTIALS}}'}
+      credentials: { label: 'YouTube Credentials/Token (e.g. OAuth Access Token)', type: 'string', placeholder: '{{secrets.YOUTUBE_OAUTH_TOKEN}}'}
     },
     inputHandles: ['input'],
     outputHandles: ['uploadStatus', 'videoId', 'status', 'error'],
@@ -339,6 +340,6 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'action': 'workflowNode',
   'task': 'workflowNode',
   'step': 'workflowNode',
-  'workflownode': 'workflowNode', // Explicitly keep this for AI's schema
+  'workflownode': 'workflowNode', 
   'unknown': 'unknown'
 };
