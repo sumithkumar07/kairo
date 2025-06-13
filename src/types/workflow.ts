@@ -39,6 +39,7 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'unknown'; // Added category
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[];

@@ -4,30 +4,29 @@
 import { useCallback, useState, useRef } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import { executeWorkflow } from '@/app/actions'; // Import the new server action
+// import { executeWorkflow } from '@/app/actions'; // We'll re-add execution later
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Workflow as WorkflowIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
-import { AIPromptBar } from '@/components/ai-prompt-bar';
 import { NodeLibrary } from '@/components/node-library';
-import { WorkflowCanvas } from '@/components/workflow-canvas';
-import { NodeConfigPanel } from '@/components/node-config-panel';
-import { ExecutionLogPanel } from '@/components/execution-log-panel';
+import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
+import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
-import { produce } from 'immer'; 
+import { produce } from 'immer';
 
 export default function FlowAIPage() {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
-  const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
-  const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
+  const [isAssistantVisible, setIsAssistantVisible] = useState(true);
+  // const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]); // For later re-integration
+  // const [isWorkflowRunning, setIsWorkflowRunning] = useState(false); // For later re-integration
   
   const { toast } = useToast();
-  const nextNodeIdRef = useRef(1); 
+  const nextNodeIdRef = useRef(1);
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxId = 0;
@@ -65,8 +64,7 @@ export default function FlowAIPage() {
     return { nodes: newNodes, connections: newConnections };
   }, []);
 
-
-  const handleAiPromptSubmit = useCallback(async (aiOutput: GenerateWorkflowFromPromptOutput) => {
+  const handleAiPromptSubmit = useCallback((aiOutput: GenerateWorkflowFromPromptOutput) => {
     if (!aiOutput || !aiOutput.nodes) {
       toast({
         title: 'AI Error',
@@ -79,7 +77,7 @@ export default function FlowAIPage() {
     setNodes(newNodes);
     setConnections(newConnections);
     setSelectedNodeId(null); 
-    setExecutionLogs([]);
+    // setExecutionLogs([]); // For later
   }, [mapAiWorkflowToInternal, toast]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
@@ -94,7 +92,8 @@ export default function FlowAIPage() {
       inputHandles: nodeType.inputHandles,
       outputHandles: nodeType.outputHandles,
       aiExplanation: `Manually added ${nodeType.name} node.`,
-    };
+      category: nodeType.category, // Ensure category is passed if needed by node item
+    } as WorkflowNode; // Cast if category is not on WorkflowNode type yet
     setNodes((prevNodes) => produce(prevNodes, draft => {
       draft.push(newNode);
     }));
@@ -110,146 +109,43 @@ export default function FlowAIPage() {
     );
   }, []);
 
-  const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
-    setNodes((prevNodes) =>
-      produce(prevNodes, draft => {
-        const node = draft.find(n => n.id === nodeId);
-        if (node) node.config = newConfig;
-      })
-    );
-  }, []);
+  // Node config, name, description change handlers - will be used when config panel is re-integrated
+  // const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {/* ... */}, []);
+  // const handleNodeNameChange = useCallback((nodeId: string, newName: string) => {/* ... */}, []);
+  // const handleNodeDescriptionChange = useCallback((nodeId: string, newDescription: string) => {/* ... */}, []);
+  // const handleRunWorkflow = useCallback(async () => {/* ... */}, [nodes, connections, toast]);
   
-  const handleNodeNameChange = useCallback((nodeId: string, newName: string) => {
-    setNodes((prevNodes) =>
-      produce(prevNodes, draft => {
-        const node = draft.find(n => n.id === nodeId);
-        if (node) node.name = newName;
-      })
-    );
-  }, []);
-
-  const handleNodeDescriptionChange = useCallback((nodeId: string, newDescription: string) => {
-    setNodes((prevNodes) =>
-      produce(prevNodes, draft => {
-        const node = draft.find(n => n.id === nodeId);
-        if (node) node.description = newDescription;
-      })
-    );
-  }, []);
-
-  const handleRunWorkflow = useCallback(async () => {
-    if (nodes.length === 0) {
-      toast({ title: "Empty Workflow", description: "Cannot run an empty workflow. Add some nodes first.", variant: "default" });
-      return;
-    }
-
-    setIsWorkflowRunning(true);
-    setExecutionLogs([]); // Clear previous logs
-    
-    toast({ title: "Workflow Execution Started", description: "Attempting to run workflow on the server..." });
-
-    try {
-      const serverLogsOutput: ServerLogOutput[] = await executeWorkflow({ nodes, connections });
-      
-      const newExecutionLogs: LogEntry[] = serverLogsOutput.map(log => ({
-        ...log,
-        timestamp: new Date().toLocaleTimeString(), // Add timestamp on the client
-      }));
-      setExecutionLogs(newExecutionLogs);
-
-      const hasErrors = serverLogsOutput.some(log => log.type === 'error');
-      if (hasErrors) {
-        toast({ title: "Workflow Executed with Errors", description: "Check the logs for details.", variant: "destructive" });
-      } else {
-        toast({ title: "Workflow Executed Successfully", description: "All steps processed by the server.", variant: "default" });
-      }
-
-    } catch (error: any) {
-      console.error("Error calling executeWorkflow server action:", error);
-      const clientErrorLog: LogEntry = {
-        timestamp: new Date().toLocaleTimeString(),
-        message: `Client Error: Failed to execute workflow on server. ${error.message || 'Unknown error.'}`,
-        type: 'error',
-      };
-      setExecutionLogs(prevLogs => [...prevLogs, clientErrorLog]);
-      toast({ 
-        title: "Execution Failed", 
-        description: `Could not run workflow on server: ${error.message || 'Unknown error.'}`, 
-        variant: "destructive" 
-      });
-    } finally {
-      setIsWorkflowRunning(false);
-    }
-  }, [nodes, connections, toast]);
-  
-
-  const selectedNodeFull = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
-  const selectedNodeTypeConfig = selectedNodeFull ? 
-    AVAILABLE_NODES_CONFIG.find(nt => nt.type === selectedNodeFull.type) : undefined;
+  const toggleAssistantPanel = () => {
+    setIsAssistantVisible(prev => !prev);
+  };
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      <header className="p-4 border-b flex items-center gap-3 bg-primary text-primary-foreground shadow-lg shrink-0">
-        <WorkflowIcon className="h-7 w-7" />
-        <h1 className="text-xl font-bold font-headline">FlowAI</h1>
-      </header>
-
-      <AIPromptBar
-        onWorkflowGenerated={handleAiPromptSubmit}
-        setIsLoadingGlobal={setIsLoadingAi}
-      />
-      
       {isLoadingAi && (
-        <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="ml-4 text-lg">AI is generating your workflow...</p>
+          <p className="ml-4 text-lg text-foreground">AI is generating your workflow...</p>
         </div>
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        <NodeLibrary
-          availableNodes={AVAILABLE_NODES_CONFIG}
-        />
-
-        <WorkflowCanvas
+        <NodeLibrary availableNodes={AVAILABLE_NODES_CONFIG} />
+        <AIWorkflowBuilderPanel
           nodes={nodes}
           connections={connections}
           selectedNodeId={selectedNodeId}
-          onNodeDragStop={updateNodePosition}
           onNodeClick={setSelectedNodeId}
+          onNodeDragStop={updateNodePosition}
           onCanvasDrop={addNodeToCanvas}
+          onToggleAssistant={toggleAssistantPanel}
+          isAssistantVisible={isAssistantVisible}
         />
-
-        <aside className="w-96 border-l bg-card shadow-md flex flex-col shrink-0 overflow-y-auto">
-          <div className="p-4 flex-grow min-h-0">
-            {selectedNodeFull && (
-              <NodeConfigPanel
-                node={selectedNodeFull}
-                nodeType={selectedNodeTypeConfig}
-                onConfigChange={handleNodeConfigChange}
-                onNodeNameChange={handleNodeNameChange}
-                onNodeDescriptionChange={handleNodeDescriptionChange}
-              />
-            )}
-            {!selectedNodeFull && (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <p className="text-muted-foreground">
-                  Select a node on the canvas to configure its properties.
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Or, use the AI prompt to generate a new workflow.
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="p-4 border-t mt-auto shrink-0">
-             <ExecutionLogPanel 
-                logs={executionLogs} 
-                onRunWorkflow={handleRunWorkflow} // Updated prop
-                isWorkflowRunning={isWorkflowRunning} 
-             />
-          </div>
-        </aside>
+        {isAssistantVisible && (
+          <AIWorkflowAssistantPanel
+            onWorkflowGenerated={handleAiPromptSubmit}
+            setIsLoadingGlobal={setIsLoadingAi}
+          />
+        )}
       </div>
     </div>
   );
