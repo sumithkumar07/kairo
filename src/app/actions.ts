@@ -11,7 +11,7 @@ import {
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
-import type { Workflow, ServerLogOutput, WorkflowNode } from '@/types/workflow';
+import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 
 // Helper function to resolve placeholder values from workflowData
@@ -20,14 +20,13 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
     return value;
   }
 
-  // Regex to find placeholders like {{nodeId.output.path.to.value}} or {{nodeId.output}}
   const placeholderRegex = /{{\s*([^{}\s]+)\s*}}/g;
   let resolvedValue = value;
 
   let match;
   while ((match = placeholderRegex.exec(value)) !== null) {
-    const placeholder = match[0]; // Full placeholder e.g., {{node_1.output}}
-    const path = match[1]; // Path inside placeholder e.g., node_1.output
+    const placeholder = match[0]; 
+    const path = match[1]; 
     const pathParts = path.split('.');
     
     let data = workflowData;
@@ -42,8 +41,6 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
     }
     
     if (found) {
-      // If the placeholder is the entire string, replace it with the actual value (could be object/array)
-      // Otherwise, cast to string for concatenation.
       if (placeholder === value) {
         resolvedValue = data; 
       } else {
@@ -51,14 +48,11 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
       }
     } else {
       console.warn(`[WORKFLOW ENGINE] Placeholder '${placeholder}' not found in workflowData.`);
-      // Keep the original placeholder if not found, or replace with empty string/undefined
-      // resolvedValue = resolvedValue.replace(placeholder, ''); 
     }
   }
   return resolvedValue;
 }
 
-// Helper function to resolve placeholders in node configuration
 function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record<string, any>): Record<string, any> {
   const resolvedConfig: Record<string, any> = {};
   for (const key in nodeConfig) {
@@ -69,7 +63,7 @@ function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record
       } else if (Array.isArray(value)) {
         resolvedConfig[key] = value.map(item => resolveValue(item, workflowData));
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = resolveNodeConfig(value, workflowData); // Recursively resolve for nested objects
+        resolvedConfig[key] = resolveNodeConfig(value, workflowData); 
       } else {
         resolvedConfig[key] = value;
       }
@@ -115,21 +109,79 @@ export async function suggestNextWorkflowNode(input: SuggestNextNodeInput): Prom
   }
 }
 
+function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnection[]): { executionOrder: WorkflowNode[], error?: string } {
+  const adj: Record<string, string[]> = {};
+  const inDegree: Record<string, number> = {};
+  const nodeMap: Record<string, WorkflowNode> = {};
+
+  for (const node of nodes) {
+    adj[node.id] = [];
+    inDegree[node.id] = 0;
+    nodeMap[node.id] = node;
+  }
+
+  for (const conn of connections) {
+    // Ensure nodes exist before creating an edge
+    if (nodeMap[conn.sourceNodeId] && nodeMap[conn.targetNodeId]) {
+        adj[conn.sourceNodeId].push(conn.targetNodeId);
+        inDegree[conn.targetNodeId]++;
+    } else {
+        console.warn(`[WORKFLOW ENGINE] Invalid connection: ${conn.sourceNodeId} -> ${conn.targetNodeId}. One or both nodes not found.`);
+    }
+  }
+
+  const queue: string[] = [];
+  for (const nodeId in inDegree) {
+    if (inDegree[nodeId] === 0) {
+      queue.push(nodeId);
+    }
+  }
+
+  const executionOrder: WorkflowNode[] = [];
+  while (queue.length > 0) {
+    const u = queue.shift()!;
+    executionOrder.push(nodeMap[u]);
+
+    for (const v of adj[u]) {
+      inDegree[v]--;
+      if (inDegree[v] === 0) {
+        queue.push(v);
+      }
+    }
+  }
+
+  if (executionOrder.length !== nodes.length) {
+    return { executionOrder: [], error: "Workflow has a cycle or invalid connections, execution aborted." };
+  }
+
+  return { executionOrder };
+}
+
+
 export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutput[]> {
   const serverLogs: ServerLogOutput[] = [];
-  const workflowData: Record<string, any> = {}; // To store outputs of nodes
+  const workflowData: Record<string, any> = {}; 
 
   console.log("[WORKFLOW ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
   serverLogs.push({ message: `[ENGINE] Workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
 
-  // TODO: Implement topological sort for correct execution order based on connections.
-  // For now, executing in the order they appear in the nodes array.
-  for (const node of workflow.nodes) {
+  const { executionOrder, error: sortError } = getExecutionOrder(workflow.nodes, workflow.connections);
+
+  if (sortError) {
+    console.error(`[WORKFLOW ENGINE] ${sortError}`);
+    serverLogs.push({ message: `[ENGINE] Error determining execution order: ${sortError}`, type: 'error' });
+    serverLogs.push({ message: "[ENGINE] Workflow execution finished due to error.", type: 'error' });
+    return serverLogs;
+  }
+  
+  serverLogs.push({ message: `[ENGINE] Determined execution order: ${executionOrder.map(n => n.name).join(' -> ')}`, type: 'info' });
+
+
+  for (const node of executionOrder) {
     console.log(`[WORKFLOW ENGINE] Processing node: ${node.name} (Type: ${node.type}, ID: ${node.id})`);
     serverLogs.push({ message: `[ENGINE] Processing node: ${node.name} (ID: ${node.id}, Type: ${node.type})`, type: 'info' });
 
     try {
-      // Resolve config placeholders before execution
       const resolvedConfig = resolveNodeConfig(node.config || {}, workflowData);
       console.log(`[WORKFLOW ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
@@ -140,7 +192,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           const messageToLog = resolvedConfig?.message || `Default log message from ${node.name}`;
           console.log(`[WORKFLOW LOG] ${node.name}: ${messageToLog}`); 
           serverLogs.push({ message: `[LOG] ${node.name}: ${messageToLog}`, type: 'info' });
-          nodeOutput = messageToLog; // Log node can output its message
+          nodeOutput = messageToLog;
           break;
 
         case 'httpRequest':
@@ -155,7 +207,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             if (headersString && typeof headersString === 'string' && headersString.trim() !== '') {
                  parsedHeaders = JSON.parse(headersString);
             } else if (typeof headersString === 'object' && headersString !== null) {
-                parsedHeaders = headersString; // Already an object
+                parsedHeaders = headersString; 
             }
           } catch (e: any) {
             throw new Error(`Node '${node.name}': Invalid headers JSON: ${e.message}`);
@@ -177,12 +229,11 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             throw new Error(`HTTP request failed with status ${response.status}: ${responseText}`);
           }
           serverLogs.push({ message: `[HTTP] Node '${node.name}': Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
-          nodeOutput = responseText; // Store response text as output
+          
           try {
-             // Try to parse as JSON for easier access if it is JSON
              nodeOutput = JSON.parse(responseText);
           } catch (e) {
-             // If not JSON, keep as text
+             nodeOutput = responseText;
           }
           break;
 
@@ -193,22 +244,22 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           }
           serverLogs.push({ message: `[AI TASK] Node '${node.name}': Sending prompt to model ${aiModel}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
           
-          const genkitResponse = await ai.generate({ // Corrected to genkitResponse
-            prompt: String(aiPrompt), // Ensure prompt is a string
+          const genkitResponse = await ai.generate({ 
+            prompt: String(aiPrompt), 
             model: aiModel as any, 
           });
-          const aiResponseTextContent = genkitResponse.text; // Access text directly
+          const aiResponseTextContent = genkitResponse.text; 
           
           serverLogs.push({ message: `[AI TASK] Node '${node.name}': Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
-          nodeOutput = aiResponseTextContent; // Store AI response text as output
+          nodeOutput = aiResponseTextContent; 
           break;
 
         case 'parseJson':
           const { jsonString, path } = resolvedConfig;
-          if (!jsonString) {
-            throw new Error(`Node '${node.name}': JSON string input is missing or not resolved.`);
+          if (jsonString === undefined || jsonString === null) { // Check for undefined or null explicitly
+            throw new Error(`Node '${node.name}': JSON string input is missing or not resolved. Received: ${jsonString}`);
           }
-          if (typeof jsonString !== 'string' && typeof jsonString !== 'object') { // Allow pre-parsed JSON objects
+          if (typeof jsonString !== 'string' && typeof jsonString !== 'object') { 
             throw new Error(`Node '${node.name}': JSON input must be a string or an object, received ${typeof jsonString}.`);
           }
 
@@ -220,20 +271,19 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               throw new Error(`Node '${node.name}': Invalid JSON input string: ${e.message}`);
             }
           } else {
-            dataToParse = jsonString; // Already an object
+            dataToParse = jsonString; 
           }
           
           serverLogs.push({ message: `[PARSE JSON] Node '${node.name}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
 
           if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
-            nodeOutput = dataToParse; // Return the whole object if path is empty or root
+            nodeOutput = dataToParse; 
           } else {
-            // Basic path resolver (e.g., "data.items[0].name")
-            const pathParts = path.replace(/^\$\.?/, '').split('.'); // Remove leading "$." or "$"
+            const pathParts = path.replace(/^\$\.?/, '').split('.'); 
             let currentData = dataToParse;
             let found = true;
             for (const part of pathParts) {
-              const arrayMatch = part.match(/(\w+)\[(\d+)\]/); // Match array access like items[0]
+              const arrayMatch = part.match(/(\w+)\[(\d+)\]/); 
               if (arrayMatch) {
                 const arrayKey = arrayMatch[1];
                 const index = parseInt(arrayMatch[2], 10);
@@ -242,7 +292,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                 } else {
                   found = false; break;
                 }
-              } else if (currentData && typeof currentData === 'object' && part in currentData) {
+              } else if (currentData && typeof currentData === 'object' && currentData !== null && part in currentData) {
                 currentData = currentData[part];
               } else {
                 found = false; break;
@@ -264,9 +314,6 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           break;
       }
       
-      // Store the output of the current node for subsequent nodes
-      // We'll store it under a generic 'output' key for simplicity for now.
-      // More complex nodes might have multiple named outputs.
       if (nodeOutput !== null && nodeOutput !== undefined) {
         workflowData[node.id] = { output: nodeOutput };
         console.log(`[WORKFLOW ENGINE] Node ${node.id} output stored:`, JSON.stringify(workflowData[node.id], null, 2).substring(0, 500));
@@ -277,8 +324,8 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
     } catch (error: any) {
       console.error(`[WORKFLOW ENGINE] Error executing node ${node.name} (ID: ${node.id}):`, error);
       serverLogs.push({ message: `[ENGINE] Error executing node ${node.name} (ID: ${node.id}): ${error.message || 'Unknown error'}`, type: 'error' });
-      workflowData[node.id] = { error: error.message || 'Unknown error' }; // Store error info
-      // For now, we'll let the workflow continue even if a node fails.
+      workflowData[node.id] = { error: error.message || 'Unknown error' }; 
+      // For now, we'll let the workflow continue. More sophisticated error handling (e.g., stopping workflow) can be added.
     }
   }
 
@@ -286,3 +333,4 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'success' });
   return serverLogs;
 }
+
