@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useState, useRef } from 'react';
@@ -45,6 +46,7 @@ export default function FlowAIPage() {
         config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
         inputHandles: nodeConfigDef.inputHandles,
         outputHandles: nodeConfigDef.outputHandles,
+        aiExplanation: aiNode.aiExplanation || '',
       };
     });
     nextNodeIdRef.current = maxId + 1;
@@ -88,6 +90,7 @@ export default function FlowAIPage() {
       config: { ...nodeType.defaultConfig },
       inputHandles: nodeType.inputHandles,
       outputHandles: nodeType.outputHandles,
+      aiExplanation: `Manually added ${nodeType.name} node.`, // Default explanation for manually added nodes
     };
     setNodes((prevNodes) => produce(prevNodes, draft => {
       draft.push(newNode);
@@ -130,6 +133,16 @@ export default function FlowAIPage() {
       })
     );
   }, []);
+  
+  // Placeholder for future:
+  // const handleNodeAiExplanationChange = useCallback((nodeId: string, newExplanation: string) => {
+  //   setNodes((prevNodes) =>
+  //     produce(prevNodes, draft => {
+  //       const node = draft.find(n => n.id === nodeId);
+  //       if (node) node.aiExplanation = newExplanation;
+  //     })
+  //   );
+  // }, []);
 
 
   const selectedNodeFull = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
@@ -177,6 +190,7 @@ export default function FlowAIPage() {
                 onConfigChange={handleNodeConfigChange}
                 onNodeNameChange={handleNodeNameChange}
                 onNodeDescriptionChange={handleNodeDescriptionChange}
+                // onNodeAiExplanationChange={handleNodeAiExplanationChange} // For future use
               />
             )}
             {!selectedNodeFull && (
