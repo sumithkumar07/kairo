@@ -50,3 +50,6 @@ export interface LogEntry {
   message: string;
   type: 'info' | 'error' | 'success';
 }
+
+// Log entry structure returned from the server, timestamp will be added client-side
+export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;

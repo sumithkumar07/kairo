@@ -2,11 +2,12 @@
 'use client';
 
 import { useCallback, useState, useRef } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
+import { executeWorkflow } from '@/app/actions'; // Import the new server action
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Workflow as WorkflowIcon } from 'lucide-react'; // Added WorkflowIcon
+import { Loader2, Workflow as WorkflowIcon } from 'lucide-react';
 
 import { AIPromptBar } from '@/components/ai-prompt-bar';
 import { NodeLibrary } from '@/components/node-library';
@@ -53,9 +54,8 @@ export default function FlowAIPage() {
     });
     nextNodeIdRef.current = maxId + 1;
 
-
     const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn, index) => ({
-      id: `conn_${conn.source}_${conn.target}_${index}_${Date.now()}`, // Ensure unique ID
+      id: `conn_${conn.source}_${conn.target}_${index}_${Date.now()}`,
       sourceNodeId: conn.source, 
       targetNodeId: conn.target,
       sourceHandle: conn.sourcePort,
@@ -79,7 +79,7 @@ export default function FlowAIPage() {
     setNodes(newNodes);
     setConnections(newConnections);
     setSelectedNodeId(null); 
-    setExecutionLogs([]); // Clear logs when a new workflow is generated
+    setExecutionLogs([]);
   }, [mapAiWorkflowToInternal, toast]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
@@ -88,7 +88,7 @@ export default function FlowAIPage() {
       id: newNodeId,
       type: nodeType.type,
       name: nodeType.name,
-      description: '', // Initialize description
+      description: nodeType.description || '', 
       position,
       config: { ...nodeType.defaultConfig },
       inputHandles: nodeType.inputHandles,
@@ -137,36 +137,49 @@ export default function FlowAIPage() {
     );
   }, []);
 
-  const runMockWorkflow = useCallback(async () => {
+  const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
       toast({ title: "Empty Workflow", description: "Cannot run an empty workflow. Add some nodes first.", variant: "default" });
       return;
     }
 
     setIsWorkflowRunning(true);
-    setExecutionLogs([]);
+    setExecutionLogs([]); // Clear previous logs
     
-    const addLog = (message: string, type: LogEntry['type'] = 'info') => {
-      setExecutionLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString(), message, type }]);
-    };
+    toast({ title: "Workflow Execution Started", description: "Attempting to run workflow on the server..." });
 
-    addLog("Mock workflow run started...", "info");
-    toast({ title: "Mock Run Started", description: "Simulating workflow execution..." });
+    try {
+      const serverLogsOutput: ServerLogOutput[] = await executeWorkflow({ nodes, connections });
+      
+      const newExecutionLogs: LogEntry[] = serverLogsOutput.map(log => ({
+        ...log,
+        timestamp: new Date().toLocaleTimeString(), // Add timestamp on the client
+      }));
+      setExecutionLogs(newExecutionLogs);
 
-    for (const node of nodes) {
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate async work
-      addLog(`Simulating execution of: ${node.name} (Type: ${node.type}, ID: ${node.id})`, "info");
-      // Here you could add mock success/failure based on node type or config
-      // For example: if (node.type === 'httpRequest' && !node.config.url) addLog(`Error: URL missing for ${node.name}`, 'error');
+      const hasErrors = serverLogsOutput.some(log => log.type === 'error');
+      if (hasErrors) {
+        toast({ title: "Workflow Executed with Errors", description: "Check the logs for details.", variant: "destructive" });
+      } else {
+        toast({ title: "Workflow Executed Successfully", description: "All steps processed by the server.", variant: "default" });
+      }
+
+    } catch (error: any) {
+      console.error("Error calling executeWorkflow server action:", error);
+      const clientErrorLog: LogEntry = {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `Client Error: Failed to execute workflow on server. ${error.message || 'Unknown error.'}`,
+        type: 'error',
+      };
+      setExecutionLogs(prevLogs => [...prevLogs, clientErrorLog]);
+      toast({ 
+        title: "Execution Failed", 
+        description: `Could not run workflow on server: ${error.message || 'Unknown error.'}`, 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsWorkflowRunning(false);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 300));
-    addLog("Mock workflow run completed.", "success");
-    toast({ title: "Mock Run Finished", description: "Workflow simulation complete." });
-    
-    setIsWorkflowRunning(false);
-    console.log("Final mock workflow state:", { nodes, connections });
-
   }, [nodes, connections, toast]);
   
 
@@ -177,7 +190,7 @@ export default function FlowAIPage() {
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       <header className="p-4 border-b flex items-center gap-3 bg-primary text-primary-foreground shadow-lg shrink-0">
-        <WorkflowIcon className="h-7 w-7" /> {/* Added icon */}
+        <WorkflowIcon className="h-7 w-7" />
         <h1 className="text-xl font-bold font-headline">FlowAI</h1>
       </header>
 
@@ -232,7 +245,7 @@ export default function FlowAIPage() {
           <div className="p-4 border-t mt-auto shrink-0">
              <ExecutionLogPanel 
                 logs={executionLogs} 
-                onRunWorkflow={runMockWorkflow} 
+                onRunWorkflow={handleRunWorkflow} // Updated prop
                 isWorkflowRunning={isWorkflowRunning} 
              />
           </div>
