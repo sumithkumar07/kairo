@@ -30,7 +30,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     const pathParts = path.split('.'); 
     
     if (pathParts.length === 0) {
-      const warningMsg = `[WORKFLOW ENGINE] Invalid placeholder path: '${path}' in '${value}'. Placeholder remains unresolved.`;
+      const warningMsg = `[ENGINE] Invalid placeholder path: '${path}' in value '${value}'. Placeholder remains unresolved.`;
       console.warn(warningMsg);
       serverLogs.push({ message: warningMsg, type: 'info' });
       continue;
@@ -43,14 +43,14 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
-        serverLogs.push({ message: `[WORKFLOW ENGINE] Resolved '{{env.${envVarName}}}' from environment.`, type: 'info' });
+        serverLogs.push({ message: `[ENGINE] Resolved placeholder '{{env.${envVarName}}}' from environment.`, type: 'info' });
         // If the entire value was just this placeholder, make sure to assign the potentially non-string value directly
         if (placeholder === value) {
             resolvedValue = envVarValue;
         }
         continue; 
       } else {
-        const warningMsg = `[WORKFLOW ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Placeholder remains unresolved.`;
+        const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Placeholder remains unresolved.`;
         console.warn(warningMsg);
         serverLogs.push({ message: warningMsg, type: 'info' });
         continue;
@@ -59,7 +59,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     
     if (firstPart === 'secrets' && pathParts.length === 2) {
         const secretName = pathParts[1];
-        const infoMsg = `[WORKFLOW ENGINE] Placeholder '{{secrets.${secretName}}}' refers to a secret. Actual secret resolution is not yet implemented. Placeholder remains unresolved.`;
+        const infoMsg = `[ENGINE] Placeholder '{{secrets.${secretName}}}' refers to a secret. Actual secret resolution is not yet implemented. Placeholder remains unresolved.`;
         console.info(infoMsg); 
         serverLogs.push({ message: infoMsg, type: 'info'});
         // Keep the placeholder string as is
@@ -69,7 +69,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     let currentData = workflowData[firstPart]; // firstPart is nodeId here
 
     if (currentData === undefined) {
-      const warningMsg = `[WORKFLOW ENGINE] No data found for node '${firstPart}' in placeholder '${placeholder}'. Placeholder remains unresolved.`;
+      const warningMsg = `[ENGINE] No data found for node '${firstPart}' in workflow data when resolving placeholder '${placeholder}'. Placeholder remains unresolved.`;
       console.warn(warningMsg);
       serverLogs.push({ message: warningMsg, type: 'info' });
       continue; 
@@ -86,7 +86,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
         if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
           dataAtPath = dataAtPath[arrayKey][index];
         } else {
-          const warningMsg = `[WORKFLOW ENGINE] Array access failed for '${part}' in placeholder '${placeholder}'. Path: ${pathParts.slice(0, i+1).join('.')}. Data for ${firstPart}: ${JSON.stringify(dataAtPath, null, 2).substring(0,100)}`;
+          const warningMsg = `[ENGINE] Array access failed for '${part}' in placeholder '${placeholder}'. Attempted path: ${pathParts.slice(0, i+1).join('.')}. Data for node '${firstPart}' (start): ${JSON.stringify(currentData, null, 2).substring(0,100)}`;
           console.warn(warningMsg);
           serverLogs.push({ message: warningMsg, type: 'info' });
           found = false; break;
@@ -94,7 +94,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
       } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
         dataAtPath = dataAtPath[part];
       } else {
-        const warningMsg = `[WORKFLOW ENGINE] Path part '${part}' not found in data for node '${firstPart}' using placeholder '${placeholder}'. Path: ${pathParts.slice(0, i+1).join('.')}. Data for ${firstPart}: ${JSON.stringify(dataAtPath, null, 2).substring(0,100)}`;
+        const warningMsg = `[ENGINE] Path part '${part}' not found in data for node '${firstPart}' when resolving placeholder '${placeholder}'. Attempted path: ${pathParts.slice(0, i+1).join('.')}. Current data at path: ${JSON.stringify(dataAtPath, null, 2).substring(0,100)}`;
         console.warn(warningMsg);
         serverLogs.push({ message: warningMsg, type: 'info' });
         found = false;
@@ -112,7 +112,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
         resolvedValue = resolvedValue.replace(placeholder, replacementValue);
       }
     } else {
-        // Warning already logged
+        // Warning already logged by the loop
     }
   }
   return resolvedValue;
@@ -192,7 +192,7 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
         adj[conn.sourceNodeId].push(conn.targetNodeId);
         inDegree[conn.targetNodeId]++;
     } else {
-        console.warn(`[WORKFLOW ENGINE] Invalid connection: ${conn.sourceNodeId} -> ${conn.targetNodeId}. One or both nodes not found during graph build.`);
+        console.warn(`[ENGINE] Invalid connection: ${conn.sourceNodeId} -> ${conn.targetNodeId}. One or both nodes not found during graph build.`);
     }
   }
 
@@ -219,10 +219,14 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
   }
 
   if (executionOrder.length !== nodes.length) {
-    const unvisitedNodes = nodes.filter(n => !executionOrder.find(en => en.id === n.id)).map(n => n.id);
-    const cycleHint = unvisitedNodes.length > 0 ? `Possible cycle involving or leading to: ${unvisitedNodes.slice(0,3).join(', ')}...` : 'Check for disconnected components or invalid connections.';
-    console.error(`[WORKFLOW ENGINE] Cycle detected or disconnected graph. Visited: ${executionOrder.length}, Total: ${nodes.length}. ${cycleHint}`);
-    return { executionOrder: [], error: `Workflow has a cycle or disconnected components. ${cycleHint}` };
+    const visitedNodeIds = new Set(executionOrder.map(n => n.id));
+    const unvisitedNodes = nodes.filter(n => !visitedNodeIds.has(n.id)).map(n => `${n.name || 'Unnamed Node'} (ID: ${n.id})`);
+    const cycleHint = unvisitedNodes.length > 0 
+        ? `Possible cycle involving or leading to unvisited nodes: ${unvisitedNodes.slice(0,3).join(', ')}${unvisitedNodes.length > 3 ? '...' : ''}.` 
+        : 'Or, some nodes might be disconnected from the main flow.';
+    const errorMessage = `[ENGINE] Workflow has a cycle or disconnected components. ${nodes.length} nodes total, ${executionOrder.length} ordered. ${cycleHint}`;
+    console.error(errorMessage);
+    return { executionOrder: [], error: errorMessage };
   }
 
   return { executionOrder };
@@ -233,14 +237,14 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   const serverLogs: ServerLogOutput[] = [];
   const workflowData: Record<string, any> = {}; 
 
-  console.log("[WORKFLOW ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
+  console.log("[ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
   serverLogs.push({ message: `[ENGINE] Workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
 
   const { executionOrder, error: sortError } = getExecutionOrder(workflow.nodes, workflow.connections);
 
   if (sortError) {
-    console.error(`[WORKFLOW ENGINE] ${sortError}`);
-    serverLogs.push({ message: `[ENGINE] Error determining execution order: ${sortError}`, type: 'error' });
+    console.error(`[ENGINE] ${sortError}`); // Already logged by getExecutionOrder
+    serverLogs.push({ message: sortError, type: 'error' });
     serverLogs.push({ message: "[ENGINE] Workflow execution HALTED due to graph error.", type: 'error' });
     return serverLogs;
   }
@@ -248,17 +252,17 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   if (executionOrder.length > 0) {
     serverLogs.push({ message: `[ENGINE] Determined execution order: ${executionOrder.map(n => n.name || n.id).join(' -> ')}`, type: 'info' });
   } else if (workflow.nodes.length > 0) {
-    serverLogs.push({ message: `[ENGINE] No executable order found for nodes. Possible isolated nodes.`, type: 'info' });
+    serverLogs.push({ message: `[ENGINE] No executable order found for ${workflow.nodes.length} nodes. Check for isolated nodes or graph errors.`, type: 'info' });
   }
 
 
   for (const node of executionOrder) {
-    console.log(`[WORKFLOW ENGINE] Processing node: ${node.name || node.id} (Type: ${node.type}, ID: ${node.id})`);
+    console.log(`[ENGINE] Processing node: ${node.name || node.id} (Type: ${node.type}, ID: ${node.id})`);
     serverLogs.push({ message: `[ENGINE] Processing node: ${node.name || node.id} (ID: ${node.id}, Type: ${node.type})`, type: 'info' });
 
     try {
       const resolvedConfig = resolveNodeConfig(node.config || {}, workflowData, serverLogs);
-      console.log(`[WORKFLOW ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
+      console.log(`[ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
       if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
         const conditionValue = resolvedConfig._flow_run_condition;
@@ -266,12 +270,12 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
         // Any other value (including string "false" not yet converted, or non-empty strings) would be considered truthy for skipping purposes.
         // True booleans or non-zero numbers or non-empty strings will let the node run.
         if (conditionValue === false || conditionValue === 0 || conditionValue === '' || conditionValue === null || conditionValue === undefined) {
-          serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) SKIPPED due to _flow_run_condition evaluating to falsy (${conditionValue}).`, type: 'info' });
-          console.log(`[WORKFLOW ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
-          workflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${conditionValue}` };
+          serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) SKIPPED due to _flow_run_condition evaluating to falsy (Value: '${String(conditionValue)}').`, type: 'info' });
+          console.log(`[ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
+          workflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
           continue; 
         }
-        serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) proceeding: _flow_run_condition evaluated to truthy (${conditionValue}).`, type: 'info' });
+        serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) proceeding: _flow_run_condition evaluated to truthy (Value: '${String(conditionValue)}').`, type: 'info' });
       }
 
 
@@ -280,23 +284,23 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
       switch (node.type) {
         case 'trigger': 
         case 'schedule': 
-          serverLogs.push({ message: `[SIMULATE] Node '${node.name || node.id}' (Type: ${node.type}): Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
+          serverLogs.push({ message: `[NODE ${node.type.toUpperCase()}] '${node.name || node.id}': Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
           nodeOutput = { status: "simulated_trigger_activated", details: resolvedConfig, triggeredAt: new Date().toISOString() };
           break;
 
         case 'logMessage':
           const messageToLog = resolvedConfig?.message || `Default log message from ${node.name || node.id}`;
           console.log(`[WORKFLOW LOG] ${node.name || node.id}: ${messageToLog}`); 
-          serverLogs.push({ message: `[LOG] ${node.name || node.id}: ${messageToLog}`, type: 'info' });
+          serverLogs.push({ message: `[NODE LOGMESSAGE] ${node.name || node.id}: ${messageToLog}`, type: 'info' });
           nodeOutput = { output: messageToLog };
           break;
 
         case 'httpRequest':
           const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
           if (!url) {
-            throw new Error(`Node '${node.name || node.id}': URL is not configured or resolved.`);
+            throw new Error(`Node '${node.name || node.id}' (Type: httpRequest): URL is not configured or resolved.`);
           }
-          serverLogs.push({ message: `[HTTP] Node '${node.name || node.id}': Attempting ${method} request to ${url}`, type: 'info' });
+          serverLogs.push({ message: `[NODE HTTPREQUEST] '${node.name || node.id}': Attempting ${method} request to ${url}`, type: 'info' });
           
           let parsedHeaders: Record<string, string> = {};
           try {
@@ -306,7 +310,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                 parsedHeaders = headersString; 
             }
           } catch (e: any) {
-            throw new Error(`Node '${node.name || node.id}': Invalid headers JSON: ${e.message}`);
+            throw new Error(`Node '${node.name || node.id}' (Type: httpRequest): Invalid headers JSON: ${e.message}. Headers provided: '${headersString}'`);
           }
 
           const fetchOptions: RequestInit = { method, headers: parsedHeaders };
@@ -321,10 +325,10 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           const responseText = await response.text(); 
 
           if (!response.ok) {
-            serverLogs.push({ message: `[HTTP] Node '${node.name || node.id}': Request to ${url} FAILED with status ${response.status}. Response: ${responseText}`, type: 'error' });
-            throw new Error(`HTTP request failed for ${node.name || node.id} with status ${response.status}: ${responseText}`);
+            serverLogs.push({ message: `[NODE HTTPREQUEST] '${node.name || node.id}': Request to ${url} FAILED with status ${response.status}. Response: ${responseText}`, type: 'error' });
+            throw new Error(`HTTP request failed for ${node.name || node.id} (Type: httpRequest) with status ${response.status}: ${responseText}`);
           }
-          serverLogs.push({ message: `[HTTP] Node '${node.name || node.id}': Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
+          serverLogs.push({ message: `[NODE HTTPREQUEST] '${node.name || node.id}': Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
           
           let parsedResponse: any;
           try {
@@ -338,10 +342,10 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
         case 'aiTask':
           const { prompt: aiPrompt, model: aiModelFromConfig } = resolvedConfig;
           if (!aiPrompt) {
-            throw new Error(`Node '${node.name || node.id}': AI Prompt is not configured or resolved.`);
+            throw new Error(`Node '${node.name || node.id}' (Type: aiTask): AI Prompt is not configured or resolved.`);
           }
           const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; 
-          serverLogs.push({ message: `[AI TASK] Node '${node.name || node.id}': Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
+          serverLogs.push({ message: `[NODE AITASK] '${node.name || node.id}': Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
           
           const genkitResponse = await ai.generate({ 
             prompt: String(aiPrompt), 
@@ -349,7 +353,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           });
           const aiResponseTextContent = genkitResponse.text; 
           
-          serverLogs.push({ message: `[AI TASK] Node '${node.name || node.id}': Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
+          serverLogs.push({ message: `[NODE AITASK] '${node.name || node.id}': Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
           nodeOutput = { output: aiResponseTextContent }; 
           break;
 
@@ -361,32 +365,32 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             if (jsonString.trim() === '') {
               if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
                 dataToParse = {}; // Empty string with root path yields empty object
-                serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Input JSON string is empty, path is root. Parsing as empty object.`, type: 'info' });
+                serverLogs.push({ message: `[NODE PARSEJSON] '${node.name || node.id}': Input JSON string is empty, path is root. Parsing as empty object.`, type: 'info' });
               } else {
-                throw new Error(`Node '${node.name || node.id}': Cannot extract path '${path}' from an empty JSON string.`);
+                throw new Error(`Node '${node.name || node.id}' (Type: parseJson): Cannot extract path '${path}' from an empty JSON string.`);
               }
             } else {
               try {
                 dataToParse = JSON.parse(jsonString);
               } catch (e: any) {
-                throw new Error(`Node '${node.name || node.id}': Invalid JSON input string: ${e.message}. Input (first 100 chars): '${jsonString.substring(0,100)}...'`);
+                throw new Error(`Node '${node.name || node.id}' (Type: parseJson): Invalid JSON input string: ${e.message}. Input (first 100 chars): '${jsonString.substring(0,100)}...'`);
               }
             }
           } else if (typeof jsonString === 'object' && jsonString !== null) {
             dataToParse = jsonString; // Already an object
-            serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Input is already an object. No parsing needed.`, type: 'info' });
+            serverLogs.push({ message: `[NODE PARSEJSON] '${node.name || node.id}': Input is already an object. No parsing needed.`, type: 'info' });
           } else if (jsonString === null) {
             if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
               dataToParse = null; // Null input with root path yields null
-              serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Input JSON is null, path is root. Outputting null.`, type: 'info' });
+              serverLogs.push({ message: `[NODE PARSEJSON] '${node.name || node.id}': Input JSON is null, path is root. Outputting null.`, type: 'info' });
             } else {
-              throw new Error(`Node '${node.name || node.id}': Cannot extract path '${path}' from a null JSON input.`);
+              throw new Error(`Node '${node.name || node.id}' (Type: parseJson): Cannot extract path '${path}' from a null JSON input.`);
             }
           } else { // undefined, number, boolean, or other non-string/non-object types
-            throw new Error(`Node '${node.name || node.id}': JSON input must be a non-null string or an object. Received type: ${typeof jsonString}, value: ${JSON.stringify(jsonString)}`);
+            throw new Error(`Node '${node.name || node.id}' (Type: parseJson): JSON input must be a non-null string or an object. Received type: ${typeof jsonString}, value: ${JSON.stringify(jsonString)}`);
           }
           
-          serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
+          serverLogs.push({ message: `[NODE PARSEJSON] '${node.name || node.id}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
 
           let extractedValue: any;
           if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
@@ -415,79 +419,83 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             if (extractionFound) {
               extractedValue = currentExtractedData;
             } else {
-              throw new Error(`Node '${node.name || node.id}': Path "${path}" not found in JSON object. Current object: ${JSON.stringify(dataToParse, null, 2).substring(0,200)}`);
+              throw new Error(`Node '${node.name || node.id}' (Type: parseJson): Path "${path}" not found in JSON object. Current object (first 200 chars): ${JSON.stringify(dataToParse, null, 2).substring(0,200)}`);
             }
           }
-          serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Extracted value (first 200 chars): ${JSON.stringify(extractedValue).substring(0,200)}`, type: 'success' });
+          serverLogs.push({ message: `[NODE PARSEJSON] '${node.name || node.id}': Extracted value (first 200 chars): ${JSON.stringify(extractedValue).substring(0,200)}`, type: 'success' });
           nodeOutput = { output: extractedValue }; 
           break;
 
         case 'conditionalLogic':
           let resolvedCondition = resolvedConfig.condition;
-          if (resolvedCondition === undefined || resolvedCondition === null) {
-            throw new Error(`Node '${node.name || node.id}': Condition string is missing or not resolved.`);
+          if (resolvedCondition === undefined || resolvedCondition === null || typeof resolvedCondition !== 'string') { // Condition must be a string to parse
+            throw new Error(`Node '${node.name || node.id}' (Type: conditionalLogic): Condition string is missing, null, or not a string. Received: ${JSON.stringify(resolvedCondition)}`);
           }
-          serverLogs.push({ message: `[CONDITIONAL] Node '${node.name || node.id}': Evaluating condition: "${resolvedCondition}"`, type: 'info' });
+          serverLogs.push({ message: `[NODE CONDITIONALLOGIC] '${node.name || node.id}': Evaluating condition: "${resolvedCondition}"`, type: 'info' });
           
           let evaluationResult = false;
           try {
-             if (typeof resolvedCondition === 'boolean') {
-                evaluationResult = resolvedCondition;
-            } else if (typeof resolvedCondition === 'string') {
-                const lowerCondition = resolvedCondition.toLowerCase();
-                if (lowerCondition === 'true') {
-                    evaluationResult = true;
-                } else if (lowerCondition === 'false') {
-                    evaluationResult = false;
-                } else {
-                    const operators = ['==', '!=', '<=', '>=', '<', '>'];
-                    let operatorFound: string | null = null;
-                    let conditionParts: string[] = [];
+            // Handle direct boolean "true" or "false" strings more robustly
+            const lowerCondition = resolvedCondition.toLowerCase();
+            if (lowerCondition === 'true') {
+                evaluationResult = true;
+            } else if (lowerCondition === 'false') {
+                evaluationResult = false;
+            } else {
+                const operators = ['==', '!=', '<=', '>=', '<', '>'];
+                let operatorFound: string | null = null;
+                let conditionParts: string[] = [];
 
-                    for (const op of operators) {
-                        if (resolvedCondition.includes(op)) {
-                            operatorFound = op;
-                            conditionParts = resolvedCondition.split(op).map(p => p.trim());
-                            break;
-                        }
-                    }
-
-                    if (operatorFound && conditionParts.length === 2) {
-                        let val1: any = conditionParts[0];
-                        let val2: any = conditionParts[1];
-
-                        const parseOperand = (operand: string) => {
-                            if (operand.toLowerCase() === 'true') return true;
-                            if (operand.toLowerCase() === 'false') return false;
-                            const num = parseFloat(operand);
-                            return isNaN(num) ? operand : num;
-                        };
-                        
-                        val1 = parseOperand(val1);
-                        val2 = parseOperand(val2);
-
-                        switch(operatorFound) {
-                            case '==': evaluationResult = val1 == val2; break; // Loose equality
-                            case '!=': evaluationResult = val1 != val2; break; // Loose inequality
-                            case '<':  evaluationResult = val1 < val2; break;
-                            case '>':  evaluationResult = val1 > val2; break;
-                            case '<=': evaluationResult = val1 <= val2; break;
-                            case '>=': evaluationResult = val1 >= val2; break;
-                        }
-                    } else {
-                         // If no operator or not two parts, treat as simple truthiness of the resolved string
-                         evaluationResult = Boolean(resolvedCondition); 
+                for (const op of operators) {
+                    if (resolvedCondition.includes(op)) {
+                        operatorFound = op;
+                        // Split carefully to handle multiple occurrences, only take first one for simple comparison
+                        const splitIndex = resolvedCondition.indexOf(op);
+                        conditionParts = [
+                            resolvedCondition.substring(0, splitIndex).trim(),
+                            resolvedCondition.substring(splitIndex + op.length).trim()
+                        ];
+                        break;
                     }
                 }
-            } else if (typeof resolvedCondition === 'number') {
-                 evaluationResult = Boolean(resolvedCondition); // Non-zero numbers are true
-            } else { 
-                 evaluationResult = Boolean(resolvedCondition); // General truthiness for other types
+
+                if (operatorFound && conditionParts.length === 2) {
+                    let val1: any = conditionParts[0];
+                    let val2: any = conditionParts[1];
+
+                    const parseOperand = (operand: string) => {
+                        if (operand.toLowerCase() === 'true') return true;
+                        if (operand.toLowerCase() === 'false') return false;
+                        // Check if operand is explicitly quoted (string literal)
+                        if ((operand.startsWith("'") && operand.endsWith("'")) || (operand.startsWith('"') && operand.endsWith('"'))) {
+                            return operand.substring(1, operand.length -1);
+                        }
+                        const num = parseFloat(operand);
+                        return isNaN(num) ? operand : num; // Keep as string if not a clear number
+                    };
+                    
+                    val1 = parseOperand(val1);
+                    val2 = parseOperand(val2);
+
+                    switch(operatorFound) {
+                        case '==': evaluationResult = val1 == val2; break; // Loose equality
+                        case '!=': evaluationResult = val1 != val2; break; // Loose inequality
+                        case '<':  evaluationResult = val1 < val2; break;
+                        case '>':  evaluationResult = val1 > val2; break;
+                        case '<=': evaluationResult = val1 <= val2; break;
+                        case '>=': evaluationResult = val1 >= val2; break;
+                    }
+                } else {
+                      // If no operator or not two parts, treat as simple truthiness of the resolved (potentially non-string) value
+                      // This case might need re-evaluation if `resolvedCondition` isn't a string initially
+                      // For now, if it's not "true" or "false" and has no operator, consider it falsy unless it's a non-empty string that isn't "false"
+                      evaluationResult = (resolvedCondition !== '' && resolvedCondition.toLowerCase() !== 'false');
+                }
             }
           } catch (e: any) {
-            throw new Error(`Node '${node.name || node.id}': Error evaluating condition "${resolvedCondition}": ${e.message}`);
+            throw new Error(`Node '${node.name || node.id}' (Type: conditionalLogic): Error evaluating condition "${resolvedCondition}": ${e.message}`);
           }
-          serverLogs.push({ message: `[CONDITIONAL] Node '${node.name || node.id}': Condition "${resolvedCondition}" evaluated to ${evaluationResult}.`, type: 'success' });
+          serverLogs.push({ message: `[NODE CONDITIONALLOGIC] '${node.name || node.id}': Condition "${resolvedCondition}" evaluated to ${evaluationResult}.`, type: 'success' });
           nodeOutput = { result: evaluationResult };
           break;
 
@@ -499,29 +507,29 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
         case 'videoConvertToShorts':
         case 'youtubeUploadShort':
         case 'workflowNode': 
-          const simulationMessage = `[SIMULATE] Node '${node.name || node.id}' (Type: ${node.type}): Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
+          const simulationMessage = `[NODE ${node.type.toUpperCase()}] SIMULATE: Node '${node.name || node.id}' (Type: ${node.type}): Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
           console.log(simulationMessage);
           serverLogs.push({ message: simulationMessage, type: 'info' });
           nodeOutput = { status: "simulated_execution", simulated_config: resolvedConfig };
           break;
           
         default:
-          const defaultMessage = `[WORKFLOW ENGINE] Node type '${node.type}' not yet implemented for real execution. Skipping. Config: ${JSON.stringify(resolvedConfig, null, 2)}`;
+          const defaultMessage = `[ENGINE] Node type '${node.type}' for node '${node.name || node.id}' (ID: ${node.id}) is not specifically handled for execution. Config: ${JSON.stringify(resolvedConfig, null, 2)}`;
           console.log(defaultMessage);
-          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' for node '${node.name || node.id}' execution is not yet implemented. Skipped.`, type: 'info' });
+          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' for node '${node.name || node.id}' execution is not yet implemented or recognized. Skipped.`, type: 'info' });
           nodeOutput = { output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
           break;
       }
       
       if (nodeOutput !== null && nodeOutput !== undefined) {
         workflowData[node.id] = nodeOutput; 
-        console.log(`[WORKFLOW ENGINE] Node ${node.id} output stored:`, JSON.stringify(workflowData[node.id], null, 2).substring(0, 500));
+        console.log(`[ENGINE] Node ${node.id} output stored (first 500 chars):`, JSON.stringify(workflowData[node.id], null, 2).substring(0, 500));
         serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) output stored.`, type: 'info' });
       }
       serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) processed successfully.`, type: 'success' });
 
     } catch (error: any) {
-      console.error(`[WORKFLOW ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}):`, error.message, error.stack);
+      console.error(`[ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}):`, error.message, error.stack);
       const errorDetails = error.message ? error.message : 'Unknown error during node execution.';
       serverLogs.push({ message: `[ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}): ${errorDetails}`, type: 'error' });
       workflowData[node.id] = { error: errorDetails, status: 'error' }; 
@@ -530,7 +538,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
     }
   }
 
-  console.log("[WORKFLOW ENGINE] Workflow execution finished. Final workflowData:", JSON.stringify(workflowData, null, 2).substring(0,1000));
+  console.log("[ENGINE] Workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(workflowData, null, 2).substring(0,1000));
   serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'info' }); 
   return serverLogs;
 }
