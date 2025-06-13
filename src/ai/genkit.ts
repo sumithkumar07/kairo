@@ -11,10 +11,9 @@ export const ai = genkit({
   ],
   models: [
     geminiFlash,
-    // You can add other Google AI models here if needed:
-    // googleAI.model('gemini-pro'),
+    // You can add other Google AI models here if needed
+    // e.g., googleAI.model('gemini-pro')
   ],
   // Set the default model for the `ai` instance.
-  // Genkit automatically prefixes models with the plugin name, e.g., 'googleai/gemini-1.5-flash-latest'.
   model: 'googleai/gemini-1.5-flash-latest', 
 });
