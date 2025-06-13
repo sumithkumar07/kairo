@@ -27,13 +27,39 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
   while ((match = placeholderRegex.exec(value)) !== null) {
     const placeholder = match[0]; 
     const path = match[1]; 
-    const pathParts = path.split('.');
+    const pathParts = path.split('.'); // e.g., "node_1.output.data.name" -> ["node_1", "output", "data", "name"]
     
-    let data = workflowData;
+    if (pathParts.length === 0) {
+      console.warn(`[WORKFLOW ENGINE] Invalid placeholder path: '${path}'`);
+      continue;
+    }
+
+    const nodeId = pathParts[0];
+    let currentData = workflowData[nodeId];
+
+    if (currentData === undefined) {
+      console.warn(`[WORKFLOW ENGINE] No data found for node '${nodeId}' in placeholder '${placeholder}'.`);
+      // Keep placeholder as is if source data not found yet, or replace with empty if strict
+      // For now, we'll be lenient and leave it, but in a stricter engine, this might be an error or empty string.
+      continue; 
+    }
+    
+    let dataAtPath = currentData;
     let found = true;
-    for (const part of pathParts) {
-      if (data && typeof data === 'object' && part in data) {
-        data = data[part];
+    // Iterate through the rest of the path parts (e.g., "output", "data", "name")
+    for (let i = 1; i < pathParts.length; i++) {
+      const part = pathParts[i];
+      const arrayMatch = part.match(/(\w+)\[(\d+)\]/); // Handles array access like items[0]
+      if (arrayMatch) {
+        const arrayKey = arrayMatch[1];
+        const index = parseInt(arrayMatch[2], 10);
+        if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
+          dataAtPath = dataAtPath[arrayKey][index];
+        } else {
+          found = false; break;
+        }
+      } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
+        dataAtPath = dataAtPath[part];
       } else {
         found = false;
         break;
@@ -41,13 +67,15 @@ function resolveValue(value: any, workflowData: Record<string, any>): any {
     }
     
     if (found) {
+      // If the entire placeholder string was just this one placeholder, replace it with the actual data type
       if (placeholder === value) {
-        resolvedValue = data; 
+        resolvedValue = dataAtPath; 
       } else {
-        resolvedValue = resolvedValue.replace(placeholder, String(data));
+        // If the placeholder is part of a larger string, convert data to string
+        resolvedValue = resolvedValue.replace(placeholder, String(dataAtPath));
       }
     } else {
-      console.warn(`[WORKFLOW ENGINE] Placeholder '${placeholder}' not found in workflowData.`);
+      console.warn(`[WORKFLOW ENGINE] Placeholder path part not found in '${placeholder}'. Remaining: ${pathParts.slice(1).join('.')}`);
     }
   }
   return resolvedValue;
@@ -58,14 +86,15 @@ function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
+      // Resolve values recursively for nested objects and arrays
       if (typeof value === 'string') {
         resolvedConfig[key] = resolveValue(value, workflowData);
       } else if (Array.isArray(value)) {
         resolvedConfig[key] = value.map(item => resolveValue(item, workflowData));
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = resolveNodeConfig(value, workflowData); 
+        resolvedConfig[key] = resolveNodeConfig(value, workflowData); // Recursive call for nested objects
       } else {
-        resolvedConfig[key] = value;
+        resolvedConfig[key] = value; // Numbers, booleans, null
       }
     }
   }
@@ -151,7 +180,10 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
   }
 
   if (executionOrder.length !== nodes.length) {
-    return { executionOrder: [], error: "Workflow has a cycle or invalid connections, execution aborted." };
+    // Identify unvisited nodes if possible for better cycle error reporting (more complex)
+    const unvisitedNodes = nodes.filter(n => !executionOrder.find(en => en.id === n.id)).map(n => n.id);
+    console.error(`[WORKFLOW ENGINE] Cycle detected or disconnected graph. Visited: ${executionOrder.length}, Total: ${nodes.length}. Unvisited hint: ${unvisitedNodes.join(', ')}`);
+    return { executionOrder: [], error: `Workflow has a cycle or disconnected components. Nodes involved or unreachable might include: ${unvisitedNodes.slice(0,3).join(', ')}... Check connections.` };
   }
 
   return { executionOrder };
@@ -170,47 +202,47 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   if (sortError) {
     console.error(`[WORKFLOW ENGINE] ${sortError}`);
     serverLogs.push({ message: `[ENGINE] Error determining execution order: ${sortError}`, type: 'error' });
-    serverLogs.push({ message: "[ENGINE] Workflow execution finished due to error.", type: 'error' });
+    serverLogs.push({ message: "[ENGINE] Workflow execution HALTED due to graph error.", type: 'error' });
     return serverLogs;
   }
   
-  serverLogs.push({ message: `[ENGINE] Determined execution order: ${executionOrder.map(n => n.name).join(' -> ')}`, type: 'info' });
+  serverLogs.push({ message: `[ENGINE] Determined execution order: ${executionOrder.map(n => n.name || n.id).join(' -> ')}`, type: 'info' });
 
 
   for (const node of executionOrder) {
-    console.log(`[WORKFLOW ENGINE] Processing node: ${node.name} (Type: ${node.type}, ID: ${node.id})`);
-    serverLogs.push({ message: `[ENGINE] Processing node: ${node.name} (ID: ${node.id}, Type: ${node.type})`, type: 'info' });
+    console.log(`[WORKFLOW ENGINE] Processing node: ${node.name || node.id} (Type: ${node.type}, ID: ${node.id})`);
+    serverLogs.push({ message: `[ENGINE] Processing node: ${node.name || node.id} (ID: ${node.id}, Type: ${node.type})`, type: 'info' });
 
     try {
       const resolvedConfig = resolveNodeConfig(node.config || {}, workflowData);
       console.log(`[WORKFLOW ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
-      let nodeOutput: any = null;
+      let nodeOutput: any = null; // This will be an object like { output: value } or { handle1: value1, handle2: value2 }
 
       switch (node.type) {
         case 'logMessage':
-          const messageToLog = resolvedConfig?.message || `Default log message from ${node.name}`;
-          console.log(`[WORKFLOW LOG] ${node.name}: ${messageToLog}`); 
-          serverLogs.push({ message: `[LOG] ${node.name}: ${messageToLog}`, type: 'info' });
-          nodeOutput = messageToLog;
+          const messageToLog = resolvedConfig?.message || `Default log message from ${node.name || node.id}`;
+          console.log(`[WORKFLOW LOG] ${node.name || node.id}: ${messageToLog}`); 
+          serverLogs.push({ message: `[LOG] ${node.name || node.id}: ${messageToLog}`, type: 'info' });
+          nodeOutput = { output: messageToLog };
           break;
 
         case 'httpRequest':
           const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
           if (!url) {
-            throw new Error(`Node '${node.name}': URL is not configured or resolved.`);
+            throw new Error(`Node '${node.name || node.id}': URL is not configured or resolved.`);
           }
-          serverLogs.push({ message: `[HTTP] Node '${node.name}': Attempting ${method} request to ${url}`, type: 'info' });
+          serverLogs.push({ message: `[HTTP] Node '${node.name || node.id}': Attempting ${method} request to ${url}`, type: 'info' });
           
           let parsedHeaders: Record<string, string> = {};
           try {
             if (headersString && typeof headersString === 'string' && headersString.trim() !== '') {
                  parsedHeaders = JSON.parse(headersString);
-            } else if (typeof headersString === 'object' && headersString !== null) {
+            } else if (typeof headersString === 'object' && headersString !== null) { // Already an object (e.g. from placeholder)
                 parsedHeaders = headersString; 
             }
           } catch (e: any) {
-            throw new Error(`Node '${node.name}': Invalid headers JSON: ${e.message}`);
+            throw new Error(`Node '${node.name || node.id}': Invalid headers JSON: ${e.message}`);
           }
 
           const fetchOptions: RequestInit = { method, headers: parsedHeaders };
@@ -225,42 +257,46 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           const responseText = await response.text(); 
 
           if (!response.ok) {
-            serverLogs.push({ message: `[HTTP] Node '${node.name}': Request to ${url} FAILED with status ${response.status}. Response: ${responseText}`, type: 'error' });
-            throw new Error(`HTTP request failed with status ${response.status}: ${responseText}`);
+            serverLogs.push({ message: `[HTTP] Node '${node.name || node.id}': Request to ${url} FAILED with status ${response.status}. Response: ${responseText}`, type: 'error' });
+            throw new Error(`HTTP request failed for ${node.name || node.id} with status ${response.status}: ${responseText}`);
           }
-          serverLogs.push({ message: `[HTTP] Node '${node.name}': Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
+          serverLogs.push({ message: `[HTTP] Node '${node.name || node.id}': Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
           
+          let parsedResponse: any;
           try {
-             nodeOutput = JSON.parse(responseText);
+             parsedResponse = JSON.parse(responseText);
           } catch (e) {
-             nodeOutput = responseText;
+             parsedResponse = responseText; // Store as text if not JSON
           }
+          // Assuming httpRequest node has a primary output handle named 'response'
+          nodeOutput = { response: parsedResponse };
           break;
 
         case 'aiTask':
           const { prompt: aiPrompt, model: aiModel = 'googleai/gemini-1.5-flash-latest' } = resolvedConfig;
           if (!aiPrompt) {
-            throw new Error(`Node '${node.name}': AI Prompt is not configured or resolved.`);
+            throw new Error(`Node '${node.name || node.id}': AI Prompt is not configured or resolved.`);
           }
-          serverLogs.push({ message: `[AI TASK] Node '${node.name}': Sending prompt to model ${aiModel}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
+          serverLogs.push({ message: `[AI TASK] Node '${node.name || node.id}': Sending prompt to model ${aiModel}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
           
           const genkitResponse = await ai.generate({ 
             prompt: String(aiPrompt), 
-            model: aiModel as any, 
+            model: aiModel as any, // Cast to any if specific model types cause issues with Genkit type
           });
           const aiResponseTextContent = genkitResponse.text; 
           
-          serverLogs.push({ message: `[AI TASK] Node '${node.name}': Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
-          nodeOutput = aiResponseTextContent; 
+          serverLogs.push({ message: `[AI TASK] Node '${node.name || node.id}': Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
+          // Assuming aiTask node has a primary output handle named 'output'
+          nodeOutput = { output: aiResponseTextContent }; 
           break;
 
         case 'parseJson':
           const { jsonString, path } = resolvedConfig;
-          if (jsonString === undefined || jsonString === null) { // Check for undefined or null explicitly
-            throw new Error(`Node '${node.name}': JSON string input is missing or not resolved. Received: ${jsonString}`);
+          if (jsonString === undefined || jsonString === null) {
+            throw new Error(`Node '${node.name || node.id}': JSON string input is missing or not resolved. Received: ${jsonString}`);
           }
-          if (typeof jsonString !== 'string' && typeof jsonString !== 'object') { 
-            throw new Error(`Node '${node.name}': JSON input must be a string or an object, received ${typeof jsonString}.`);
+          if (typeof jsonString !== 'string' && typeof jsonString !== 'object') { // Allow object if already parsed upstream
+            throw new Error(`Node '${node.name || node.id}': JSON input must be a string or an object, received ${typeof jsonString}.`);
           }
 
           let dataToParse: any;
@@ -268,22 +304,23 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             try {
               dataToParse = JSON.parse(jsonString);
             } catch (e: any) {
-              throw new Error(`Node '${node.name}': Invalid JSON input string: ${e.message}`);
+              throw new Error(`Node '${node.name || node.id}': Invalid JSON input string: ${e.message}`);
             }
           } else {
-            dataToParse = jsonString; 
+            dataToParse = jsonString; // Already an object (e.g. from resolved placeholder)
           }
           
-          serverLogs.push({ message: `[PARSE JSON] Node '${node.name}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
+          serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
 
+          let extractedValue: any;
           if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
-            nodeOutput = dataToParse; 
+            extractedValue = dataToParse; 
           } else {
-            const pathParts = path.replace(/^\$\.?/, '').split('.'); 
+            const pathParts = path.replace(/^\$\.?/, '').split('.'); // Remove leading $ or $.
             let currentData = dataToParse;
             let found = true;
             for (const part of pathParts) {
-              const arrayMatch = part.match(/(\w+)\[(\d+)\]/); 
+              const arrayMatch = part.match(/(\w+)\[(\d+)\]/); // Handles array access like items[0]
               if (arrayMatch) {
                 const arrayKey = arrayMatch[1];
                 const index = parseInt(arrayMatch[2], 10);
@@ -299,38 +336,40 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               }
             }
             if (found) {
-              nodeOutput = currentData;
+              extractedValue = currentData;
             } else {
-              throw new Error(`Node '${node.name}': Path "${path}" not found in JSON object.`);
+              throw new Error(`Node '${node.name || node.id}': Path "${path}" not found in JSON object.`);
             }
           }
-          serverLogs.push({ message: `[PARSE JSON] Node '${node.name}': Extracted value: ${JSON.stringify(nodeOutput).substring(0,200)}`, type: 'success' });
+          serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Extracted value (first 200 chars): ${JSON.stringify(extractedValue).substring(0,200)}`, type: 'success' });
+          nodeOutput = { output: extractedValue }; // Assuming parseJson has a primary output handle named 'output'
           break;
           
         default:
           console.log(`[WORKFLOW ENGINE] Node type '${node.type}' not yet implemented for real execution. Skipping.`);
-          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' execution is not yet implemented. Skipped.`, type: 'info' });
-          nodeOutput = `Execution not implemented for type: ${node.type}`;
+          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' for node '${node.name || node.id}' execution is not yet implemented. Skipped.`, type: 'info' });
+          nodeOutput = { output: `Execution not implemented for type: ${node.type}` };
           break;
       }
       
       if (nodeOutput !== null && nodeOutput !== undefined) {
-        workflowData[node.id] = { output: nodeOutput };
+        workflowData[node.id] = nodeOutput; // Store the entire output object
         console.log(`[WORKFLOW ENGINE] Node ${node.id} output stored:`, JSON.stringify(workflowData[node.id], null, 2).substring(0, 500));
-        serverLogs.push({ message: `[ENGINE] Node '${node.name}' (ID: ${node.id}) output stored.`, type: 'info' });
+        serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) output stored.`, type: 'info' });
       }
-      serverLogs.push({ message: `[ENGINE] Node '${node.name}' (ID: ${node.id}) processed successfully.`, type: 'success' });
+      serverLogs.push({ message: `[ENGINE] Node '${node.name || node.id}' (ID: ${node.id}) processed successfully.`, type: 'success' });
 
     } catch (error: any) {
-      console.error(`[WORKFLOW ENGINE] Error executing node ${node.name} (ID: ${node.id}):`, error);
-      serverLogs.push({ message: `[ENGINE] Error executing node ${node.name} (ID: ${node.id}): ${error.message || 'Unknown error'}`, type: 'error' });
+      console.error(`[WORKFLOW ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}):`, error.message);
+      serverLogs.push({ message: `[ENGINE] Error executing node ${node.name || node.id} (ID: ${node.id}): ${error.message || 'Unknown error'}`, type: 'error' });
       workflowData[node.id] = { error: error.message || 'Unknown error' }; 
-      // For now, we'll let the workflow continue. More sophisticated error handling (e.g., stopping workflow) can be added.
+      serverLogs.push({ message: `[ENGINE] Workflow execution HALTED due to error in node ${node.name || node.id}.`, type: 'error' });
+      return serverLogs; // Terminate workflow execution
     }
   }
 
   console.log("[WORKFLOW ENGINE] Workflow execution finished. Final workflowData:", JSON.stringify(workflowData, null, 2).substring(0,1000));
-  serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'success' });
+  serverLogs.push({ message: "[ENGINE] Workflow execution finished successfully.", type: 'success' });
   return serverLogs;
 }
 
