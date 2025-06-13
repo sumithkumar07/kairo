@@ -5,7 +5,7 @@ import type { LogEntry } from '@/types/workflow'; // Import LogEntry
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, RotateCcw } from 'lucide-react'; // Using RotateCcw for running state
+import { Play, RotateCcw } from 'lucide-react'; 
 import { Separator } from './ui/separator';
 
 interface ExecutionLogPanelProps {
@@ -28,7 +28,7 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
           ) : (
             <Play className="mr-2 h-4 w-4" />
           )}
-          {isWorkflowRunning ? 'Running Simulation...' : 'Run Workflow (Mock)'}
+          {isWorkflowRunning ? 'Executing Workflow...' : 'Run Workflow'}
         </Button>
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">Logs:</p>
@@ -58,3 +58,4 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
     </Card>
   );
 }
+
