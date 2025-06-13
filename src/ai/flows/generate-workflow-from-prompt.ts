@@ -1,3 +1,4 @@
+
 // The directive tells the Next.js runtime to execute this code on the server.
 'use server';
 
@@ -17,11 +18,12 @@ import {z} from 'genkit';
 const WorkflowNodeSchema = z.object({
   id: z.string().describe('Unique identifier for the node.'),
   type: z.string().describe('Type of the node (e.g., httpRequest, parseJson, databaseInsert).'),
+  name: z.string().optional().describe('A descriptive name for the node instance.'),
   position: z.object({
     x: z.number(),
     y: z.number(),
   }).describe('The X, Y coordinates of the node in the visual editor'),
-  config: z.record(z.any()).describe('Configuration parameters for the node (e.g., API URL, database table name).'),
+  config: z.any().describe('Configuration parameters for the node (e.g., API URL, database table name). This can be any valid JSON object.'),
 });
 
 // Define the schema for a workflow connection (an edge in the graph). Describes how nodes are connected.
@@ -66,7 +68,9 @@ Here is the description of the workflow to generate:
 
 {{prompt}}
 
-Be sure to include the 'id', 'type', 'position', and 'config' fields for each node, and the 'source', 'sourcePort', 'target', and 'targetPort' fields for each connection.
+Be sure to include the 'id', 'type', 'name' (optional friendly name for the node), 'position', and 'config' fields for each node.
+For connections, include 'source', 'sourcePort' (optional), 'target', and 'targetPort' (optional) fields.
+The 'config' field for each node should be a JSON object containing specific settings for that node type.
 
 Ensure that the output is valid JSON that conforms to the following schema:
 ${GenerateWorkflowFromPromptOutputSchema.description}`,
@@ -84,3 +88,4 @@ const generateWorkflowFromPromptFlow = ai.defineFlow(
     return output!;
   }
 );
+
