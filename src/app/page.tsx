@@ -58,9 +58,9 @@ export default function FlowAIPage() {
     nextNodeIdRef.current = maxId + 1;
 
     const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn, index) => ({
-      id: `conn_${conn.source}_${conn.target}_${index}_${Date.now()}`,
-      sourceNodeId: conn.source, 
-      targetNodeId: conn.target,
+      id: `conn_${conn.sourceNodeId}_${conn.targetNodeId}_${index}_${Date.now()}`,
+      sourceNodeId: conn.sourceNodeId, 
+      targetNodeId: conn.targetNodeId,
       sourceHandle: conn.sourcePort,
       targetHandle: conn.targetPort,
     }));
@@ -265,3 +265,4 @@ export default function FlowAIPage() {
     </div>
   );
 }
+

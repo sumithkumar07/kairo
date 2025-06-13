@@ -355,25 +355,35 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
 
         case 'parseJson':
           const { jsonString, path } = resolvedConfig;
-          if (jsonString === undefined || jsonString === null) { 
-             if (!(path && (path.trim() === '' || path.trim() === '$' || path.trim() === '$.') && jsonString === '')) {
-                throw new Error(`Node '${node.name || node.id}': JSON string input is missing or not resolved. Received: ${jsonString}`);
-            }
-          }
-          
-          if (typeof jsonString !== 'string' && typeof jsonString !== 'object') { 
-            throw new Error(`Node '${node.name || node.id}': JSON input must be a string or an object, received ${typeof jsonString}. Value: ${JSON.stringify(jsonString)}`);
-          }
-
           let dataToParse: any;
+
           if (typeof jsonString === 'string') {
-            try {
-              dataToParse = JSON.parse(jsonString);
-            } catch (e: any) {
-              throw new Error(`Node '${node.name || node.id}': Invalid JSON input string: ${e.message}. Input: '${jsonString.substring(0,100)}...'`);
+            if (jsonString.trim() === '') {
+              if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
+                dataToParse = {}; // Empty string with root path yields empty object
+                serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Input JSON string is empty, path is root. Parsing as empty object.`, type: 'info' });
+              } else {
+                throw new Error(`Node '${node.name || node.id}': Cannot extract path '${path}' from an empty JSON string.`);
+              }
+            } else {
+              try {
+                dataToParse = JSON.parse(jsonString);
+              } catch (e: any) {
+                throw new Error(`Node '${node.name || node.id}': Invalid JSON input string: ${e.message}. Input (first 100 chars): '${jsonString.substring(0,100)}...'`);
+              }
             }
-          } else {
-            dataToParse = jsonString; 
+          } else if (typeof jsonString === 'object' && jsonString !== null) {
+            dataToParse = jsonString; // Already an object
+            serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Input is already an object. No parsing needed.`, type: 'info' });
+          } else if (jsonString === null) {
+            if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') {
+              dataToParse = null; // Null input with root path yields null
+              serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Input JSON is null, path is root. Outputting null.`, type: 'info' });
+            } else {
+              throw new Error(`Node '${node.name || node.id}': Cannot extract path '${path}' from a null JSON input.`);
+            }
+          } else { // undefined, number, boolean, or other non-string/non-object types
+            throw new Error(`Node '${node.name || node.id}': JSON input must be a non-null string or an object. Received type: ${typeof jsonString}, value: ${JSON.stringify(jsonString)}`);
           }
           
           serverLogs.push({ message: `[PARSE JSON] Node '${node.name || node.id}': Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
