@@ -705,7 +705,7 @@ async function executeFlowInternal(
               if (inputMapping && typeof inputMapping === 'object') {
                   for (const [internalKey, parentPlaceholder] of Object.entries(inputMapping)) {
                       
-                      subWorkflowInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs, additionalContexts);
+                      subWorkflowInitialData[internalKey] = resolveValue(String(parentPlaceholder), currentWorkflowData, serverLogs, additionalContexts);
                   }
               }
               serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Starting sub-flow. Mapped inputs (first 200 chars): ${JSON.stringify(subWorkflowInitialData).substring(0,200)}`, type: 'info' });
@@ -724,14 +724,14 @@ async function executeFlowInternal(
               const groupFinalOutput: Record<string, any> = { status: 'success' }; 
               if (outputMapping && typeof outputMapping === 'object') {
                   for (const [parentKey, subPlaceholder] of Object.entries(outputMapping)) {
-                      groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs );
+                      groupFinalOutput[parentKey] = resolveValue(String(subPlaceholder), subExecutionResult.finalWorkflowData, serverLogs );
                   }
               }
 
               const subFlowErrored = Object.values(subExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
               if (subFlowErrored) {
                 const subError = Object.values(subExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
-                const subErrorMessage = subError?.error_message || "Error in sub-flow execution.";
+                const subErrorMessage = (subError as any)?.error_message || "Error in sub-flow execution.";
                 groupFinalOutput.status = 'error';
                 groupFinalOutput.error_message = subErrorMessage;
                 serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution FAILED. Error: ${subErrorMessage}`, type: 'error'});
@@ -776,9 +776,9 @@ async function executeFlowInternal(
                   itemContext         
                 );
 
-                if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && out.status === 'error')) {
-                   const iterError = Object.values(iterExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
-                   const iterErrorMessage = iterError?.error_message || `Error in forEach iteration ${i+1}.`;
+                if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && (out as any).status === 'error')) {
+                   const iterError = Object.values(iterExecutionResult.finalWorkflowData).find(out => out && (out as any).status === 'error');
+                   const iterErrorMessage = (iterError as any)?.error_message || `Error in forEach iteration ${i+1}.`;
                    throw new Error(iterErrorMessage); 
                 }
                 
@@ -900,7 +900,7 @@ async function executeFlowInternal(
                 const branchInitialData: Record<string, any> = {};
                 if (branch.inputMapping && typeof branch.inputMapping === 'object') {
                     for (const [internalKey, parentPlaceholder] of Object.entries(branch.inputMapping)) {
-                        branchInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs, additionalContexts);
+                        branchInitialData[internalKey] = resolveValue(String(parentPlaceholder), currentWorkflowData, serverLogs, additionalContexts);
                     }
                 }
                 
@@ -922,10 +922,10 @@ async function executeFlowInternal(
                     branchOutputValue = branchExecutionResult.lastNodeOutput;
                 }
                 
-                const branchErrored = Object.values(branchExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
+                const branchErrored = Object.values(branchExecutionResult.finalWorkflowData).some(out => out && (out as any).status === 'error');
                 if (branchErrored) {
-                  const branchError = Object.values(branchExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
-                  const branchErrorMessage = branchError?.error_message || "Error in parallel branch execution.";
+                  const branchError = Object.values(branchExecutionResult.finalWorkflowData).find(out => out && (out as any).status === 'error');
+                  const branchErrorMessage = (branchError as any)?.error_message || "Error in parallel branch execution.";
                   serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED. Error: ${branchErrorMessage}`, type: 'error'});
                   return { id: branch.id, status: 'rejected', reason: branchErrorMessage, value: branchOutputValue };
                 }
@@ -1054,9 +1054,9 @@ async function executeFlowInternal(
 
         if (attempt >= maxAttempts) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-          if ((node.type === 'whileLoop' || node.type === 'parallel' || node.type === 'forEach') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
-             if(node.type === 'whileLoop') finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
-             if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
+          if ((node.type === 'whileLoop' || node.type === 'parallel' || node.type === 'forEach') && (finalNodeOutput as any).iterations_completed === undefined && (finalNodeOutput as any).results === undefined) {
+             if(node.type === 'whileLoop') (finalNodeOutput as any).iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
+             if(node.type === 'parallel' || node.type === 'forEach') (finalNodeOutput as any).results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
           
@@ -1078,9 +1078,9 @@ async function executeFlowInternal(
 
         if (!shouldRetryThisError) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-           if ((node.type === 'whileLoop' || node.type === 'parallel' || node.type === 'forEach') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
-             if(node.type === 'whileLoop') finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
-             if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
+           if ((node.type === 'whileLoop' || node.type === 'parallel' || node.type === 'forEach') && (finalNodeOutput as any).iterations_completed === undefined && (finalNodeOutput as any).results === undefined) {
+             if(node.type === 'whileLoop') (finalNodeOutput as any).iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
+             if(node.type === 'parallel' || node.type === 'forEach') (finalNodeOutput as any).results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
            if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
