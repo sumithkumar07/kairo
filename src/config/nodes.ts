@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -224,13 +224,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'forEach',
     name: 'For Each Loop',
     icon: Repeat,
-    description: 'Iterates over an array and executes a sub-flow for each item. Outputs an array of results from each iteration.',
+    description: 'Iterates over an array and executes a sub-flow for each item. Outputs an array of results from each iteration. Supports "continue on error".',
     category: 'iteration',
     defaultConfig: {
       inputArrayPath: '',
       iterationNodes: '[]',
       iterationConnections: '[]',
       iterationResultSource: '', 
+      continueOnError: false,
       retry: {}, 
     },
     configSchema: {
@@ -238,6 +239,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.' },
       iterationConnections: { label: 'Iteration Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the iteration sub-flow.' },
       iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the full output of the last node in each sub-flow iteration is collected.' },
+      continueOnError: { label: 'Continue On Error', type: 'boolean', defaultValue: false, helperText: 'If true, loop continues if an iteration errors; results will show individual statuses.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA, 
     },
     inputHandles: ['input_array_data'], 
@@ -269,11 +271,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'parallel',
     name: 'Parallel Execution',
-    icon: GitFork, // Represents branching out
+    icon: GitFork, 
     description: 'Executes multiple branches of nodes concurrently. Collects results from all branches.',
-    category: 'control', // New category for flow control
+    category: 'control', 
     defaultConfig: {
-      branches: '[]', // Array of BranchConfig
+      branches: '[]', 
       retry: {},
     },
     configSchema: {
@@ -285,8 +287,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
-    inputHandles: ['input'], // General input to the parallel block
-    outputHandles: ['results', 'status', 'error_message'], // 'results' will be an object keyed by branch IDs
+    inputHandles: ['input'], 
+    outputHandles: ['results', 'status', 'error_message'], 
   },
   {
     type: 'youtubeFetchTrending',
@@ -340,14 +342,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: UploadCloud,
     description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var. Supports retries.',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{env.YOUTUBE_OAUTH_TOKEN}}', retry: {} },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {} },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
-      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}', helperText: "Set YOUTUBE_OAUTH_TOKEN in environment."},
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secret.YOUTUBE_OAUTH_TOKEN}}', helperText: "Use {{secret.YOUTUBE_OAUTH_TOKEN}} or {{env.YOUTUBE_OAUTH_TOKEN}}."},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
@@ -432,7 +434,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'condition': 'conditionalLogic',
   'if/else': 'conditionalLogic',
   'if condition': 'conditionalLogic',
-  'branch': 'conditionalLogic', // Could also mean parallel, AI needs to be more specific
+  'branch': 'conditionalLogic', 
   'filter': 'conditionalLogic', 
   'switch': 'conditionalLogic',
   'route based on condition': 'conditionalLogic',
@@ -485,7 +487,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // Iteration
   'foreach': 'forEach',
   'for each': 'forEach',
-  'loop': 'forEach', // Can also map to whileLoop if context suggests conditional looping
+  'loop': 'forEach', 
   'iterate': 'forEach',
   'process list': 'forEach',
   'whileloop': 'whileLoop',
@@ -493,7 +495,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'conditional loop': 'whileLoop',
   'repeat while': 'whileLoop',
 
-  // Control Flow (new)
+  // Control Flow 
   'parallel': 'parallel',
   'concurrent': 'parallel',
   'fork': 'parallel',
@@ -552,3 +554,4 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+

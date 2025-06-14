@@ -98,10 +98,6 @@ function resolveValue(
         const infoMsg = `[ENGINE] Placeholder '{{secret.${secretName}}}' encountered. In a production environment, this would be resolved from a secure secrets vault. Actual vault integration is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in a .env.local file.`;
         console.info(infoMsg); 
         serverLogs.push({ message: infoMsg, type: 'info'});
-        // dataFound is intentionally false here, so it falls through to workflowData or remains unresolved.
-        // If you wanted it to resolve to undefined explicitly when not found in a vault:
-        // resolvedValue = resolvedValue.replace(placeholder, 'undefined'); // or undefined if direct replacement
-        // dataFound = true; 
         continue; 
     }
 
@@ -159,8 +155,6 @@ function resolveNodeConfig(
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
-      // Do not attempt to resolve placeholders within these specific nested structures,
-      // as they contain node/connection definitions or branch definitions that are parsed later.
       if (key === 'flowGroupNodes' || key === 'flowGroupConnections' || 
           key === 'iterationNodes' || key === 'iterationConnections' || 
           key === 'loopNodes' || key === 'loopConnections' ||
@@ -169,7 +163,7 @@ function resolveNodeConfig(
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = value; // Retry config is a structured object, not for placeholder resolution itself
+        resolvedConfig[key] = value; 
         continue;
       }
       if (typeof value === 'string') {
@@ -524,7 +518,7 @@ async function executeFlowInternal(
 
           case 'conditionalLogic':
               const conditionString = resolvedConfig.condition; 
-              const conditionEvalResult = evaluateCondition(String(conditionString), nodeIdentifier, serverLogs); // Ensure conditionString is string
+              const conditionEvalResult = evaluateCondition(String(conditionString), nodeIdentifier, serverLogs); 
               currentAttemptOutput = { ...currentAttemptOutput, result: conditionEvalResult };
               break;
           
@@ -566,7 +560,7 @@ async function executeFlowInternal(
               const client = await pool.connect();
               serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
               try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
-              } finally { client.release(); await pool.end().catch(err => console.error('[ENGINE] Error ending DB pool:', err)); } // Ensure pool ends
+              } finally { client.release(); await pool.end().catch(err => console.error('[ENGINE] Error ending DB pool:', err)); } 
               break;
 
           case 'executeFlowGroup':
@@ -616,7 +610,7 @@ async function executeFlowInternal(
               break;
             
           case 'forEach':
-            const { inputArrayPath, iterationNodes: iterNodesStr, iterationConnections: iterConnsStr, iterationResultSource } = resolvedConfig;
+            const { inputArrayPath, iterationNodes: iterNodesStr, iterationConnections: iterConnsStr, iterationResultSource, continueOnError = false } = resolvedConfig;
             if (!inputArrayPath) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' is required.`);
             const resolvedArray = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
             if (!Array.isArray(resolvedArray)) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' ("${inputArrayPath}") did not resolve to an array. Resolved to: ${JSON.stringify(resolvedArray)}`);
@@ -626,42 +620,68 @@ async function executeFlowInternal(
             try { iterConns = typeof iterConnsStr === 'string' ? JSON.parse(iterConnsStr) : iterConnsStr; if(!Array.isArray(iterConns)) throw new Error("iterationConnections must be an array."); } catch(e:any){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationConnections. Error: ${e.message}`); }
 
             const iterationResultsCollected: any[] = [];
-            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Starting iteration over ${resolvedArray.length} items.`, type: 'info' });
+            let anyIterationFailed = false;
+            let allIterationsFailed = resolvedArray.length > 0; 
+
+            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Starting iteration over ${resolvedArray.length} items. Continue on error: ${continueOnError}.`, type: 'info' });
 
             for (let i = 0; i < resolvedArray.length; i++) {
               const currentItem = resolvedArray[i];
               const itemContext = { 'item': currentItem, ...(additionalContexts || {}) }; 
               serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i + 1}/${resolvedArray.length}. Item (first 100 chars): ${JSON.stringify(currentItem).substring(0,100)}`, type: 'info' });
               
-              const iterInitialData: Record<string, any> = {}; 
-              const iterExecutionResult = await executeFlowInternal(
-                `forEach ${node.id} iter ${i+1}`, 
-                iterNodes, 
-                iterConns, 
-                iterInitialData, 
-                serverLogs, 
-                currentWorkflowData, 
-                itemContext         
-              );
+              try {
+                const iterInitialData: Record<string, any> = {}; 
+                const iterExecutionResult = await executeFlowInternal(
+                  `forEach ${node.id} iter ${i+1}`, 
+                  iterNodes, 
+                  iterConns, 
+                  iterInitialData, 
+                  serverLogs, 
+                  currentWorkflowData, 
+                  itemContext         
+                );
 
-              if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && out.status === 'error')) {
-                 const iterError = Object.values(iterExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
-                 const iterErrorMessage = iterError?.error_message || `Error in forEach iteration ${i+1}.`;
-                 serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} FAILED. Error: ${iterErrorMessage}`, type: 'error' });
-                 throw new Error(`Error in forEach iteration ${i+1}: ${iterErrorMessage}`); 
+                if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && out.status === 'error')) {
+                   const iterError = Object.values(iterExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
+                   const iterErrorMessage = iterError?.error_message || `Error in forEach iteration ${i+1}.`;
+                   throw new Error(iterErrorMessage); 
+                }
+                
+                let resultForItem: any;
+                if (iterationResultSource && typeof iterationResultSource === 'string') {
+                  resultForItem = resolveValue(iterationResultSource, iterExecutionResult.finalWorkflowData, serverLogs, itemContext);
+                } else {
+                  resultForItem = iterExecutionResult.lastNodeOutput; 
+                }
+                iterationResultsCollected.push({ status: 'fulfilled', value: resultForItem, item: currentItem });
+                serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} completed successfully. Result (first 100 chars): ${JSON.stringify(resultForItem).substring(0,100)}`, type: 'success'});
+                allIterationsFailed = false; 
+              } catch (iterError: any) {
+                anyIterationFailed = true;
+                serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} FAILED. Error: ${iterError.message}`, type: 'error' });
+                iterationResultsCollected.push({ status: 'rejected', reason: iterError.message, item: currentItem });
+                if (!continueOnError) {
+                  currentAttemptOutput = { status: 'error', error_message: `Error in forEach iteration ${i+1}: ${iterError.message}`, results: iterationResultsCollected };
+                  throw currentAttemptOutput; 
+                }
               }
-              
-              let resultForItem: any;
-              if (iterationResultSource && typeof iterationResultSource === 'string') {
-                resultForItem = resolveValue(iterationResultSource, iterExecutionResult.finalWorkflowData, serverLogs, itemContext);
-              } else {
-                resultForItem = iterExecutionResult.lastNodeOutput; 
-              }
-              iterationResultsCollected.push(resultForItem);
-              serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} completed. Result (first 100 chars): ${JSON.stringify(resultForItem).substring(0,100)}`, type: 'success'});
             }
-            currentAttemptOutput = { ...currentAttemptOutput, results: iterationResultsCollected };
-            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations completed. Total results: ${iterationResultsCollected.length}.`, type: 'success' });
+            
+            let overallLoopStatus = 'success';
+            if (anyIterationFailed) {
+              overallLoopStatus = allIterationsFailed && resolvedArray.length > 0 ? 'error' : 'partial_success';
+            }
+             if (resolvedArray.length === 0) allIterationsFailed = false; 
+
+            currentAttemptOutput = { ...currentAttemptOutput, status: overallLoopStatus, results: iterationResultsCollected };
+            if(overallLoopStatus === 'error') currentAttemptOutput.error_message = 'All iterations failed or an unrecoverable error occurred.';
+            else if (overallLoopStatus === 'partial_success') currentAttemptOutput.error_message = 'Some iterations failed.';
+            
+            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations processed. Overall status: ${overallLoopStatus}. Total results: ${iterationResultsCollected.length}.`, type: 'info' });
+            if (overallLoopStatus === 'error' && attempt < maxAttempts && resolvedArray.length > 0) { 
+                throw new Error(currentAttemptOutput.error_message);
+            }
             break;
 
           case 'whileLoop':
@@ -703,8 +723,8 @@ async function executeFlowInternal(
                     currentAttemptOutput = { status: 'error', error_message: iterErrorMessage, iterations_completed: iterationsCompleted };
                     throw new Error(iterErrorMessage); 
                 }
-                currentWorkflowData = {...currentWorkflowData, ...loopIterationResult.finalWorkflowData}; // Persist changes from loop iteration to main data scope
-                lastNodeOutput = loopIterationResult.lastNodeOutput; // Update lastNodeOutput from the loop
+                currentWorkflowData = {...currentWorkflowData, ...loopIterationResult.finalWorkflowData}; 
+                lastNodeOutput = loopIterationResult.lastNodeOutput; 
                 iterationsCompleted++;
             }
 
@@ -786,30 +806,29 @@ async function executeFlowInternal(
                     aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
                     if(branchOutcome.status === 'fulfilled') {
                         someBranchesSucceeded = true;
-                        // Merge successful branch data back into currentWorkflowData, namespaced by branch ID
                         currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
                     } else {
                         allBranchesSucceeded = false;
                     }
-                } else { // settledResult.status === 'rejected'
+                } else { 
                     allBranchesSucceeded = false;
                     aggregatedResults[defaultBranchId] = { status: 'rejected', reason: settledResult.reason };
                 }
             });
             
-            let overallStatus = 'error';
-            if (allBranchesSucceeded) overallStatus = 'success';
-            else if (someBranchesSucceeded) overallStatus = 'partial_success';
+            let parallelExecutionStatus = 'error'; // Renamed from overallStatus
+            if (allBranchesSucceeded) parallelExecutionStatus = 'success';
+            else if (someBranchesSucceeded) parallelExecutionStatus = 'partial_success';
             
-            currentAttemptOutput = { status: overallStatus, results: aggregatedResults };
-            if (overallStatus !== 'success') {
+            currentAttemptOutput = { status: parallelExecutionStatus, results: aggregatedResults };
+            if(parallelExecutionStatus !== 'success') {
                  const firstError = Object.values(aggregatedResults).find(r => r.status === 'rejected');
                  currentAttemptOutput.error_message = `One or more parallel branches failed. First error: ${firstError?.reason || 'Unknown parallel branch error.'}`;
-                 if (overallStatus === 'error' && attempt < maxAttempts) { // Only throw if all attempts failed and status is error
+                 if (parallelExecutionStatus === 'error' && attempt < maxAttempts) { 
                     serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches failed or critical branches failed. Error: ${currentAttemptOutput.error_message}`, type: 'error' });
                      throw new Error(currentAttemptOutput.error_message);
                  } else {
-                    serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Some branches failed. Status: partial_success. Details: ${currentAttemptOutput.error_message}`, type: 'info' });
+                    serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Some branches failed. Status: ${parallelExecutionStatus}. Details: ${currentAttemptOutput.error_message}`, type: 'info' });
                  }
             } else {
                 serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches completed successfully.`, type: 'success' });
@@ -856,9 +875,9 @@ async function executeFlowInternal(
 
         if (attempt >= maxAttempts) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-          if ((node.type === 'whileLoop' || node.type === 'parallel') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
+          if ((node.type === 'whileLoop' || node.type === 'parallel' || node.type === 'forEach') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
              if(node.type === 'whileLoop') finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
-             if(node.type === 'parallel') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
+             if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
           break; 
@@ -876,9 +895,9 @@ async function executeFlowInternal(
 
         if (!shouldRetryThisError) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-           if ((node.type === 'whileLoop' || node.type === 'parallel') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
+           if ((node.type === 'whileLoop' || node.type === 'parallel' || node.type === 'forEach') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
              if(node.type === 'whileLoop') finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
-             if(node.type === 'parallel') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
+             if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
           break; 
@@ -902,8 +921,8 @@ async function executeFlowInternal(
         serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} processed successfully overall.`, type: 'success' });
     } else if (finalNodeOutput.status === 'error') {
         serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`, type: 'info' });
-    } else if (finalNodeOutput.status === 'partial_success' && node.type === 'parallel') {
-        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} (Parallel) completed with partial success. Some branches failed. Check 'results' for details. Workflow continues.`, type: 'info' });
+    } else if (finalNodeOutput.status === 'partial_success' && (node.type === 'parallel' || node.type === 'forEach')) {
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} (${node.type}) completed with partial success. Some branches/iterations failed. Check 'results' for details. Workflow continues.`, type: 'info' });
     }
   }
   return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
