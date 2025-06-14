@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2 } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2 } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -37,6 +37,28 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       event: { label: 'Event Type', type: 'string', defaultValue: 'manualStart', placeholder: 'e.g., manual, webhook' },
     },
     outputHandles: ['output'],
+  },
+  {
+    type: 'fileSystemTrigger',
+    name: 'File System Trigger',
+    icon: FilePlus2,
+    description: 'Conceptually triggers on file system events (simulated).',
+    category: 'trigger',
+    defaultConfig: { 
+      directoryPath: '/uploads', 
+      eventTypes: '["create", "modify"]', 
+      fileNamePattern: '*.csv', 
+      pollingIntervalSeconds: 60,
+      simulatedFileEvent: '{"eventType": "create", "filePath": "/uploads/new_report.csv", "fileName": "new_report.csv"}'
+    },
+    configSchema: {
+      directoryPath: { label: 'Directory Path', type: 'string', placeholder: '/mnt/shared_drive/input_files or {{env.WATCH_FOLDER}}' },
+      eventTypes: { label: 'Event Types (JSON Array)', type: 'json', placeholder: '["create", "modify", "delete"]', helperText: 'e.g., create, modify, delete.' },
+      fileNamePattern: { label: 'File Name Pattern (Glob, Optional)', type: 'string', placeholder: '*.txt, report-*.csv' },
+      pollingIntervalSeconds: { label: 'Polling Interval (seconds, Conceptual)', type: 'number', defaultValue: 60, helperText: 'Conceptual interval for checking for new files.' },
+      simulatedFileEvent: { label: 'Simulated File Event (JSON)', type: 'json', placeholder: '{"eventType": "create", "filePath": "/sim/data.txt", "fileName":"data.txt"}', helperText: 'JSON data representing the file event this trigger will output during simulation.'}
+    },
+    outputHandles: ['fileEvent', 'status', 'error_message'],
   },
   {
     type: 'httpRequest',
@@ -510,6 +532,13 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'cron': 'schedule',
   'cron job': 'schedule',
   'timed trigger': 'schedule',
+  'filesystemtrigger': 'fileSystemTrigger',
+  'file system trigger': 'fileSystemTrigger',
+  'watch folder': 'fileSystemTrigger',
+  'on new file': 'fileSystemTrigger',
+  'on file create': 'fileSystemTrigger',
+  'on file change': 'fileSystemTrigger',
+  'file event': 'fileSystemTrigger',
   
   // Actions & I/O
   'httprequest': 'httpRequest',

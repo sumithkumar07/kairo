@@ -501,6 +501,27 @@ async function executeFlowInternal(
             serverLogs.push({ message: `[NODE ${node.type.toUpperCase()}] ${nodeIdentifier}: Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
             currentAttemptOutput = { ...currentAttemptOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
             break;
+          
+          case 'fileSystemTrigger':
+            serverLogs.push({ message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Conceptually monitoring directory: '${resolvedConfig.directoryPath}', Events: ${resolvedConfig.eventTypes}, Pattern: '${resolvedConfig.fileNamePattern || '*'}'`, type: 'info' });
+            if (isSimulationMode || resolvedConfig.simulatedFileEvent) {
+              let simEventData: any = { eventType: 'create', filePath: '/simulated/default_file.txt', fileName: 'default_file.txt', triggeredAt: new Date().toISOString() };
+              if (resolvedConfig.simulatedFileEvent) {
+                try {
+                  simEventData = typeof resolvedConfig.simulatedFileEvent === 'string' 
+                                    ? JSON.parse(resolvedConfig.simulatedFileEvent) 
+                                    : resolvedConfig.simulatedFileEvent;
+                } catch (e: any) {
+                  serverLogs.push({ message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedFileEvent JSON. Error: ${e.message}. Using default simulation.`, type: 'info' });
+                }
+              }
+              currentAttemptOutput = { ...currentAttemptOutput, fileEvent: simEventData };
+            } else {
+              const noSimError = `Node ${nodeIdentifier}: fileSystemTrigger requires 'simulatedFileEvent' in config for execution in this environment.`;
+              serverLogs.push({ message: `[NODE FILESYSTEMTRIGGER] ${noSimError}`, type: 'error' });
+              throw new Error(noSimError);
+            }
+            break;
 
           case 'logMessage':
             const messageToLog = resolvedConfig?.message || `Default log message from ${nodeIdentifier}`;
@@ -1118,14 +1139,14 @@ async function executeFlowInternal(
                 const simulatedData = JSON.parse(callSimulatedOutputStr);
                 serverLogs.push({ message: `[NODE CALLEXTERNALWORKFLOW] SIMULATION: Using simulated output for '${calledWorkflowId}': ${JSON.stringify(simulatedData).substring(0,200)}`, type: 'success'});
                 
-                let finalMappedOutput = { ...simulatedData }; // Start with the full simulated output
+                let finalMappedOutput = { ...simulatedData }; 
                 if (callOutputMapping && typeof callOutputMapping === 'object') {
                   const mappedOutputFromCall: Record<string, any> = {};
                   for (const [keyInCurrentNode, placeholderInCalled] of Object.entries(callOutputMapping)) {
-                     // Here, 'simulatedData' acts as the 'workflowData' of the called flow for placeholder resolution
+                    
                     mappedOutputFromCall[keyInCurrentNode] = resolveValue(String(placeholderInCalled), { calledWorkflow: simulatedData }, serverLogs, {}); 
                   }
-                  finalMappedOutput = mappedOutputFromCall; // Replace with mapped output if mapping exists
+                  finalMappedOutput = mappedOutputFromCall; 
                    serverLogs.push({ message: `[NODE CALLEXTERNALWORKFLOW] SIMULATION: Applied output mapping. Final output: ${JSON.stringify(finalMappedOutput).substring(0,200)}`, type: 'info'});
                 }
                 currentAttemptOutput = { ...currentAttemptOutput, output: finalMappedOutput };
