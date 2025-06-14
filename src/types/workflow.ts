@@ -44,12 +44,22 @@ export interface ConfigFieldSchema {
   helperText?: string;
 }
 
+export interface BranchConfig {
+  id: string;
+  name?: string; // Optional descriptive name for the branch
+  nodes: WorkflowNode[];
+  connections: WorkflowConnection[];
+  inputMapping?: Record<string, string>; // Maps parent scope to branch scope
+  outputSource?: string; // Placeholder from within the branch to denote its primary output
+}
+
+
 export interface AvailableNodeType {
   type: string;
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'unknown';
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'control' | 'unknown';
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[]; 
@@ -63,4 +73,3 @@ export interface LogEntry {
 }
 
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
-

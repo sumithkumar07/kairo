@@ -16,7 +16,7 @@ import {
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
-import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig } from '@/types/workflow';
+import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
@@ -26,7 +26,7 @@ function resolveValue(
   value: any, 
   workflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
-  additionalContexts?: Record<string, any> // For loop item, etc.
+  additionalContexts?: Record<string, any> // For loop item, branch-specific data, etc.
 ): any {
   if (typeof value !== 'string') {
     return value;
@@ -52,7 +52,7 @@ function resolveValue(
     let dataFound = false;
     let dataAtPath: any;
 
-    // 1. Check additionalContexts (e.g., loop item)
+    // 1. Check additionalContexts (e.g., loop item, branch data)
     if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
       dataAtPath = additionalContexts[firstPart];
       let currentPathForLog = firstPart;
@@ -81,9 +81,9 @@ function resolveValue(
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
-        if (placeholder === value) resolvedValue = envVarValue; // If entire value is placeholder, return resolved type
-        dataFound = true; // Mark as found to skip workflowData check
-        continue; // Move to next match in the string
+        if (placeholder === value) resolvedValue = envVarValue; 
+        dataFound = true; 
+        continue; 
       } else {
         const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
         console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
@@ -99,10 +99,10 @@ function resolveValue(
         continue; 
     }
 
-    // 4. Check workflowData (node outputs)
+    // 4. Check workflowData (node outputs from the current scope)
     if (!dataFound) {
         if (!workflowData.hasOwnProperty(firstPart)) {
-            const warningMsg = `[ENGINE] No data found for node ID or context key '${firstPart}' in workflow data when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs in data: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
+            const warningMsg = `[ENGINE] No data found for node ID or context key '${firstPart}' in current workflow data scope when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs/keys in current scope: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
             console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
             continue;
         }
@@ -153,12 +153,17 @@ function resolveNodeConfig(
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
-      if (key === 'flowGroupNodes' || key === 'flowGroupConnections' || key === 'iterationNodes' || key === 'iterationConnections' || key === 'loopNodes' || key === 'loopConnections') {
+      // Do not attempt to resolve placeholders within these specific nested structures,
+      // as they contain node/connection definitions or branch definitions that are parsed later.
+      if (key === 'flowGroupNodes' || key === 'flowGroupConnections' || 
+          key === 'iterationNodes' || key === 'iterationConnections' || 
+          key === 'loopNodes' || key === 'loopConnections' ||
+          key === 'branches') {
         resolvedConfig[key] = value; 
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = value; 
+        resolvedConfig[key] = value; // Retry config is a structured object, not for placeholder resolution itself
         continue;
       }
       if (typeof value === 'string') {
@@ -182,7 +187,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
       const errMsg = `Node ${nodeIdentifier}: Condition string is missing, empty, or resolved to non-string. Cannot evaluate.`;
       serverLogs.push({ message: `[CONDITION EVAL] ${errMsg}`, type: 'error' });
       console.error(`[CONDITION EVAL] ${errMsg}`);
-      return false; // Default to false if condition is invalid
+      return false; 
   }
   serverLogs.push({ message: `[CONDITION EVAL] Node ${nodeIdentifier}: Evaluating condition string: "${conditionString}"`, type: 'info' });
   
@@ -211,7 +216,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
             return operandStr.substring(1, operandStr.length - 1);
           }
           const num = parseFloat(operandStr);
-          return isNaN(num) ? operandStr : num; // If not a number, return as string
+          return isNaN(num) ? operandStr : num; 
       };
 
       if (operatorFound && parts.length === 2) {
@@ -231,7 +236,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
               case '>=':  evaluationResult = (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 >= val2 : String(val1) >= String(val2); break;
           }
       } else {
-          // If no operator, evaluate truthiness of the (potentially resolved) single value
+          
           const singleValue = parseOperand(conditionString);
           evaluationResult = !!singleValue;
           serverLogs.push({ message: `[CONDITION EVAL] No operator. Evaluated truthiness of '${singleValue}' to ${evaluationResult}`, type: 'info' });
@@ -240,7 +245,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
       const errMsg = `Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`;
       serverLogs.push({ message: `[CONDITION EVAL] ${errMsg}`, type: 'error' });
       console.error(`[CONDITION EVAL] ${errMsg}`, e);
-      evaluationResult = false; // Default to false on error
+      evaluationResult = false; 
   }
   serverLogs.push({ message: `[CONDITION EVAL] Node ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
   return evaluationResult;
@@ -364,15 +369,13 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
 }
 
 async function executeFlowInternal(
-  flowLabel: string, // e.g., "main workflow", "group: group_id", "forEach item X", "whileLoop iter Y"
+  flowLabel: string, 
   nodesToExecute: WorkflowNode[],
   connectionsToExecute: WorkflowConnection[],
-  // IMPORTANT: currentWorkflowData is MUTABLE and shared across recursive calls for whileLoop's internal state updates.
-  // For forEach and executeFlowGroup, a new initial data scope is usually created and passed.
   currentWorkflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
-  parentWorkflowData?: Record<string, any>, // For resolving {{parent.node.output}} style placeholders if needed
-  additionalContexts?: Record<string, any> // For {{item.prop}} in forEach loop
+  parentWorkflowData?: Record<string, any>, 
+  additionalContexts?: Record<string, any> 
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any }> {
   
   const { executionOrder, error: sortError } = getExecutionOrder(nodesToExecute, connectionsToExecute);
@@ -390,14 +393,12 @@ async function executeFlowInternal(
     console.log(`[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`);
     serverLogs.push({ message: `[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`, type: 'info' });
 
-    // Resolve config using currentWorkflowData for this flow AND additionalContexts (e.g. loop item)
-    // For whileLoop, currentWorkflowData is the parent's and is mutable, so changes within the loop affect next condition eval.
     const dataForResolution = parentWorkflowData ? { ...parentWorkflowData, ...currentWorkflowData } : currentWorkflowData;
     const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, additionalContexts);
     console.log(`[ENGINE/${flowLabel}] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
     if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
-      const conditionValue = resolvedConfig._flow_run_condition; // This is already resolved
+      const conditionValue = resolvedConfig._flow_run_condition; 
       if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
         serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
         currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
@@ -516,7 +517,7 @@ async function executeFlowInternal(
             break;
 
           case 'conditionalLogic':
-              const conditionString = resolvedConfig.condition; // Already resolved
+              const conditionString = resolvedConfig.condition; 
               const conditionEvalResult = evaluateCondition(conditionString, nodeIdentifier, serverLogs);
               currentAttemptOutput = { ...currentAttemptOutput, result: conditionEvalResult };
               break;
@@ -571,7 +572,7 @@ async function executeFlowInternal(
               const subWorkflowInitialData: Record<string, any> = {};
               if (inputMapping && typeof inputMapping === 'object') {
                   for (const [internalKey, parentPlaceholder] of Object.entries(inputMapping)) {
-                      // Resolve from parent scope (currentWorkflowData) and any broader parent contexts
+                      
                       subWorkflowInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs, additionalContexts);
                   }
               }
@@ -581,16 +582,16 @@ async function executeFlowInternal(
                   `group ${node.id}`, 
                   groupNodes, 
                   groupConnections, 
-                  subWorkflowInitialData, // Pass a new data scope for the sub-flow
+                  subWorkflowInitialData, 
                   serverLogs, 
-                  currentWorkflowData, // Parent data for resolving {{parent.node.output}} style things if needed
-                  additionalContexts   // Pass along any existing additional contexts (e.g. if this group is inside a loop)
+                  currentWorkflowData, 
+                  additionalContexts   
               );
               
               const groupFinalOutput: Record<string, any> = { status: 'success' }; 
               if (outputMapping && typeof outputMapping === 'object') {
                   for (const [parentKey, subPlaceholder] of Object.entries(outputMapping)) {
-                      groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs /* No additional context for group output mapping directly */);
+                      groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs );
                   }
               }
 
@@ -668,14 +669,7 @@ async function executeFlowInternal(
             let iterationsCompleted = 0;
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Starting while loop. Max iterations: ${maxIterations}.`, type: 'info' });
             
-            // IMPORTANT: The 'currentWorkflowData' is the one from the parent scope of the whileLoop.
-            // Nodes inside the whileLoop will read from and write to this same 'currentWorkflowData'.
-            // This is how the condition can change based on the loop's actions.
-            // 'additionalContexts' are passed through if the while loop is nested.
-            // 'parentWorkflowData' is also passed through for resolving {{parent...}} placeholders from within the loop.
-
             while (iterationsCompleted < maxIterations) {
-                // Resolve condition against the *current* state of workflowData, which might have been modified by the previous iteration.
                 const resolvedWhileCondition = resolveValue(whileConditionStr, currentWorkflowData, serverLogs, additionalContexts);
                 const conditionIsTrue = evaluateCondition(String(resolvedWhileCondition), `${nodeIdentifier} iter ${iterationsCompleted + 1} condition`, serverLogs);
 
@@ -686,16 +680,14 @@ async function executeFlowInternal(
                 
                 serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1}/${maxIterations}. Condition is true. Executing sub-flow.`, type: 'info' });
                 
-                // For a while loop, the sub-flow operates directly on the `currentWorkflowData` of its parent.
-                // We pass an empty object as the 'initialData' for the sub-flow itself, but nodes inside will resolve against `currentWorkflowData`.
                 const loopIterationResult = await executeFlowInternal(
                     `whileLoop ${node.id} iter ${iterationsCompleted + 1}`,
                     whileLoopNodes,
                     whileLoopConns,
-                    currentWorkflowData, // Pass the main workflow data to be mutated by the loop
+                    currentWorkflowData, 
                     serverLogs,
-                    parentWorkflowData, // Pass parent data for resolving {{parent...}} placeholders
-                    additionalContexts  // Pass any existing additional contexts (e.g., if this while loop is inside a forEach)
+                    parentWorkflowData, 
+                    additionalContexts  
                 );
 
                 if (Object.values(loopIterationResult.finalWorkflowData).some(out => out && out.status === 'error')) {
@@ -703,14 +695,13 @@ async function executeFlowInternal(
                     const iterErrorMessage = iterError?.error_message || `Error in whileLoop iteration ${iterationsCompleted + 1}.`;
                     serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1} FAILED. Error: ${iterErrorMessage}`, type: 'error' });
                     currentAttemptOutput = { status: 'error', error_message: iterErrorMessage, iterations_completed: iterationsCompleted };
-                    throw new Error(iterErrorMessage); // This will make the whole whileLoop node fail if retries are exhausted for the whileLoop itself
+                    throw new Error(iterErrorMessage); 
                 }
                 iterationsCompleted++;
             }
 
             if (iterationsCompleted >= maxIterations) {
                  serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Reached max iterations (${maxIterations}). Exiting loop.`, type: 'info' });
-                 // Potentially mark as an issue if the condition was still true
                  const finalResolvedCondition = resolveValue(whileConditionStr, currentWorkflowData, serverLogs, additionalContexts);
                  if (evaluateCondition(String(finalResolvedCondition), `${nodeIdentifier} max_iter_check`, serverLogs)) {
                     currentAttemptOutput = { status: 'error', error_message: `Loop reached max iterations (${maxIterations}) and condition was still true.`, iterations_completed: iterationsCompleted };
@@ -720,6 +711,100 @@ async function executeFlowInternal(
             currentAttemptOutput = { ...currentAttemptOutput, status: 'success', iterations_completed: iterationsCompleted };
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Loop finished. Total iterations: ${iterationsCompleted}.`, type: 'success' });
             break;
+
+          case 'parallel':
+            const { branches: branchesStr } = resolvedConfig;
+            let parsedBranches: BranchConfig[] = [];
+            try {
+                parsedBranches = typeof branchesStr === 'string' ? JSON.parse(branchesStr) : branchesStr;
+                if (!Array.isArray(parsedBranches) || !parsedBranches.every(b => b.id && Array.isArray(b.nodes) && Array.isArray(b.connections))) {
+                    throw new Error("Branches configuration must be an array of valid BranchConfig objects.");
+                }
+            } catch (e:any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or structure for branches configuration: ${e.message}`); }
+
+            serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Starting execution of ${parsedBranches.length} branches concurrently.`, type: 'info' });
+
+            const branchPromises = parsedBranches.map(async (branch) => {
+                const branchLabel = `parallel ${node.id} branch ${branch.id}`;
+                serverLogs.push({ message: `[ENGINE/${branchLabel}] Starting branch.`, type: 'info' });
+                
+                const branchInitialData: Record<string, any> = {};
+                if (branch.inputMapping && typeof branch.inputMapping === 'object') {
+                    for (const [internalKey, parentPlaceholder] of Object.entries(branch.inputMapping)) {
+                        branchInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs, additionalContexts);
+                    }
+                }
+                
+                const branchExecutionResult = await executeFlowInternal(
+                    branchLabel,
+                    branch.nodes,
+                    branch.connections,
+                    branchInitialData, 
+                    serverLogs,
+                    currentWorkflowData, 
+                    additionalContexts 
+                );
+
+                let branchOutputValue: any;
+                if (branch.outputSource && typeof branch.outputSource === 'string') {
+                    branchOutputValue = resolveValue(branch.outputSource, branchExecutionResult.finalWorkflowData, serverLogs);
+                } else {
+                    branchOutputValue = branchExecutionResult.lastNodeOutput;
+                }
+                
+                const branchErrored = Object.values(branchExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
+                if (branchErrored) {
+                  const branchError = Object.values(branchExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
+                  const branchErrorMessage = branchError?.error_message || "Error in parallel branch execution.";
+                  serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED. Error: ${branchErrorMessage}`, type: 'error'});
+                  return { id: branch.id, status: 'rejected', reason: branchErrorMessage, value: branchOutputValue };
+                }
+
+                serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution SUCCEEDED. Output (first 100 chars): ${JSON.stringify(branchOutputValue).substring(0,100)}`, type: 'success'});
+                return { id: branch.id, status: 'fulfilled', value: branchOutputValue };
+            });
+
+            const allBranchResults = await Promise.allSettled(branchPromises.map(p => p.catch(e => ({ status: 'rejected', reason: e.message, id: 'unknown_branch_error' }))));
+            
+            const aggregatedResults: Record<string, {status: string, value?: any, reason?: any}> = {};
+            let allBranchesSucceeded = true;
+            let someBranchesSucceeded = false;
+
+            allBranchResults.forEach((settledResult, index) => {
+                const branchId = parsedBranches[index]?.id || `branch_${index}`; // Fallback id
+                if (settledResult.status === 'fulfilled') {
+                    const branchOutcome = settledResult.value as { id: string; status: 'fulfilled' | 'rejected'; value?: any; reason?: any };
+                    aggregatedResults[branchOutcome.id || branchId] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
+                    if(branchOutcome.status === 'fulfilled') someBranchesSucceeded = true;
+                    else allBranchesSucceeded = false;
+
+                } else { // settledResult.status === 'rejected'
+                    allBranchesSucceeded = false;
+                    aggregatedResults[branchId] = { status: 'rejected', reason: settledResult.reason };
+                }
+            });
+            
+            let overallStatus = 'error';
+            if (allBranchesSucceeded) overallStatus = 'success';
+            else if (someBranchesSucceeded) overallStatus = 'partial_success';
+            
+            currentAttemptOutput = { status: overallStatus, results: aggregatedResults };
+            if (overallStatus !== 'success') {
+                 const firstError = Object.values(aggregatedResults).find(r => r.status === 'rejected');
+                 currentAttemptOutput.error_message = `One or more parallel branches failed. First error: ${firstError?.reason || 'Unknown parallel branch error.'}`;
+                 if (overallStatus === 'error') { // Only throw if all critical paths might have failed
+                    serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches failed or critical branches failed. Error: ${currentAttemptOutput.error_message}`, type: 'error' });
+                    // Do not throw here to allow retry on the parallel node itself
+                 } else {
+                    serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Some branches failed. Status: partial_success. Details: ${currentAttemptOutput.error_message}`, type: 'info' });
+                 }
+            } else {
+                serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches completed successfully.`, type: 'success' });
+            }
+            if (overallStatus === 'error' && attempt < maxAttempts) throw new Error(currentAttemptOutput.error_message); // Only throw if all attempts failed and status is error
+
+            break;
+
 
           case 'youtubeFetchTrending':
           case 'youtubeDownloadVideo':
@@ -761,8 +846,9 @@ async function executeFlowInternal(
 
         if (attempt >= maxAttempts) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-          if (node.type === 'whileLoop' && finalNodeOutput.iterations_completed !== undefined) {
-            finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
+          if ((node.type === 'whileLoop' || node.type === 'parallel') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
+             if(node.type === 'whileLoop') finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
+             if(node.type === 'parallel') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
           break; 
@@ -780,8 +866,9 @@ async function executeFlowInternal(
 
         if (!shouldRetryThisError) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-          if (node.type === 'whileLoop' && finalNodeOutput.iterations_completed !== undefined) {
-            finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
+           if ((node.type === 'whileLoop' || node.type === 'parallel') && finalNodeOutput.iterations_completed === undefined && finalNodeOutput.results === undefined) {
+             if(node.type === 'whileLoop') finalNodeOutput.iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
+             if(node.type === 'parallel') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
           break; 
@@ -805,6 +892,8 @@ async function executeFlowInternal(
         serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} processed successfully overall.`, type: 'success' });
     } else if (finalNodeOutput.status === 'error') {
         serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`, type: 'info' });
+    } else if (finalNodeOutput.status === 'partial_success' && node.type === 'parallel') {
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} (Parallel) completed with partial success. Some branches failed. Check 'results' for details. Workflow continues.`, type: 'info' });
     }
   }
   return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
@@ -824,4 +913,3 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
-

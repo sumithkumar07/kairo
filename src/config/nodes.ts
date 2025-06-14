@@ -1,6 +1,6 @@
 
-import type { AvailableNodeType, RetryConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw } from 'lucide-react';
+import type { AvailableNodeType, RetryConfig, BranchConfig } from '@/types/workflow';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -246,15 +246,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'whileLoop',
     name: 'While Loop',
-    icon: RotateCcw, // Using RotateCcw for loop concept
+    icon: RotateCcw, 
     description: 'Executes a sub-flow repeatedly as long as a condition is true. Condition is evaluated before each iteration.',
     category: 'iteration',
     defaultConfig: {
       condition: '',
       loopNodes: '[]',
       loopConnections: '[]',
-      maxIterations: 100, // Safety limit
-      retry: {}, // For retrying the entire loop block
+      maxIterations: 100, 
+      retry: {}, 
     },
     configSchema: {
       condition: { label: 'Loop Condition (evaluates to boolean)', type: 'string', placeholder: '{{data.status}} === "pending" || {{counter.value}} < 10', helperText: 'The loop continues as long as this condition is true. Evaluated before each iteration.' },
@@ -263,8 +263,30 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       maxIterations: { label: 'Max Iterations (Optional, Default 100)', type: 'number', defaultValue: 100, placeholder: '100', helperText: 'Safety limit to prevent infinite loops.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
-    inputHandles: ['input_data'], // General input to the loop context
+    inputHandles: ['input_data'], 
     outputHandles: ['iterations_completed', 'status', 'error_message'],
+  },
+  {
+    type: 'parallel',
+    name: 'Parallel Execution',
+    icon: GitFork, // Represents branching out
+    description: 'Executes multiple branches of nodes concurrently. Collects results from all branches.',
+    category: 'control', // New category for flow control
+    defaultConfig: {
+      branches: '[]', // Array of BranchConfig
+      retry: {},
+    },
+    configSchema: {
+      branches: { 
+        label: 'Branches (JSON Array of Branch definitions)', 
+        type: 'json', 
+        placeholder: '[{\n  "id": "branch_1",\n  "name": "Image Processing",\n  "nodes": [{"id":"img_op_1", "type":"aiTask", ...}],\n  "connections": [],\n  "inputMapping": {"img_data": "{{parent.image_url}}"},\n  "outputSource": "{{img_op_1.processed_image_url}}"\n},\n{\n  "id": "branch_2",\n  "name": "Metadata Fetch",\n  "nodes": [{"id":"meta_fetch_1", "type":"httpRequest", ...}],\n  "connections": [],\n  "inputMapping": {"item_id": "{{parent.item_id}}"},\n  "outputSource": "{{meta_fetch_1.response}}"\n}]',
+        helperText: 'Define branches to run in parallel. Each branch has id, nodes, connections, optional inputMapping, and optional outputSource.'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+    },
+    inputHandles: ['input'], // General input to the parallel block
+    outputHandles: ['results', 'status', 'error_message'], // 'results' will be an object keyed by branch IDs
   },
   {
     type: 'youtubeFetchTrending',
@@ -410,7 +432,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'condition': 'conditionalLogic',
   'if/else': 'conditionalLogic',
   'if condition': 'conditionalLogic',
-  'branch': 'conditionalLogic',
+  'branch': 'conditionalLogic', // Could also mean parallel, AI needs to be more specific
   'filter': 'conditionalLogic', 
   'switch': 'conditionalLogic',
   'route based on condition': 'conditionalLogic',
@@ -471,6 +493,12 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'conditional loop': 'whileLoop',
   'repeat while': 'whileLoop',
 
+  // Control Flow (new)
+  'parallel': 'parallel',
+  'concurrent': 'parallel',
+  'fork': 'parallel',
+  'fan out': 'parallel',
+  'run in parallel': 'parallel',
 
   // YouTube Specific (Conceptual)
   'youtubefetchtrending': 'youtubeFetchTrending',
@@ -524,4 +552,3 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
-
