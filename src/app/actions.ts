@@ -354,8 +354,6 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): 
 }
 
 export async function suggestNextWorkflowNode(
-  // The input type is SuggestNextNodeInput, but we only expect workflowContext and currentNodeType from the client.
-  // availableNodeTypes will be populated here.
   clientInput: { workflowContext: string; currentNodeType?: string }
 ): Promise<SuggestNextNodeOutput> {
   try {
@@ -518,7 +516,6 @@ async function executeFlowInternal(
               let simStatusCode = resolvedConfig.simulatedStatusCode || 200;
               if (resolvedConfig.simulatedResponse) {
                 try {
-                  // If simulatedResponse is a string, try to parse. If it's an object, use as is.
                   simResponseData = typeof resolvedConfig.simulatedResponse === 'string' 
                                       ? JSON.parse(resolvedConfig.simulatedResponse) 
                                       : resolvedConfig.simulatedResponse;
@@ -629,7 +626,7 @@ async function executeFlowInternal(
               break;
           
           case 'dataTransform':
-              const { transformType, inputString, inputObject, inputArray, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName } = resolvedConfig;
+              const { transformType, inputString, inputObject, inputArrayPath, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName, reducerFunction, initialValue } = resolvedConfig;
               let transformedData: any = null; serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
               switch (transformType) {
                 case 'toUpperCase': if (typeof inputString !== 'string') throw new Error('toUpperCase requires inputString to be a string.'); transformedData = inputString.toUpperCase(); break;
@@ -637,9 +634,56 @@ async function executeFlowInternal(
                 case 'extractFields': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('extractFields requires inputObject to be an object.'); if (!Array.isArray(fieldsToExtract) || !fieldsToExtract.every(f => typeof f === 'string')) throw new Error('extractFields requires fieldsToExtract to be an array of strings.'); transformedData = {}; for (const field of fieldsToExtract) if (inputObject.hasOwnProperty(field)) (transformedData as Record<string, any>)[field] = inputObject[field]; break;
                 case 'concatenateStrings': let stringsToJoin = stringsToConcatenate; if (typeof stringsToConcatenate === 'string') stringsToJoin = [stringsToConcatenate]; if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean' || s === null || s === undefined)) throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, booleans, nulls or undefineds.'); transformedData = stringsToJoin.map(s => String(s ?? '')).join(separator || ''); break;
                 case 'stringSplit': if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.'); if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.'); transformedData = { array: inputString.split(delimiter) }; break;
-                case 'arrayLength': if (!Array.isArray(inputArray)) throw new Error('arrayLength requires inputArray to be an array.'); transformedData = { length: inputArray.length }; break;
-                case 'getItemAtIndex': if (!Array.isArray(inputArray)) throw new Error('getItemAtIndex requires inputArray to be an array.'); const idx = Number(index); if (isNaN(idx) || idx < 0 || idx >= inputArray.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.'); transformedData = { item: inputArray[idx] }; break;
+                case 'arrayLength': const arrForLength = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts); if (!Array.isArray(arrForLength)) throw new Error(`arrayLength requires inputArrayPath ('${inputArrayPath}') to resolve to an array.`); transformedData = { length: arrForLength.length }; break;
+                case 'getItemAtIndex': const arrForGetItem = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts); if (!Array.isArray(arrForGetItem)) throw new Error(`getItemAtIndex requires inputArrayPath ('${inputArrayPath}') to resolve to an array.`); const idx = Number(index); if (isNaN(idx) || idx < 0 || idx >= arrForGetItem.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.'); transformedData = { item: arrForGetItem[idx] }; break;
                 case 'getObjectProperty': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('getObjectProperty requires inputObject to be an object.'); if (typeof propertyName !== 'string' || propertyName.trim() === '') throw new Error('getObjectProperty requires a non-empty propertyName string.'); transformedData = { propertyValue: inputObject[propertyName] }; break;
+                case 'reduceArray':
+                  const arrToReduce = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
+                  if (!Array.isArray(arrToReduce)) throw new Error(`reduceArray requires inputArrayPath ('${inputArrayPath}') to resolve to an array. Resolved to: ${JSON.stringify(arrToReduce)}`);
+                  
+                  let resolvedInitialValue = initialValue;
+                  if (typeof initialValue === 'string' && initialValue.startsWith("{{") && initialValue.endsWith("}}")) {
+                     resolvedInitialValue = resolveValue(initialValue, currentWorkflowData, serverLogs, additionalContexts);
+                  } else if (initialValue !== undefined && reducerFunction === 'sum' || reducerFunction === 'average') {
+                     resolvedInitialValue = parseFloat(initialValue);
+                     if(isNaN(resolvedInitialValue)) resolvedInitialValue = undefined; // Reset if not a valid number for these ops
+                  }
+
+
+                  switch (reducerFunction) {
+                    case 'sum':
+                      transformedData = arrToReduce.reduce((acc, val) => {
+                        const numVal = parseFloat(String(val));
+                        if (isNaN(numVal)) throw new Error('Sum reducer encountered a non-numeric value in array.');
+                        return acc + numVal;
+                      }, typeof resolvedInitialValue === 'number' ? resolvedInitialValue : 0);
+                      break;
+                    case 'average':
+                      if (arrToReduce.length === 0) {
+                        transformedData = (typeof resolvedInitialValue === 'number' && !isNaN(resolvedInitialValue)) ? resolvedInitialValue : 0; // Or throw error/return NaN
+                      } else {
+                        const sum = arrToReduce.reduce((acc, val) => {
+                          const numVal = parseFloat(String(val));
+                          if (isNaN(numVal)) throw new Error('Average reducer encountered a non-numeric value in array.');
+                          return acc + numVal;
+                        }, 0);
+                        transformedData = sum / arrToReduce.length;
+                      }
+                      break;
+                    case 'join':
+                      transformedData = (resolvedInitialValue !== undefined ? String(resolvedInitialValue) : '') + arrToReduce.map(String).join(separator || '');
+                      break;
+                    case 'countOccurrences':
+                      transformedData = arrToReduce.reduce((acc, val) => {
+                        const key = String(val);
+                        (acc as Record<string, number>)[key] = ((acc as Record<string, number>)[key] || 0) + 1;
+                        return acc;
+                      }, resolvedInitialValue !== undefined && typeof resolvedInitialValue === 'object' ? resolvedInitialValue : {});
+                      break;
+                    default:
+                      throw new Error(`Unsupported reducerFunction: ${reducerFunction}`);
+                  }
+                  break;
                 default: throw new Error(`Unsupported dataTransform type: ${transformType}`);
               }
               serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
@@ -674,7 +718,6 @@ async function executeFlowInternal(
                                   ? JSON.parse(resolvedConfig.simulatedResults) 
                                   : resolvedConfig.simulatedResults;
                     if (!Array.isArray(simResults)) simResults = [];
-                    // If row count isn't explicitly set, use length of simulated results
                     if (resolvedConfig.simulatedRowCount === undefined || resolvedConfig.simulatedRowCount === 0) {
                        simRowCount = simResults.length;
                     }
@@ -743,10 +786,10 @@ async function executeFlowInternal(
               break;
             
           case 'forEach':
-            const { inputArrayPath, iterationNodes: iterNodesStr, iterationConnections: iterConnsStr, iterationResultSource, continueOnError = false } = resolvedConfig;
-            if (!inputArrayPath) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' is required.`);
-            const resolvedArray = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
-            if (!Array.isArray(resolvedArray)) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' ("${inputArrayPath}") did not resolve to an array. Resolved to: ${JSON.stringify(resolvedArray)}`);
+            const { inputArrayPath: forEachInputArrayPath, iterationNodes: iterNodesStr, iterationConnections: iterConnsStr, iterationResultSource, continueOnError = false } = resolvedConfig;
+            if (!forEachInputArrayPath) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' is required.`);
+            const resolvedArray = resolveValue(forEachInputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
+            if (!Array.isArray(resolvedArray)) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' ("${forEachInputArrayPath}") did not resolve to an array. Resolved to: ${JSON.stringify(resolvedArray)}`);
 
             let iterNodes: WorkflowNode[] = []; let iterConns: WorkflowConnection[] = [];
             try { iterNodes = typeof iterNodesStr === 'string' ? JSON.parse(iterNodesStr) : iterNodesStr; if(!Array.isArray(iterNodes)) throw new Error("iterationNodes must be an array."); } catch(e:any){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationNodes. Error: ${e.message}`); }
@@ -893,10 +936,10 @@ async function executeFlowInternal(
 
             serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Starting execution of ${parsedBranches.length} branches. Concurrency limit: ${concurrencyLimit > 0 ? concurrencyLimit : 'Unlimited'}.`, type: 'info' });
 
-            const branchExecutionPromises: (() => Promise<{id: string, status: string, value?: any, reason?: any, branchData?: Record<string,any>}>)[] = [];
+            const branchExecutionThunks: (() => Promise<{id: string, status: string, value?: any, reason?: any, branchData?: Record<string,any>}>)[] = [];
 
             for (const branch of parsedBranches) {
-                branchExecutionPromises.push(async () => {
+              branchExecutionThunks.push(async () => {
                     const branchLabel = `parallel ${node.id} branch ${branch.id}`;
                     serverLogs.push({ message: `[ENGINE/${branchLabel}] Starting branch.`, type: 'info' });
                     
@@ -938,105 +981,80 @@ async function executeFlowInternal(
                         return { id: branch.id, status: 'fulfilled', value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
                     } catch (branchError: any) {
                         serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED with unhandled exception: ${branchError.message}`, type: 'error'});
-                        return { id: branch.id, status: 'rejected', reason: branchError.message, branchData: {} }; // Include branchData as empty for consistency
+                        return { id: branch.id, status: 'rejected', reason: branchError.message, branchData: {} };
                     }
                 });
             }
             
             const aggregatedResults: Record<string, {status: string, value?: any, reason?: any}> = {};
-            const limit = (concurrencyLimit > 0 && concurrencyLimit < branchExecutionPromises.length) ? concurrencyLimit : branchExecutionPromises.length;
-            const activePromises: Promise<any>[] = [];
-            let promiseIndex = 0;
-
-            for(let i = 0; i < branchExecutionPromises.length; i++) {
-                parsedBranches[i].id; // Ensure branch IDs are accessed for logging/reference
-            }
-
-            const executePromise = async (index: number): Promise<any> => {
-                const branchOutcome = await branchExecutionPromises[index]();
-                const branchIdToUse = branchOutcome.id || parsedBranches[index].id || `branch_${index}`;
-                
-                aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
-                if (branchOutcome.status === 'fulfilled' && branchOutcome.branchData) {
-                    currentWorkflowData[branchIdToUse] = branchOutcome.branchData;
-                }
-                return branchOutcome; 
-            };
+            const limit = (concurrencyLimit > 0 && concurrencyLimit < branchExecutionThunks.length) ? concurrencyLimit : branchExecutionThunks.length;
             
-            for (let i = 0; i < limit; i++) {
-                activePromises.push(executePromise(promiseIndex++));
-            }
+            let allSettledResults: any[] = [];
 
-            let allSettledResults = [];
-            while (promiseIndex < branchExecutionPromises.length) {
-                const finishedPromiseResult = await Promise.race(activePromises.map(p => p.then(val => ({value: val, status: 'fulfilled'})).catch(err => ({reason: err, status: 'rejected'}))));
-                // Find which promise in activePromises just settled. This is a bit simplified, real Promise.race doesn't give you the promise back.
-                // A more robust way involves wrapping promises. For now, we'll assume the order of pushing to allSettledResults matters.
-                allSettledResults.push(finishedPromiseResult); 
+            if (limit < branchExecutionThunks.length && limit > 0) {
+                // Pooled execution
+                const resultsFromPool: Promise<any>[] = [];
+                const executing = new Set<Promise<any>>();
+                let thunkIndex = 0;
 
-                // Remove the settled promise and add a new one.
-                // This part is tricky with Promise.race. A better approach for pooling:
-                const pool = new Set<Promise<any>>();
-                const resultsFromPool: any[] = [];
-                let currentIndex = 0;
-                
                 const fillPool = () => {
-                    while (pool.size < limit && currentIndex < branchExecutionPromises.length) {
-                        const promise = branchExecutionPromises[currentIndex]();
-                        const branchId = parsedBranches[currentIndex].id; // For associating result
-                        currentIndex++;
+                    while (executing.size < limit && thunkIndex < branchExecutionThunks.length) {
+                        const thunk = branchExecutionThunks[thunkIndex++];
+                        const promise = thunk();
                         
                         const wrappedPromise = promise.then(value => {
-                            pool.delete(wrappedPromise); // Remove from pool on resolve
-                            return { status: 'fulfilled', value, branchId };
+                            executing.delete(wrappedPromise);
+                            return value; // This is the branchOutcome {id, status, value/reason, branchData}
                         }).catch(reason => {
-                            pool.delete(wrappedPromise); // Remove from pool on reject
-                            return { status: 'rejected', reason, branchId };
+                            executing.delete(wrappedPromise);
+                            // This catch should ideally not be hit if thunk handles its own errors and returns a structured object
+                            // But as a fallback:
+                            return { id: parsedBranches[thunkIndex-1]?.id || `unknown_branch_${thunkIndex-1}`, status: 'rejected', reason: reason?.message || String(reason), branchData: {} };
                         });
                         
-                        pool.add(wrappedPromise);
-                        resultsFromPool.push(wrappedPromise); 
+                        executing.add(wrappedPromise);
+                        resultsFromPool.push(wrappedPromise);
                     }
                 };
 
-                fillPool(); // Initial fill
-                while(pool.size > 0) {
-                    await Promise.race(Array.from(pool)); // Wait for any promise in the pool to settle
+                fillPool();
+                while (executing.size > 0) {
+                    await Promise.race(Array.from(executing)); // Wait for any promise in the pool to settle
                     fillPool(); // Refill the pool
                 }
-                allSettledResults = await Promise.all(resultsFromPool); // Collect all results once done
-            }
-            // If concurrencyLimit was >= num branches, allSettled directly
-            if (limit === branchExecutionPromises.length) {
-                const directResults = await Promise.allSettled(branchExecutionPromises.map(p => p()));
-                allSettledResults = directResults.map((res, idx) => {
-                    const branchId = parsedBranches[idx].id;
-                    if (res.status === 'fulfilled') return { ...res.value, branchId, status: res.value.status }; // res.value is the branchOutcome
-                    return { status: 'rejected', reason: res.reason, branchId };
+                allSettledResults = await Promise.all(resultsFromPool);
+            } else {
+                // Execute all concurrently
+                const directPromises = branchExecutionThunks.map(thunk => thunk());
+                allSettledResults = (await Promise.allSettled(directPromises)).map(res => {
+                    if (res.status === 'fulfilled') return res.value; // This is {id, status, value/reason, branchData}
+                    // For Promise.allSettled, a rejected promise's reason is the error itself.
+                    // We need to find the branch ID if possible, or mark it.
+                    // This part is tricky as the error doesn't carry the ID. We assume order.
+                    // It's better if thunks always resolve to the structured object.
+                    // For now, we'll rely on the thunk always returning the object structure.
+                    return { id: 'unknown_settled_rejection', status: 'rejected', reason: res.reason?.message || String(res.reason), branchData: {} };
                 });
             }
                         
             let allBranchesSucceeded = true;
             let someBranchesSucceeded = false;
 
-            allSettledResults.forEach((settledResult: any) => { // any used due to mixed Promise.allSettled structure
-                const branchIdToUse = settledResult.branchId || 'unknown_branch_result_id';
-                if (settledResult.status === 'fulfilled') {
-                    aggregatedResults[branchIdToUse] = { status: 'fulfilled', value: settledResult.value, reason: undefined };
+            allSettledResults.forEach((branchOutcome: any) => { 
+                const branchIdToUse = branchOutcome.id || 'unknown_branch_result_id';
+                aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
+                if (branchOutcome.status === 'fulfilled') {
                     someBranchesSucceeded = true;
-                    const originalBranchOutcome = branchExecutionPromises.find( (p,idx) => parsedBranches[idx].id === branchIdToUse); // This is a bit indirect
-                    // We should get branchData from the 'value' which is our branchOutcome object
-                    if (settledResult.value && settledResult.value.branchData) {
-                         currentWorkflowData[branchIdToUse] = settledResult.value.branchData;
+                    if (branchOutcome.branchData) {
+                         currentWorkflowData[branchIdToUse] = branchOutcome.branchData;
                     }
                 } else { 
                     allBranchesSucceeded = false;
-                    aggregatedResults[branchIdToUse] = { status: 'rejected', reason: settledResult.reason, value: undefined };
                 }
             });
-             if (parsedBranches.length === 0) allBranchesSucceeded = true; // No branches, technically success.
+             if (parsedBranches.length === 0) allBranchesSucceeded = true;
 
-            let parallelExecutionStatus = 'error'; 
+            let parallelExecutionStatus = 'error';
             if (allBranchesSucceeded) parallelExecutionStatus = 'success';
             else if (someBranchesSucceeded) parallelExecutionStatus = 'partial_success';
             
@@ -1206,5 +1224,3 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
-
-

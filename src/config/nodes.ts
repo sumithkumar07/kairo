@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -178,13 +178,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       transformType: 'toUpperCase', 
       inputString: '', 
       inputObject: {},
-      inputArray: [],
+      inputArrayPath: '', // For reduceArray
       fieldsToExtract: '[]', 
       stringsToConcatenate: '[]', 
       separator: '',
       delimiter: ',',
       index: 0,
       propertyName: '',
+      reducerFunction: 'sum', // For reduceArray
+      initialValue: undefined, // For reduceArray
       retry: {},
       onErrorWebhook: undefined,
     },
@@ -201,18 +203,32 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
             {value: 'arrayLength', label: 'Get Array Length'},
             {value: 'getItemAtIndex', label: 'Get Item From Array at Index'},
             {value: 'getObjectProperty', label: 'Get Property From Object'},
+            {value: 'reduceArray', label: 'Reduce Array (Sum, Avg, Join, Count)'},
           ],
           defaultValue: 'toUpperCase'
         },
         inputString: { label: 'Input String (for case, split, concat)', type: 'textarea', placeholder: '{{input.text}}' },
         inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'json', placeholder: '{{input.data}}' },
-        inputArray: { label: 'Input Array (for length, getItem, concat)', type: 'json', placeholder: '{{input.list}}' },
+        inputArrayPath: { label: 'Input Array Path (for length, getItem, reduce)', type: 'string', placeholder: '{{input.list_data}}' },
         fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' },
         stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' },
-        separator: { label: 'Separator (for concatenateStrings)', type: 'string', placeholder: '(empty for direct join)' },
+        separator: { label: 'Separator (for concatenateStrings, or reduceArray with "join")', type: 'string', placeholder: '(empty for direct join)' },
         delimiter: { label: 'Delimiter (for stringSplit)', type: 'string', placeholder: ',' },
         index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' },
         propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' },
+        reducerFunction: {
+          label: 'Reducer Function (for reduceArray)',
+          type: 'select',
+          options: [
+            { value: 'sum', label: 'Sum (numbers)' },
+            { value: 'average', label: 'Average (numbers)' },
+            { value: 'join', label: 'Join (strings)' },
+            { value: 'countOccurrences', label: 'Count Occurrences (any type)' },
+          ],
+          defaultValue: 'sum',
+          helperText: 'Select if transformType is "Reduce Array".',
+        },
+        initialValue: { label: 'Initial Value (for reduceArray, Optional)', type: 'string', placeholder: '0 for sum, "" for join', helperText: 'Starting value for reduction. Type should match array elements or expected output.' },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
         ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -304,7 +320,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'control', 
     defaultConfig: {
       branches: '[]',
-      concurrencyLimit: 0, // 0 or less means no limit
+      concurrencyLimit: 0,
       retry: {},
       onErrorWebhook: undefined,
     },
@@ -319,7 +335,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         label: 'Concurrency Limit (Optional)',
         type: 'number',
         defaultValue: 0,
-        placeholder: 'e.g., 3',
+        placeholder: 'e.g., 3 (0 or less means no limit)',
         helperText: 'Max number of branches to run at once. 0 or less means unlimited concurrency.'
       },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -357,11 +373,12 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: TrendingUp,
     description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries and on-error webhook.',
     category: 'action', 
-    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined, simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
       apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"videos": [{"id":"vid1", "title":"Mock Video"}]}', helperText: 'Data returned by this node when in simulation mode.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -374,10 +391,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: DownloadCloud,
     description: 'Downloads a YouTube video (conceptual - currently logs intent). Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { videoUrl: '', quality: 'best', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { videoUrl: '', quality: 'best', retry: {}, onErrorWebhook: undefined, simulated_config: { filePath: '/simulated/path/to/video.mp4'} },
     configSchema: {
       videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}' },
       quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best' },
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"filePath": "/sim/video.mp4"}', helperText: 'Data returned by this node when in simulation mode.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -390,11 +408,12 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Scissors,
     description: 'Converts a video to a short format (conceptual - currently logs intent). Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {}, onErrorWebhook: undefined, simulated_config: { shortFilePath: '/simulated/path/to/short.mp4' } },
     configSchema: {
       inputFile: { label: 'Input Video File Path', type: 'string', placeholder: '{{download_node.filePath}}' },
       duration: { label: 'Short Duration (seconds)', type: 'number', defaultValue: 60 },
       strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut'},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"shortFilePath": "/sim/short.mp4"}', helperText: 'Data returned by this node when in simulation mode.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -407,7 +426,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: UploadCloud,
     description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var. Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {}, onErrorWebhook: undefined, simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
@@ -415,6 +434,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
       credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secret.YOUTUBE_OAUTH_TOKEN}}', helperText: "Use {{secret.YOUTUBE_OAUTH_TOKEN}} or {{env.YOUTUBE_OAUTH_TOKEN}}."},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"uploadStatus": "success", "videoId": "sim_yt_id"}', helperText: 'Data returned by this node when in simulation mode.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -427,10 +447,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: WorkflowIcon,
     description: 'A generic, configurable step in the workflow. Used by AI when a specific node type isn\'t matched. Supports retries and on-error webhook.',
     category: 'action', 
-    defaultConfig: { task_description: '', parameters: {}, retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { task_description: '', parameters: {}, retry: {}, onErrorWebhook: undefined, simulated_config: {message: "Simulated custom action output"} },
     configSchema: {
       task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do'},
       parameters: { label: 'Parameters (JSON)', type: 'textarea', placeholder: '{\n  "custom_param": "value"\n}'},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"result": "mock_custom_result"}', helperText: 'Data returned by this node when in simulation mode, if its logic is not directly executable.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -530,6 +551,12 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'get item from array': 'dataTransform',
   'getobjectproperty': 'dataTransform',
   'get property from object': 'dataTransform',
+  'reducearray': 'dataTransform',
+  'reduce array': 'dataTransform',
+  'sum array': 'dataTransform',
+  'average array': 'dataTransform',
+  'join array': 'dataTransform',
+  'count occurrences in array': 'dataTransform',
 
   // AI
   'aitask': 'aiTask',
@@ -621,16 +648,19 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
     case 'stringSplit':
       return SplitSquareHorizontal;
     case 'arrayLength':
-    case 'getItemAtIndex':
       return ListOrdered;
+    case 'getItemAtIndex':
+      return ListPlus;
     case 'getObjectProperty':
     case 'extractFields':
       return Milestone; 
     case 'concatenateStrings':
+    case 'reduceArray': // 'join' is a sub-type of reduceArray
       return Combine;
+    // Specific icons for reduceArray sub-types could be added if desired,
+    // but for now Combine serves as a general aggregation icon.
+    // e.g. case 'sum': return Sigma; case 'average': return Percent;
     default:
       return FunctionSquare;
   }
 }
-
-
