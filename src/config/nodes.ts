@@ -42,9 +42,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'httpRequest',
     name: 'HTTP Request',
     icon: Network,
-    description: 'Makes an HTTP request. Supports retries and on-error webhook.',
+    description: 'Makes an HTTP request. Supports retries, on-error webhook, and simulation.',
     category: 'action', 
-    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '', retry: {}, onErrorWebhook: undefined, simulatedResponse: undefined, simulatedStatusCode: 200 },
     configSchema: {
       url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data' },
       method: { 
@@ -55,6 +55,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       },
       headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
+      simulatedResponse: { label: 'Simulated Response (JSON for Simulation Mode)', type: 'json', placeholder: '{"data": "mock_value", "status_code": 200}', helperText: 'Data returned by this node when in simulation mode. Can include "status_code".'},
+      simulatedStatusCode: { label: 'Simulated Status Code (Number for Simulation, Optional)', type: 'number', defaultValue: 200, placeholder: '200', helperText: 'HTTP status code to simulate. Overridden if simulatedResponse contains status_code.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -77,13 +79,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'sendEmail',
     name: 'Send Email',
     icon: Mail,
-    description: 'Sends an email. Supports retries and on-error webhook. Configure mail server via EMAIL_ env vars.',
+    description: 'Sends an email. Supports retries, on-error webhook, and simulation. Configure mail server via EMAIL_ env vars.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { to: '', subject: '', body: '', retry: {}, onErrorWebhook: undefined, simulatedMessageId: 'simulated-email-id-123' },
     configSchema: {
       to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}' },
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}' },
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
+      simulatedMessageId: { label: 'Simulated Message ID (String for Simulation Mode)', type: 'string', defaultValue: 'simulated-email-id-123', helperText: 'Message ID returned by this node when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -94,12 +97,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'databaseQuery',
     name: 'Database Query',
     icon: Database,
-    description: 'Executes a SQL query. Supports retries and on-error webhook. Configure DB_CONNECTION_STRING env var.',
+    description: 'Executes a SQL query. Supports retries, on-error webhook, and simulation. Configure DB_CONNECTION_STRING env var.',
     category: 'io',
-    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {}, onErrorWebhook: undefined, simulatedResults: '[]', simulatedRowCount: 0 },
     configSchema: {
       queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;' },
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
+      simulatedResults: { label: 'Simulated Results (JSON Array for Simulation Mode)', type: 'json', placeholder: '[{"column1": "mock_data", "column2": 123}]', helperText: 'Results array returned by this node when in simulation mode.' },
+      simulatedRowCount: { label: 'Simulated Row Count (Number for Simulation Mode)', type: 'number', defaultValue: 0, helperText: 'Row count returned by this node when in simulation mode. If simulatedResults is provided, this will be its length unless explicitly set.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -137,12 +142,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs a task using a GenAI model. Supports retries and on-error webhook.',
+    description: 'Performs a task using a GenAI model. Supports retries, on-error webhook, and simulation.',
     category: 'ai',
-    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {}, onErrorWebhook: undefined },
+    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {}, onErrorWebhook: undefined, simulatedOutput: 'This is a simulated AI response.' },
     configSchema: {
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}' },
       model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest' },
+      simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response.', helperText: 'Text output from the AI model when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -318,7 +324,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'manualInput',
     name: 'Manual Input (Simulated)',
     icon: UserCheck,
-    description: 'Simulates a step requiring human input. Outputs pre-configured data.',
+    description: 'Simulates a step requiring human input. Outputs pre-configured data. Supports retries and on-error webhook.',
     category: 'interaction',
     defaultConfig: {
       instructions: 'Please review and provide input.',
@@ -342,7 +348,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
     description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries and on-error webhook.',
-    category: 'action', // Changed from trigger to action, as it's an action within a flow
+    category: 'action', 
     defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
@@ -618,4 +624,5 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 

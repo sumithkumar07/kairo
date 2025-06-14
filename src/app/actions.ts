@@ -158,18 +158,15 @@ function resolveNodeConfig(
       if (key === 'flowGroupNodes' || key === 'flowGroupConnections' || 
           key === 'iterationNodes' || key === 'iterationConnections' || 
           key === 'loopNodes' || key === 'loopConnections' ||
-          key === 'branches' || key === 'inputFieldsSchema') { // Added inputFieldsSchema
-        // These are JSON strings defining structures, not to be resolved as individual placeholders
+          key === 'branches' || key === 'inputFieldsSchema') { 
         resolvedConfig[key] = value; 
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
-        // Retry object is structured, not for placeholder resolution itself
         resolvedConfig[key] = value; 
         continue;
       }
       if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
-        // onErrorWebhook contains sub-fields that might need resolution, handle below
          resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts);
         continue;
       }
@@ -180,7 +177,6 @@ function resolveNodeConfig(
                                                  (typeof item === 'object' && item !== null ? resolveNodeConfig(item, workflowData, serverLogs, additionalContexts) : item)
                                            ));
       } else if (typeof value === 'object' && value !== null) {
-        // This will recursively resolve objects, useful for bodyTemplate in onErrorWebhook
         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
       } else {
         resolvedConfig[key] = value; 
@@ -263,7 +259,7 @@ async function handleOnErrorWebhook(
     node: WorkflowNode,
     errorMessage: string,
     webhookConfig: OnErrorWebhookConfig,
-    workflowData: Record<string, any>, // For resolving env vars in headers
+    workflowData: Record<string, any>, 
     serverLogs: ServerLogOutput[]
 ) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
@@ -274,7 +270,7 @@ async function handleOnErrorWebhook(
         'failed_node_name': node.name,
         'error_message': errorMessage,
         'timestamp': new Date().toISOString(),
-        'workflow_data_snapshot_json': JSON.stringify(workflowData) // Provide a snapshot of all workflow data
+        'workflow_data_snapshot_json': JSON.stringify(workflowData) 
     };
 
     try {
@@ -434,6 +430,7 @@ async function executeFlowInternal(
   connectionsToExecute: WorkflowConnection[],
   currentWorkflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
+  isSimulationMode: boolean,
   parentWorkflowData?: Record<string, any>, 
   additionalContexts?: Record<string, any> 
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any }> {
@@ -498,47 +495,77 @@ async function executeFlowInternal(
             break;
 
           case 'httpRequest':
-            const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
-            if (!url) throw new Error(`Node ${nodeIdentifier}: URL is not configured or resolved.`);
-            serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Attempting ${method} request to ${url}`, type: 'info' });
-            
-            let parsedHeaders: Record<string, string> = {};
-            try {
-              if (headersString && typeof headersString === 'string' && headersString.trim() !== '') parsedHeaders = JSON.parse(headersString);
-              else if (typeof headersString === 'object' && headersString !== null) parsedHeaders = headersString; 
-            } catch (e: any) { const err = new Error(`Node ${nodeIdentifier}: Invalid headers JSON: ${e.message}. Headers provided: '${headersString}'`); throw err; }
+            if (isSimulationMode) {
+              serverLogs.push({ message: `[NODE HTTPREQUEST] SIMULATION: Node ${nodeIdentifier}: Would make ${resolvedConfig.method || 'GET'} request to ${resolvedConfig.url}`, type: 'info' });
+              let simResponseData: any = { message: "Simulated HTTP success" };
+              let simStatusCode = resolvedConfig.simulatedStatusCode || 200;
+              if (resolvedConfig.simulatedResponse) {
+                try {
+                  // If simulatedResponse is a string, try to parse. If it's an object, use as is.
+                  simResponseData = typeof resolvedConfig.simulatedResponse === 'string' 
+                                      ? JSON.parse(resolvedConfig.simulatedResponse) 
+                                      : resolvedConfig.simulatedResponse;
+                  if (typeof simResponseData === 'object' && simResponseData !== null && simResponseData.hasOwnProperty('status_code')) {
+                    simStatusCode = parseInt(simResponseData.status_code, 10) || simStatusCode;
+                  }
+                } catch (e: any) {
+                  serverLogs.push({ message: `[NODE HTTPREQUEST] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedResponse JSON. Error: ${e.message}. Using default simulation.`, type: 'info' });
+                }
+              }
+              currentAttemptOutput = { ...currentAttemptOutput, response: simResponseData, status_code: simStatusCode };
+              if (simStatusCode < 200 || simStatusCode >= 300) {
+                const simError = new Error(`Simulated HTTP error for node ${nodeIdentifier} with status ${simStatusCode}`);
+                (simError as any).statusCode = simStatusCode;
+                throw simError;
+              }
+            } else {
+              const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
+              if (!url) throw new Error(`Node ${nodeIdentifier}: URL is not configured or resolved.`);
+              serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Attempting ${method} request to ${url}`, type: 'info' });
+              
+              let parsedHeaders: Record<string, string> = {};
+              try {
+                if (headersString && typeof headersString === 'string' && headersString.trim() !== '') parsedHeaders = JSON.parse(headersString);
+                else if (typeof headersString === 'object' && headersString !== null) parsedHeaders = headersString; 
+              } catch (e: any) { const err = new Error(`Node ${nodeIdentifier}: Invalid headers JSON: ${e.message}. Headers provided: '${headersString}'`); throw err; }
 
-            const fetchOptions: RequestInit = { method, headers: parsedHeaders };
-            if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-              fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
-              if (!parsedHeaders['Content-Type'] && typeof body !== 'string') (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+              const fetchOptions: RequestInit = { method, headers: parsedHeaders };
+              if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+                fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+                if (!parsedHeaders['Content-Type'] && typeof body !== 'string') (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+              }
+              
+              const response = await fetch(url, fetchOptions);
+              const responseText = await response.text(); 
+              if (!response.ok) {
+                const httpError = new Error(`HTTP request failed for node ${nodeIdentifier} with status ${response.status}: ${responseText}`);
+                (httpError as any).statusCode = response.status;
+                throw httpError;
+              }
+              serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
+              
+              let parsedHttpResponse: any;
+              try { parsedHttpResponse = JSON.parse(responseText); } catch (e) { parsedHttpResponse = responseText; }
+              currentAttemptOutput = { ...currentAttemptOutput, response: parsedHttpResponse, status_code: response.status };
             }
-            
-            const response = await fetch(url, fetchOptions);
-            const responseText = await response.text(); 
-            if (!response.ok) {
-              const httpError = new Error(`HTTP request failed for node ${nodeIdentifier} with status ${response.status}: ${responseText}`);
-              (httpError as any).statusCode = response.status;
-              throw httpError;
-            }
-            serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
-            
-            let parsedHttpResponse: any;
-            try { parsedHttpResponse = JSON.parse(responseText); } catch (e) { parsedHttpResponse = responseText; }
-            currentAttemptOutput = { ...currentAttemptOutput, response: parsedHttpResponse, status_code: response.status };
             break;
 
           case 'aiTask':
-            const { prompt: aiPrompt, model: aiModelFromConfig } = resolvedConfig;
-            if (!aiPrompt) throw new Error(`Node ${nodeIdentifier}: AI Prompt is not configured or resolved.`);
-            const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; 
-            serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
-            
-            const genkitResponse = await ai.generate({ prompt: String(aiPrompt), model: modelToUse as any });
-            const aiResponseTextContent = genkitResponse.text; 
-            
-            serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
-            currentAttemptOutput = { ...currentAttemptOutput, output: aiResponseTextContent }; 
+            if (isSimulationMode) {
+              serverLogs.push({ message: `[NODE AITASK] SIMULATION: Node ${nodeIdentifier}: Would send prompt to model ${resolvedConfig.model || 'default'}. Prompt: "${String(resolvedConfig.prompt).substring(0,100)}..."`, type: 'info' });
+              currentAttemptOutput = { ...currentAttemptOutput, output: resolvedConfig.simulatedOutput || "Simulated AI output." };
+            } else {
+              const { prompt: aiPrompt, model: aiModelFromConfig } = resolvedConfig;
+              if (!aiPrompt) throw new Error(`Node ${nodeIdentifier}: AI Prompt is not configured or resolved.`);
+              const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; 
+              serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
+              
+              const genkitResponse = await ai.generate({ prompt: String(aiPrompt), model: modelToUse as any });
+              const aiResponseTextContent = genkitResponse.text; 
+              
+              serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
+              currentAttemptOutput = { ...currentAttemptOutput, output: aiResponseTextContent }; 
+            }
             break;
 
           case 'parseJson':
@@ -603,26 +630,52 @@ async function executeFlowInternal(
               break;
 
           case 'sendEmail':
-              const { to, subject, body: emailBody } = resolvedConfig;
-              if (!to || !subject || !emailBody) throw new Error(`Node ${nodeIdentifier}: 'to', 'subject', and 'body' are required for sendEmail.`);
-              if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration.`);
-              const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
-              const mailOptions = { from: process.env.EMAIL_FROM, to: to, subject: subject, html: emailBody };
-              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
-              const info = await transporter.sendMail(mailOptions);
-              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
-              currentAttemptOutput = { ...currentAttemptOutput, messageId: info.messageId };
+              if (isSimulationMode) {
+                serverLogs.push({ message: `[NODE SENDEMAIL] SIMULATION: Node ${nodeIdentifier}: Would send email to ${resolvedConfig.to} with subject "${resolvedConfig.subject}"`, type: 'info' });
+                currentAttemptOutput = { ...currentAttemptOutput, messageId: resolvedConfig.simulatedMessageId || 'simulated-email-id-default' };
+              } else {
+                const { to, subject, body: emailBody } = resolvedConfig;
+                if (!to || !subject || !emailBody) throw new Error(`Node ${nodeIdentifier}: 'to', 'subject', and 'body' are required for sendEmail.`);
+                if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration.`);
+                const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
+                const mailOptions = { from: process.env.EMAIL_FROM, to: to, subject: subject, html: emailBody };
+                serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
+                const info = await transporter.sendMail(mailOptions);
+                serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
+                currentAttemptOutput = { ...currentAttemptOutput, messageId: info.messageId };
+              }
               break;
               
           case 'databaseQuery':
-              const { queryText, queryParams } = resolvedConfig;
-              if (!queryText) throw new Error(`Node ${nodeIdentifier}: 'queryText' is required for databaseQuery.`);
-              if (!process.env.DB_CONNECTION_STRING) throw new Error(`Node ${nodeIdentifier}: Missing DB_CONNECTION_STRING environment variable.`);
-              const pool = new Pool({ connectionString: process.env.DB_CONNECTION_STRING });
-              const client = await pool.connect();
-              serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
-              try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
-              } finally { client.release(); await pool.end().catch(err => console.error('[ENGINE] Error ending DB pool:', err)); } 
+              if (isSimulationMode) {
+                serverLogs.push({ message: `[NODE DATABASEQUERY] SIMULATION: Node ${nodeIdentifier}: Would execute query: ${resolvedConfig.queryText} with params: ${JSON.stringify(resolvedConfig.queryParams)}`, type: 'info' });
+                let simResults: any[] = [];
+                let simRowCount = resolvedConfig.simulatedRowCount || 0;
+                if (resolvedConfig.simulatedResults) {
+                  try {
+                    simResults = typeof resolvedConfig.simulatedResults === 'string' 
+                                  ? JSON.parse(resolvedConfig.simulatedResults) 
+                                  : resolvedConfig.simulatedResults;
+                    if (!Array.isArray(simResults)) simResults = [];
+                    // If row count isn't explicitly set, use length of simulated results
+                    if (resolvedConfig.simulatedRowCount === undefined || resolvedConfig.simulatedRowCount === 0) {
+                       simRowCount = simResults.length;
+                    }
+                  } catch (e: any) {
+                    serverLogs.push({ message: `[NODE DATABASEQUERY] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedResults JSON. Error: ${e.message}. Using default simulation.`, type: 'info' });
+                  }
+                }
+                currentAttemptOutput = { ...currentAttemptOutput, results: simResults, rowCount: simRowCount };
+              } else {
+                const { queryText, queryParams } = resolvedConfig;
+                if (!queryText) throw new Error(`Node ${nodeIdentifier}: 'queryText' is required for databaseQuery.`);
+                if (!process.env.DB_CONNECTION_STRING) throw new Error(`Node ${nodeIdentifier}: Missing DB_CONNECTION_STRING environment variable.`);
+                const pool = new Pool({ connectionString: process.env.DB_CONNECTION_STRING });
+                const client = await pool.connect();
+                serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
+                try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
+                } finally { client.release(); await pool.end().catch(err => console.error('[ENGINE] Error ending DB pool:', err)); } 
+              }
               break;
 
           case 'executeFlowGroup':
@@ -646,6 +699,7 @@ async function executeFlowInternal(
                   groupConnections, 
                   subWorkflowInitialData, 
                   serverLogs, 
+                  isSimulationMode,
                   currentWorkflowData, 
                   additionalContexts   
               );
@@ -700,8 +754,9 @@ async function executeFlowInternal(
                   iterConns, 
                   iterInitialData, 
                   serverLogs, 
-                  currentWorkflowData, // Pass parent data for resolving non-item placeholders
-                  itemContext         // Pass item context for resolving {{item.prop}}
+                  isSimulationMode,
+                  currentWorkflowData, 
+                  itemContext         
                 );
 
                 if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && out.status === 'error')) {
@@ -714,7 +769,6 @@ async function executeFlowInternal(
                 if (iterationResultSource && typeof iterationResultSource === 'string') {
                   resultForItem = resolveValue(iterationResultSource, iterExecutionResult.finalWorkflowData, serverLogs, itemContext);
                 } else {
-                  // If no specific source, use the output of the last node executed in the sub-flow
                   resultForItem = iterExecutionResult.lastNodeOutput; 
                 }
                 iterationResultsCollected.push({ status: 'fulfilled', value: resultForItem, item: currentItem });
@@ -726,7 +780,7 @@ async function executeFlowInternal(
                 iterationResultsCollected.push({ status: 'rejected', reason: iterError.message, item: currentItem });
                 if (!continueOnError) {
                   currentAttemptOutput = { status: 'error', error_message: `Error in forEach iteration ${i+1}: ${iterError.message}`, results: iterationResultsCollected };
-                  throw currentAttemptOutput; // This error will be caught by the node's main try/catch for retry
+                  throw currentAttemptOutput; 
                 }
               }
             }
@@ -735,15 +789,13 @@ async function executeFlowInternal(
             if (anyIterationFailed) {
               overallLoopStatus = allIterationsFailed && resolvedArray.length > 0 ? 'error' : 'partial_success';
             }
-             if (resolvedArray.length === 0) allIterationsFailed = false; // No iterations, no failures
+             if (resolvedArray.length === 0) allIterationsFailed = false; 
 
             currentAttemptOutput = { ...currentAttemptOutput, status: overallLoopStatus, results: iterationResultsCollected };
             if(overallLoopStatus === 'error') currentAttemptOutput.error_message = 'All iterations failed or an unrecoverable error occurred.';
             else if (overallLoopStatus === 'partial_success') currentAttemptOutput.error_message = 'Some iterations failed.';
             
             serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations processed. Overall status: ${overallLoopStatus}. Total results: ${iterationResultsCollected.length}.`, type: 'info' });
-            // If the overall loop status is 'error' (e.g., all iterations failed with continueOnError:true),
-            // and it's not the last attempt for the forEach node itself, throw to trigger retry of the whole forEach.
             if (overallLoopStatus === 'error' && attempt < maxAttempts && resolvedArray.length > 0) { 
                 throw new Error(currentAttemptOutput.error_message);
             }
@@ -760,11 +812,9 @@ async function executeFlowInternal(
             let iterationsCompleted = 0;
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Starting while loop. Max iterations: ${maxIterations}.`, type: 'info' });
             
-            // currentWorkflowData is intentionally mutated by the sub-flow of whileLoop
             let loopMutableWorkflowData = { ...currentWorkflowData }; 
 
             while (iterationsCompleted < maxIterations) {
-                // Resolve condition against the potentially modified loopMutableWorkflowData
                 const resolvedWhileCondition = resolveValue(whileConditionStr, loopMutableWorkflowData, serverLogs, additionalContexts);
                 const conditionIsTrue = evaluateCondition(String(resolvedWhileCondition), `${nodeIdentifier} iter ${iterationsCompleted + 1} condition`, serverLogs);
 
@@ -779,37 +829,33 @@ async function executeFlowInternal(
                     `whileLoop ${node.id} iter ${iterationsCompleted + 1}`,
                     whileLoopNodes,
                     whileLoopConns,
-                    loopMutableWorkflowData, // Pass the mutable data for the sub-flow to operate on
+                    loopMutableWorkflowData, 
                     serverLogs,
+                    isSimulationMode,
                     parentWorkflowData, 
                     additionalContexts  
                 );
 
-                // Update loopMutableWorkflowData with results from the iteration
                 loopMutableWorkflowData = { ...loopMutableWorkflowData, ...loopIterationResult.finalWorkflowData };
-                lastNodeOutput = loopIterationResult.lastNodeOutput; // Update lastNodeOutput based on sub-flow
+                lastNodeOutput = loopIterationResult.lastNodeOutput; 
 
                 if (Object.values(loopMutableWorkflowData).some(out => out && typeof out === 'object' && (out as any).status === 'error' && Object.keys(out).length === 2 && (out as any).error_message)) {
-                // Check if any node executed *within this iteration* has set an error status directly in loopMutableWorkflowData
                     const iterErrorNodeId = Object.keys(loopMutableWorkflowData).find(k => loopMutableWorkflowData[k] && typeof loopMutableWorkflowData[k] === 'object' && (loopMutableWorkflowData[k] as any).status === 'error');
                     const iterError = iterErrorNodeId ? loopMutableWorkflowData[iterErrorNodeId] : null;
                     const iterErrorMessage = (iterError as any)?.error_message || `Error in whileLoop iteration ${iterationsCompleted + 1}.`;
                     serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1} FAILED. Error: ${iterErrorMessage}`, type: 'error' });
                     currentAttemptOutput = { status: 'error', error_message: iterErrorMessage, iterations_completed: iterationsCompleted };
-                    throw new Error(iterErrorMessage); // This error will be caught by the node's main try/catch for retry
+                    throw new Error(iterErrorMessage); 
                 }
                 iterationsCompleted++;
             }
-            // After loop, merge changes from loopMutableWorkflowData back to currentWorkflowData
             currentWorkflowData = { ...currentWorkflowData, ...loopMutableWorkflowData};
 
 
             if (iterationsCompleted >= maxIterations) {
                  serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Reached max iterations (${maxIterations}). Exiting loop.`, type: 'info' });
-                 // Check condition one last time after max iterations
                  const finalResolvedCondition = resolveValue(whileConditionStr, currentWorkflowData, serverLogs, additionalContexts);
                  if (evaluateCondition(String(finalResolvedCondition), `${nodeIdentifier} max_iter_check`, serverLogs)) {
-                    // Condition is still true after max iterations, implies an issue
                     currentAttemptOutput = { status: 'error', error_message: `Loop reached max iterations (${maxIterations}) and condition was still true.`, iterations_completed: iterationsCompleted };
                     throw new Error(currentAttemptOutput.error_message);
                  }
@@ -847,6 +893,7 @@ async function executeFlowInternal(
                     branch.connections,
                     branchInitialData, 
                     serverLogs,
+                    isSimulationMode,
                     currentWorkflowData, 
                     additionalContexts 
                 );
@@ -884,7 +931,6 @@ async function executeFlowInternal(
                     aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
                     if(branchOutcome.status === 'fulfilled') {
                         someBranchesSucceeded = true;
-                        // Merge successful branch data into the main workflow data, namespaced by branch ID
                         currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
                     } else {
                         allBranchesSucceeded = false;
@@ -916,26 +962,33 @@ async function executeFlowInternal(
 
           case 'manualInput':
             const { instructions, inputFieldsSchema: inputFieldsSchemaStr, simulatedResponse: simulatedResponseStr } = resolvedConfig;
-            serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Simulating manual input. Instructions: "${instructions || 'No instructions provided.'}"`, type: 'info'});
+            serverLogs.push({ message: `[NODE MANUALINPUT] Node ${nodeIdentifier}: Instructions: "${instructions || 'No instructions provided.'}"`, type: 'info'});
             
-            if (inputFieldsSchemaStr && typeof inputFieldsSchemaStr === 'string') {
-                try {
-                    const fields = JSON.parse(inputFieldsSchemaStr);
-                    serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Would request input for fields: ${JSON.stringify(fields, null, 2)}`, type: 'info'});
-                } catch (e:any) {
-                    serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Could not parse inputFieldsSchema JSON: ${e.message}`, type: 'info'});
+            if (isSimulationMode || simulatedResponseStr) { // Always use simulatedResponse if present, or if in simulation mode and it's absent (though AI should provide it)
+                if (inputFieldsSchemaStr && typeof inputFieldsSchemaStr === 'string') {
+                    try {
+                        const fields = JSON.parse(inputFieldsSchemaStr);
+                        serverLogs.push({ message: `[NODE MANUALINPUT] Node ${nodeIdentifier}: Would request input for fields (Schema): ${JSON.stringify(fields, null, 2)}`, type: 'info'});
+                    } catch (e:any) {
+                        serverLogs.push({ message: `[NODE MANUALINPUT] Node ${nodeIdentifier}: Could not parse inputFieldsSchema JSON: ${e.message}`, type: 'info'});
+                    }
                 }
-            }
-
-            if (!simulatedResponseStr || typeof simulatedResponseStr !== 'string' || simulatedResponseStr.trim() === '') {
-              throw new Error(`Node ${nodeIdentifier}: 'simulatedResponse' is missing or not a non-empty string in config. This is required for simulation.`);
-            }
-            try {
-              const simulatedData = JSON.parse(simulatedResponseStr);
-              serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Using simulated response: ${JSON.stringify(simulatedData).substring(0,200)}`, type: 'success'});
-              currentAttemptOutput = { ...currentAttemptOutput, output: simulatedData };
-            } catch (e:any) {
-              throw new Error(`Node ${nodeIdentifier}: Failed to parse 'simulatedResponse' JSON: ${e.message}. Response provided: "${simulatedResponseStr}"`);
+                if (!simulatedResponseStr || typeof simulatedResponseStr !== 'string' || simulatedResponseStr.trim() === '') {
+                  throw new Error(`Node ${nodeIdentifier}: 'simulatedResponse' is missing or not a non-empty string in config. This is required for simulation or if not in full simulation mode.`);
+                }
+                try {
+                  const simulatedData = JSON.parse(simulatedResponseStr);
+                  serverLogs.push({ message: `[NODE MANUALINPUT] Node ${nodeIdentifier}: Using simulated response: ${JSON.stringify(simulatedData).substring(0,200)}`, type: 'success'});
+                  currentAttemptOutput = { ...currentAttemptOutput, output: simulatedData };
+                } catch (e:any) {
+                  throw new Error(`Node ${nodeIdentifier}: Failed to parse 'simulatedResponse' JSON: ${e.message}. Response provided: "${simulatedResponseStr}"`);
+                }
+            } else {
+                // This case should ideally not be hit if AI provides simulatedResponse or if we always run in simulation.
+                // If we had true pause/resume, this is where we'd pause.
+                const pauseMsg = `[NODE MANUALINPUT] Node ${nodeIdentifier}: Requires human input. Workflow would pause here in a system with pause/resume. No simulatedResponse provided and not in full simulation mode.`;
+                serverLogs.push({ message: pauseMsg, type: 'info'});
+                throw new Error(pauseMsg + " Cannot proceed without simulated data in this environment.");
             }
             break;
 
@@ -944,10 +997,16 @@ async function executeFlowInternal(
           case 'videoConvertToShorts':
           case 'youtubeUploadShort':
           case 'workflowNode': 
-            const simulationMessage = `[NODE ${node.type.toUpperCase()}] SIMULATE: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
-            console.log(simulationMessage);
-            serverLogs.push({ message: simulationMessage, type: 'info' });
-            currentAttemptOutput = { ...currentAttemptOutput, simulated_config: resolvedConfig };
+            if (isSimulationMode || resolvedConfig.simulated_config) { // Check for a general simulated_config or if in overall simulation mode
+                 const simMsg = `[NODE ${node.type.toUpperCase()}] SIMULATION: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
+                 console.log(simMsg); serverLogs.push({ message: simMsg, type: 'info' });
+                 currentAttemptOutput = { ...currentAttemptOutput, output: resolvedConfig.simulated_config || {message: "Simulated output for " + node.type}, status: 'success'};
+            } else {
+                // This is where the actual logic for these nodes would go if they weren't just conceptual/simulated by default
+                const realExecMsg = `[NODE ${node.type.toUpperCase()}] Node ${nodeIdentifier}: Real execution for this node type is not fully implemented. Config: ${JSON.stringify(resolvedConfig, null, 2)}`;
+                console.warn(realExecMsg); serverLogs.push({ message: realExecMsg, type: 'info' });
+                currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig, status: 'success' }; // Default to success for conceptual nodes
+            }
             break;
             
           default:
@@ -985,9 +1044,7 @@ async function executeFlowInternal(
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
           
-          // Attempt to send onErrorWebhook
           if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
-            // Do not await this, it's fire and forget
             handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
           }
           break; 
@@ -1010,7 +1067,6 @@ async function executeFlowInternal(
              if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
-           // Attempt to send onErrorWebhook if not retrying further
            if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
              handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
            }
@@ -1043,14 +1099,16 @@ async function executeFlowInternal(
 }
 
 
-export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutput[]> {
+export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean = false): Promise<ServerLogOutput[]> {
   const serverLogs: ServerLogOutput[] = [];
   const initialWorkflowData: Record<string, any> = {}; 
 
-  console.log("[ENGINE] Starting MAIN workflow execution for", workflow.nodes.length, "nodes.");
-  serverLogs.push({ message: `[ENGINE] MAIN workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
+  const modeMessage = isSimulationMode ? "[ENGINE] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE] Starting MAIN workflow execution for";
+  console.log(`${modeMessage} ${workflow.nodes.length} nodes.`);
+  serverLogs.push({ message: `${modeMessage} ${workflow.nodes.length} nodes.`, type: 'info' });
+  
 
-  const result = await executeFlowInternal("main", workflow.nodes, workflow.connections, initialWorkflowData, serverLogs);
+  const result = await executeFlowInternal("main", workflow.nodes, workflow.connections, initialWorkflowData, serverLogs, isSimulationMode);
   
   console.log("[ENGINE] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
