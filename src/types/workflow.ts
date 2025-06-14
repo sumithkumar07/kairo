@@ -63,3 +63,4 @@ export interface LogEntry {
 }
 
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
+

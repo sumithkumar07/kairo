@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -230,18 +230,41 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputArrayPath: '',
       iterationNodes: '[]',
       iterationConnections: '[]',
-      iterationResultSource: '', // Optional
-      retry: {}, // For retrying the entire loop operation if needed
+      iterationResultSource: '', 
+      retry: {}, 
     },
     configSchema: {
       inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.' },
       iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.' },
       iterationConnections: { label: 'Iteration Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the iteration sub-flow.' },
       iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the full output of the last node in each sub-flow iteration is collected.' },
-      ...GENERIC_RETRY_CONFIG_SCHEMA, // Retry for the whole loop block
+      ...GENERIC_RETRY_CONFIG_SCHEMA, 
     },
-    inputHandles: ['input_array_data'], // Could be used to pass the array directly
-    outputHandles: ['results', 'status', 'error_message'], // 'results' will be an array of outputs from iterations
+    inputHandles: ['input_array_data'], 
+    outputHandles: ['results', 'status', 'error_message'], 
+  },
+  {
+    type: 'whileLoop',
+    name: 'While Loop',
+    icon: RotateCcw, // Using RotateCcw for loop concept
+    description: 'Executes a sub-flow repeatedly as long as a condition is true. Condition is evaluated before each iteration.',
+    category: 'iteration',
+    defaultConfig: {
+      condition: '',
+      loopNodes: '[]',
+      loopConnections: '[]',
+      maxIterations: 100, // Safety limit
+      retry: {}, // For retrying the entire loop block
+    },
+    configSchema: {
+      condition: { label: 'Loop Condition (evaluates to boolean)', type: 'string', placeholder: '{{data.status}} === "pending" || {{counter.value}} < 10', helperText: 'The loop continues as long as this condition is true. Evaluated before each iteration.' },
+      loopNodes: { label: 'Loop Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_action", \n  "type":"httpRequest", \n  ...\n}]', helperText: 'Nodes to execute in each iteration. These nodes should eventually affect the loop condition.' },
+      loopConnections: { label: 'Loop Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the loop sub-flow.' },
+      maxIterations: { label: 'Max Iterations (Optional, Default 100)', type: 'number', defaultValue: 100, placeholder: '100', helperText: 'Safety limit to prevent infinite loops.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+    },
+    inputHandles: ['input_data'], // General input to the loop context
+    outputHandles: ['iterations_completed', 'status', 'error_message'],
   },
   {
     type: 'youtubeFetchTrending',
@@ -440,9 +463,14 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // Iteration
   'foreach': 'forEach',
   'for each': 'forEach',
-  'loop': 'forEach',
+  'loop': 'forEach', // Can also map to whileLoop if context suggests conditional looping
   'iterate': 'forEach',
   'process list': 'forEach',
+  'whileloop': 'whileLoop',
+  'while loop': 'whileLoop',
+  'conditional loop': 'whileLoop',
+  'repeat while': 'whileLoop',
+
 
   // YouTube Specific (Conceptual)
   'youtubefetchtrending': 'youtubeFetchTrending',
@@ -496,3 +524,4 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
