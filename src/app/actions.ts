@@ -22,6 +22,33 @@ import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes'; 
 
+// Initialize the PostgreSQL connection pool at the module level
+let pool: Pool | undefined;
+function getDbPool() {
+  if (!pool) {
+    if (!process.env.DB_CONNECTION_STRING) {
+      console.error("[DB POOL] DB_CONNECTION_STRING environment variable is not set. Database operations will fail.");
+      // Optionally, throw an error here or handle it gracefully depending on desired behavior
+      // For now, we'll let it try to connect and fail within the query if the string is missing.
+    }
+    pool = new Pool({
+      connectionString: process.env.DB_CONNECTION_STRING,
+      // Suggested pool configuration options:
+      // max: 20, // max number of clients in the pool
+      // idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
+      // connectionTimeoutMillis: 2000, // how long to wait for a connection from the pool
+    });
+
+    pool.on('error', (err, client) => {
+      console.error('[DB POOL] Unexpected error on idle client', err);
+      // process.exit(-1); // Consider if this is appropriate for your serverless environment
+    });
+    console.log("[DB POOL] PostgreSQL connection pool initialized.");
+  }
+  return pool;
+}
+
+
 // Helper function to resolve placeholder values
 function resolveValue(
   value: any, 
@@ -755,6 +782,10 @@ async function executeFlowInternal(
               break;
               
           case 'databaseQuery':
+              const currentPool = getDbPool();
+              if (!currentPool) {
+                 throw new Error(`Node ${nodeIdentifier}: Database pool is not available. Check DB_CONNECTION_STRING.`);
+              }
               if (isSimulationMode) {
                 serverLogs.push({ message: `[NODE DATABASEQUERY] SIMULATION: Node ${nodeIdentifier}: Would execute query: ${resolvedConfig.queryText} with params: ${JSON.stringify(resolvedConfig.queryParams)}`, type: 'info' });
                 let simResults: any[] = [];
@@ -776,12 +807,17 @@ async function executeFlowInternal(
               } else {
                 const { queryText, queryParams } = resolvedConfig;
                 if (!queryText) throw new Error(`Node ${nodeIdentifier}: 'queryText' is required for databaseQuery.`);
-                if (!process.env.DB_CONNECTION_STRING) throw new Error(`Node ${nodeIdentifier}: Missing DB_CONNECTION_STRING environment variable.`);
-                const pool = new Pool({ connectionString: process.env.DB_CONNECTION_STRING });
-                const client = await pool.connect();
+                
+                const client = await currentPool.connect();
                 serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
-                try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
-                } finally { client.release(); await pool.end().catch(err => console.error('[ENGINE] Error ending DB pool:', err)); } 
+                try { 
+                    const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); 
+                    serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); 
+                    currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
+                } finally { 
+                    client.release(); 
+                    // Do NOT call pool.end() here as the pool is shared
+                } 
               }
               break;
 
@@ -1308,7 +1344,4 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   return result.serverLogs;
 }
 
-
-
-
-
+    
