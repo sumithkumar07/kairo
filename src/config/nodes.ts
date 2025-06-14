@@ -370,7 +370,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'callExternalWorkflow',
     name: 'Call External Workflow',
-    icon: Share2, // Using Share2 or WorkflowIcon
+    icon: Share2, 
     description: 'Calls another workflow by its ID (currently simulated). Define input/output mappings and simulated output.',
     category: 'group',
     defaultConfig: {
@@ -384,8 +384,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     configSchema: {
       calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"' },
       inputMapping: { label: 'Input Mapping (JSON)', type: 'json', placeholder: '{\n  "targetWorkflowInputName": "{{currentWorkflow.someNode.output}}"\n}', helperText: 'Map data from this workflow to the inputs of the called workflow.' },
-      outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow back to this node\'s output.' },
-      simulatedOutput: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{\n  "simulatedData": "This is a mock result from the called workflow"\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution.' },
+      outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow (from its simulatedOutput) back to this node\'s output.' },
+      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "simulatedData": "This is a mock result from the called workflow"\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -597,7 +597,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // Grouping / Sub-flows
   'executeflowgroup': 'executeFlowGroup',
   'execute flow group': 'executeFlowGroup',
-  'sub workflow': 'executeFlowGroup', // Could also map to callExternalWorkflow later
+  'sub workflow': 'executeFlowGroup', 
   'sub-workflow': 'executeFlowGroup',
   'run group': 'executeFlowGroup',
   'encapsulate flow': 'executeFlowGroup',
