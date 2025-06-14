@@ -66,7 +66,16 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Network,
     description: 'Makes an HTTP request. Supports retries, on-error webhook, and simulation.',
     category: 'action', 
-    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '', retry: {}, onErrorWebhook: undefined, simulatedResponse: undefined, simulatedStatusCode: 200 },
+    defaultConfig: { 
+        url: '', 
+        method: 'GET', 
+        headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', 
+        body: '', 
+        retry: {}, 
+        onErrorWebhook: undefined, 
+        simulatedResponse: '{"message": "Simulated HTTP success"}', // Body only
+        simulatedStatusCode: 200 
+    },
     configSchema: {
       url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data' },
       method: { 
@@ -77,8 +86,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       },
       headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
-      simulatedResponse: { label: 'Simulated Response (JSON for Simulation Mode)', type: 'json', placeholder: '{"data": "mock_value", "status_code": 200}', helperText: 'Data returned by this node when in simulation mode. Can include "status_code".'},
-      simulatedStatusCode: { label: 'Simulated Status Code (Number for Simulation, Optional)', type: 'number', defaultValue: 200, placeholder: '200', helperText: 'HTTP status code to simulate. Overridden if simulatedResponse contains status_code.' },
+      simulatedResponse: { label: 'Simulated Response Body (JSON/Text for Simulation Mode)', type: 'json', placeholder: '{"data": "mock_value"}', helperText: 'Response body content returned by this node when in simulation mode.'},
+      simulatedStatusCode: { label: 'Simulated Status Code (Number for Simulation)', type: 'number', defaultValue: 200, placeholder: '200', helperText: 'Definitive HTTP status code to simulate (e.g., 200, 404, 500). Used to test error handling and retries.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -382,7 +391,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     configSchema: {
       instructions: { label: 'User Instructions', type: 'textarea', placeholder: 'Describe what the user needs to do.' },
       inputFieldsSchema: { label: 'Input Fields Schema (JSON Array)', type: 'json', placeholder: '[{"id":"field_id","label":"Field Label","type":"text"}]', helperText: 'Define the form fields for user input (id, label, type: text/textarea/number/boolean/select, options[] for select).' },
-      simulatedResponse: { label: 'Simulated Response (JSON)', type: 'json', placeholder: '{"field_id":"simulated_value"}', helperText: 'Data this node will output during simulation.' },
+      simulatedResponse: { label: 'Simulated Response (JSON)', type: 'json', placeholder: '{"field_id":"simulated_value"}', helperText: 'Data this node will output during simulation. This JSON object, when parsed, becomes the value available on the node\'s \'output\' handle and should be consistent with the structure defined by inputFieldsSchema.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -406,8 +415,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     configSchema: {
       calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"' },
       inputMapping: { label: 'Input Mapping (JSON)', type: 'json', placeholder: '{\n  "targetWorkflowInputName": "{{currentWorkflow.someNode.output}}"\n}', helperText: 'Map data from this workflow to the inputs of the called workflow.' },
-      outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow (from its simulatedOutput) back to this node\'s output.' },
-      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "simulatedData": "This is a mock result from the called workflow"\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow.' },
+      outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow (from its simulatedOutput, via {{calledWorkflow.property}} placeholders) back to this node\'s output handle.' },
+      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "result": "mock data", "details": {"status":"ok"}\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow. This is the source for {{calledWorkflow.property}} placeholders in outputMapping.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -720,5 +729,6 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
 

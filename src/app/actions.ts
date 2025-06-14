@@ -546,25 +546,30 @@ async function executeFlowInternal(
           case 'httpRequest':
             if (isSimulationMode) {
               serverLogs.push({ message: `[NODE HTTPREQUEST] SIMULATION: Node ${nodeIdentifier}: Would make ${resolvedConfig.method || 'GET'} request to ${resolvedConfig.url}`, type: 'info' });
-              let simResponseData: any = { message: "Simulated HTTP success" };
-              let simStatusCode = resolvedConfig.simulatedStatusCode || 200;
-              if (resolvedConfig.simulatedResponse) {
+              let simResponseData: any = { message: "Simulated HTTP success" }; // Default body if none provided
+              const simStatusCode = resolvedConfig.simulatedStatusCode || 200; // Default to 200 if not specified
+
+              if (resolvedConfig.simulatedResponse) { // This is purely for the body
                 try {
                   simResponseData = typeof resolvedConfig.simulatedResponse === 'string' 
                                       ? JSON.parse(resolvedConfig.simulatedResponse) 
                                       : resolvedConfig.simulatedResponse;
-                  if (typeof simResponseData === 'object' && simResponseData !== null && simResponseData.hasOwnProperty('status_code')) {
-                    simStatusCode = parseInt(simResponseData.status_code, 10) || simStatusCode;
-                  }
                 } catch (e: any) {
-                  serverLogs.push({ message: `[NODE HTTPREQUEST] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedResponse JSON. Error: ${e.message}. Using default simulation.`, type: 'info' });
+                  // If parsing fails, assume it's a non-JSON string body
+                  if (typeof resolvedConfig.simulatedResponse === 'string') {
+                    simResponseData = resolvedConfig.simulatedResponse;
+                  } else {
+                    serverLogs.push({ message: `[NODE HTTPREQUEST] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedResponse JSON. Using default simulation body. Error: ${e.message}`, type: 'info' });
+                  }
                 }
               }
+              
               currentAttemptOutput = { ...currentAttemptOutput, response: simResponseData, status_code: simStatusCode };
-              if (simStatusCode < 200 || simStatusCode >= 300) {
+              
+              if (simStatusCode < 200 || simStatusCode >= 300) { // Check for error status
                 const simError = new Error(`Simulated HTTP error for node ${nodeIdentifier} with status ${simStatusCode}`);
                 (simError as any).statusCode = simStatusCode;
-                throw simError;
+                throw simError; // This will trigger retry logic if configured for this status code
               }
             } else {
               const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
@@ -1294,6 +1299,7 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+
 
 
 
