@@ -11,7 +11,7 @@ export interface WorkflowNode {
   inputHandles?: string[];
   outputHandles?: string[];
   aiExplanation?: string; 
-  category: AvailableNodeType['category']; // Ensure category is part of WorkflowNode
+  category: AvailableNodeType['category'];
 }
 
 export interface WorkflowConnection {
@@ -25,15 +25,17 @@ export interface WorkflowConnection {
 export interface Workflow {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
+  // Potentially add a top-level ID for the workflow itself if managing multiple
+  // workflowId?: string; 
 }
 
 export interface ConfigFieldSchema {
   label: string;
-  type: 'string' | 'number' | 'textarea' | 'select' | 'boolean' | 'json'; // Added json for array/object inputs
+  type: 'string' | 'number' | 'textarea' | 'select' | 'boolean' | 'json';
   options?: Array<{value: string; label: string} | string>;
   placeholder?: string;
   defaultValue?: any;
-  helperText?: string; // Optional helper text
+  helperText?: string;
 }
 
 export interface AvailableNodeType {
@@ -41,11 +43,11 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'unknown';
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'unknown'; // Added 'group' category
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
-  inputHandles?: string[];
-  outputHandles?: string[];
+  inputHandles?: string[]; // For executeFlowGroup, these might be conceptual, mapped by inputMapping
+  outputHandles?: string[];// For executeFlowGroup, these might be conceptual, mapped by outputMapping
 }
 
 export interface LogEntry {
@@ -55,3 +57,4 @@ export interface LogEntry {
 }
 
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
+

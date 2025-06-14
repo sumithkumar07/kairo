@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -37,7 +37,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
     },
     inputHandles: ['input'],
-    outputHandles: ['response', 'status_code', 'error'],
+    outputHandles: ['response', 'status_code', 'error_message', 'status'],
   },
   {
     type: 'schedule',
@@ -64,7 +64,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
     },
     inputHandles: ['input'],
-    outputHandles: ['status', 'error'],
+    outputHandles: ['messageId', 'status', 'error_message'],
   },
   {
     type: 'databaseQuery',
@@ -78,7 +78,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
     },
     inputHandles: ['input'], 
-    outputHandles: ['results', 'error'],
+    outputHandles: ['results', 'rowCount', 'status', 'error_message'],
   },
   {
     type: 'parseJson',
@@ -92,7 +92,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       path: { label: 'Extraction Path (e.g. $.data.items[0].name)', type: 'string', placeholder: '$.data.items[0].name' },
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'error'],
+    outputHandles: ['output', 'status', 'error_message'],
   },
   {
     type: 'logMessage',
@@ -119,7 +119,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest' },
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'error'],
+    outputHandles: ['output', 'status', 'error_message'],
   },
   {
     type: 'conditionalLogic',
@@ -179,7 +179,28 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' },
     },
     inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'error'],
+    outputHandles: ['output_data', 'status', 'error_message'],
+  },
+  {
+    type: 'executeFlowGroup',
+    name: 'Execute Flow Group',
+    icon: Layers, // Using Layers icon for group/sub-flow
+    description: 'Executes an encapsulated group of nodes as a sub-flow. Define nodes, connections, and input/output mappings.',
+    category: 'group',
+    defaultConfig: {
+      flowGroupNodes: '[]', // JSON string representing WorkflowNode[]
+      flowGroupConnections: '[]', // JSON string representing WorkflowConnection[]
+      inputMapping: '{}', // JSON string: {"group_data_key": "{{parent_node.output.some_val}}"}
+      outputMapping: '{}', // JSON string: {"this_node_output_key": "{{node_in_group.result}}"}
+    },
+    configSchema: {
+      flowGroupNodes: { label: 'Flow Group Nodes (JSON Array)', type: 'json', placeholder: '[{"id":"sub_node_1", "type":"logMessage", ...}]', helperText: 'Define the nodes for this group.' },
+      flowGroupConnections: { label: 'Flow Group Connections (JSON Array)', type: 'json', placeholder: '[{"sourceNodeId":"sub_node_1", ...}]', helperText: 'Define connections between nodes in this group.' },
+      inputMapping: { label: 'Input Mapping (JSON Object)', type: 'json', placeholder: '{\n  "internalInputName": "{{parentWorkflow.someNode.output}}"\n}', helperText: 'Map parent data to group inputs.' },
+      outputMapping: { label: 'Output Mapping (JSON Object)', type: 'json', placeholder: '{\n  "parentOutputName": "{{groupNode.result}}"\n}', helperText: 'Map group results to parent outputs.' },
+    },
+    inputHandles: ['input'], // Conceptual input, actual data comes via inputMapping
+    outputHandles: ['output'], // Conceptual output, actual data set via outputMapping
   },
   {
     type: 'youtubeFetchTrending',
@@ -193,7 +214,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
       apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."}
     },
-    outputHandles: ['videos', 'status', 'error'],
+    outputHandles: ['videos', 'status', 'error_message'],
   },
   {
     type: 'youtubeDownloadVideo',
@@ -207,7 +228,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best' },
     },
     inputHandles: ['input'],
-    outputHandles: ['filePath', 'status', 'error'],
+    outputHandles: ['filePath', 'status', 'error_message'],
   },
   {
     type: 'videoConvertToShorts',
@@ -222,7 +243,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut'},
     },
     inputHandles: ['input'],
-    outputHandles: ['shortFilePath', 'status', 'error'],
+    outputHandles: ['shortFilePath', 'status', 'error_message'],
   },
   {
     type: 'youtubeUploadShort',
@@ -240,7 +261,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}', helperText: "Set YOUTUBE_OAUTH_TOKEN in environment."}
     },
     inputHandles: ['input'],
-    outputHandles: ['uploadStatus', 'videoId', 'status', 'error'],
+    outputHandles: ['uploadStatus', 'videoId', 'status', 'error_message'],
   },
   {
     type: 'workflowNode', 
@@ -254,7 +275,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       parameters: { label: 'Parameters (JSON)', type: 'textarea', placeholder: '{\n  "custom_param": "value"\n}'},
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'error'],
+    outputHandles: ['output', 'status', 'error_message'],
   },
   {
     type: 'unknown',
@@ -272,7 +293,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   }
 ];
 
-// Add more specific icons for transform types later if needed
 export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // General & Triggers
   'trigger': 'trigger',
@@ -314,7 +334,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // Logic & Data
   'parsejson': 'parseJson',
   'parse json': 'parseJson',
-  'json transform': 'parseJson', // Could also be dataTransform
+  'json transform': 'parseJson',
   'extract from json': 'parseJson',
   'conditionallogic': 'conditionalLogic',
   'conditional': 'conditionalLogic',
@@ -351,7 +371,6 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'getobjectproperty': 'dataTransform',
   'get property from object': 'dataTransform',
 
-
   // AI
   'aitask': 'aiTask',
   'ai task': 'aiTask',
@@ -362,6 +381,15 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'translate': 'aiTask',
   'analyze sentiment': 'aiTask',
   'classify text': 'aiTask',
+
+  // Grouping / Sub-flows
+  'executeflowgroup': 'executeFlowGroup',
+  'execute flow group': 'executeFlowGroup',
+  'sub workflow': 'executeFlowGroup',
+  'sub-workflow': 'executeFlowGroup',
+  'run group': 'executeFlowGroup',
+  'call workflow': 'executeFlowGroup',
+  'encapsulate flow': 'executeFlowGroup',
 
   // YouTube Specific (Conceptual)
   'youtubefetchtrending': 'youtubeFetchTrending',
@@ -396,7 +424,6 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'unknown': 'unknown'
 };
 
-// Helper to get appropriate icon for specific dataTransform types, not currently used in UI but can be for future.
 export const getDataTransformIcon = (transformType?: string): LucideIcon => {
   switch (transformType) {
     case 'toUpperCase':
@@ -409,10 +436,11 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return ListOrdered;
     case 'getObjectProperty':
     case 'extractFields':
-      return Milestone; // Placeholder, consider specific icon
+      return Milestone; 
     case 'concatenateStrings':
       return Combine;
     default:
       return FunctionSquare;
   }
 }
+
