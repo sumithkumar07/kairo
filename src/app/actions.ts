@@ -158,7 +158,7 @@ function resolveNodeConfig(
       if (key === 'flowGroupNodes' || key === 'flowGroupConnections' || 
           key === 'iterationNodes' || key === 'iterationConnections' || 
           key === 'loopNodes' || key === 'loopConnections' ||
-          key === 'branches') {
+          key === 'branches' || key === 'inputFieldsSchema') { // Added inputFieldsSchema
         // These are JSON strings defining structures, not to be resolved as individual placeholders
         resolvedConfig[key] = value; 
         continue;
@@ -885,8 +885,6 @@ async function executeFlowInternal(
                     if(branchOutcome.status === 'fulfilled') {
                         someBranchesSucceeded = true;
                         // Merge successful branch data into the main workflow data, namespaced by branch ID
-                        // This might be too broad; consider if only the 'value' should be exposed or if full data is needed.
-                        // For now, exposing full branch data under its ID.
                         currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
                     } else {
                         allBranchesSucceeded = false;
@@ -913,6 +911,31 @@ async function executeFlowInternal(
                  }
             } else {
                 serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches completed successfully.`, type: 'success' });
+            }
+            break;
+
+          case 'manualInput':
+            const { instructions, inputFieldsSchema: inputFieldsSchemaStr, simulatedResponse: simulatedResponseStr } = resolvedConfig;
+            serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Simulating manual input. Instructions: "${instructions || 'No instructions provided.'}"`, type: 'info'});
+            
+            if (inputFieldsSchemaStr && typeof inputFieldsSchemaStr === 'string') {
+                try {
+                    const fields = JSON.parse(inputFieldsSchemaStr);
+                    serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Would request input for fields: ${JSON.stringify(fields, null, 2)}`, type: 'info'});
+                } catch (e:any) {
+                    serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Could not parse inputFieldsSchema JSON: ${e.message}`, type: 'info'});
+                }
+            }
+
+            if (!simulatedResponseStr || typeof simulatedResponseStr !== 'string' || simulatedResponseStr.trim() === '') {
+              throw new Error(`Node ${nodeIdentifier}: 'simulatedResponse' is missing or not a non-empty string in config. This is required for simulation.`);
+            }
+            try {
+              const simulatedData = JSON.parse(simulatedResponseStr);
+              serverLogs.push({ message: `[NODE MANUALINPUT] ${nodeIdentifier}: Using simulated response: ${JSON.stringify(simulatedData).substring(0,200)}`, type: 'success'});
+              currentAttemptOutput = { ...currentAttemptOutput, output: simulatedData };
+            } catch (e:any) {
+              throw new Error(`Node ${nodeIdentifier}: Failed to parse 'simulatedResponse' JSON: ${e.message}. Response provided: "${simulatedResponseStr}"`);
             }
             break;
 
@@ -1033,3 +1056,4 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+

@@ -1,6 +1,6 @@
 
-import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon } from 'lucide-react';
+import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -315,11 +315,34 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     outputHandles: ['results', 'status', 'error_message'], 
   },
   {
+    type: 'manualInput',
+    name: 'Manual Input (Simulated)',
+    icon: UserCheck,
+    description: 'Simulates a step requiring human input. Outputs pre-configured data.',
+    category: 'interaction',
+    defaultConfig: {
+      instructions: 'Please review and provide input.',
+      inputFieldsSchema: '[{"id": "approval", "label": "Approve?", "type": "boolean", "defaultValue": true}]',
+      simulatedResponse: '{"approval": true, "notes": "Simulated approval"}',
+      retry: {},
+      onErrorWebhook: undefined,
+    },
+    configSchema: {
+      instructions: { label: 'User Instructions', type: 'textarea', placeholder: 'Describe what the user needs to do.' },
+      inputFieldsSchema: { label: 'Input Fields Schema (JSON Array)', type: 'json', placeholder: '[{"id":"field_id","label":"Field Label","type":"text"}]', helperText: 'Define the form fields for user input (id, label, type: text/textarea/number/boolean/select, options[] for select).' },
+      simulatedResponse: { label: 'Simulated Response (JSON)', type: 'json', placeholder: '{"field_id":"simulated_value"}', helperText: 'Data this node will output during simulation.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
     type: 'youtubeFetchTrending',
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
     description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries and on-error webhook.',
-    category: 'trigger',
+    category: 'action', // Changed from trigger to action, as it's an action within a flow
     defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
@@ -328,6 +351,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
+    inputHandles: ['input'],
     outputHandles: ['videos', 'status', 'error_message'],
   },
   {
@@ -531,6 +555,17 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'fan out': 'parallel',
   'run in parallel': 'parallel',
 
+  // Interaction
+  'manualinput': 'manualInput',
+  'manual input': 'manualInput',
+  'user input': 'manualInput',
+  'ask user': 'manualInput',
+  'human task': 'manualInput',
+  'human approval': 'manualInput',
+  'get user data': 'manualInput',
+  'user decision': 'manualInput',
+  'form input': 'manualInput',
+
   // YouTube Specific (Conceptual)
   'youtubefetchtrending': 'youtubeFetchTrending',
   'youtube fetch trending': 'youtubeFetchTrending',
@@ -583,3 +618,4 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+

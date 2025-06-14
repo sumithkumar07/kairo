@@ -13,8 +13,19 @@ export interface OnErrorWebhookConfig {
   url: string;
   method?: 'POST' | 'PUT';
   headers?: Record<string, string>;
-  bodyTemplate?: Record<string, any>;
+  bodyTemplate?: Record<string, any>; // Allows placeholders like {{failed_node_id}}, etc.
 }
+
+export interface ManualInputFieldSchema {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'boolean' | 'select';
+  options?: string[]; // For select type
+  defaultValue?: any;
+  placeholder?: string;
+  required?: boolean;
+}
+
 
 export interface WorkflowNode {
   id: string;
@@ -69,7 +80,7 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'control' | 'unknown';
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'control' | 'interaction' | 'unknown';
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[]; 
@@ -83,3 +94,4 @@ export interface LogEntry {
 }
 
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
+
