@@ -85,20 +85,33 @@ function resolveValue(
         if (placeholder === value) resolvedValue = envVarValue; 
         dataFound = true; 
         serverLogs.push({ message: `[ENGINE] Resolved '{{env.${envVarName}}}' from environment.`, type: 'info' });
-        continue; 
+        // Continue to next match in the string, not next placeholder type
       } else {
         const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
         console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
-        continue;
       }
+      // Even if found or not, continue to check other parts of the string for more placeholders
+      continue; 
     }
     
     
     if (!dataFound && firstPart === 'secret' && pathParts.length >= 2) {
         const secretName = pathParts.slice(1).join('.');
-        const infoMsg = `[ENGINE] Placeholder '{{secret.${secretName}}}' encountered. In a production environment, this would be resolved from a secure secrets vault. Actual vault integration is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in a .env.local file.`;
+        const infoMsg = `[ENGINE] Placeholder '{{secret.${secretName}}}' encountered. In production, this would be resolved from a secure secrets vault.`;
         console.info(infoMsg); 
         serverLogs.push({ message: infoMsg, type: 'info'});
+        
+        const envVarValue = process.env[secretName];
+        if (envVarValue !== undefined) {
+            resolvedValue = resolvedValue.replace(placeholder, envVarValue);
+            if (placeholder === value) resolvedValue = envVarValue;
+            dataFound = true;
+            serverLogs.push({ message: `[ENGINE] For development/testing, '{{secret.${secretName}}}' was resolved using the environment variable '${secretName}'.`, type: 'info' });
+        } else {
+            const warningMsg = `[ENGINE] Secret '{{secret.${secretName}}}' not found as an environment variable fallback ('${secretName}'). Placeholder remains unresolved.`;
+            console.warn(warningMsg);
+            serverLogs.push({ message: warningMsg, type: 'info' });
+        }
         continue; 
     }
 
@@ -268,7 +281,7 @@ async function handleOnErrorWebhook(
 
     const errorContext = {
         'failed_node_id': node.id,
-        'failed_node_name': node.name,
+        'failed_node_name': node.name || node.id,
         'error_message': errorMessage,
         'timestamp': new Date().toISOString(),
         'workflow_data_snapshot_json': JSON.stringify(workflowData) 
@@ -1281,5 +1294,6 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+
 
 
