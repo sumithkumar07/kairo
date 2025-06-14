@@ -802,18 +802,18 @@ async function executeFlowInternal(
               }
             }
             
-            let overallLoopStatus = 'success';
+            let forEachOverallStatus = 'success';
             if (anyIterationFailed) {
-              overallLoopStatus = allIterationsFailed && resolvedArray.length > 0 ? 'error' : 'partial_success';
+              forEachOverallStatus = allIterationsFailed && resolvedArray.length > 0 ? 'error' : 'partial_success';
             }
              if (resolvedArray.length === 0) allIterationsFailed = false; 
 
-            currentAttemptOutput = { ...currentAttemptOutput, status: overallLoopStatus, results: iterationResultsCollected };
-            if(overallLoopStatus === 'error') currentAttemptOutput.error_message = 'All iterations failed or an unrecoverable error occurred.';
-            else if (overallLoopStatus === 'partial_success') currentAttemptOutput.error_message = 'Some iterations failed.';
+            currentAttemptOutput = { ...currentAttemptOutput, status: forEachOverallStatus, results: iterationResultsCollected };
+            if(forEachOverallStatus === 'error') currentAttemptOutput.error_message = 'All iterations failed or an unrecoverable error occurred.';
+            else if (forEachOverallStatus === 'partial_success') currentAttemptOutput.error_message = 'Some iterations failed.';
             
-            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations processed. Overall status: ${overallLoopStatus}. Total results: ${iterationResultsCollected.length}.`, type: 'info' });
-            if (overallLoopStatus === 'error' && attempt < maxAttempts && resolvedArray.length > 0) { 
+            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations processed. Overall status: ${forEachOverallStatus}. Total results: ${iterationResultsCollected.length}.`, type: 'info' });
+            if (forEachOverallStatus === 'error' && attempt < maxAttempts && resolvedArray.length > 0) { 
                 throw new Error(currentAttemptOutput.error_message);
             }
             break;
@@ -882,7 +882,7 @@ async function executeFlowInternal(
             break;
 
           case 'parallel':
-            const { branches: branchesStr } = resolvedConfig;
+            const { branches: branchesStr, concurrencyLimit = 0 } = resolvedConfig;
             let parsedBranches: BranchConfig[] = [];
             try {
                 parsedBranches = typeof branchesStr === 'string' ? JSON.parse(branchesStr) : branchesStr;
@@ -891,75 +891,151 @@ async function executeFlowInternal(
                 }
             } catch (e:any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or structure for branches configuration: ${e.message}`); }
 
-            serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Starting execution of ${parsedBranches.length} branches concurrently.`, type: 'info' });
+            serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Starting execution of ${parsedBranches.length} branches. Concurrency limit: ${concurrencyLimit > 0 ? concurrencyLimit : 'Unlimited'}.`, type: 'info' });
 
-            const branchPromises = parsedBranches.map(async (branch) => {
-                const branchLabel = `parallel ${node.id} branch ${branch.id}`;
-                serverLogs.push({ message: `[ENGINE/${branchLabel}] Starting branch.`, type: 'info' });
-                
-                const branchInitialData: Record<string, any> = {};
-                if (branch.inputMapping && typeof branch.inputMapping === 'object') {
-                    for (const [internalKey, parentPlaceholder] of Object.entries(branch.inputMapping)) {
-                        branchInitialData[internalKey] = resolveValue(String(parentPlaceholder), currentWorkflowData, serverLogs, additionalContexts);
+            const branchExecutionPromises: (() => Promise<{id: string, status: string, value?: any, reason?: any, branchData?: Record<string,any>}>)[] = [];
+
+            for (const branch of parsedBranches) {
+                branchExecutionPromises.push(async () => {
+                    const branchLabel = `parallel ${node.id} branch ${branch.id}`;
+                    serverLogs.push({ message: `[ENGINE/${branchLabel}] Starting branch.`, type: 'info' });
+                    
+                    const branchInitialData: Record<string, any> = {};
+                    if (branch.inputMapping && typeof branch.inputMapping === 'object') {
+                        for (const [internalKey, parentPlaceholder] of Object.entries(branch.inputMapping)) {
+                            branchInitialData[internalKey] = resolveValue(String(parentPlaceholder), currentWorkflowData, serverLogs, additionalContexts);
+                        }
                     }
-                }
-                
-                const branchExecutionResult = await executeFlowInternal(
-                    branchLabel,
-                    branch.nodes,
-                    branch.connections,
-                    branchInitialData, 
-                    serverLogs,
-                    isSimulationMode,
-                    currentWorkflowData, 
-                    additionalContexts 
-                );
+                    
+                    try {
+                        const branchExecutionResult = await executeFlowInternal(
+                            branchLabel,
+                            branch.nodes,
+                            branch.connections,
+                            branchInitialData, 
+                            serverLogs,
+                            isSimulationMode,
+                            currentWorkflowData, 
+                            additionalContexts 
+                        );
 
-                let branchOutputValue: any;
-                if (branch.outputSource && typeof branch.outputSource === 'string') {
-                    branchOutputValue = resolveValue(branch.outputSource, branchExecutionResult.finalWorkflowData, serverLogs);
-                } else {
-                    branchOutputValue = branchExecutionResult.lastNodeOutput;
-                }
-                
-                const branchErrored = Object.values(branchExecutionResult.finalWorkflowData).some(out => out && (out as any).status === 'error');
-                if (branchErrored) {
-                  const branchError = Object.values(branchExecutionResult.finalWorkflowData).find(out => out && (out as any).status === 'error');
-                  const branchErrorMessage = (branchError as any)?.error_message || "Error in parallel branch execution.";
-                  serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED. Error: ${branchErrorMessage}`, type: 'error'});
-                  return { id: branch.id, status: 'rejected', reason: branchErrorMessage, value: branchOutputValue };
-                }
+                        let branchOutputValue: any;
+                        if (branch.outputSource && typeof branch.outputSource === 'string') {
+                            branchOutputValue = resolveValue(branch.outputSource, branchExecutionResult.finalWorkflowData, serverLogs);
+                        } else {
+                            branchOutputValue = branchExecutionResult.lastNodeOutput;
+                        }
+                        
+                        const branchErrored = Object.values(branchExecutionResult.finalWorkflowData).some(out => out && (out as any).status === 'error');
+                        if (branchErrored) {
+                          const branchError = Object.values(branchExecutionResult.finalWorkflowData).find(out => out && (out as any).status === 'error');
+                          const branchErrorMessage = (branchError as any)?.error_message || "Error in parallel branch execution.";
+                          serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED. Error: ${branchErrorMessage}`, type: 'error'});
+                          return { id: branch.id, status: 'rejected', reason: branchErrorMessage, value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
+                        }
 
-                serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution SUCCEEDED. Output (first 100 chars): ${JSON.stringify(branchOutputValue).substring(0,100)}`, type: 'success'});
-                return { id: branch.id, status: 'fulfilled', value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
-            });
-
-            const allSettledResults = await Promise.allSettled(branchPromises.map(p => p.catch(e => ({ status: 'rejected', reason: e.message, id: 'unknown_branch_error' }))));
+                        serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution SUCCEEDED. Output (first 100 chars): ${JSON.stringify(branchOutputValue).substring(0,100)}`, type: 'success'});
+                        return { id: branch.id, status: 'fulfilled', value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
+                    } catch (branchError: any) {
+                        serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED with unhandled exception: ${branchError.message}`, type: 'error'});
+                        return { id: branch.id, status: 'rejected', reason: branchError.message, branchData: {} }; // Include branchData as empty for consistency
+                    }
+                });
+            }
             
             const aggregatedResults: Record<string, {status: string, value?: any, reason?: any}> = {};
+            const limit = (concurrencyLimit > 0 && concurrencyLimit < branchExecutionPromises.length) ? concurrencyLimit : branchExecutionPromises.length;
+            const activePromises: Promise<any>[] = [];
+            let promiseIndex = 0;
+
+            for(let i = 0; i < branchExecutionPromises.length; i++) {
+                parsedBranches[i].id; // Ensure branch IDs are accessed for logging/reference
+            }
+
+            const executePromise = async (index: number): Promise<any> => {
+                const branchOutcome = await branchExecutionPromises[index]();
+                const branchIdToUse = branchOutcome.id || parsedBranches[index].id || `branch_${index}`;
+                
+                aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
+                if (branchOutcome.status === 'fulfilled' && branchOutcome.branchData) {
+                    currentWorkflowData[branchIdToUse] = branchOutcome.branchData;
+                }
+                return branchOutcome; 
+            };
+            
+            for (let i = 0; i < limit; i++) {
+                activePromises.push(executePromise(promiseIndex++));
+            }
+
+            let allSettledResults = [];
+            while (promiseIndex < branchExecutionPromises.length) {
+                const finishedPromiseResult = await Promise.race(activePromises.map(p => p.then(val => ({value: val, status: 'fulfilled'})).catch(err => ({reason: err, status: 'rejected'}))));
+                // Find which promise in activePromises just settled. This is a bit simplified, real Promise.race doesn't give you the promise back.
+                // A more robust way involves wrapping promises. For now, we'll assume the order of pushing to allSettledResults matters.
+                allSettledResults.push(finishedPromiseResult); 
+
+                // Remove the settled promise and add a new one.
+                // This part is tricky with Promise.race. A better approach for pooling:
+                const pool = new Set<Promise<any>>();
+                const resultsFromPool: any[] = [];
+                let currentIndex = 0;
+                
+                const fillPool = () => {
+                    while (pool.size < limit && currentIndex < branchExecutionPromises.length) {
+                        const promise = branchExecutionPromises[currentIndex]();
+                        const branchId = parsedBranches[currentIndex].id; // For associating result
+                        currentIndex++;
+                        
+                        const wrappedPromise = promise.then(value => {
+                            pool.delete(wrappedPromise); // Remove from pool on resolve
+                            return { status: 'fulfilled', value, branchId };
+                        }).catch(reason => {
+                            pool.delete(wrappedPromise); // Remove from pool on reject
+                            return { status: 'rejected', reason, branchId };
+                        });
+                        
+                        pool.add(wrappedPromise);
+                        resultsFromPool.push(wrappedPromise); 
+                    }
+                };
+
+                fillPool(); // Initial fill
+                while(pool.size > 0) {
+                    await Promise.race(Array.from(pool)); // Wait for any promise in the pool to settle
+                    fillPool(); // Refill the pool
+                }
+                allSettledResults = await Promise.all(resultsFromPool); // Collect all results once done
+            }
+            // If concurrencyLimit was >= num branches, allSettled directly
+            if (limit === branchExecutionPromises.length) {
+                const directResults = await Promise.allSettled(branchExecutionPromises.map(p => p()));
+                allSettledResults = directResults.map((res, idx) => {
+                    const branchId = parsedBranches[idx].id;
+                    if (res.status === 'fulfilled') return { ...res.value, branchId, status: res.value.status }; // res.value is the branchOutcome
+                    return { status: 'rejected', reason: res.reason, branchId };
+                });
+            }
+                        
             let allBranchesSucceeded = true;
             let someBranchesSucceeded = false;
 
-            allSettledResults.forEach((settledResult, index) => {
-                const defaultBranchId = parsedBranches[index]?.id || `branch_${index}`; 
+            allSettledResults.forEach((settledResult: any) => { // any used due to mixed Promise.allSettled structure
+                const branchIdToUse = settledResult.branchId || 'unknown_branch_result_id';
                 if (settledResult.status === 'fulfilled') {
-                    const branchOutcome = settledResult.value as { id: string; status: 'fulfilled' | 'rejected'; value?: any; reason?: any, branchData?: Record<string,any>};
-                    const branchIdToUse = branchOutcome.id || defaultBranchId;
-                    aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
-                    if(branchOutcome.status === 'fulfilled') {
-                        someBranchesSucceeded = true;
-                        // Propagate successful branch data back to the main workflow data, namespaced by branch ID
-                        // This makes branch-specific outputs available to subsequent nodes in the main flow.
-                        currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
-                    } else {
-                        allBranchesSucceeded = false;
+                    aggregatedResults[branchIdToUse] = { status: 'fulfilled', value: settledResult.value, reason: undefined };
+                    someBranchesSucceeded = true;
+                    const originalBranchOutcome = branchExecutionPromises.find( (p,idx) => parsedBranches[idx].id === branchIdToUse); // This is a bit indirect
+                    // We should get branchData from the 'value' which is our branchOutcome object
+                    if (settledResult.value && settledResult.value.branchData) {
+                         currentWorkflowData[branchIdToUse] = settledResult.value.branchData;
                     }
                 } else { 
                     allBranchesSucceeded = false;
-                    aggregatedResults[defaultBranchId] = { status: 'rejected', reason: settledResult.reason };
+                    aggregatedResults[branchIdToUse] = { status: 'rejected', reason: settledResult.reason, value: undefined };
                 }
             });
-            
+             if (parsedBranches.length === 0) allBranchesSucceeded = true; // No branches, technically success.
+
             let parallelExecutionStatus = 'error'; 
             if (allBranchesSucceeded) parallelExecutionStatus = 'success';
             else if (someBranchesSucceeded) parallelExecutionStatus = 'partial_success';
@@ -1130,4 +1206,5 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+
 

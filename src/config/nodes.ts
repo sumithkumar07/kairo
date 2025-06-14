@@ -300,10 +300,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'parallel',
     name: 'Parallel Execution',
     icon: GitFork, 
-    description: 'Executes multiple branches of nodes concurrently. Collects results from all branches. Supports retries for the whole block and on-error webhook if it fails.',
+    description: 'Executes multiple branches of nodes concurrently, optionally limiting concurrency. Collects results from all branches. Supports retries for the whole block and on-error webhook if it fails.',
     category: 'control', 
     defaultConfig: {
-      branches: '[]', 
+      branches: '[]',
+      concurrencyLimit: 0, // 0 or less means no limit
       retry: {},
       onErrorWebhook: undefined,
     },
@@ -311,8 +312,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       branches: { 
         label: 'Branches (JSON Array of Branch definitions)', 
         type: 'json', 
-        placeholder: '[{\n  "id": "branch_1",\n  "name": "Image Processing",\n  "nodes": [{"id":"img_op_1", "type":"aiTask", ...}],\n  "connections": [],\n  "inputMapping": {"img_data": "{{parent.image_url}}"},\n  "outputSource": "{{img_op_1.processed_image_url}}"\n},\n{\n  "id": "branch_2",\n  "name": "Metadata Fetch",\n  "nodes": [{"id":"meta_fetch_1", "type":"httpRequest", ...}],\n  "connections": [],\n  "inputMapping": {"item_id": "{{parent.item_id}}"},\n  "outputSource": "{{meta_fetch_1.response}}"\n}]',
+        placeholder: '[{\n  "id": "branch_1",\n  "name": "Image Processing",\n  "nodes": [{"id":"img_op_1", "type":"aiTask", ...}],\n  "connections": [],\n  "inputMapping": {"img_data": "{{parent.image_url}}"},\n  "outputSource": "{{img_op_1.processed_image_url}}"\n}]',
         helperText: 'Define branches to run in parallel. Each branch has id, nodes, connections, optional inputMapping, and optional outputSource.'
+      },
+      concurrencyLimit: {
+        label: 'Concurrency Limit (Optional)',
+        type: 'number',
+        defaultValue: 0,
+        placeholder: 'e.g., 3',
+        helperText: 'Max number of branches to run at once. 0 or less means unlimited concurrency.'
       },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
