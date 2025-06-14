@@ -13,14 +13,14 @@ export interface OnErrorWebhookConfig {
   url: string;
   method?: 'POST' | 'PUT';
   headers?: Record<string, string>;
-  bodyTemplate?: Record<string, any>; // Allows placeholders like {{failed_node_id}}, etc.
+  bodyTemplate?: Record<string, any>; 
 }
 
 export interface ManualInputFieldSchema {
   id: string;
   label: string;
   type: 'text' | 'textarea' | 'number' | 'boolean' | 'select';
-  options?: string[]; // For select type
+  options?: string[]; 
   defaultValue?: any;
   placeholder?: string;
   required?: boolean;

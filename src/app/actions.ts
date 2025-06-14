@@ -20,14 +20,14 @@ import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, Retry
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
-import { AVAILABLE_NODES_CONFIG } from '@/config/nodes'; // Import available nodes config
+import { AVAILABLE_NODES_CONFIG } from '@/config/nodes'; 
 
 // Helper function to resolve placeholder values
 function resolveValue(
   value: any, 
   workflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
-  additionalContexts?: Record<string, any> // For loop item, branch-specific data, error webhook context etc.
+  additionalContexts?: Record<string, any> 
 ): any {
   if (typeof value !== 'string') {
     return value;
@@ -53,7 +53,7 @@ function resolveValue(
     let dataFound = false;
     let dataAtPath: any;
 
-    // 1. Check additionalContexts (e.g., loop item, branch data, error context)
+    
     if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
       dataAtPath = additionalContexts[firstPart];
       let currentPathForLog = firstPart;
@@ -76,7 +76,7 @@ function resolveValue(
       }
     }
 
-    // 2. Check environment variables
+    
     if (!dataFound && firstPart === 'env' && pathParts.length >= 2) {
       const envVarName = pathParts.slice(1).join('.');
       const envVarValue = process.env[envVarName];
@@ -93,7 +93,7 @@ function resolveValue(
       }
     }
     
-    // 3. Check conceptual secrets (vault)
+    
     if (!dataFound && firstPart === 'secret' && pathParts.length >= 2) {
         const secretName = pathParts.slice(1).join('.');
         const infoMsg = `[ENGINE] Placeholder '{{secret.${secretName}}}' encountered. In a production environment, this would be resolved from a secure secrets vault. Actual vault integration is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in a .env.local file.`;
@@ -102,7 +102,7 @@ function resolveValue(
         continue; 
     }
 
-    // 4. Check workflowData (node outputs from the current scope)
+    
     if (!dataFound) {
         if (!workflowData.hasOwnProperty(firstPart)) {
             const warningMsg = `[ENGINE] No data found for node ID or context key '${firstPart}' in current workflow data scope when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs/keys in current scope: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
@@ -646,7 +646,7 @@ async function executeFlowInternal(
                      resolvedInitialValue = resolveValue(initialValue, currentWorkflowData, serverLogs, additionalContexts);
                   } else if (initialValue !== undefined && reducerFunction === 'sum' || reducerFunction === 'average') {
                      resolvedInitialValue = parseFloat(initialValue);
-                     if(isNaN(resolvedInitialValue)) resolvedInitialValue = undefined; // Reset if not a valid number for these ops
+                     if(isNaN(resolvedInitialValue)) resolvedInitialValue = undefined; 
                   }
 
 
@@ -660,7 +660,7 @@ async function executeFlowInternal(
                       break;
                     case 'average':
                       if (arrToReduce.length === 0) {
-                        transformedData = (typeof resolvedInitialValue === 'number' && !isNaN(resolvedInitialValue)) ? resolvedInitialValue : 0; // Or throw error/return NaN
+                        transformedData = (typeof resolvedInitialValue === 'number' && !isNaN(resolvedInitialValue)) ? resolvedInitialValue : 0; 
                       } else {
                         const sum = arrToReduce.reduce((acc, val) => {
                           const numVal = parseFloat(String(val));
@@ -992,7 +992,7 @@ async function executeFlowInternal(
             let allSettledResults: any[] = [];
 
             if (limit < branchExecutionThunks.length && limit > 0) {
-                // Pooled execution
+                
                 const resultsFromPool: Promise<any>[] = [];
                 const executing = new Set<Promise<any>>();
                 let thunkIndex = 0;
@@ -1004,11 +1004,10 @@ async function executeFlowInternal(
                         
                         const wrappedPromise = promise.then(value => {
                             executing.delete(wrappedPromise);
-                            return value; // This is the branchOutcome {id, status, value/reason, branchData}
+                            return value; 
                         }).catch(reason => {
                             executing.delete(wrappedPromise);
-                            // This catch should ideally not be hit if thunk handles its own errors and returns a structured object
-                            // But as a fallback:
+                            
                             return { id: parsedBranches[thunkIndex-1]?.id || `unknown_branch_${thunkIndex-1}`, status: 'rejected', reason: reason?.message || String(reason), branchData: {} };
                         });
                         
@@ -1019,20 +1018,16 @@ async function executeFlowInternal(
 
                 fillPool();
                 while (executing.size > 0) {
-                    await Promise.race(Array.from(executing)); // Wait for any promise in the pool to settle
-                    fillPool(); // Refill the pool
+                    await Promise.race(Array.from(executing)); 
+                    fillPool(); 
                 }
                 allSettledResults = await Promise.all(resultsFromPool);
             } else {
-                // Execute all concurrently
+                
                 const directPromises = branchExecutionThunks.map(thunk => thunk());
                 allSettledResults = (await Promise.allSettled(directPromises)).map(res => {
-                    if (res.status === 'fulfilled') return res.value; // This is {id, status, value/reason, branchData}
-                    // For Promise.allSettled, a rejected promise's reason is the error itself.
-                    // We need to find the branch ID if possible, or mark it.
-                    // This part is tricky as the error doesn't carry the ID. We assume order.
-                    // It's better if thunks always resolve to the structured object.
-                    // For now, we'll rely on the thunk always returning the object structure.
+                    if (res.status === 'fulfilled') return res.value; 
+                    
                     return { id: 'unknown_settled_rejection', status: 'rejected', reason: res.reason?.message || String(res.reason), branchData: {} };
                 });
             }
@@ -1100,6 +1095,47 @@ async function executeFlowInternal(
                 const pauseMsg = `[NODE MANUALINPUT] Node ${nodeIdentifier}: Requires human input. Workflow would pause here in a system with pause/resume. No simulatedResponse provided and not in full simulation mode.`;
                 serverLogs.push({ message: pauseMsg, type: 'info'});
                 throw new Error(pauseMsg + " Cannot proceed without simulated data in this environment.");
+            }
+            break;
+          
+          case 'callExternalWorkflow':
+            const { calledWorkflowId, inputMapping: callInputMapping, outputMapping: callOutputMapping, simulatedOutput: callSimulatedOutputStr } = resolvedConfig;
+            serverLogs.push({ message: `[NODE CALLEXTERNALWORKFLOW] SIMULATION: Node ${nodeIdentifier}: Would attempt to call external workflow ID: '${calledWorkflowId}'.`, type: 'info' });
+            
+            if (callInputMapping && typeof callInputMapping === 'object') {
+              const resolvedInputs: Record<string, any> = {};
+              for (const [key, placeholder] of Object.entries(callInputMapping)) {
+                resolvedInputs[key] = resolveValue(String(placeholder), currentWorkflowData, serverLogs, additionalContexts);
+              }
+              serverLogs.push({ message: `[NODE CALLEXTERNALWORKFLOW] SIMULATION: Mapped inputs for '${calledWorkflowId}': ${JSON.stringify(resolvedInputs).substring(0, 200)}`, type: 'info' });
+            }
+
+            if (isSimulationMode || callSimulatedOutputStr) {
+              if (!callSimulatedOutputStr || typeof callSimulatedOutputStr !== 'string' || callSimulatedOutputStr.trim() === '') {
+                throw new Error(`Node ${nodeIdentifier}: 'simulatedOutput' is missing or not a non-empty string for callExternalWorkflow. This is required in the current simulated environment.`);
+              }
+              try {
+                const simulatedData = JSON.parse(callSimulatedOutputStr);
+                serverLogs.push({ message: `[NODE CALLEXTERNALWORKFLOW] SIMULATION: Using simulated output for '${calledWorkflowId}': ${JSON.stringify(simulatedData).substring(0,200)}`, type: 'success'});
+                
+                let finalMappedOutput = { ...simulatedData }; // Start with the full simulated output
+                if (callOutputMapping && typeof callOutputMapping === 'object') {
+                  const mappedOutputFromCall: Record<string, any> = {};
+                  for (const [keyInCurrentNode, placeholderInCalled] of Object.entries(callOutputMapping)) {
+                     // Here, 'simulatedData' acts as the 'workflowData' of the called flow for placeholder resolution
+                    mappedOutputFromCall[keyInCurrentNode] = resolveValue(String(placeholderInCalled), { calledWorkflow: simulatedData }, serverLogs, {}); 
+                  }
+                  finalMappedOutput = mappedOutputFromCall; // Replace with mapped output if mapping exists
+                   serverLogs.push({ message: `[NODE CALLEXTERNALWORKFLOW] SIMULATION: Applied output mapping. Final output: ${JSON.stringify(finalMappedOutput).substring(0,200)}`, type: 'info'});
+                }
+                currentAttemptOutput = { ...currentAttemptOutput, output: finalMappedOutput };
+              } catch (e:any) {
+                throw new Error(`Node ${nodeIdentifier}: Failed to parse 'simulatedOutput' JSON for callExternalWorkflow: ${e.message}. Provided: "${callSimulatedOutputStr}"`);
+              }
+            } else {
+              const callErrorMsg = `[NODE CALLEXTERNALWORKFLOW] Node ${nodeIdentifier}: Actual execution of external workflows by ID is not yet implemented. A 'simulatedOutput' must be provided in the node's config.`;
+              serverLogs.push({ message: callErrorMsg, type: 'error'});
+              throw new Error(callErrorMsg);
             }
             break;
 
@@ -1224,3 +1260,4 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+

@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2 } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -178,15 +178,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       transformType: 'toUpperCase', 
       inputString: '', 
       inputObject: {},
-      inputArrayPath: '', // For reduceArray
+      inputArrayPath: '', 
       fieldsToExtract: '[]', 
       stringsToConcatenate: '[]', 
       separator: '',
       delimiter: ',',
       index: 0,
       propertyName: '',
-      reducerFunction: 'sum', // For reduceArray
-      initialValue: undefined, // For reduceArray
+      reducerFunction: 'sum', 
+      initialValue: undefined, 
       retry: {},
       onErrorWebhook: undefined,
     },
@@ -361,6 +361,31 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       instructions: { label: 'User Instructions', type: 'textarea', placeholder: 'Describe what the user needs to do.' },
       inputFieldsSchema: { label: 'Input Fields Schema (JSON Array)', type: 'json', placeholder: '[{"id":"field_id","label":"Field Label","type":"text"}]', helperText: 'Define the form fields for user input (id, label, type: text/textarea/number/boolean/select, options[] for select).' },
       simulatedResponse: { label: 'Simulated Response (JSON)', type: 'json', placeholder: '{"field_id":"simulated_value"}', helperText: 'Data this node will output during simulation.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
+    type: 'callExternalWorkflow',
+    name: 'Call External Workflow',
+    icon: Share2, // Using Share2 or WorkflowIcon
+    description: 'Calls another workflow by its ID (currently simulated). Define input/output mappings and simulated output.',
+    category: 'group',
+    defaultConfig: {
+      calledWorkflowId: '',
+      inputMapping: '{}',
+      outputMapping: '{}',
+      simulatedOutput: '{"simulatedResult": "data from called workflow"}',
+      retry: {},
+      onErrorWebhook: undefined,
+    },
+    configSchema: {
+      calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"' },
+      inputMapping: { label: 'Input Mapping (JSON)', type: 'json', placeholder: '{\n  "targetWorkflowInputName": "{{currentWorkflow.someNode.output}}"\n}', helperText: 'Map data from this workflow to the inputs of the called workflow.' },
+      outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow back to this node\'s output.' },
+      simulatedOutput: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{\n  "simulatedData": "This is a mock result from the called workflow"\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -572,11 +597,16 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // Grouping / Sub-flows
   'executeflowgroup': 'executeFlowGroup',
   'execute flow group': 'executeFlowGroup',
-  'sub workflow': 'executeFlowGroup',
+  'sub workflow': 'executeFlowGroup', // Could also map to callExternalWorkflow later
   'sub-workflow': 'executeFlowGroup',
   'run group': 'executeFlowGroup',
-  'call workflow': 'executeFlowGroup',
   'encapsulate flow': 'executeFlowGroup',
+  'callexternalworkflow': 'callExternalWorkflow',
+  'call external workflow': 'callExternalWorkflow',
+  'call workflow by id': 'callExternalWorkflow',
+  'invoke workflow': 'callExternalWorkflow',
+  'run another workflow': 'callExternalWorkflow',
+
 
   // Iteration
   'foreach': 'forEach',
@@ -655,12 +685,10 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
     case 'extractFields':
       return Milestone; 
     case 'concatenateStrings':
-    case 'reduceArray': // 'join' is a sub-type of reduceArray
+    case 'reduceArray': 
       return Combine;
-    // Specific icons for reduceArray sub-types could be added if desired,
-    // but for now Combine serves as a general aggregation icon.
-    // e.g. case 'sum': return Sigma; case 'average': return Percent;
     default:
       return FunctionSquare;
   }
 }
+
