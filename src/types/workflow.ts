@@ -1,13 +1,21 @@
 
 import type { LucideIcon } from 'lucide-react';
 
+export interface RetryConfig {
+  attempts: number; // Total number of attempts (e.g., 3 means 1 initial + 2 retries)
+  delayMs?: number; // Initial delay in milliseconds before the first retry
+  backoffFactor?: number; // Factor for exponential backoff (e.g., 2 means delay doubles each time)
+  retryOnStatusCodes?: number[]; // For HTTP nodes, only retry if error status code is in this list
+  retryOnErrorKeywords?: string[]; // Only retry if error message contains one of these (case-insensitive) keywords
+}
+
 export interface WorkflowNode {
   id: string;
   type: string;
   name: string;
   description?: string;
   position: { x: number; y: number };
-  config: Record<string, any>;
+  config: Record<string, any> & { retry?: RetryConfig }; // Added optional retry config
   inputHandles?: string[];
   outputHandles?: string[];
   aiExplanation?: string; 
@@ -43,11 +51,11 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'unknown'; // Added 'group' category
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'unknown';
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
-  inputHandles?: string[]; // For executeFlowGroup, these might be conceptual, mapped by inputMapping
-  outputHandles?: string[];// For executeFlowGroup, these might be conceptual, mapped by outputMapping
+  inputHandles?: string[]; 
+  outputHandles?: string[];
 }
 
 export interface LogEntry {
@@ -57,4 +65,3 @@ export interface LogEntry {
 }
 
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
-

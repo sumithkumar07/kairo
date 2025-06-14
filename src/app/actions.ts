@@ -16,7 +16,7 @@ import {
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
-import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection } from '@/types/workflow';
+import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
@@ -128,9 +128,12 @@ function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
-      // Skip resolving for specific keys that contain node definitions themselves
       if (key === 'flowGroupNodes' || key === 'flowGroupConnections') {
-        resolvedConfig[key] = value; // Keep as is, will be parsed later
+        resolvedConfig[key] = value; 
+        continue;
+      }
+      if (key === 'retry' && typeof value === 'object' && value !== null) { // Keep retry object as is for now, specific fields resolved inside retry logic if needed
+        resolvedConfig[key] = value; 
         continue;
       }
       if (typeof value === 'string') {
@@ -265,283 +268,339 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
   return { executionOrder };
 }
 
-// Internal execution helper for sub-flows and main flow
 async function executeFlowInternal(
   nodesToExecute: WorkflowNode[],
   connectionsToExecute: WorkflowConnection[],
   initialWorkflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
-  parentWorkflowData?: Record<string, any> // For resolving input mappings for subflows
+  parentWorkflowData?: Record<string, any> 
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[] }> {
   
   const currentWorkflowData = { ...initialWorkflowData };
-
   const { executionOrder, error: sortError } = getExecutionOrder(nodesToExecute, connectionsToExecute);
 
   if (sortError) {
-    serverLogs.push({ message: `[SUB-ENGINE] Graph error in flow group: ${sortError}`, type: 'error' });
-    // Return current data, error logged
+    serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Graph error in flow: ${sortError}`, type: 'error' });
     return { finalWorkflowData: currentWorkflowData, serverLogs };
   }
 
   for (const node of executionOrder) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
-    console.log(`[ENGINE/SUB-ENGINE] Processing node: ${nodeIdentifier}`);
-    serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Processing node: ${nodeIdentifier}`, type: 'info' });
+    console.log(`[ENGINE/SUB-ENGINE] Preparing to process node: ${nodeIdentifier}`);
+    serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Preparing to process node: ${nodeIdentifier}`, type: 'info' });
 
-    try {
-      // Resolve config using currentWorkflowData for this flow's scope
-      const resolvedConfig = resolveNodeConfig(node.config || {}, currentWorkflowData, serverLogs);
-      console.log(`[ENGINE/SUB-ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
+    const resolvedConfig = resolveNodeConfig(node.config || {}, currentWorkflowData, serverLogs);
+    console.log(`[ENGINE/SUB-ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
-      if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
-        const conditionValue = resolvedConfig._flow_run_condition;
-        if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
-          currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
-          continue; 
-        }
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} proceeding: _flow_run_condition evaluated to truthy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+    if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
+      const conditionValue = resolvedConfig._flow_run_condition;
+      if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
+        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+        currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
+        continue; 
       }
+      serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} proceeding: _flow_run_condition evaluated to truthy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+    }
 
-      let nodeOutput: any = { status: 'success' };
+    let finalNodeOutput: any = { status: 'pending' }; 
+    const retryConfig: RetryConfig | undefined = resolvedConfig.retry;
+    const maxAttempts = retryConfig?.attempts || 1;
+    const initialDelayMs = retryConfig?.delayMs || 0;
+    const backoffFactor = retryConfig?.backoffFactor || 1; // Default to no backoff
+    const retryOnStatusCodes: number[] | undefined = retryConfig?.retryOnStatusCodes;
+    const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords;
 
-      switch (node.type) {
-        case 'trigger': 
-        case 'schedule': 
-          serverLogs.push({ message: `[NODE ${node.type.toUpperCase()}] ${nodeIdentifier}: Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
-          nodeOutput = { ...nodeOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
-          break;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        let currentAttemptOutput: any = { status: 'success' }; 
+        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Attempt ${attempt}/${maxAttempts} starting...`, type: 'info' });
 
-        case 'logMessage':
-          const messageToLog = resolvedConfig?.message || `Default log message from ${nodeIdentifier}`;
-          console.log(`[WORKFLOW LOG] ${nodeIdentifier}: ${messageToLog}`); 
-          serverLogs.push({ message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${messageToLog}`, type: 'info' });
-          nodeOutput = { ...nodeOutput, output: messageToLog };
-          break;
+        switch (node.type) {
+          case 'trigger': 
+          case 'schedule': 
+            serverLogs.push({ message: `[NODE ${node.type.toUpperCase()}] ${nodeIdentifier}: Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
+            currentAttemptOutput = { ...currentAttemptOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
+            break;
 
-        case 'httpRequest':
-          const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
-          if (!url) throw new Error(`Node ${nodeIdentifier}: URL is not configured or resolved.`);
-          serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Attempting ${method} request to ${url}`, type: 'info' });
-          
-          let parsedHeaders: Record<string, string> = {};
-          try {
-            if (headersString && typeof headersString === 'string' && headersString.trim() !== '') parsedHeaders = JSON.parse(headersString);
-            else if (typeof headersString === 'object' && headersString !== null) parsedHeaders = headersString; 
-          } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid headers JSON: ${e.message}. Headers provided: '${headersString}'`); }
+          case 'logMessage':
+            const messageToLog = resolvedConfig?.message || `Default log message from ${nodeIdentifier}`;
+            console.log(`[WORKFLOW LOG] ${nodeIdentifier}: ${messageToLog}`); 
+            serverLogs.push({ message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${messageToLog}`, type: 'info' });
+            currentAttemptOutput = { ...currentAttemptOutput, output: messageToLog };
+            break;
 
-          const fetchOptions: RequestInit = { method, headers: parsedHeaders };
-          if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-            fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
-            if (!parsedHeaders['Content-Type'] && typeof body !== 'string') (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
-          }
-          
-          const response = await fetch(url, fetchOptions);
-          const responseText = await response.text(); 
-          if (!response.ok) throw new Error(`HTTP request failed for node ${nodeIdentifier} with status ${response.status}: ${responseText}`);
-          serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
-          
-          try { parsedResponse = JSON.parse(responseText); } catch (e) { parsedResponse = responseText; }
-          nodeOutput = { ...nodeOutput, response: parsedResponse, status_code: response.status };
-          break;
+          case 'httpRequest':
+            const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
+            if (!url) throw new Error(`Node ${nodeIdentifier}: URL is not configured or resolved.`);
+            serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Attempting ${method} request to ${url}`, type: 'info' });
+            
+            let parsedHeaders: Record<string, string> = {};
+            try {
+              if (headersString && typeof headersString === 'string' && headersString.trim() !== '') parsedHeaders = JSON.parse(headersString);
+              else if (typeof headersString === 'object' && headersString !== null) parsedHeaders = headersString; 
+            } catch (e: any) { const err = new Error(`Node ${nodeIdentifier}: Invalid headers JSON: ${e.message}. Headers provided: '${headersString}'`); throw err; }
 
-        case 'aiTask':
-          const { prompt: aiPrompt, model: aiModelFromConfig } = resolvedConfig;
-          if (!aiPrompt) throw new Error(`Node ${nodeIdentifier}: AI Prompt is not configured or resolved.`);
-          const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; 
-          serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
-          
-          const genkitResponse = await ai.generate({ prompt: String(aiPrompt), model: modelToUse as any });
-          const aiResponseTextContent = genkitResponse.text; 
-          
-          serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
-          nodeOutput = { ...nodeOutput, output: aiResponseTextContent }; 
-          break;
+            const fetchOptions: RequestInit = { method, headers: parsedHeaders };
+            if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+              fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+              if (!parsedHeaders['Content-Type'] && typeof body !== 'string') (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+            }
+            
+            const response = await fetch(url, fetchOptions);
+            const responseText = await response.text(); 
+            if (!response.ok) {
+              const httpError = new Error(`HTTP request failed for node ${nodeIdentifier} with status ${response.status}: ${responseText}`);
+              (httpError as any).statusCode = response.status;
+              throw httpError;
+            }
+            serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
+            
+            let parsedHttpResponse: any;
+            try { parsedHttpResponse = JSON.parse(responseText); } catch (e) { parsedHttpResponse = responseText; }
+            currentAttemptOutput = { ...currentAttemptOutput, response: parsedHttpResponse, status_code: response.status };
+            break;
 
-        case 'parseJson':
-          const { jsonString, path } = resolvedConfig;
-          let dataToParse: any, parsedResponse: any;
-          if (typeof jsonString === 'string') {
-            if (jsonString.trim() === '') {
-              if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') { dataToParse = {}; serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Input JSON string is empty, path is root. Parsing as empty object.`, type: 'info' }); }
-              else { throw new Error(`Node ${nodeIdentifier}: Cannot extract path '${path}' from an empty JSON string.`); }
-            } else { try { dataToParse = JSON.parse(jsonString); } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON input string: ${e.message}. Input (first 100 chars): '${jsonString.substring(0,100)}...'`); }}
-          } else if (typeof jsonString === 'object' && jsonString !== null) { dataToParse = jsonString; serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Input is already an object. No parsing needed.`, type: 'info' });}
-          else if (jsonString === null) {
-            if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') { dataToParse = null; serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Input JSON is null, path is root. Outputting null.`, type: 'info' });}
-            else { throw new Error(`Node ${nodeIdentifier}: Cannot extract path '${path}' from a null JSON input.`);}
-          } else { throw new Error(`Node ${nodeIdentifier}: JSON input must be a non-null string or an object. Received type: ${typeof jsonString}, value: ${JSON.stringify(jsonString)}`);}
-          
-          serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
-          let extractedValue: any;
-          if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') extractedValue = dataToParse; 
-          else {
-            const pathPartsToExtract = path.replace(/^\$\.?/, '').split('.'); 
-            let currentExtractedData = dataToParse; let extractionFound = true;
-            for (const part of pathPartsToExtract) {
-              if (part === '') continue; 
-              const arrayMatch = part.match(/(\w+)\[(\d+)\]/); 
-              if (arrayMatch) {
-                const arrayKey = arrayMatch[1]; const index = parseInt(arrayMatch[2], 10);
-                if (currentExtractedData && typeof currentExtractedData === 'object' && currentExtractedData !== null && Array.isArray(currentExtractedData[arrayKey]) && currentExtractedData[arrayKey].length > index) currentExtractedData = currentExtractedData[arrayKey][index];
+          case 'aiTask':
+            const { prompt: aiPrompt, model: aiModelFromConfig } = resolvedConfig;
+            if (!aiPrompt) throw new Error(`Node ${nodeIdentifier}: AI Prompt is not configured or resolved.`);
+            const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; 
+            serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
+            
+            const genkitResponse = await ai.generate({ prompt: String(aiPrompt), model: modelToUse as any });
+            const aiResponseTextContent = genkitResponse.text; 
+            
+            serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
+            currentAttemptOutput = { ...currentAttemptOutput, output: aiResponseTextContent }; 
+            break;
+
+          case 'parseJson':
+            const { jsonString, path } = resolvedConfig;
+            let dataToParse: any, parsedResponse: any;
+            if (typeof jsonString === 'string') {
+              if (jsonString.trim() === '') {
+                if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') { dataToParse = {}; serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Input JSON string is empty, path is root. Parsing as empty object.`, type: 'info' }); }
+                else { throw new Error(`Node ${nodeIdentifier}: Cannot extract path '${path}' from an empty JSON string.`); }
+              } else { try { dataToParse = JSON.parse(jsonString); } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON input string: ${e.message}. Input (first 100 chars): '${jsonString.substring(0,100)}...'`); }}
+            } else if (typeof jsonString === 'object' && jsonString !== null) { dataToParse = jsonString; serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Input is already an object. No parsing needed.`, type: 'info' });}
+            else if (jsonString === null) {
+              if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') { dataToParse = null; serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Input JSON is null, path is root. Outputting null.`, type: 'info' });}
+              else { throw new Error(`Node ${nodeIdentifier}: Cannot extract path '${path}' from a null JSON input.`);}
+            } else { throw new Error(`Node ${nodeIdentifier}: JSON input must be a non-null string or an object. Received type: ${typeof jsonString}, value: ${JSON.stringify(jsonString)}`);}
+            
+            serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Parsing JSON. Path: ${path || '(root)'}`, type: 'info' });
+            let extractedValue: any;
+            if (!path || path.trim() === '' || path.trim() === '$' || path.trim() === '$.') extractedValue = dataToParse; 
+            else {
+              const pathPartsToExtract = path.replace(/^\$\.?/, '').split('.'); 
+              let currentExtractedData = dataToParse; let extractionFound = true;
+              for (const part of pathPartsToExtract) {
+                if (part === '') continue; 
+                const arrayMatch = part.match(/(\w+)\[(\d+)\]/); 
+                if (arrayMatch) {
+                  const arrayKey = arrayMatch[1]; const index = parseInt(arrayMatch[2], 10);
+                  if (currentExtractedData && typeof currentExtractedData === 'object' && currentExtractedData !== null && Array.isArray(currentExtractedData[arrayKey]) && currentExtractedData[arrayKey].length > index) currentExtractedData = currentExtractedData[arrayKey][index];
+                  else { extractionFound = false; break; }
+                } else if (currentExtractedData && typeof currentExtractedData === 'object' && currentExtractedData !== null && part in currentExtractedData) currentExtractedData = currentExtractedData[part];
                 else { extractionFound = false; break; }
-              } else if (currentExtractedData && typeof currentExtractedData === 'object' && currentExtractedData !== null && part in currentExtractedData) currentExtractedData = currentExtractedData[part];
-              else { extractionFound = false; break; }
+              }
+              if (extractionFound) extractedValue = currentExtractedData;
+              else throw new Error(`Node ${nodeIdentifier}: Path "${path}" not found in JSON object. Current object (first 200 chars): ${JSON.stringify(dataToParse, null, 2).substring(0,200)}`);
             }
-            if (extractionFound) extractedValue = currentExtractedData;
-            else throw new Error(`Node ${nodeIdentifier}: Path "${path}" not found in JSON object. Current object (first 200 chars): ${JSON.stringify(dataToParse, null, 2).substring(0,200)}`);
-          }
-          serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Extracted value (first 200 chars): ${JSON.stringify(extractedValue).substring(0,200)}`, type: 'success' });
-          nodeOutput = { ...nodeOutput, output: extractedValue }; 
-          break;
-
-        case 'conditionalLogic':
-            const conditionString = resolvedConfig.condition;
-            if (typeof conditionString !== 'string' || conditionString.trim() === '') throw new Error(`Node ${nodeIdentifier}: Condition string is missing or empty.`);
-            serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Evaluating condition: "${conditionString}"`, type: 'info' });
-            
-            let evaluationResult = false;
-            try {
-                const operators = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
-                let operatorFound: string | null = null; let parts: string[] = [];
-                for (const op of operators) { const splitIndex = conditionString.indexOf(op); if (splitIndex !== -1) { operatorFound = op; parts = [conditionString.substring(0, splitIndex).trim(), conditionString.substring(splitIndex + op.length).trim()]; break; }}
-                const parseOperand = (operandStr: string) => { operandStr = operandStr.trim(); if (operandStr.toLowerCase() === 'true') return true; if (operandStr.toLowerCase() === 'false') return false; if (operandStr.toLowerCase() === 'null') return null; if (operandStr.toLowerCase() === 'undefined') return undefined; if ((operandStr.startsWith("'") && operandStr.endsWith("'")) || (operandStr.startsWith('"') && operandStr.endsWith('"'))) return operandStr.substring(1, operandStr.length - 1); const num = parseFloat(operandStr); return isNaN(num) ? operandStr : num; };
-                if (operatorFound && parts.length === 2) {
-                    let val1 = parseOperand(parts[0]); let val2 = parseOperand(parts[1]);
-                    switch(operatorFound) {
-                        case '===': evaluationResult = val1 === val2; break; case '!==': evaluationResult = val1 !== val2; break;
-                        case '==':  evaluationResult = val1 == val2; break;  case '!=':  evaluationResult = val1 != val2; break; 
-                        case '<':   evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 < val2; break;
-                        case '>':   evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 > val2; break;
-                        case '<=':  evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 <= val2; break;
-                        case '>=':  evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 >= val2; break;
-                    }
-                } else { const singleValue = parseOperand(conditionString); evaluationResult = !!singleValue; }
-            } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`); }
-            serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
-            nodeOutput = { ...nodeOutput, result: evaluationResult };
-            break;
-        
-        case 'dataTransform':
-            const { transformType, inputString, inputObject, inputArray, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName } = resolvedConfig;
-            let transformedData: any = null; serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
-            switch (transformType) {
-              case 'toUpperCase': if (typeof inputString !== 'string') throw new Error('toUpperCase requires inputString to be a string.'); transformedData = inputString.toUpperCase(); break;
-              case 'toLowerCase': if (typeof inputString !== 'string') throw new Error('toLowerCase requires inputString to be a string.'); transformedData = inputString.toLowerCase(); break;
-              case 'extractFields': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('extractFields requires inputObject to be an object.'); if (!Array.isArray(fieldsToExtract) || !fieldsToExtract.every(f => typeof f === 'string')) throw new Error('extractFields requires fieldsToExtract to be an array of strings.'); transformedData = {}; for (const field of fieldsToExtract) if (inputObject.hasOwnProperty(field)) (transformedData as Record<string, any>)[field] = inputObject[field]; break;
-              case 'concatenateStrings': let stringsToJoin = stringsToConcatenate; if (typeof stringsToConcatenate === 'string') stringsToJoin = [stringsToConcatenate]; if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean')) throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, or booleans.'); transformedData = stringsToJoin.map(String).join(separator || ''); break;
-              case 'stringSplit': if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.'); if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.'); transformedData = { array: inputString.split(delimiter) }; break;
-              case 'arrayLength': if (!Array.isArray(inputArray)) throw new Error('arrayLength requires inputArray to be an array.'); transformedData = { length: inputArray.length }; break;
-              case 'getItemAtIndex': if (!Array.isArray(inputArray)) throw new Error('getItemAtIndex requires inputArray to be an array.'); const idx = Number(index); if (isNaN(idx) || idx < 0 || idx >= inputArray.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.'); transformedData = { item: inputArray[idx] }; break;
-              case 'getObjectProperty': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('getObjectProperty requires inputObject to be an object.'); if (typeof propertyName !== 'string' || propertyName.trim() === '') throw new Error('getObjectProperty requires a non-empty propertyName string.'); transformedData = { propertyValue: inputObject[propertyName] }; break;
-              default: throw new Error(`Unsupported dataTransform type: ${transformType}`);
-            }
-            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
-            nodeOutput = { ...nodeOutput, output_data: transformedData }; 
+            serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Extracted value (first 200 chars): ${JSON.stringify(extractedValue).substring(0,200)}`, type: 'success' });
+            currentAttemptOutput = { ...currentAttemptOutput, output: extractedValue }; 
             break;
 
-        case 'sendEmail':
-            const { to, subject, body: emailBody } = resolvedConfig;
-            if (!to || !subject || !emailBody) throw new Error(`Node ${nodeIdentifier}: 'to', 'subject', and 'body' are required for sendEmail.`);
-            if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration.`);
-            const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
-            const mailOptions = { from: process.env.EMAIL_FROM, to: to, subject: subject, html: emailBody };
-            serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
-            const info = await transporter.sendMail(mailOptions);
-            serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
-            nodeOutput = { ...nodeOutput, messageId: info.messageId };
-            break;
-            
-        case 'databaseQuery':
-            const { queryText, queryParams } = resolvedConfig;
-            if (!queryText) throw new Error(`Node ${nodeIdentifier}: 'queryText' is required for databaseQuery.`);
-            if (!process.env.DB_CONNECTION_STRING) throw new Error(`Node ${nodeIdentifier}: Missing DB_CONNECTION_STRING environment variable.`);
-            const pool = new Pool({ connectionString: process.env.DB_CONNECTION_STRING });
-            const client = await pool.connect();
-            serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
-            try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); nodeOutput = { ...nodeOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
-            } finally { client.release(); await pool.end(); }
-            break;
-
-        case 'executeFlowGroup':
-            const { flowGroupNodes: groupNodesStr, flowGroupConnections: groupConnectionsStr, inputMapping, outputMapping } = resolvedConfig;
-            let groupNodes: WorkflowNode[] = [];
-            let groupConnections: WorkflowConnection[] = [];
-
-            try {
-                if (typeof groupNodesStr === 'string') groupNodes = JSON.parse(groupNodesStr);
-                else if (Array.isArray(groupNodesStr)) groupNodes = groupNodesStr; // Already parsed by resolveNodeConfig if it was an object
-                else throw new Error('flowGroupNodes is not a valid JSON array string or array.');
-            } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON for flowGroupNodes: ${e.message}`); }
-            
-            try {
-                if (typeof groupConnectionsStr === 'string') groupConnections = JSON.parse(groupConnectionsStr);
-                else if (Array.isArray(groupConnectionsStr)) groupConnections = groupConnectionsStr;
-                else throw new Error('flowGroupConnections is not a valid JSON array string or array.');
-            } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON for flowGroupConnections: ${e.message}`); }
-
-            const subWorkflowInitialData: Record<string, any> = {};
-            if (inputMapping && typeof inputMapping === 'object') {
-                for (const [internalKey, parentPlaceholder] of Object.entries(inputMapping)) {
-                    // Resolve parentPlaceholder against parentWorkflowData (passed as currentWorkflowData here)
-                    subWorkflowInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs);
-                }
-            }
-            serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Starting sub-flow execution with mapped inputs: ${JSON.stringify(subWorkflowInitialData).substring(0,200)}`, type: 'info' });
-
-            // Execute the sub-flow
-            const subExecutionResult = await executeFlowInternal(groupNodes, groupConnections, subWorkflowInitialData, serverLogs, currentWorkflowData);
-            
-            // Map outputs from sub-flow back to this node's output
-            const groupFinalOutput: Record<string, any> = { status: 'success' }; // Default status
-            if (outputMapping && typeof outputMapping === 'object') {
-                for (const [parentKey, subPlaceholder] of Object.entries(outputMapping)) {
-                    groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs);
-                }
-            }
-            // Check if any node in sub-flow failed to propagate error status
-            const subFlowFailed = Object.values(subExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
-            if (subFlowFailed) {
-                groupFinalOutput.status = 'error';
-                groupFinalOutput.error_message = 'Error occurred within the flow group. See logs for details.';
-                serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed with errors.`, type: 'error'});
-            } else {
-                 serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed successfully. Mapped outputs: ${JSON.stringify(groupFinalOutput).substring(0,200)}`, type: 'success'});
-            }
-            nodeOutput = groupFinalOutput;
-            break;
-
-
-        case 'youtubeFetchTrending':
-        case 'youtubeDownloadVideo':
-        case 'videoConvertToShorts':
-        case 'youtubeUploadShort':
-        case 'workflowNode': 
-          const simulationMessage = `[NODE ${node.type.toUpperCase()}] SIMULATE: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
-          console.log(simulationMessage);
-          serverLogs.push({ message: simulationMessage, type: 'info' });
-          nodeOutput = { ...nodeOutput, simulated_config: resolvedConfig };
-          break;
+          case 'conditionalLogic':
+              const conditionString = resolvedConfig.condition;
+              if (typeof conditionString !== 'string' || conditionString.trim() === '') throw new Error(`Node ${nodeIdentifier}: Condition string is missing or empty.`);
+              serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Evaluating condition: "${conditionString}"`, type: 'info' });
+              
+              let evaluationResult = false;
+              try {
+                  const operators = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
+                  let operatorFound: string | null = null; let parts: string[] = [];
+                  for (const op of operators) { const splitIndex = conditionString.indexOf(op); if (splitIndex !== -1) { operatorFound = op; parts = [conditionString.substring(0, splitIndex).trim(), conditionString.substring(splitIndex + op.length).trim()]; break; }}
+                  const parseOperand = (operandStr: string) => { operandStr = operandStr.trim(); if (operandStr.toLowerCase() === 'true') return true; if (operandStr.toLowerCase() === 'false') return false; if (operandStr.toLowerCase() === 'null') return null; if (operandStr.toLowerCase() === 'undefined') return undefined; if ((operandStr.startsWith("'") && operandStr.endsWith("'")) || (operandStr.startsWith('"') && operandStr.endsWith('"'))) return operandStr.substring(1, operandStr.length - 1); const num = parseFloat(operandStr); return isNaN(num) ? operandStr : num; };
+                  if (operatorFound && parts.length === 2) {
+                      let val1 = parseOperand(parts[0]); let val2 = parseOperand(parts[1]);
+                      switch(operatorFound) {
+                          case '===': evaluationResult = val1 === val2; break; case '!==': evaluationResult = val1 !== val2; break;
+                          case '==':  evaluationResult = val1 == val2; break;  case '!=':  evaluationResult = val1 != val2; break; 
+                          case '<':   evaluationResult = (typeof val1 === 'number' && typeof val2 === 'number') ? val1 < val2 : String(val1) < String(val2); break;
+                          case '>':   evaluationResult = (typeof val1 === 'number' && typeof val2 === 'number') ? val1 > val2 : String(val1) > String(val2); break;
+                          case '<=':  evaluationResult = (typeof val1 === 'number' && typeof val2 === 'number') ? val1 <= val2 : String(val1) <= String(val2); break;
+                          case '>=':  evaluationResult = (typeof val1 === 'number' && typeof val2 === 'number') ? val1 >= val2 : String(val1) >= String(val2); break;
+                      }
+                  } else { const singleValue = parseOperand(conditionString); evaluationResult = !!singleValue; }
+              } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`); }
+              serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
+              currentAttemptOutput = { ...currentAttemptOutput, result: evaluationResult };
+              break;
           
-        default:
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized.`, type: 'info' });
-          nodeOutput = { ...nodeOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
-          break;
-      }
-      
-      currentWorkflowData[node.id] = nodeOutput; 
-      console.log(`[ENGINE/SUB-ENGINE] Node ${node.id} output stored (first 500 chars):`, JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 500));
-      if (nodeOutput.status !== 'error') { // Only log success if not an error
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} processed successfully.`, type: 'success' });
-      }
+          case 'dataTransform':
+              const { transformType, inputString, inputObject, inputArray, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName } = resolvedConfig;
+              let transformedData: any = null; serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
+              switch (transformType) {
+                case 'toUpperCase': if (typeof inputString !== 'string') throw new Error('toUpperCase requires inputString to be a string.'); transformedData = inputString.toUpperCase(); break;
+                case 'toLowerCase': if (typeof inputString !== 'string') throw new Error('toLowerCase requires inputString to be a string.'); transformedData = inputString.toLowerCase(); break;
+                case 'extractFields': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('extractFields requires inputObject to be an object.'); if (!Array.isArray(fieldsToExtract) || !fieldsToExtract.every(f => typeof f === 'string')) throw new Error('extractFields requires fieldsToExtract to be an array of strings.'); transformedData = {}; for (const field of fieldsToExtract) if (inputObject.hasOwnProperty(field)) (transformedData as Record<string, any>)[field] = inputObject[field]; break;
+                case 'concatenateStrings': let stringsToJoin = stringsToConcatenate; if (typeof stringsToConcatenate === 'string') stringsToJoin = [stringsToConcatenate]; if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean' || s === null || s === undefined)) throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, booleans, nulls or undefineds.'); transformedData = stringsToJoin.map(String).join(separator || ''); break;
+                case 'stringSplit': if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.'); if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.'); transformedData = { array: inputString.split(delimiter) }; break;
+                case 'arrayLength': if (!Array.isArray(inputArray)) throw new Error('arrayLength requires inputArray to be an array.'); transformedData = { length: inputArray.length }; break;
+                case 'getItemAtIndex': if (!Array.isArray(inputArray)) throw new Error('getItemAtIndex requires inputArray to be an array.'); const idx = Number(index); if (isNaN(idx) || idx < 0 || idx >= inputArray.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.'); transformedData = { item: inputArray[idx] }; break;
+                case 'getObjectProperty': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('getObjectProperty requires inputObject to be an object.'); if (typeof propertyName !== 'string' || propertyName.trim() === '') throw new Error('getObjectProperty requires a non-empty propertyName string.'); transformedData = { propertyValue: inputObject[propertyName] }; break;
+                default: throw new Error(`Unsupported dataTransform type: ${transformType}`);
+              }
+              serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
+              currentAttemptOutput = { ...currentAttemptOutput, output_data: transformedData }; 
+              break;
 
-    } catch (error: any) {
-      const errorDetails = error.message ? error.message : 'Unknown error during node execution.';
-      console.error(`[ENGINE/SUB-ENGINE] Error executing node ${nodeIdentifier}:`, errorDetails, error.stack);
-      serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Error executing node ${nodeIdentifier}: ${errorDetails}`, type: 'error' });
-      currentWorkflowData[node.id] = { status: 'error', error_message: errorDetails }; 
-      serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED. Continuing to next node if any.`, type: 'info' });
+          case 'sendEmail':
+              const { to, subject, body: emailBody } = resolvedConfig;
+              if (!to || !subject || !emailBody) throw new Error(`Node ${nodeIdentifier}: 'to', 'subject', and 'body' are required for sendEmail.`);
+              if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) throw new Error(`Node ${nodeIdentifier}: Missing one or more EMAIL_ environment variables for Nodemailer configuration.`);
+              const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
+              const mailOptions = { from: process.env.EMAIL_FROM, to: to, subject: subject, html: emailBody };
+              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
+              const info = await transporter.sendMail(mailOptions);
+              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
+              currentAttemptOutput = { ...currentAttemptOutput, messageId: info.messageId };
+              break;
+              
+          case 'databaseQuery':
+              const { queryText, queryParams } = resolvedConfig;
+              if (!queryText) throw new Error(`Node ${nodeIdentifier}: 'queryText' is required for databaseQuery.`);
+              if (!process.env.DB_CONNECTION_STRING) throw new Error(`Node ${nodeIdentifier}: Missing DB_CONNECTION_STRING environment variable.`);
+              const pool = new Pool({ connectionString: process.env.DB_CONNECTION_STRING });
+              const client = await pool.connect();
+              serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
+              try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
+              } finally { client.release(); await pool.end(); }
+              break;
+
+          case 'executeFlowGroup':
+              const { flowGroupNodes: groupNodesStr, flowGroupConnections: groupConnectionsStr, inputMapping, outputMapping } = resolvedConfig;
+              let groupNodes: WorkflowNode[] = [];
+              let groupConnections: WorkflowConnection[] = [];
+
+              try {
+                  if (typeof groupNodesStr === 'string') groupNodes = JSON.parse(groupNodesStr);
+                  else if (Array.isArray(groupNodesStr)) groupNodes = groupNodesStr; 
+                  else throw new Error('flowGroupNodes is not a valid JSON array string or array.');
+              } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON for flowGroupNodes: ${e.message}`); }
+              
+              try {
+                  if (typeof groupConnectionsStr === 'string') groupConnections = JSON.parse(groupConnectionsStr);
+                  else if (Array.isArray(groupConnectionsStr)) groupConnections = groupConnectionsStr;
+                  else throw new Error('flowGroupConnections is not a valid JSON array string or array.');
+              } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON for flowGroupConnections: ${e.message}`); }
+
+              const subWorkflowInitialData: Record<string, any> = {};
+              if (inputMapping && typeof inputMapping === 'object') {
+                  for (const [internalKey, parentPlaceholder] of Object.entries(inputMapping)) {
+                      subWorkflowInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs);
+                  }
+              }
+              serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Starting sub-flow execution with mapped inputs: ${JSON.stringify(subWorkflowInitialData).substring(0,200)}`, type: 'info' });
+              
+              const subExecutionResult = await executeFlowInternal(groupNodes, groupConnections, subWorkflowInitialData, serverLogs, currentWorkflowData);
+              
+              const groupFinalOutput: Record<string, any> = { status: 'success' }; 
+              if (outputMapping && typeof outputMapping === 'object') {
+                  for (const [parentKey, subPlaceholder] of Object.entries(outputMapping)) {
+                      groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs);
+                  }
+              }
+              const subFlowFailed = Object.values(subExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
+              if (subFlowFailed) {
+                  groupFinalOutput.status = 'error';
+                  const subFlowErrorMsg = `Error occurred within the flow group. Check logs for details. Sub-flow data: ${JSON.stringify(subExecutionResult.finalWorkflowData).substring(0,200)}`;
+                  groupFinalOutput.error_message = subFlowErrorMsg;
+                  serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed with errors.`, type: 'error'});
+                  throw new Error(subFlowErrorMsg); // Throw to trigger retry logic if configured for the group
+              } else {
+                   serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed successfully. Mapped outputs: ${JSON.stringify(groupFinalOutput).substring(0,200)}`, type: 'success'});
+              }
+              currentAttemptOutput = groupFinalOutput;
+              break;
+
+          case 'youtubeFetchTrending':
+          case 'youtubeDownloadVideo':
+          case 'videoConvertToShorts':
+          case 'youtubeUploadShort':
+          case 'workflowNode': 
+            const simulationMessage = `[NODE ${node.type.toUpperCase()}] SIMULATE: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
+            console.log(simulationMessage);
+            serverLogs.push({ message: simulationMessage, type: 'info' });
+            currentAttemptOutput = { ...currentAttemptOutput, simulated_config: resolvedConfig };
+            break;
+            
+          default:
+            serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized.`, type: 'info' });
+            currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
+            break;
+        }
+        
+        finalNodeOutput = currentAttemptOutput;
+        if (attempt > 1) { // Log success only if it's a retry that succeeded
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} SUCCEEDED on attempt ${attempt}/${maxAttempts}.`, type: 'success' });
+        }
+        break; // Successful attempt, exit retry loop
+      
+      } catch (error: any) { 
+        const errorDetails = error.message ? error.message : 'Unknown error during node execution.';
+        let statusCode: number | undefined;
+        if (node.type === 'httpRequest' && error.statusCode) { // Check for statusCode property on the error itself
+            statusCode = error.statusCode;
+        } else if (node.type === 'httpRequest' && errorDetails.startsWith('HTTP request failed')) { // Fallback to parsing from message
+            const match = errorDetails.match(/status (\d+)/);
+            if (match && match[1]) {
+                statusCode = parseInt(match[1], 10);
+            }
+        }
+
+        console.error(`[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, error.stack);
+        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, type: 'info' });
+
+        if (attempt >= maxAttempts) {
+          finalNodeOutput = { status: 'error', error_message: errorDetails };
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
+          break; 
+        }
+
+        let shouldRetryThisError = true;
+        if (statusCode && retryOnStatusCodes && retryOnStatusCodes.length > 0 && !retryOnStatusCodes.includes(statusCode)) {
+          shouldRetryThisError = false;
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
+        }
+        if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0 && !retryOnErrorKeywords.some(keyword => errorDetails.toLowerCase().includes(keyword.toLowerCase()))) {
+          shouldRetryThisError = false;
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
+        }
+
+        if (!shouldRetryThisError) {
+          finalNodeOutput = { status: 'error', error_message: errorDetails };
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
+          break; 
+        }
+
+        const delay = (initialDelayMs || 0) * Math.pow(backoffFactor || 1, attempt - 1);
+        if (delay > 0) {
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Retrying immediately... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
+        }
+      }
+    } 
+
+    currentWorkflowData[node.id] = finalNodeOutput;
+    console.log(`[ENGINE/SUB-ENGINE] Node ${node.id} final output stored:`, JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 500));
+
+    if (finalNodeOutput.status === 'success') {
+        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} processed successfully overall.`, type: 'success' });
+    } else if (finalNodeOutput.status === 'error') {
+        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`, type: 'info' });
     }
   }
   return { finalWorkflowData: currentWorkflowData, serverLogs };
@@ -550,7 +609,7 @@ async function executeFlowInternal(
 
 export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutput[]> {
   const serverLogs: ServerLogOutput[] = [];
-  const initialWorkflowData: Record<string, any> = {}; // Initial data for the main workflow
+  const initialWorkflowData: Record<string, any> = {}; 
 
   console.log("[ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
   serverLogs.push({ message: `[ENGINE] Workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
@@ -561,4 +620,3 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   result.serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
-

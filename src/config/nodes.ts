@@ -1,9 +1,19 @@
 
-import type { AvailableNodeType } from '@/types/workflow';
+import type { AvailableNodeType, RetryConfig } from '@/types/workflow';
 import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
+
+const GENERIC_RETRY_CONFIG_SCHEMA = {
+  retry: { 
+    label: 'Retry Config (JSON, Optional)', 
+    type: 'json', 
+    placeholder: '{\n  "attempts": 3,\n  "delayMs": 1000,\n  "backoffFactor": 2,\n  "retryOnStatusCodes": [500, 503, 429],\n  "retryOnErrorKeywords": ["timeout", "unavailable"]\n}',
+    helperText: 'Define retry strategy: attempts, delayMs, backoffFactor (e.g., 2 for exponential), retryOnStatusCodes (for HTTP), retryOnErrorKeywords (case-insensitive). All fields optional.',
+    defaultValue: {} as RetryConfig
+  }
+};
 
 export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
@@ -22,9 +32,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'httpRequest',
     name: 'HTTP Request',
     icon: Network,
-    description: 'Makes an HTTP request to a specified URL.',
+    description: 'Makes an HTTP request to a specified URL. Supports retries.',
     category: 'action', 
-    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '' },
+    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '', retry: {} },
     configSchema: {
       url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data' },
       method: { 
@@ -35,6 +45,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       },
       headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['response', 'status_code', 'error_message', 'status'],
@@ -55,13 +66,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'sendEmail',
     name: 'Send Email',
     icon: Mail,
-    description: 'Sends an email. Configure mail server via EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE environment variables.',
+    description: 'Sends an email. Supports retries. Configure mail server via EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE environment variables.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '' },
+    defaultConfig: { to: '', subject: '', body: '', retry: {} },
     configSchema: {
       to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}' },
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}' },
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['messageId', 'status', 'error_message'],
@@ -70,12 +82,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'databaseQuery',
     name: 'Database Query',
     icon: Database,
-    description: 'Executes a SQL query. Configure DB_CONNECTION_STRING (e.g. postgresql://user:pass@host:port/db) environment variable.',
+    description: 'Executes a SQL query. Supports retries. Configure DB_CONNECTION_STRING (e.g. postgresql://user:pass@host:port/db) environment variable.',
     category: 'io',
-    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]' },
+    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {} },
     configSchema: {
       queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;' },
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'], 
     outputHandles: ['results', 'rowCount', 'status', 'error_message'],
@@ -111,12 +124,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs a task using a GenAI model.',
+    description: 'Performs a task using a GenAI model. Supports retries.',
     category: 'ai',
-    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest' },
+    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {} },
     configSchema: {
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}' },
       model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
@@ -138,7 +152,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'dataTransform',
     name: 'Transform Data',
     icon: FunctionSquare, 
-    description: 'Performs various predefined data transformations.',
+    description: 'Performs various predefined data transformations. Supports retries for the overall transformation process.',
     category: 'logic',
     defaultConfig: { 
       transformType: 'toUpperCase', 
@@ -151,6 +165,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       delimiter: ',',
       index: 0,
       propertyName: '',
+      retry: {}
     },
     configSchema: {
         transformType: { 
@@ -169,14 +184,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
           defaultValue: 'toUpperCase'
         },
         inputString: { label: 'Input String (for case, split, concat)', type: 'textarea', placeholder: '{{input.text}}' },
-        inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'textarea', placeholder: '{{input.data}}' },
-        inputArray: { label: 'Input Array (for length, getItem, concat)', type: 'textarea', placeholder: '{{input.list}}' },
+        inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'json', placeholder: '{{input.data}}' },
+        inputArray: { label: 'Input Array (for length, getItem, concat)', type: 'json', placeholder: '{{input.list}}' },
         fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' },
         stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' },
         separator: { label: 'Separator (for concatenateStrings)', type: 'string', placeholder: '(empty for direct join)' },
         delimiter: { label: 'Delimiter (for stringSplit)', type: 'string', placeholder: ',' },
         index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' },
         propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' },
+        ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input_data'],
     outputHandles: ['output_data', 'status', 'error_message'],
@@ -184,35 +200,38 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'executeFlowGroup',
     name: 'Execute Flow Group',
-    icon: Layers, // Using Layers icon for group/sub-flow
-    description: 'Executes an encapsulated group of nodes as a sub-flow. Define nodes, connections, and input/output mappings.',
+    icon: Layers, 
+    description: 'Executes an encapsulated group of nodes as a sub-flow. Define nodes, connections, and input/output mappings. Supports retries for the entire group execution.',
     category: 'group',
     defaultConfig: {
-      flowGroupNodes: '[]', // JSON string representing WorkflowNode[]
-      flowGroupConnections: '[]', // JSON string representing WorkflowConnection[]
-      inputMapping: '{}', // JSON string: {"group_data_key": "{{parent_node.output.some_val}}"}
-      outputMapping: '{}', // JSON string: {"this_node_output_key": "{{node_in_group.result}}"}
+      flowGroupNodes: '[]', 
+      flowGroupConnections: '[]', 
+      inputMapping: '{}', 
+      outputMapping: '{}',
+      retry: {},
     },
     configSchema: {
       flowGroupNodes: { label: 'Flow Group Nodes (JSON Array)', type: 'json', placeholder: '[{"id":"sub_node_1", "type":"logMessage", ...}]', helperText: 'Define the nodes for this group.' },
       flowGroupConnections: { label: 'Flow Group Connections (JSON Array)', type: 'json', placeholder: '[{"sourceNodeId":"sub_node_1", ...}]', helperText: 'Define connections between nodes in this group.' },
       inputMapping: { label: 'Input Mapping (JSON Object)', type: 'json', placeholder: '{\n  "internalInputName": "{{parentWorkflow.someNode.output}}"\n}', helperText: 'Map parent data to group inputs.' },
       outputMapping: { label: 'Output Mapping (JSON Object)', type: 'json', placeholder: '{\n  "parentOutputName": "{{groupNode.result}}"\n}', helperText: 'Map group results to parent outputs.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
-    inputHandles: ['input'], // Conceptual input, actual data comes via inputMapping
-    outputHandles: ['output'], // Conceptual output, actual data set via outputMapping
+    inputHandles: ['input'], 
+    outputHandles: ['output', 'status', 'error_message'], 
   },
   {
     type: 'youtubeFetchTrending',
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
-    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var.',
+    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries.',
     category: 'trigger',
-    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}' },
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {} },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
-      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."}
+      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."},
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     outputHandles: ['videos', 'status', 'error_message'],
   },
@@ -220,12 +239,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeDownloadVideo',
     name: 'YouTube: Download Video',
     icon: DownloadCloud,
-    description: 'Downloads a YouTube video (conceptual - currently logs intent).',
+    description: 'Downloads a YouTube video (conceptual - currently logs intent). Supports retries.',
     category: 'action',
-    defaultConfig: { videoUrl: '', quality: 'best' },
+    defaultConfig: { videoUrl: '', quality: 'best', retry: {} },
     configSchema: {
       videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}' },
       quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['filePath', 'status', 'error_message'],
@@ -234,13 +254,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'videoConvertToShorts',
     name: 'Video: Convert to Shorts',
     icon: Scissors,
-    description: 'Converts a video to a short format (conceptual - currently logs intent).',
+    description: 'Converts a video to a short format (conceptual - currently logs intent). Supports retries.',
     category: 'action',
-    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut' },
+    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {} },
     configSchema: {
       inputFile: { label: 'Input Video File Path', type: 'string', placeholder: '{{download_node.filePath}}' },
       duration: { label: 'Short Duration (seconds)', type: 'number', defaultValue: 60 },
       strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut'},
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['shortFilePath', 'status', 'error_message'],
@@ -249,16 +270,17 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeUploadShort',
     name: 'YouTube: Upload Short',
     icon: UploadCloud,
-    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var.',
+    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var. Supports retries.',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{env.YOUTUBE_OAUTH_TOKEN}}' },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{env.YOUTUBE_OAUTH_TOKEN}}', retry: {} },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
-      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}', helperText: "Set YOUTUBE_OAUTH_TOKEN in environment."}
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{env.YOUTUBE_OAUTH_TOKEN}}', helperText: "Set YOUTUBE_OAUTH_TOKEN in environment."},
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['uploadStatus', 'videoId', 'status', 'error_message'],
@@ -267,12 +289,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'workflowNode', 
     name: 'Custom Action', 
     icon: WorkflowIcon,
-    description: 'A generic, configurable step in the workflow. Used by AI when a specific node type isn\'t matched.',
+    description: 'A generic, configurable step in the workflow. Used by AI when a specific node type isn\'t matched. Supports retries.',
     category: 'action', 
-    defaultConfig: { task_description: '', parameters: {} },
+    defaultConfig: { task_description: '', parameters: {}, retry: {} },
     configSchema: {
       task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do'},
       parameters: { label: 'Parameters (JSON)', type: 'textarea', placeholder: '{\n  "custom_param": "value"\n}'},
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
@@ -443,4 +466,3 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
-
