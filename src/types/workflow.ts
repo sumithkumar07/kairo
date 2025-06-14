@@ -2,11 +2,18 @@
 import type { LucideIcon } from 'lucide-react';
 
 export interface RetryConfig {
-  attempts: number; // Total number of attempts (e.g., 3 means 1 initial + 2 retries)
-  delayMs?: number; // Initial delay in milliseconds before the first retry
-  backoffFactor?: number; // Factor for exponential backoff (e.g., 2 means delay doubles each time)
-  retryOnStatusCodes?: number[]; // For HTTP nodes, only retry if error status code is in this list
-  retryOnErrorKeywords?: string[]; // Only retry if error message contains one of these (case-insensitive) keywords
+  attempts: number; 
+  delayMs?: number; 
+  backoffFactor?: number; 
+  retryOnStatusCodes?: number[]; 
+  retryOnErrorKeywords?: string[]; 
+}
+
+export interface OnErrorWebhookConfig {
+  url: string;
+  method?: 'POST' | 'PUT';
+  headers?: Record<string, string>;
+  bodyTemplate?: Record<string, any>;
 }
 
 export interface WorkflowNode {
@@ -15,7 +22,10 @@ export interface WorkflowNode {
   name: string;
   description?: string;
   position: { x: number; y: number };
-  config: Record<string, any> & { retry?: RetryConfig }; 
+  config: Record<string, any> & { 
+    retry?: RetryConfig;
+    onErrorWebhook?: OnErrorWebhookConfig; 
+  }; 
   inputHandles?: string[];
   outputHandles?: string[];
   aiExplanation?: string; 
@@ -46,11 +56,11 @@ export interface ConfigFieldSchema {
 
 export interface BranchConfig {
   id: string;
-  name?: string; // Optional descriptive name for the branch
+  name?: string; 
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
-  inputMapping?: Record<string, string>; // Maps parent scope to branch scope
-  outputSource?: string; // Placeholder from within the branch to denote its primary output
+  inputMapping?: Record<string, string>; 
+  outputSource?: string; 
 }
 
 

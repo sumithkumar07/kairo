@@ -16,7 +16,7 @@ import {
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
-import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig } from '@/types/workflow';
+import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
@@ -26,7 +26,7 @@ function resolveValue(
   value: any, 
   workflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
-  additionalContexts?: Record<string, any> // For loop item, branch-specific data, etc.
+  additionalContexts?: Record<string, any> // For loop item, branch-specific data, error webhook context etc.
 ): any {
   if (typeof value !== 'string') {
     return value;
@@ -52,7 +52,7 @@ function resolveValue(
     let dataFound = false;
     let dataAtPath: any;
 
-    // 1. Check additionalContexts (e.g., loop item, branch data)
+    // 1. Check additionalContexts (e.g., loop item, branch data, error context)
     if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
       dataAtPath = additionalContexts[firstPart];
       let currentPathForLog = firstPart;
@@ -159,11 +159,18 @@ function resolveNodeConfig(
           key === 'iterationNodes' || key === 'iterationConnections' || 
           key === 'loopNodes' || key === 'loopConnections' ||
           key === 'branches') {
+        // These are JSON strings defining structures, not to be resolved as individual placeholders
         resolvedConfig[key] = value; 
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
+        // Retry object is structured, not for placeholder resolution itself
         resolvedConfig[key] = value; 
+        continue;
+      }
+      if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
+        // onErrorWebhook contains sub-fields that might need resolution, handle below
+         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts);
         continue;
       }
       if (typeof value === 'string') {
@@ -173,6 +180,7 @@ function resolveNodeConfig(
                                                  (typeof item === 'object' && item !== null ? resolveNodeConfig(item, workflowData, serverLogs, additionalContexts) : item)
                                            ));
       } else if (typeof value === 'object' && value !== null) {
+        // This will recursively resolve objects, useful for bodyTemplate in onErrorWebhook
         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
       } else {
         resolvedConfig[key] = value; 
@@ -249,6 +257,58 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
   }
   serverLogs.push({ message: `[CONDITION EVAL] Node ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
   return evaluationResult;
+}
+
+async function handleOnErrorWebhook(
+    node: WorkflowNode,
+    errorMessage: string,
+    webhookConfig: OnErrorWebhookConfig,
+    workflowData: Record<string, any>, // For resolving env vars in headers
+    serverLogs: ServerLogOutput[]
+) {
+    const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
+    serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: Error occurred. Attempting to send on-error webhook to ${webhookConfig.url}`, type: 'info' });
+
+    const errorContext = {
+        'failed_node_id': node.id,
+        'failed_node_name': node.name,
+        'error_message': errorMessage,
+        'timestamp': new Date().toISOString(),
+        'workflow_data_snapshot_json': JSON.stringify(workflowData) // Provide a snapshot of all workflow data
+    };
+
+    try {
+        const resolvedHeaders: Record<string, string> = {};
+        if (webhookConfig.headers) {
+            for (const key in webhookConfig.headers) {
+                resolvedHeaders[key] = resolveValue(webhookConfig.headers[key], workflowData, serverLogs, errorContext);
+            }
+        }
+        if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
+            resolvedHeaders['Content-Type'] = 'application/json';
+        }
+
+        let bodyToSend: string | undefined;
+        if (webhookConfig.bodyTemplate) {
+            const resolvedBodyTemplate = resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext);
+            bodyToSend = JSON.stringify(resolvedBodyTemplate);
+        }
+
+        const webhookResponse = await fetch(webhookConfig.url, {
+            method: webhookConfig.method || 'POST',
+            headers: resolvedHeaders,
+            body: bodyToSend,
+        });
+
+        if (webhookResponse.ok) {
+            serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: On-error webhook sent successfully to ${webhookConfig.url}. Status: ${webhookResponse.status}`, type: 'success' });
+        } else {
+            const webhookErrorText = await webhookResponse.text();
+            serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: Failed to send on-error webhook to ${webhookConfig.url}. Status: ${webhookResponse.status}. Response: ${webhookErrorText.substring(0, 200)}`, type: 'error' });
+        }
+    } catch (err: any) {
+        serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: Exception while sending on-error webhook to ${webhookConfig.url}. Error: ${err.message}`, type: 'error' });
+    }
 }
 
 
@@ -414,7 +474,9 @@ async function executeFlowInternal(
     const initialDelayMs = retryConfig?.delayMs || 0;
     const backoffFactor = retryConfig?.backoffFactor || 1; 
     const retryOnStatusCodes: number[] | undefined = retryConfig?.retryOnStatusCodes;
-    const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords;
+    const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords?.map(k => k.toLowerCase());
+    const onErrorWebhookConfig: OnErrorWebhookConfig | undefined = resolvedConfig.onErrorWebhook;
+
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -638,8 +700,8 @@ async function executeFlowInternal(
                   iterConns, 
                   iterInitialData, 
                   serverLogs, 
-                  currentWorkflowData, 
-                  itemContext         
+                  currentWorkflowData, // Pass parent data for resolving non-item placeholders
+                  itemContext         // Pass item context for resolving {{item.prop}}
                 );
 
                 if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && out.status === 'error')) {
@@ -652,6 +714,7 @@ async function executeFlowInternal(
                 if (iterationResultSource && typeof iterationResultSource === 'string') {
                   resultForItem = resolveValue(iterationResultSource, iterExecutionResult.finalWorkflowData, serverLogs, itemContext);
                 } else {
+                  // If no specific source, use the output of the last node executed in the sub-flow
                   resultForItem = iterExecutionResult.lastNodeOutput; 
                 }
                 iterationResultsCollected.push({ status: 'fulfilled', value: resultForItem, item: currentItem });
@@ -663,7 +726,7 @@ async function executeFlowInternal(
                 iterationResultsCollected.push({ status: 'rejected', reason: iterError.message, item: currentItem });
                 if (!continueOnError) {
                   currentAttemptOutput = { status: 'error', error_message: `Error in forEach iteration ${i+1}: ${iterError.message}`, results: iterationResultsCollected };
-                  throw currentAttemptOutput; 
+                  throw currentAttemptOutput; // This error will be caught by the node's main try/catch for retry
                 }
               }
             }
@@ -672,13 +735,15 @@ async function executeFlowInternal(
             if (anyIterationFailed) {
               overallLoopStatus = allIterationsFailed && resolvedArray.length > 0 ? 'error' : 'partial_success';
             }
-             if (resolvedArray.length === 0) allIterationsFailed = false; 
+             if (resolvedArray.length === 0) allIterationsFailed = false; // No iterations, no failures
 
             currentAttemptOutput = { ...currentAttemptOutput, status: overallLoopStatus, results: iterationResultsCollected };
             if(overallLoopStatus === 'error') currentAttemptOutput.error_message = 'All iterations failed or an unrecoverable error occurred.';
             else if (overallLoopStatus === 'partial_success') currentAttemptOutput.error_message = 'Some iterations failed.';
             
             serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations processed. Overall status: ${overallLoopStatus}. Total results: ${iterationResultsCollected.length}.`, type: 'info' });
+            // If the overall loop status is 'error' (e.g., all iterations failed with continueOnError:true),
+            // and it's not the last attempt for the forEach node itself, throw to trigger retry of the whole forEach.
             if (overallLoopStatus === 'error' && attempt < maxAttempts && resolvedArray.length > 0) { 
                 throw new Error(currentAttemptOutput.error_message);
             }
@@ -695,8 +760,12 @@ async function executeFlowInternal(
             let iterationsCompleted = 0;
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Starting while loop. Max iterations: ${maxIterations}.`, type: 'info' });
             
+            // currentWorkflowData is intentionally mutated by the sub-flow of whileLoop
+            let loopMutableWorkflowData = { ...currentWorkflowData }; 
+
             while (iterationsCompleted < maxIterations) {
-                const resolvedWhileCondition = resolveValue(whileConditionStr, currentWorkflowData, serverLogs, additionalContexts);
+                // Resolve condition against the potentially modified loopMutableWorkflowData
+                const resolvedWhileCondition = resolveValue(whileConditionStr, loopMutableWorkflowData, serverLogs, additionalContexts);
                 const conditionIsTrue = evaluateCondition(String(resolvedWhileCondition), `${nodeIdentifier} iter ${iterationsCompleted + 1} condition`, serverLogs);
 
                 if (!conditionIsTrue) {
@@ -710,28 +779,37 @@ async function executeFlowInternal(
                     `whileLoop ${node.id} iter ${iterationsCompleted + 1}`,
                     whileLoopNodes,
                     whileLoopConns,
-                    currentWorkflowData, 
+                    loopMutableWorkflowData, // Pass the mutable data for the sub-flow to operate on
                     serverLogs,
                     parentWorkflowData, 
                     additionalContexts  
                 );
 
-                if (Object.values(loopIterationResult.finalWorkflowData).some(out => out && out.status === 'error')) {
-                    const iterError = Object.values(loopIterationResult.finalWorkflowData).find(out => out && out.status === 'error');
-                    const iterErrorMessage = iterError?.error_message || `Error in whileLoop iteration ${iterationsCompleted + 1}.`;
+                // Update loopMutableWorkflowData with results from the iteration
+                loopMutableWorkflowData = { ...loopMutableWorkflowData, ...loopIterationResult.finalWorkflowData };
+                lastNodeOutput = loopIterationResult.lastNodeOutput; // Update lastNodeOutput based on sub-flow
+
+                if (Object.values(loopMutableWorkflowData).some(out => out && typeof out === 'object' && (out as any).status === 'error' && Object.keys(out).length === 2 && (out as any).error_message)) {
+                // Check if any node executed *within this iteration* has set an error status directly in loopMutableWorkflowData
+                    const iterErrorNodeId = Object.keys(loopMutableWorkflowData).find(k => loopMutableWorkflowData[k] && typeof loopMutableWorkflowData[k] === 'object' && (loopMutableWorkflowData[k] as any).status === 'error');
+                    const iterError = iterErrorNodeId ? loopMutableWorkflowData[iterErrorNodeId] : null;
+                    const iterErrorMessage = (iterError as any)?.error_message || `Error in whileLoop iteration ${iterationsCompleted + 1}.`;
                     serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1} FAILED. Error: ${iterErrorMessage}`, type: 'error' });
                     currentAttemptOutput = { status: 'error', error_message: iterErrorMessage, iterations_completed: iterationsCompleted };
-                    throw new Error(iterErrorMessage); 
+                    throw new Error(iterErrorMessage); // This error will be caught by the node's main try/catch for retry
                 }
-                currentWorkflowData = {...currentWorkflowData, ...loopIterationResult.finalWorkflowData}; 
-                lastNodeOutput = loopIterationResult.lastNodeOutput; 
                 iterationsCompleted++;
             }
+            // After loop, merge changes from loopMutableWorkflowData back to currentWorkflowData
+            currentWorkflowData = { ...currentWorkflowData, ...loopMutableWorkflowData};
+
 
             if (iterationsCompleted >= maxIterations) {
                  serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Reached max iterations (${maxIterations}). Exiting loop.`, type: 'info' });
+                 // Check condition one last time after max iterations
                  const finalResolvedCondition = resolveValue(whileConditionStr, currentWorkflowData, serverLogs, additionalContexts);
                  if (evaluateCondition(String(finalResolvedCondition), `${nodeIdentifier} max_iter_check`, serverLogs)) {
+                    // Condition is still true after max iterations, implies an issue
                     currentAttemptOutput = { status: 'error', error_message: `Loop reached max iterations (${maxIterations}) and condition was still true.`, iterations_completed: iterationsCompleted };
                     throw new Error(currentAttemptOutput.error_message);
                  }
@@ -806,6 +884,9 @@ async function executeFlowInternal(
                     aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
                     if(branchOutcome.status === 'fulfilled') {
                         someBranchesSucceeded = true;
+                        // Merge successful branch data into the main workflow data, namespaced by branch ID
+                        // This might be too broad; consider if only the 'value' should be exposed or if full data is needed.
+                        // For now, exposing full branch data under its ID.
                         currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
                     } else {
                         allBranchesSucceeded = false;
@@ -816,7 +897,7 @@ async function executeFlowInternal(
                 }
             });
             
-            let parallelExecutionStatus = 'error'; // Renamed from overallStatus
+            let parallelExecutionStatus = 'error'; 
             if (allBranchesSucceeded) parallelExecutionStatus = 'success';
             else if (someBranchesSucceeded) parallelExecutionStatus = 'partial_success';
             
@@ -853,7 +934,7 @@ async function executeFlowInternal(
         }
         
         finalNodeOutput = currentAttemptOutput;
-        if (attempt > 1) { 
+        if (attempt > 1 && finalNodeOutput.status === 'success') { 
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SUCCEEDED on attempt ${attempt}/${maxAttempts}.`, type: 'success' });
         }
         break; 
@@ -880,6 +961,12 @@ async function executeFlowInternal(
              if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
+          
+          // Attempt to send onErrorWebhook
+          if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
+            // Do not await this, it's fire and forget
+            handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
+          }
           break; 
         }
 
@@ -888,7 +975,7 @@ async function executeFlowInternal(
           shouldRetryThisError = false;
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
         }
-        if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0 && !retryOnErrorKeywords.some(keyword => errorDetails.toLowerCase().includes(keyword.toLowerCase()))) {
+        if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0 && !retryOnErrorKeywords.some(keyword => errorDetails.toLowerCase().includes(keyword))) {
           shouldRetryThisError = false;
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
         }
@@ -900,6 +987,10 @@ async function executeFlowInternal(
              if(node.type === 'parallel' || node.type === 'forEach') finalNodeOutput.results = (currentAttemptOutput as any)?.results || {};
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
+           // Attempt to send onErrorWebhook if not retrying further
+           if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
+             handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
+           }
           break; 
         }
 
@@ -942,4 +1033,3 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
-

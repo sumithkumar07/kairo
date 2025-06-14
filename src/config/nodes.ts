@@ -1,5 +1,5 @@
 
-import type { AvailableNodeType, RetryConfig, BranchConfig } from '@/types/workflow';
+import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig } from '@/types/workflow';
 import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
@@ -12,6 +12,16 @@ const GENERIC_RETRY_CONFIG_SCHEMA = {
     placeholder: '{\n  "attempts": 3,\n  "delayMs": 1000,\n  "backoffFactor": 2,\n  "retryOnStatusCodes": [500, 503, 429],\n  "retryOnErrorKeywords": ["timeout", "unavailable"]\n}',
     helperText: 'Define retry strategy: attempts, delayMs, backoffFactor (e.g., 2 for exponential), retryOnStatusCodes (for HTTP), retryOnErrorKeywords (case-insensitive). All fields optional.',
     defaultValue: {} as RetryConfig
+  }
+};
+
+const GENERIC_ON_ERROR_WEBHOOK_SCHEMA = {
+  onErrorWebhook: {
+    label: 'On-Error Webhook (JSON, Optional)',
+    type: 'json',
+    placeholder: '{\n  "url": "https://my-error-logger.com/log",\n  "method": "POST",\n  "headers": {"X-API-Key": "{{env.ERROR_API_KEY}}"},\n  "bodyTemplate": {\n    "nodeId": "{{failed_node_id}}",\n    "nodeName": "{{failed_node_name}}",\n    "errorMessage": "{{error_message}}",\n    "timestamp": "{{timestamp}}",\n    "workflowDataSnapshot": "{{workflow_data_snapshot_json}}"\n  }\n}',
+    helperText: 'If node fails after retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR}}.',
+    defaultValue: undefined as (OnErrorWebhookConfig | undefined)
   }
 };
 
@@ -32,9 +42,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'httpRequest',
     name: 'HTTP Request',
     icon: Network,
-    description: 'Makes an HTTP request to a specified URL. Supports retries.',
+    description: 'Makes an HTTP request. Supports retries and on-error webhook.',
     category: 'action', 
-    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '', retry: {} },
+    defaultConfig: { url: '', method: 'GET', headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', body: '', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data' },
       method: { 
@@ -46,6 +56,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['response', 'status_code', 'error_message', 'status'],
@@ -66,14 +77,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'sendEmail',
     name: 'Send Email',
     icon: Mail,
-    description: 'Sends an email. Supports retries. Configure mail server via EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, EMAIL_SECURE environment variables.',
+    description: 'Sends an email. Supports retries and on-error webhook. Configure mail server via EMAIL_ env vars.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '', retry: {} },
+    defaultConfig: { to: '', subject: '', body: '', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}' },
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}' },
       body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['messageId', 'status', 'error_message'],
@@ -82,13 +94,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'databaseQuery',
     name: 'Database Query',
     icon: Database,
-    description: 'Executes a SQL query. Supports retries. Configure DB_CONNECTION_STRING (e.g. postgresql://user:pass@host:port/db) environment variable.',
+    description: 'Executes a SQL query. Supports retries and on-error webhook. Configure DB_CONNECTION_STRING env var.',
     category: 'io',
-    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {} },
+    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;' },
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
     outputHandles: ['results', 'rowCount', 'status', 'error_message'],
@@ -124,13 +137,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs a task using a GenAI model. Supports retries.',
+    description: 'Performs a task using a GenAI model. Supports retries and on-error webhook.',
     category: 'ai',
-    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {} },
+    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}' },
       model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
@@ -152,7 +166,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'dataTransform',
     name: 'Transform Data',
     icon: FunctionSquare, 
-    description: 'Performs various predefined data transformations. Supports retries for the overall transformation process.',
+    description: 'Performs various predefined data transformations. Supports retries and on-error webhook for the overall transformation process.',
     category: 'logic',
     defaultConfig: { 
       transformType: 'toUpperCase', 
@@ -165,7 +179,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       delimiter: ',',
       index: 0,
       propertyName: '',
-      retry: {}
+      retry: {},
+      onErrorWebhook: undefined,
     },
     configSchema: {
         transformType: { 
@@ -193,6 +208,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' },
         propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
+        ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input_data'],
     outputHandles: ['output_data', 'status', 'error_message'],
@@ -201,7 +217,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'executeFlowGroup',
     name: 'Execute Flow Group',
     icon: Layers, 
-    description: 'Executes an encapsulated group of nodes as a sub-flow. Define nodes, connections, and input/output mappings. Supports retries for the entire group execution.',
+    description: 'Executes an encapsulated group of nodes as a sub-flow. Supports retries and on-error webhook for the entire group execution.',
     category: 'group',
     defaultConfig: {
       flowGroupNodes: '[]', 
@@ -209,6 +225,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputMapping: '{}', 
       outputMapping: '{}',
       retry: {},
+      onErrorWebhook: undefined,
     },
     configSchema: {
       flowGroupNodes: { label: 'Flow Group Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"sub_node_1", \n  "type":"logMessage", \n  "name":"Log in Group", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Message from sub-flow {{inputMapping.dataFromParent}}"}\n}]', helperText: 'Define the nodes for this group.' },
@@ -216,6 +233,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputMapping: { label: 'Input Mapping (JSON Object)', type: 'json', placeholder: '{\n  "internalInputName": "{{parentWorkflow.someNode.output}}",\n  "dataFromParent": "{{trigger.some_data}}"\n}', helperText: 'Map parent data to group inputs. Access mapped inputs inside group nodes using their "internalInputName".' },
       outputMapping: { label: 'Output Mapping (JSON Object)', type: 'json', placeholder: '{\n  "parentOutputName": "{{group_node_id.result}}"\n}', helperText: 'Map group results to parent outputs. This node will output these mapped values.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
     outputHandles: ['output', 'status', 'error_message'], 
@@ -224,7 +242,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'forEach',
     name: 'For Each Loop',
     icon: Repeat,
-    description: 'Iterates over an array and executes a sub-flow for each item. Outputs an array of results from each iteration. Supports "continue on error".',
+    description: 'Iterates over an array and executes a sub-flow for each item. Supports "continue on error", retries for the whole loop, and on-error webhook if the loop fails.',
     category: 'iteration',
     defaultConfig: {
       inputArrayPath: '',
@@ -233,14 +251,16 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       iterationResultSource: '', 
       continueOnError: false,
       retry: {}, 
+      onErrorWebhook: undefined,
     },
     configSchema: {
       inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.' },
       iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.' },
       iterationConnections: { label: 'Iteration Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the iteration sub-flow.' },
-      iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the full output of the last node in each sub-flow iteration is collected.' },
+      iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the entire output of the last node in each sub-flow iteration is collected.' },
       continueOnError: { label: 'Continue On Error', type: 'boolean', defaultValue: false, helperText: 'If true, loop continues if an iteration errors; results will show individual statuses.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA, 
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input_array_data'], 
     outputHandles: ['results', 'status', 'error_message'], 
@@ -249,7 +269,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'whileLoop',
     name: 'While Loop',
     icon: RotateCcw, 
-    description: 'Executes a sub-flow repeatedly as long as a condition is true. Condition is evaluated before each iteration.',
+    description: 'Executes a sub-flow repeatedly as long as a condition is true. Condition is evaluated before each iteration. Supports retries for the whole loop and on-error webhook if the loop fails.',
     category: 'iteration',
     defaultConfig: {
       condition: '',
@@ -257,6 +277,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       loopConnections: '[]',
       maxIterations: 100, 
       retry: {}, 
+      onErrorWebhook: undefined,
     },
     configSchema: {
       condition: { label: 'Loop Condition (evaluates to boolean)', type: 'string', placeholder: '{{data.status}} === "pending" || {{counter.value}} < 10', helperText: 'The loop continues as long as this condition is true. Evaluated before each iteration.' },
@@ -264,6 +285,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       loopConnections: { label: 'Loop Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the loop sub-flow.' },
       maxIterations: { label: 'Max Iterations (Optional, Default 100)', type: 'number', defaultValue: 100, placeholder: '100', helperText: 'Safety limit to prevent infinite loops.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input_data'], 
     outputHandles: ['iterations_completed', 'status', 'error_message'],
@@ -272,11 +294,12 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'parallel',
     name: 'Parallel Execution',
     icon: GitFork, 
-    description: 'Executes multiple branches of nodes concurrently. Collects results from all branches.',
+    description: 'Executes multiple branches of nodes concurrently. Collects results from all branches. Supports retries for the whole block and on-error webhook if it fails.',
     category: 'control', 
     defaultConfig: {
       branches: '[]', 
       retry: {},
+      onErrorWebhook: undefined,
     },
     configSchema: {
       branches: { 
@@ -286,6 +309,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         helperText: 'Define branches to run in parallel. Each branch has id, nodes, connections, optional inputMapping, and optional outputSource.'
       },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
     outputHandles: ['results', 'status', 'error_message'], 
@@ -294,14 +318,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeFetchTrending',
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
-    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries.',
+    description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries and on-error webhook.',
     category: 'trigger',
-    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {} },
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
       apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     outputHandles: ['videos', 'status', 'error_message'],
   },
@@ -309,13 +334,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeDownloadVideo',
     name: 'YouTube: Download Video',
     icon: DownloadCloud,
-    description: 'Downloads a YouTube video (conceptual - currently logs intent). Supports retries.',
+    description: 'Downloads a YouTube video (conceptual - currently logs intent). Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { videoUrl: '', quality: 'best', retry: {} },
+    defaultConfig: { videoUrl: '', quality: 'best', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}' },
       quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['filePath', 'status', 'error_message'],
@@ -324,14 +350,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'videoConvertToShorts',
     name: 'Video: Convert to Shorts',
     icon: Scissors,
-    description: 'Converts a video to a short format (conceptual - currently logs intent). Supports retries.',
+    description: 'Converts a video to a short format (conceptual - currently logs intent). Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {} },
+    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       inputFile: { label: 'Input Video File Path', type: 'string', placeholder: '{{download_node.filePath}}' },
       duration: { label: 'Short Duration (seconds)', type: 'number', defaultValue: 60 },
       strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['shortFilePath', 'status', 'error_message'],
@@ -340,9 +367,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeUploadShort',
     name: 'YouTube: Upload Short',
     icon: UploadCloud,
-    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var. Supports retries.',
+    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var. Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {} },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {}, onErrorWebhook: undefined },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
@@ -351,6 +378,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
       credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secret.YOUTUBE_OAUTH_TOKEN}}', helperText: "Use {{secret.YOUTUBE_OAUTH_TOKEN}} or {{env.YOUTUBE_OAUTH_TOKEN}}."},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['uploadStatus', 'videoId', 'status', 'error_message'],
@@ -359,13 +387,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'workflowNode', 
     name: 'Custom Action', 
     icon: WorkflowIcon,
-    description: 'A generic, configurable step in the workflow. Used by AI when a specific node type isn\'t matched. Supports retries.',
+    description: 'A generic, configurable step in the workflow. Used by AI when a specific node type isn\'t matched. Supports retries and on-error webhook.',
     category: 'action', 
-    defaultConfig: { task_description: '', parameters: {}, retry: {} },
+    defaultConfig: { task_description: '', parameters: {}, retry: {}, onErrorWebhook: undefined },
     configSchema: {
       task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do'},
       parameters: { label: 'Parameters (JSON)', type: 'textarea', placeholder: '{\n  "custom_param": "value"\n}'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
@@ -554,4 +583,3 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
-
