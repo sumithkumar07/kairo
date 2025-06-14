@@ -301,7 +301,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.' },
       iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.' },
       iterationConnections: { label: 'Iteration Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the iteration sub-flow.' },
-      iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the entire output of the last node in each sub-flow iteration is collected.' },
+      iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the entire output of the last executed node in each sub-flow iteration is collected.' },
       continueOnError: { label: 'Continue On Error', type: 'boolean', defaultValue: false, helperText: 'If true, loop continues if an iteration errors; results will show individual statuses.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA, 
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
@@ -720,4 +720,5 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
