@@ -20,6 +20,7 @@ import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, Retry
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
+import { AVAILABLE_NODES_CONFIG } from '@/config/nodes'; // Import available nodes config
 
 // Helper function to resolve placeholder values
 function resolveValue(
@@ -352,9 +353,25 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): 
   }
 }
 
-export async function suggestNextWorkflowNode(input: SuggestNextNodeInput): Promise<SuggestNextNodeOutput> {
+export async function suggestNextWorkflowNode(
+  // The input type is SuggestNextNodeInput, but we only expect workflowContext and currentNodeType from the client.
+  // availableNodeTypes will be populated here.
+  clientInput: { workflowContext: string; currentNodeType?: string }
+): Promise<SuggestNextNodeOutput> {
   try {
-    const result = await genkitSuggestNextNode(input);
+    const availableNodeTypesForAI = AVAILABLE_NODES_CONFIG.map(node => ({
+      type: node.type,
+      name: node.name,
+      description: node.description || '',
+      category: node.category,
+    }));
+
+    const inputForGenkit: SuggestNextNodeInput = {
+      ...clientInput,
+      availableNodeTypes: availableNodeTypesForAI,
+    };
+
+    const result = await genkitSuggestNextNode(inputForGenkit);
     if (!result || !result.suggestedNode) {
       throw new Error("AI failed to suggest a next node.");
     }
@@ -931,6 +948,8 @@ async function executeFlowInternal(
                     aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
                     if(branchOutcome.status === 'fulfilled') {
                         someBranchesSucceeded = true;
+                        // Propagate successful branch data back to the main workflow data, namespaced by branch ID
+                        // This makes branch-specific outputs available to subsequent nodes in the main flow.
                         currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
                     } else {
                         allBranchesSucceeded = false;
@@ -964,7 +983,7 @@ async function executeFlowInternal(
             const { instructions, inputFieldsSchema: inputFieldsSchemaStr, simulatedResponse: simulatedResponseStr } = resolvedConfig;
             serverLogs.push({ message: `[NODE MANUALINPUT] Node ${nodeIdentifier}: Instructions: "${instructions || 'No instructions provided.'}"`, type: 'info'});
             
-            if (isSimulationMode || simulatedResponseStr) { // Always use simulatedResponse if present, or if in simulation mode and it's absent (though AI should provide it)
+            if (isSimulationMode || simulatedResponseStr) { 
                 if (inputFieldsSchemaStr && typeof inputFieldsSchemaStr === 'string') {
                     try {
                         const fields = JSON.parse(inputFieldsSchemaStr);
@@ -984,8 +1003,6 @@ async function executeFlowInternal(
                   throw new Error(`Node ${nodeIdentifier}: Failed to parse 'simulatedResponse' JSON: ${e.message}. Response provided: "${simulatedResponseStr}"`);
                 }
             } else {
-                // This case should ideally not be hit if AI provides simulatedResponse or if we always run in simulation.
-                // If we had true pause/resume, this is where we'd pause.
                 const pauseMsg = `[NODE MANUALINPUT] Node ${nodeIdentifier}: Requires human input. Workflow would pause here in a system with pause/resume. No simulatedResponse provided and not in full simulation mode.`;
                 serverLogs.push({ message: pauseMsg, type: 'info'});
                 throw new Error(pauseMsg + " Cannot proceed without simulated data in this environment.");
@@ -997,15 +1014,14 @@ async function executeFlowInternal(
           case 'videoConvertToShorts':
           case 'youtubeUploadShort':
           case 'workflowNode': 
-            if (isSimulationMode || resolvedConfig.simulated_config) { // Check for a general simulated_config or if in overall simulation mode
+            if (isSimulationMode || resolvedConfig.simulated_config) { 
                  const simMsg = `[NODE ${node.type.toUpperCase()}] SIMULATION: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
                  console.log(simMsg); serverLogs.push({ message: simMsg, type: 'info' });
                  currentAttemptOutput = { ...currentAttemptOutput, output: resolvedConfig.simulated_config || {message: "Simulated output for " + node.type}, status: 'success'};
             } else {
-                // This is where the actual logic for these nodes would go if they weren't just conceptual/simulated by default
                 const realExecMsg = `[NODE ${node.type.toUpperCase()}] Node ${nodeIdentifier}: Real execution for this node type is not fully implemented. Config: ${JSON.stringify(resolvedConfig, null, 2)}`;
                 console.warn(realExecMsg); serverLogs.push({ message: realExecMsg, type: 'info' });
-                currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig, status: 'success' }; // Default to success for conceptual nodes
+                currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig, status: 'success' }; 
             }
             break;
             
