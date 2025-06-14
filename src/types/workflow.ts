@@ -15,7 +15,7 @@ export interface WorkflowNode {
   name: string;
   description?: string;
   position: { x: number; y: number };
-  config: Record<string, any> & { retry?: RetryConfig }; // Added optional retry config
+  config: Record<string, any> & { retry?: RetryConfig }; 
   inputHandles?: string[];
   outputHandles?: string[];
   aiExplanation?: string; 
@@ -33,8 +33,6 @@ export interface WorkflowConnection {
 export interface Workflow {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
-  // Potentially add a top-level ID for the workflow itself if managing multiple
-  // workflowId?: string; 
 }
 
 export interface ConfigFieldSchema {
@@ -51,7 +49,7 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'unknown';
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'unknown';
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[]; 

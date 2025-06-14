@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -211,14 +211,37 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       retry: {},
     },
     configSchema: {
-      flowGroupNodes: { label: 'Flow Group Nodes (JSON Array)', type: 'json', placeholder: '[{"id":"sub_node_1", "type":"logMessage", ...}]', helperText: 'Define the nodes for this group.' },
-      flowGroupConnections: { label: 'Flow Group Connections (JSON Array)', type: 'json', placeholder: '[{"sourceNodeId":"sub_node_1", ...}]', helperText: 'Define connections between nodes in this group.' },
-      inputMapping: { label: 'Input Mapping (JSON Object)', type: 'json', placeholder: '{\n  "internalInputName": "{{parentWorkflow.someNode.output}}"\n}', helperText: 'Map parent data to group inputs.' },
-      outputMapping: { label: 'Output Mapping (JSON Object)', type: 'json', placeholder: '{\n  "parentOutputName": "{{groupNode.result}}"\n}', helperText: 'Map group results to parent outputs.' },
+      flowGroupNodes: { label: 'Flow Group Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"sub_node_1", \n  "type":"logMessage", \n  "name":"Log in Group", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Message from sub-flow {{inputMapping.dataFromParent}}"}\n}]', helperText: 'Define the nodes for this group.' },
+      flowGroupConnections: { label: 'Flow Group Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[{\n  "sourceNodeId":"sub_node_1", \n  "targetNodeId":"sub_node_2", \n  "sourceHandle":"output"\n}]', helperText: 'Define connections between nodes in this group.' },
+      inputMapping: { label: 'Input Mapping (JSON Object)', type: 'json', placeholder: '{\n  "internalInputName": "{{parentWorkflow.someNode.output}}",\n  "dataFromParent": "{{trigger.some_data}}"\n}', helperText: 'Map parent data to group inputs. Access mapped inputs inside group nodes using their "internalInputName".' },
+      outputMapping: { label: 'Output Mapping (JSON Object)', type: 'json', placeholder: '{\n  "parentOutputName": "{{group_node_id.result}}"\n}', helperText: 'Map group results to parent outputs. This node will output these mapped values.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
     },
     inputHandles: ['input'], 
     outputHandles: ['output', 'status', 'error_message'], 
+  },
+  {
+    type: 'forEach',
+    name: 'For Each Loop',
+    icon: Repeat,
+    description: 'Iterates over an array and executes a sub-flow for each item. Outputs an array of results from each iteration.',
+    category: 'iteration',
+    defaultConfig: {
+      inputArrayPath: '',
+      iterationNodes: '[]',
+      iterationConnections: '[]',
+      iterationResultSource: '', // Optional
+      retry: {}, // For retrying the entire loop operation if needed
+    },
+    configSchema: {
+      inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.' },
+      iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.' },
+      iterationConnections: { label: 'Iteration Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the iteration sub-flow.' },
+      iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the full output of the last node in each sub-flow iteration is collected.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA, // Retry for the whole loop block
+    },
+    inputHandles: ['input_array_data'], // Could be used to pass the array directly
+    outputHandles: ['results', 'status', 'error_message'], // 'results' will be an array of outputs from iterations
   },
   {
     type: 'youtubeFetchTrending',
@@ -413,6 +436,13 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'run group': 'executeFlowGroup',
   'call workflow': 'executeFlowGroup',
   'encapsulate flow': 'executeFlowGroup',
+
+  // Iteration
+  'foreach': 'forEach',
+  'for each': 'forEach',
+  'loop': 'forEach',
+  'iterate': 'forEach',
+  'process list': 'forEach',
 
   // YouTube Specific (Conceptual)
   'youtubefetchtrending': 'youtubeFetchTrending',

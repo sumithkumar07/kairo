@@ -21,8 +21,13 @@ import { ai } from '@/ai/genkit';
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
 
-// Helper function to resolve placeholder values from workflowData
-function resolveValue(value: any, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): any {
+// Helper function to resolve placeholder values
+function resolveValue(
+  value: any, 
+  workflowData: Record<string, any>, 
+  serverLogs: ServerLogOutput[],
+  additionalContexts?: Record<string, any> // For loop item, etc.
+): any {
   if (typeof value !== 'string') {
     return value;
   }
@@ -44,72 +49,87 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     }
 
     const firstPart = pathParts[0];
+    let dataFound = false;
+    let dataAtPath: any;
 
-    if (firstPart === 'env' && pathParts.length >= 2) {
+    // 1. Check additionalContexts (e.g., loop item)
+    if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
+      dataAtPath = additionalContexts[firstPart];
+      let currentPathForLog = firstPart;
+      let contextFound = true;
+      for (let i = 1; i < pathParts.length; i++) {
+        const part = pathParts[i];
+        currentPathForLog += `.${part}`;
+        const arrayMatch = part.match(/(\w+)\[(\d+)\]/);
+        if (arrayMatch) {
+          const arrayKey = arrayMatch[1]; const index = parseInt(arrayMatch[2], 10);
+          if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) dataAtPath = dataAtPath[arrayKey][index];
+          else { contextFound = false; break; }
+        } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) dataAtPath = dataAtPath[part];
+        else { contextFound = false; break; }
+      }
+      if (contextFound) {
+        dataFound = true;
+      } else {
+         serverLogs.push({ message: `[ENGINE] Path part '${pathParts.slice(1).join('.')}' not found in additional context '${firstPart}' for placeholder '${placeholder}'.`, type: 'info' });
+      }
+    }
+
+    // 2. Check environment variables
+    if (!dataFound && firstPart === 'env' && pathParts.length >= 2) {
       const envVarName = pathParts.slice(1).join('.');
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
-        if (placeholder === value) { 
-            resolvedValue = envVarValue;
-        }
-        continue; 
+        if (placeholder === value) resolvedValue = envVarValue; // If entire value is placeholder, return resolved type
+        dataFound = true; // Mark as found to skip workflowData check
+        continue; // Move to next match in the string
       } else {
-        const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Placeholder remains unresolved. Define it in your .env.local file or server environment.`;
-        console.warn(warningMsg);
-        serverLogs.push({ message: warningMsg, type: 'info' });
+        const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
+        console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
         continue;
       }
     }
     
-    if (firstPart === 'secrets' && pathParts.length >= 2) {
+    // 3. Check secrets (conceptual)
+    if (!dataFound && firstPart === 'secrets' && pathParts.length >= 2) {
         const secretName = pathParts.slice(1).join('.');
         const infoMsg = `[ENGINE] Placeholder '{{secrets.${secretName}}}' recognized. Actual secret resolution from a vault is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in .env.local.`;
-        console.info(infoMsg); 
-        serverLogs.push({ message: infoMsg, type: 'info'});
+        console.info(infoMsg); serverLogs.push({ message: infoMsg, type: 'info'});
         continue; 
     }
 
-    let currentData = workflowData[firstPart]; 
-
-    if (currentData === undefined) {
-      const warningMsg = `[ENGINE] No data found for node ID '${firstPart}' in workflow data when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs in data: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
-      console.warn(warningMsg);
-      serverLogs.push({ message: warningMsg, type: 'info' });
-      continue; 
-    }
-    
-    let dataAtPath = currentData;
-    let found = true;
-    let currentPathForLog = firstPart;
-    for (let i = 1; i < pathParts.length; i++) {
-      const part = pathParts[i];
-      currentPathForLog += `.${part}`;
-      const arrayMatch = part.match(/(\w+)\[(\d+)\]/); 
-      if (arrayMatch) {
-        const arrayKey = arrayMatch[1];
-        const index = parseInt(arrayMatch[2], 10);
-        if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
-          dataAtPath = dataAtPath[arrayKey][index];
-        } else {
-          const warningMsg = `[ENGINE] Array access failed for '${part}' in placeholder '${placeholder}'. Attempted path: ${currentPathForLog}. Data for node '${firstPart}' (start): ${JSON.stringify(currentData, null, 2).substring(0,100)}`;
-          console.warn(warningMsg);
-          serverLogs.push({ message: warningMsg, type: 'info' });
-          found = false; break;
+    // 4. Check workflowData (node outputs)
+    if (!dataFound) {
+        if (!workflowData.hasOwnProperty(firstPart)) {
+            const warningMsg = `[ENGINE] No data found for node ID or context key '${firstPart}' in workflow data when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs in data: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
+            console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
+            continue;
         }
-      } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
-        dataAtPath = dataAtPath[part];
-      } else {
-        const warningMsg = `[ENGINE] Path part '${part}' not found in data for node '${firstPart}' when resolving placeholder '${placeholder}'. Attempted path: ${currentPathForLog}. Current data at path: ${JSON.stringify(dataAtPath, null, 2).substring(0,100)}. Placeholder remains unresolved.`;
-        console.warn(warningMsg);
-        serverLogs.push({ message: warningMsg, type: 'info' });
-        found = false;
-        break;
-      }
+        dataAtPath = workflowData[firstPart];
+        let currentPathForLog = firstPart;
+        let wfDataFound = true;
+        for (let i = 1; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            currentPathForLog += `.${part}`;
+            const arrayMatch = part.match(/(\w+)\[(\d+)\]/);
+            if (arrayMatch) {
+                const arrayKey = arrayMatch[1]; const index = parseInt(arrayMatch[2], 10);
+                if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) dataAtPath = dataAtPath[arrayKey][index];
+                else { wfDataFound = false; break; }
+            } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) dataAtPath = dataAtPath[part];
+            else { wfDataFound = false; break; }
+        }
+        if (wfDataFound) {
+            dataFound = true;
+        } else {
+            const warningMsg = `[ENGINE] Path part '${pathParts.slice(1).join('.')}' not found in data for node '${firstPart}' when resolving placeholder '${placeholder}'. Attempted path: ${currentPathForLog}. Data at path start: ${JSON.stringify(workflowData[firstPart], null, 2).substring(0,100)}. Placeholder remains unresolved.`;
+            console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
+        }
     }
     
-    if (found) {
-      if (placeholder === value && typeof dataAtPath !== 'string' && typeof dataAtPath !== 'number' && typeof dataAtPath !== 'boolean' && dataAtPath !== null) { 
+    if (dataFound) {
+      if (placeholder === value && (typeof dataAtPath !== 'string' && typeof dataAtPath !== 'number' && typeof dataAtPath !== 'boolean' && dataAtPath !== null)) { 
         resolvedValue = dataAtPath; 
       } else { 
         const replacementValue = (typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean' || dataAtPath === null) 
@@ -123,27 +143,32 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
 }
 
 
-function resolveNodeConfig(nodeConfig: Record<string, any>, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): Record<string, any> {
+function resolveNodeConfig(
+  nodeConfig: Record<string, any>, 
+  workflowData: Record<string, any>, 
+  serverLogs: ServerLogOutput[],
+  additionalContexts?: Record<string, any>
+): Record<string, any> {
   const resolvedConfig: Record<string, any> = {};
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
-      if (key === 'flowGroupNodes' || key === 'flowGroupConnections') {
+      if (key === 'flowGroupNodes' || key === 'flowGroupConnections' || key === 'iterationNodes' || key === 'iterationConnections') {
         resolvedConfig[key] = value; 
         continue;
       }
-      if (key === 'retry' && typeof value === 'object' && value !== null) { // Keep retry object as is for now, specific fields resolved inside retry logic if needed
+      if (key === 'retry' && typeof value === 'object' && value !== null) {
         resolvedConfig[key] = value; 
         continue;
       }
       if (typeof value === 'string') {
-        resolvedConfig[key] = resolveValue(value, workflowData, serverLogs);
+        resolvedConfig[key] = resolveValue(value, workflowData, serverLogs, additionalContexts);
       } else if (Array.isArray(value)) {
-        resolvedConfig[key] = value.map(item => (typeof item === 'string' ? resolveValue(item, workflowData, serverLogs) : 
-                                                 (typeof item === 'object' && item !== null ? resolveNodeConfig(item, workflowData, serverLogs) : item)
+        resolvedConfig[key] = value.map(item => (typeof item === 'string' ? resolveValue(item, workflowData, serverLogs, additionalContexts) : 
+                                                 (typeof item === 'object' && item !== null ? resolveNodeConfig(item, workflowData, serverLogs, additionalContexts) : item)
                                            ));
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs); 
+        resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
       } else {
         resolvedConfig[key] = value; 
       }
@@ -269,51 +294,59 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
 }
 
 async function executeFlowInternal(
+  flowLabel: string, // e.g., "main workflow", "group: group_id", "forEach item X"
   nodesToExecute: WorkflowNode[],
   connectionsToExecute: WorkflowConnection[],
   initialWorkflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
-  parentWorkflowData?: Record<string, any> 
-): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[] }> {
+  parentWorkflowData?: Record<string, any>, // For resolving {{parent.node.output}} style placeholders if needed
+  additionalContexts?: Record<string, any> // For {{item.prop}} in forEach loop
+): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any }> {
   
   const currentWorkflowData = { ...initialWorkflowData };
   const { executionOrder, error: sortError } = getExecutionOrder(nodesToExecute, connectionsToExecute);
+  let lastNodeOutput: any = null;
 
   if (sortError) {
-    serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Graph error in flow: ${sortError}`, type: 'error' });
-    return { finalWorkflowData: currentWorkflowData, serverLogs };
+    serverLogs.push({ message: `[ENGINE/${flowLabel}] Graph error: ${sortError}`, type: 'error' });
+    return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
   }
+  
+  serverLogs.push({ message: `[ENGINE/${flowLabel}] Starting execution. Order: ${executionOrder.map(n=>n.id).join(' -> ')}`, type: 'info' });
 
   for (const node of executionOrder) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
-    console.log(`[ENGINE/SUB-ENGINE] Preparing to process node: ${nodeIdentifier}`);
-    serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Preparing to process node: ${nodeIdentifier}`, type: 'info' });
+    console.log(`[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`);
+    serverLogs.push({ message: `[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`, type: 'info' });
 
-    const resolvedConfig = resolveNodeConfig(node.config || {}, currentWorkflowData, serverLogs);
-    console.log(`[ENGINE/SUB-ENGINE] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
+    // Resolve config using currentWorkflowData for this flow AND additionalContexts (e.g. loop item)
+    const dataForResolution = parentWorkflowData ? { ...parentWorkflowData, ...currentWorkflowData } : currentWorkflowData;
+    const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, additionalContexts);
+    console.log(`[ENGINE/${flowLabel}] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
 
     if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
       const conditionValue = resolvedConfig._flow_run_condition;
       if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
         currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
+        lastNodeOutput = currentWorkflowData[node.id];
         continue; 
       }
-      serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} proceeding: _flow_run_condition evaluated to truthy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+      serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} proceeding: _flow_run_condition evaluated to truthy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
     }
 
     let finalNodeOutput: any = { status: 'pending' }; 
     const retryConfig: RetryConfig | undefined = resolvedConfig.retry;
     const maxAttempts = retryConfig?.attempts || 1;
     const initialDelayMs = retryConfig?.delayMs || 0;
-    const backoffFactor = retryConfig?.backoffFactor || 1; // Default to no backoff
+    const backoffFactor = retryConfig?.backoffFactor || 1; 
     const retryOnStatusCodes: number[] | undefined = retryConfig?.retryOnStatusCodes;
     const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         let currentAttemptOutput: any = { status: 'success' }; 
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Attempt ${attempt}/${maxAttempts} starting...`, type: 'info' });
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Attempt ${attempt}/${maxAttempts} starting...`, type: 'info' });
 
         switch (node.type) {
           case 'trigger': 
@@ -480,49 +513,89 @@ async function executeFlowInternal(
 
           case 'executeFlowGroup':
               const { flowGroupNodes: groupNodesStr, flowGroupConnections: groupConnectionsStr, inputMapping, outputMapping } = resolvedConfig;
-              let groupNodes: WorkflowNode[] = [];
-              let groupConnections: WorkflowConnection[] = [];
-
-              try {
-                  if (typeof groupNodesStr === 'string') groupNodes = JSON.parse(groupNodesStr);
-                  else if (Array.isArray(groupNodesStr)) groupNodes = groupNodesStr; 
-                  else throw new Error('flowGroupNodes is not a valid JSON array string or array.');
-              } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON for flowGroupNodes: ${e.message}`); }
-              
-              try {
-                  if (typeof groupConnectionsStr === 'string') groupConnections = JSON.parse(groupConnectionsStr);
-                  else if (Array.isArray(groupConnectionsStr)) groupConnections = groupConnectionsStr;
-                  else throw new Error('flowGroupConnections is not a valid JSON array string or array.');
-              } catch (e: any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON for flowGroupConnections: ${e.message}`); }
+              let groupNodes: WorkflowNode[] = []; let groupConnections: WorkflowConnection[] = [];
+              try { groupNodes = typeof groupNodesStr === 'string' ? JSON.parse(groupNodesStr) : groupNodesStr; if (!Array.isArray(groupNodes)) throw new Error();} catch (e) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for flowGroupNodes.`); }
+              try { groupConnections = typeof groupConnectionsStr === 'string' ? JSON.parse(groupConnectionsStr) : groupConnectionsStr; if (!Array.isArray(groupConnections)) throw new Error();} catch (e) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for flowGroupConnections.`); }
 
               const subWorkflowInitialData: Record<string, any> = {};
               if (inputMapping && typeof inputMapping === 'object') {
                   for (const [internalKey, parentPlaceholder] of Object.entries(inputMapping)) {
-                      subWorkflowInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs);
+                      subWorkflowInitialData[internalKey] = resolveValue(parentPlaceholder, currentWorkflowData, serverLogs, additionalContexts);
                   }
               }
-              serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Starting sub-flow execution with mapped inputs: ${JSON.stringify(subWorkflowInitialData).substring(0,200)}`, type: 'info' });
+              serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Starting sub-flow. Mapped inputs (first 200 chars): ${JSON.stringify(subWorkflowInitialData).substring(0,200)}`, type: 'info' });
               
-              const subExecutionResult = await executeFlowInternal(groupNodes, groupConnections, subWorkflowInitialData, serverLogs, currentWorkflowData);
+              const subExecutionResult = await executeFlowInternal(`group ${node.id}`, groupNodes, groupConnections, subWorkflowInitialData, serverLogs, currentWorkflowData, additionalContexts);
               
               const groupFinalOutput: Record<string, any> = { status: 'success' }; 
               if (outputMapping && typeof outputMapping === 'object') {
                   for (const [parentKey, subPlaceholder] of Object.entries(outputMapping)) {
-                      groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs);
+                      groupFinalOutput[parentKey] = resolveValue(subPlaceholder, subExecutionResult.finalWorkflowData, serverLogs /* No additional context for group output mapping */);
                   }
               }
-              const subFlowFailed = Object.values(subExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
-              if (subFlowFailed) {
-                  groupFinalOutput.status = 'error';
-                  const subFlowErrorMsg = `Error occurred within the flow group. Check logs for details. Sub-flow data: ${JSON.stringify(subExecutionResult.finalWorkflowData).substring(0,200)}`;
-                  groupFinalOutput.error_message = subFlowErrorMsg;
-                  serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed with errors.`, type: 'error'});
-                  throw new Error(subFlowErrorMsg); // Throw to trigger retry logic if configured for the group
+
+              const subFlowErrored = Object.values(subExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
+              if (subFlowErrored) {
+                const subError = Object.values(subExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
+                const subErrorMessage = subError?.error_message || "Error in sub-flow execution.";
+                groupFinalOutput.status = 'error';
+                groupFinalOutput.error_message = subErrorMessage;
+                serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution FAILED. Error: ${subErrorMessage}`, type: 'error'});
+                throw new Error(subErrorMessage); 
               } else {
-                   serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed successfully. Mapped outputs: ${JSON.stringify(groupFinalOutput).substring(0,200)}`, type: 'success'});
+                 serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed successfully. Mapped outputs (first 200 chars): ${JSON.stringify(groupFinalOutput).substring(0,200)}`, type: 'success'});
               }
               currentAttemptOutput = groupFinalOutput;
               break;
+            
+          case 'forEach':
+            const { inputArrayPath, iterationNodes: iterNodesStr, iterationConnections: iterConnsStr, iterationResultSource } = resolvedConfig;
+            if (!inputArrayPath) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' is required.`);
+            const resolvedArray = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
+            if (!Array.isArray(resolvedArray)) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' ("${inputArrayPath}") did not resolve to an array. Resolved to: ${JSON.stringify(resolvedArray)}`);
+
+            let iterNodes: WorkflowNode[] = []; let iterConns: WorkflowConnection[] = [];
+            try { iterNodes = typeof iterNodesStr === 'string' ? JSON.parse(iterNodesStr) : iterNodesStr; if(!Array.isArray(iterNodes)) throw new Error(); } catch(e){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationNodes.`); }
+            try { iterConns = typeof iterConnsStr === 'string' ? JSON.parse(iterConnsStr) : iterConnsStr; if(!Array.isArray(iterConns)) throw new Error(); } catch(e){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationConnections.`); }
+
+            const iterationResultsCollected: any[] = [];
+            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Starting iteration over ${resolvedArray.length} items.`, type: 'info' });
+
+            for (let i = 0; i < resolvedArray.length; i++) {
+              const currentItem = resolvedArray[i];
+              const itemContext = { 'item': currentItem, ...(additionalContexts || {}) }; // current item is now in {{item.property}}
+              serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i + 1}/${resolvedArray.length}. Item (first 100 chars): ${JSON.stringify(currentItem).substring(0,100)}`, type: 'info' });
+              
+              const iterInitialData: Record<string, any> = {}; // Sub-flow starts with its own clean data scope + item
+              const iterExecutionResult = await executeFlowInternal(
+                `forEach ${node.id} iter ${i+1}`, 
+                iterNodes, 
+                iterConns, 
+                iterInitialData, // Pass empty initial data for the sub-flow's own nodes
+                serverLogs, 
+                currentWorkflowData, // Parent data for resolving {{parent_node.output}} type things, if needed by sub-flow
+                itemContext         // The current item for {{item.property}}
+              );
+
+              if (Object.values(iterExecutionResult.finalWorkflowData).some(out => out && out.status === 'error')) {
+                 const iterError = Object.values(iterExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
+                 const iterErrorMessage = iterError?.error_message || `Error in forEach iteration ${i+1}.`;
+                 serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} FAILED. Error: ${iterErrorMessage}`, type: 'error' });
+                 throw new Error(`Error in forEach iteration ${i+1}: ${iterErrorMessage}`); // This will make the whole forEach node fail
+              }
+              
+              let resultForItem: any;
+              if (iterationResultSource && typeof iterationResultSource === 'string') {
+                resultForItem = resolveValue(iterationResultSource, iterExecutionResult.finalWorkflowData, serverLogs, itemContext);
+              } else {
+                resultForItem = iterExecutionResult.lastNodeOutput; // Output of the last node in the sub-flow
+              }
+              iterationResultsCollected.push(resultForItem);
+              serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} completed. Result (first 100 chars): ${JSON.stringify(resultForItem).substring(0,100)}`, type: 'success'});
+            }
+            currentAttemptOutput = { ...currentAttemptOutput, results: iterationResultsCollected };
+            serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations completed. Total results: ${iterationResultsCollected.length}.`, type: 'success' });
+            break;
 
           case 'youtubeFetchTrending':
           case 'youtubeDownloadVideo':
@@ -536,74 +609,75 @@ async function executeFlowInternal(
             break;
             
           default:
-            serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized.`, type: 'info' });
+            serverLogs.push({ message: `[ENGINE/${flowLabel}] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized.`, type: 'info' });
             currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
             break;
         }
         
         finalNodeOutput = currentAttemptOutput;
-        if (attempt > 1) { // Log success only if it's a retry that succeeded
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} SUCCEEDED on attempt ${attempt}/${maxAttempts}.`, type: 'success' });
+        if (attempt > 1) { 
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SUCCEEDED on attempt ${attempt}/${maxAttempts}.`, type: 'success' });
         }
-        break; // Successful attempt, exit retry loop
+        break; 
       
       } catch (error: any) { 
         const errorDetails = error.message ? error.message : 'Unknown error during node execution.';
         let statusCode: number | undefined;
-        if (node.type === 'httpRequest' && error.statusCode) { // Check for statusCode property on the error itself
+        if (node.type === 'httpRequest' && error.statusCode) { 
             statusCode = error.statusCode;
-        } else if (node.type === 'httpRequest' && errorDetails.startsWith('HTTP request failed')) { // Fallback to parsing from message
+        } else if (node.type === 'httpRequest' && errorDetails.startsWith('HTTP request failed')) { 
             const match = errorDetails.match(/status (\d+)/);
             if (match && match[1]) {
                 statusCode = parseInt(match[1], 10);
             }
         }
 
-        console.error(`[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, error.stack);
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, type: 'info' });
+        console.error(`[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, error.stack);
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, type: 'info' });
 
         if (attempt >= maxAttempts) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
           break; 
         }
 
         let shouldRetryThisError = true;
         if (statusCode && retryOnStatusCodes && retryOnStatusCodes.length > 0 && !retryOnStatusCodes.includes(statusCode)) {
           shouldRetryThisError = false;
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
         }
         if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0 && !retryOnErrorKeywords.some(keyword => errorDetails.toLowerCase().includes(keyword.toLowerCase()))) {
           shouldRetryThisError = false;
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
         }
 
         if (!shouldRetryThisError) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
           break; 
         }
 
         const delay = (initialDelayMs || 0) * Math.pow(backoffFactor || 1, attempt - 1);
         if (delay > 0) {
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier}: Retrying immediately... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying immediately... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
         }
       }
     } 
 
     currentWorkflowData[node.id] = finalNodeOutput;
-    console.log(`[ENGINE/SUB-ENGINE] Node ${node.id} final output stored:`, JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 500));
+    lastNodeOutput = finalNodeOutput; // Keep track of the output of the very last node in the current execution order
+    console.log(`[ENGINE/${flowLabel}] Node ${node.id} final output stored:`, JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 500));
 
     if (finalNodeOutput.status === 'success') {
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} processed successfully overall.`, type: 'success' });
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} processed successfully overall.`, type: 'success' });
     } else if (finalNodeOutput.status === 'error') {
-        serverLogs.push({ message: `[ENGINE/SUB-ENGINE] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`, type: 'info' });
+        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`, type: 'info' });
     }
   }
-  return { finalWorkflowData: currentWorkflowData, serverLogs };
+  return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
 }
 
 
@@ -611,12 +685,12 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   const serverLogs: ServerLogOutput[] = [];
   const initialWorkflowData: Record<string, any> = {}; 
 
-  console.log("[ENGINE] Starting workflow execution for", workflow.nodes.length, "nodes.");
-  serverLogs.push({ message: `[ENGINE] Workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
+  console.log("[ENGINE] Starting MAIN workflow execution for", workflow.nodes.length, "nodes.");
+  serverLogs.push({ message: `[ENGINE] MAIN workflow execution started with ${workflow.nodes.length} nodes.`, type: 'info' });
 
-  const result = await executeFlowInternal(workflow.nodes, workflow.connections, initialWorkflowData, serverLogs);
+  const result = await executeFlowInternal("main", workflow.nodes, workflow.connections, initialWorkflowData, serverLogs);
   
-  console.log("[ENGINE] Workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
-  result.serverLogs.push({ message: "[ENGINE] Workflow execution finished.", type: 'info' }); 
+  console.log("[ENGINE] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
+  result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
