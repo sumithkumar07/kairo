@@ -49,9 +49,6 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
       const envVarName = pathParts.slice(1).join('.');
       const envVarValue = process.env[envVarName];
       if (envVarValue !== undefined) {
-        const successMsg = `[ENGINE] Resolved placeholder '{{env.${envVarName}}}' from environment.`;
-        // console.log(successMsg); // Can be too verbose
-        // serverLogs.push({ message: successMsg, type: 'info' }); 
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
         if (placeholder === value) { 
             resolvedValue = envVarValue;
@@ -112,7 +109,7 @@ function resolveValue(value: any, workflowData: Record<string, any>, serverLogs:
     }
     
     if (found) {
-      if (placeholder === value && typeof dataAtPath !== 'string') { 
+      if (placeholder === value && typeof dataAtPath !== 'string' && typeof dataAtPath !== 'number' && typeof dataAtPath !== 'boolean' && dataAtPath !== null) { 
         resolvedValue = dataAtPath; 
       } else { 
         const replacementValue = (typeof dataAtPath === 'string' || typeof dataAtPath === 'number' || typeof dataAtPath === 'boolean' || dataAtPath === null) 
@@ -297,7 +294,6 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
 
       if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
         const conditionValue = resolvedConfig._flow_run_condition;
-        // Explicitly check for boolean false or string "false"
         if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
           serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
           console.log(`[ENGINE] Node ${node.id} SKIPPED due to _flow_run_condition: ${conditionValue}`);
@@ -308,20 +304,20 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
       }
 
 
-      let nodeOutput: any = null; 
+      let nodeOutput: any = { status: 'success' }; // Default to success, individual nodes can override
 
       switch (node.type) {
         case 'trigger': 
         case 'schedule': 
           serverLogs.push({ message: `[NODE ${node.type.toUpperCase()}] ${nodeIdentifier}: Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
-          nodeOutput = { status: "simulated_trigger_activated", details: resolvedConfig, triggeredAt: new Date().toISOString() };
+          nodeOutput = { ...nodeOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
           break;
 
         case 'logMessage':
           const messageToLog = resolvedConfig?.message || `Default log message from ${nodeIdentifier}`;
           console.log(`[WORKFLOW LOG] ${nodeIdentifier}: ${messageToLog}`); 
           serverLogs.push({ message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${messageToLog}`, type: 'info' });
-          nodeOutput = { output: messageToLog };
+          nodeOutput = { ...nodeOutput, output: messageToLog };
           break;
 
         case 'httpRequest':
@@ -365,7 +361,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           } catch (e) {
              parsedResponse = responseText; 
           }
-          nodeOutput = { response: parsedResponse, status_code: response.status };
+          nodeOutput = { ...nodeOutput, response: parsedResponse, status_code: response.status };
           break;
 
         case 'aiTask':
@@ -383,7 +379,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           const aiResponseTextContent = genkitResponse.text; 
           
           serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
-          nodeOutput = { output: aiResponseTextContent }; 
+          nodeOutput = { ...nodeOutput, output: aiResponseTextContent }; 
           break;
 
         case 'parseJson':
@@ -452,7 +448,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             }
           }
           serverLogs.push({ message: `[NODE PARSEJSON] ${nodeIdentifier}: Extracted value (first 200 chars): ${JSON.stringify(extractedValue).substring(0,200)}`, type: 'success' });
-          nodeOutput = { output: extractedValue }; 
+          nodeOutput = { ...nodeOutput, output: extractedValue }; 
           break;
 
         case 'conditionalLogic':
@@ -502,12 +498,12 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                         case '!==': evaluationResult = val1 !== val2; break;
                         case '==':  evaluationResult = val1 == val2; break; 
                         case '!=':  evaluationResult = val1 != val2; break; 
-                        case '<':   evaluationResult = (typeof val1 === typeof val2) && val1 < val2; break;
-                        case '>':   evaluationResult = (typeof val1 === typeof val2) && val1 > val2; break;
-                        case '<=':  evaluationResult = (typeof val1 === typeof val2) && val1 <= val2; break;
-                        case '>=':  evaluationResult = (typeof val1 === typeof val2) && val1 >= val2; break;
+                        case '<':   evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 < val2; break;
+                        case '>':   evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 > val2; break;
+                        case '<=':  evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 <= val2; break;
+                        case '>=':  evaluationResult = (typeof val1 === typeof val2 || (typeof val1 === 'number' && typeof val2 === 'number')) && val1 >= val2; break;
                     }
-                } else { // No operator, evaluate truthiness/falsiness of the resolved condition string itself
+                } else { 
                     const singleValue = parseOperand(conditionString);
                     evaluationResult = !!singleValue; 
                 }
@@ -515,7 +511,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                 throw new Error(`Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`);
             }
             serverLogs.push({ message: `[NODE CONDITIONALLOGIC] ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
-            nodeOutput = { result: evaluationResult }; // Ensure output is boolean
+            nodeOutput = { ...nodeOutput, result: evaluationResult };
             break;
         
         case 'dataTransform':
@@ -557,7 +553,7 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
                 break;
               case 'concatenateStrings':
                 let stringsToJoin = stringsToConcatenate;
-                if (typeof stringsToConcatenate === 'string') { // AI might pass a single string placeholder
+                if (typeof stringsToConcatenate === 'string') { 
                     stringsToJoin = [stringsToConcatenate];
                 }
                 if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean')) {
@@ -568,28 +564,28 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
               case 'stringSplit':
                 if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.');
                 if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.');
-                transformedData = { array: inputString.split(delimiter) }; // Output as object with 'array' key
+                transformedData = { array: inputString.split(delimiter) }; 
                 break;
               case 'arrayLength':
                 if (!Array.isArray(inputArray)) throw new Error('arrayLength requires inputArray to be an array.');
-                transformedData = { length: inputArray.length }; // Output as object with 'length' key
+                transformedData = { length: inputArray.length }; 
                 break;
               case 'getItemAtIndex':
                 if (!Array.isArray(inputArray)) throw new Error('getItemAtIndex requires inputArray to be an array.');
                 const idx = Number(index);
                 if (isNaN(idx) || idx < 0 || idx >= inputArray.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.');
-                transformedData = { item: inputArray[idx] }; // Output as object with 'item' key
+                transformedData = { item: inputArray[idx] }; 
                 break;
               case 'getObjectProperty':
                  if (typeof inputObject !== 'object' || inputObject === null) throw new Error('getObjectProperty requires inputObject to be an object.');
                  if (typeof propertyName !== 'string' || propertyName.trim() === '') throw new Error('getObjectProperty requires a non-empty propertyName string.');
-                 transformedData = { propertyValue: inputObject[propertyName] }; // Output as object with 'propertyValue' key
+                 transformedData = { propertyValue: inputObject[propertyName] }; 
                  break;
               default:
                 throw new Error(`Unsupported dataTransform type: ${transformType}`);
             }
             serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
-            nodeOutput = { output_data: transformedData }; // Ensure consistent output_data handle
+            nodeOutput = { ...nodeOutput, output_data: transformedData }; 
             break;
 
         case 'sendEmail':
@@ -619,14 +615,9 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             };
 
             serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
-            try {
-              const info = await transporter.sendMail(mailOptions);
-              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
-              nodeOutput = { status: 'success', messageId: info.messageId };
-            } catch (emailError: any) {
-              serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Failed to send email: ${emailError.message}`, type: 'error' });
-              throw new Error(`Failed to send email: ${emailError.message}`);
-            }
+            const info = await transporter.sendMail(mailOptions);
+            serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
+            nodeOutput = { ...nodeOutput, messageId: info.messageId };
             break;
             
         case 'databaseQuery':
@@ -645,13 +636,10 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
             try {
               const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []);
               serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' });
-              nodeOutput = { results: queryResult.rows, rowCount: queryResult.rowCount };
-            } catch (dbError: any) {
-              serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query failed: ${dbError.message}`, type: 'error' });
-              throw new Error(`Database query failed: ${dbError.message}`);
+              nodeOutput = { ...nodeOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
             } finally {
               client.release();
-              await pool.end(); // Ensure pool is closed after query
+              await pool.end(); 
             }
             break;
 
@@ -663,31 +651,28 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
           const simulationMessage = `[NODE ${node.type.toUpperCase()}] SIMULATE: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
           console.log(simulationMessage);
           serverLogs.push({ message: simulationMessage, type: 'info' });
-          nodeOutput = { status: "simulated_execution", simulated_config: resolvedConfig };
+          nodeOutput = { ...nodeOutput, simulated_config: resolvedConfig };
           break;
           
         default:
           const defaultMessage = `[ENGINE] Node type '${node.type}' for node ${nodeIdentifier} is not specifically handled for execution. Config: ${JSON.stringify(resolvedConfig, null, 2)}`;
           console.log(defaultMessage);
-          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized. Skipped.`, type: 'info' });
-          nodeOutput = { output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
+          serverLogs.push({ message: `[ENGINE] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized.`, type: 'info' });
+          nodeOutput = { ...nodeOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
           break;
       }
       
-      if (nodeOutput !== null && nodeOutput !== undefined) {
-        workflowData[node.id] = nodeOutput; 
-        console.log(`[ENGINE] Node ${node.id} output stored (first 500 chars):`, JSON.stringify(workflowData[node.id], null, 2).substring(0, 500));
-        serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier} output stored.`, type: 'info' });
-      }
+      workflowData[node.id] = nodeOutput; 
+      console.log(`[ENGINE] Node ${node.id} output stored (first 500 chars):`, JSON.stringify(workflowData[node.id], null, 2).substring(0, 500));
       serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier} processed successfully.`, type: 'success' });
 
     } catch (error: any) {
       const errorDetails = error.message ? error.message : 'Unknown error during node execution.';
       console.error(`[ENGINE] Error executing node ${nodeIdentifier}:`, errorDetails, error.stack);
       serverLogs.push({ message: `[ENGINE] Error executing node ${nodeIdentifier}: ${errorDetails}`, type: 'error' });
-      workflowData[node.id] = { error: errorDetails, status: 'error' }; 
-      serverLogs.push({ message: `[ENGINE] Workflow execution HALTED due to error in node ${nodeIdentifier}.`, type: 'error' });
-      return serverLogs; 
+      workflowData[node.id] = { status: 'error', error_message: errorDetails }; 
+      // Workflow continues to the next node, error is recorded in workflowData.
+      serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier} FAILED. Continuing to next node if any.`, type: 'info' });
     }
   }
 
