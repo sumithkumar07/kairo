@@ -83,6 +83,7 @@ function resolveValue(
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
         if (placeholder === value) resolvedValue = envVarValue; 
         dataFound = true; 
+        serverLogs.push({ message: `[ENGINE] Resolved '{{env.${envVarName}}}' from environment.`, type: 'info' });
         continue; 
       } else {
         const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
@@ -91,11 +92,16 @@ function resolveValue(
       }
     }
     
-    // 3. Check secrets (conceptual)
-    if (!dataFound && firstPart === 'secrets' && pathParts.length >= 2) {
+    // 3. Check conceptual secrets (vault)
+    if (!dataFound && firstPart === 'secret' && pathParts.length >= 2) {
         const secretName = pathParts.slice(1).join('.');
-        const infoMsg = `[ENGINE] Placeholder '{{secrets.${secretName}}}' recognized. Actual secret resolution from a vault is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in .env.local.`;
-        console.info(infoMsg); serverLogs.push({ message: infoMsg, type: 'info'});
+        const infoMsg = `[ENGINE] Placeholder '{{secret.${secretName}}}' encountered. In a production environment, this would be resolved from a secure secrets vault. Actual vault integration is not yet implemented. Placeholder remains unresolved. For local development, consider using '{{env.${secretName}}}' and defining it in a .env.local file.`;
+        console.info(infoMsg); 
+        serverLogs.push({ message: infoMsg, type: 'info'});
+        // dataFound is intentionally false here, so it falls through to workflowData or remains unresolved.
+        // If you wanted it to resolve to undefined explicitly when not found in a vault:
+        // resolvedValue = resolvedValue.replace(placeholder, 'undefined'); // or undefined if direct replacement
+        // dataFound = true; 
         continue; 
     }
 
@@ -518,7 +524,7 @@ async function executeFlowInternal(
 
           case 'conditionalLogic':
               const conditionString = resolvedConfig.condition; 
-              const conditionEvalResult = evaluateCondition(conditionString, nodeIdentifier, serverLogs);
+              const conditionEvalResult = evaluateCondition(String(conditionString), nodeIdentifier, serverLogs); // Ensure conditionString is string
               currentAttemptOutput = { ...currentAttemptOutput, result: conditionEvalResult };
               break;
           
@@ -529,7 +535,7 @@ async function executeFlowInternal(
                 case 'toUpperCase': if (typeof inputString !== 'string') throw new Error('toUpperCase requires inputString to be a string.'); transformedData = inputString.toUpperCase(); break;
                 case 'toLowerCase': if (typeof inputString !== 'string') throw new Error('toLowerCase requires inputString to be a string.'); transformedData = inputString.toLowerCase(); break;
                 case 'extractFields': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('extractFields requires inputObject to be an object.'); if (!Array.isArray(fieldsToExtract) || !fieldsToExtract.every(f => typeof f === 'string')) throw new Error('extractFields requires fieldsToExtract to be an array of strings.'); transformedData = {}; for (const field of fieldsToExtract) if (inputObject.hasOwnProperty(field)) (transformedData as Record<string, any>)[field] = inputObject[field]; break;
-                case 'concatenateStrings': let stringsToJoin = stringsToConcatenate; if (typeof stringsToConcatenate === 'string') stringsToJoin = [stringsToConcatenate]; if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean' || s === null || s === undefined)) throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, booleans, nulls or undefineds.'); transformedData = stringsToJoin.map(String).join(separator || ''); break;
+                case 'concatenateStrings': let stringsToJoin = stringsToConcatenate; if (typeof stringsToConcatenate === 'string') stringsToJoin = [stringsToConcatenate]; if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean' || s === null || s === undefined)) throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, booleans, nulls or undefineds.'); transformedData = stringsToJoin.map(s => String(s ?? '')).join(separator || ''); break;
                 case 'stringSplit': if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.'); if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.'); transformedData = { array: inputString.split(delimiter) }; break;
                 case 'arrayLength': if (!Array.isArray(inputArray)) throw new Error('arrayLength requires inputArray to be an array.'); transformedData = { length: inputArray.length }; break;
                 case 'getItemAtIndex': if (!Array.isArray(inputArray)) throw new Error('getItemAtIndex requires inputArray to be an array.'); const idx = Number(index); if (isNaN(idx) || idx < 0 || idx >= inputArray.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.'); transformedData = { item: inputArray[idx] }; break;
@@ -560,14 +566,14 @@ async function executeFlowInternal(
               const client = await pool.connect();
               serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
               try { const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
-              } finally { client.release(); await pool.end(); }
+              } finally { client.release(); await pool.end().catch(err => console.error('[ENGINE] Error ending DB pool:', err)); } // Ensure pool ends
               break;
 
           case 'executeFlowGroup':
               const { flowGroupNodes: groupNodesStr, flowGroupConnections: groupConnectionsStr, inputMapping, outputMapping } = resolvedConfig;
               let groupNodes: WorkflowNode[] = []; let groupConnections: WorkflowConnection[] = [];
-              try { groupNodes = typeof groupNodesStr === 'string' ? JSON.parse(groupNodesStr) : groupNodesStr; if (!Array.isArray(groupNodes)) throw new Error();} catch (e) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for flowGroupNodes.`); }
-              try { groupConnections = typeof groupConnectionsStr === 'string' ? JSON.parse(groupConnectionsStr) : groupConnectionsStr; if (!Array.isArray(groupConnections)) throw new Error();} catch (e) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for flowGroupConnections.`); }
+              try { groupNodes = typeof groupNodesStr === 'string' ? JSON.parse(groupNodesStr) : groupNodesStr; if (!Array.isArray(groupNodes)) throw new Error("flowGroupNodes must be an array.");} catch (e:any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for flowGroupNodes. Error: ${e.message}`); }
+              try { groupConnections = typeof groupConnectionsStr === 'string' ? JSON.parse(groupConnectionsStr) : groupConnectionsStr; if (!Array.isArray(groupConnections)) throw new Error("flowGroupConnections must be an array.");} catch (e:any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for flowGroupConnections. Error: ${e.message}`); }
 
               const subWorkflowInitialData: Record<string, any> = {};
               if (inputMapping && typeof inputMapping === 'object') {
@@ -616,8 +622,8 @@ async function executeFlowInternal(
             if (!Array.isArray(resolvedArray)) throw new Error(`Node ${nodeIdentifier}: 'inputArrayPath' ("${inputArrayPath}") did not resolve to an array. Resolved to: ${JSON.stringify(resolvedArray)}`);
 
             let iterNodes: WorkflowNode[] = []; let iterConns: WorkflowConnection[] = [];
-            try { iterNodes = typeof iterNodesStr === 'string' ? JSON.parse(iterNodesStr) : iterNodesStr; if(!Array.isArray(iterNodes)) throw new Error(); } catch(e){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationNodes.`); }
-            try { iterConns = typeof iterConnsStr === 'string' ? JSON.parse(iterConnsStr) : iterConnsStr; if(!Array.isArray(iterConns)) throw new Error(); } catch(e){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationConnections.`); }
+            try { iterNodes = typeof iterNodesStr === 'string' ? JSON.parse(iterNodesStr) : iterNodesStr; if(!Array.isArray(iterNodes)) throw new Error("iterationNodes must be an array."); } catch(e:any){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationNodes. Error: ${e.message}`); }
+            try { iterConns = typeof iterConnsStr === 'string' ? JSON.parse(iterConnsStr) : iterConnsStr; if(!Array.isArray(iterConns)) throw new Error("iterationConnections must be an array."); } catch(e:any){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for iterationConnections. Error: ${e.message}`); }
 
             const iterationResultsCollected: any[] = [];
             serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Starting iteration over ${resolvedArray.length} items.`, type: 'info' });
@@ -663,8 +669,8 @@ async function executeFlowInternal(
             if (!whileConditionStr) throw new Error(`Node ${nodeIdentifier}: 'condition' is required for whileLoop.`);
             
             let whileLoopNodes: WorkflowNode[] = []; let whileLoopConns: WorkflowConnection[] = [];
-            try { whileLoopNodes = typeof whileLoopNodesStr === 'string' ? JSON.parse(whileLoopNodesStr) : whileLoopNodesStr; if(!Array.isArray(whileLoopNodes)) throw new Error(); } catch(e){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for loopNodes.`); }
-            try { whileLoopConns = typeof whileLoopConnsStr === 'string' ? JSON.parse(whileLoopConnsStr) : whileLoopConnsStr; if(!Array.isArray(whileLoopConns)) throw new Error(); } catch(e){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for loopConnections.`); }
+            try { whileLoopNodes = typeof whileLoopNodesStr === 'string' ? JSON.parse(whileLoopNodesStr) : whileLoopNodesStr; if(!Array.isArray(whileLoopNodes)) throw new Error("loopNodes must be an array."); } catch(e:any){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for loopNodes. Error: ${e.message}`); }
+            try { whileLoopConns = typeof whileLoopConnsStr === 'string' ? JSON.parse(whileLoopConnsStr) : whileLoopConnsStr; if(!Array.isArray(whileLoopConns)) throw new Error("loopConnections must be an array."); } catch(e:any){ throw new Error(`Node ${nodeIdentifier}: Invalid JSON or non-array for loopConnections. Error: ${e.message}`); }
 
             let iterationsCompleted = 0;
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Starting while loop. Max iterations: ${maxIterations}.`, type: 'info' });
@@ -697,6 +703,8 @@ async function executeFlowInternal(
                     currentAttemptOutput = { status: 'error', error_message: iterErrorMessage, iterations_completed: iterationsCompleted };
                     throw new Error(iterErrorMessage); 
                 }
+                currentWorkflowData = {...currentWorkflowData, ...loopIterationResult.finalWorkflowData}; // Persist changes from loop iteration to main data scope
+                lastNodeOutput = loopIterationResult.lastNodeOutput; // Update lastNodeOutput from the loop
                 iterationsCompleted++;
             }
 
@@ -718,7 +726,7 @@ async function executeFlowInternal(
             try {
                 parsedBranches = typeof branchesStr === 'string' ? JSON.parse(branchesStr) : branchesStr;
                 if (!Array.isArray(parsedBranches) || !parsedBranches.every(b => b.id && Array.isArray(b.nodes) && Array.isArray(b.connections))) {
-                    throw new Error("Branches configuration must be an array of valid BranchConfig objects.");
+                    throw new Error("Branches configuration must be an array of valid BranchConfig objects (id, nodes, connections are required).");
                 }
             } catch (e:any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or structure for branches configuration: ${e.message}`); }
 
@@ -761,26 +769,31 @@ async function executeFlowInternal(
                 }
 
                 serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution SUCCEEDED. Output (first 100 chars): ${JSON.stringify(branchOutputValue).substring(0,100)}`, type: 'success'});
-                return { id: branch.id, status: 'fulfilled', value: branchOutputValue };
+                return { id: branch.id, status: 'fulfilled', value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
             });
 
-            const allBranchResults = await Promise.allSettled(branchPromises.map(p => p.catch(e => ({ status: 'rejected', reason: e.message, id: 'unknown_branch_error' }))));
+            const allSettledResults = await Promise.allSettled(branchPromises.map(p => p.catch(e => ({ status: 'rejected', reason: e.message, id: 'unknown_branch_error' }))));
             
             const aggregatedResults: Record<string, {status: string, value?: any, reason?: any}> = {};
             let allBranchesSucceeded = true;
             let someBranchesSucceeded = false;
 
-            allBranchResults.forEach((settledResult, index) => {
-                const branchId = parsedBranches[index]?.id || `branch_${index}`; // Fallback id
+            allSettledResults.forEach((settledResult, index) => {
+                const defaultBranchId = parsedBranches[index]?.id || `branch_${index}`; 
                 if (settledResult.status === 'fulfilled') {
-                    const branchOutcome = settledResult.value as { id: string; status: 'fulfilled' | 'rejected'; value?: any; reason?: any };
-                    aggregatedResults[branchOutcome.id || branchId] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
-                    if(branchOutcome.status === 'fulfilled') someBranchesSucceeded = true;
-                    else allBranchesSucceeded = false;
-
+                    const branchOutcome = settledResult.value as { id: string; status: 'fulfilled' | 'rejected'; value?: any; reason?: any, branchData?: Record<string,any>};
+                    const branchIdToUse = branchOutcome.id || defaultBranchId;
+                    aggregatedResults[branchIdToUse] = { status: branchOutcome.status, value: branchOutcome.value, reason: branchOutcome.reason };
+                    if(branchOutcome.status === 'fulfilled') {
+                        someBranchesSucceeded = true;
+                        // Merge successful branch data back into currentWorkflowData, namespaced by branch ID
+                        currentWorkflowData[branchIdToUse] = branchOutcome.branchData || {}; 
+                    } else {
+                        allBranchesSucceeded = false;
+                    }
                 } else { // settledResult.status === 'rejected'
                     allBranchesSucceeded = false;
-                    aggregatedResults[branchId] = { status: 'rejected', reason: settledResult.reason };
+                    aggregatedResults[defaultBranchId] = { status: 'rejected', reason: settledResult.reason };
                 }
             });
             
@@ -792,19 +805,16 @@ async function executeFlowInternal(
             if (overallStatus !== 'success') {
                  const firstError = Object.values(aggregatedResults).find(r => r.status === 'rejected');
                  currentAttemptOutput.error_message = `One or more parallel branches failed. First error: ${firstError?.reason || 'Unknown parallel branch error.'}`;
-                 if (overallStatus === 'error') { // Only throw if all critical paths might have failed
+                 if (overallStatus === 'error' && attempt < maxAttempts) { // Only throw if all attempts failed and status is error
                     serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches failed or critical branches failed. Error: ${currentAttemptOutput.error_message}`, type: 'error' });
-                    // Do not throw here to allow retry on the parallel node itself
+                     throw new Error(currentAttemptOutput.error_message);
                  } else {
                     serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Some branches failed. Status: partial_success. Details: ${currentAttemptOutput.error_message}`, type: 'info' });
                  }
             } else {
                 serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches completed successfully.`, type: 'success' });
             }
-            if (overallStatus === 'error' && attempt < maxAttempts) throw new Error(currentAttemptOutput.error_message); // Only throw if all attempts failed and status is error
-
             break;
-
 
           case 'youtubeFetchTrending':
           case 'youtubeDownloadVideo':
@@ -913,3 +923,4 @@ export async function executeWorkflow(workflow: Workflow): Promise<ServerLogOutp
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+
