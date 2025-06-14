@@ -546,16 +546,15 @@ async function executeFlowInternal(
           case 'httpRequest':
             if (isSimulationMode) {
               serverLogs.push({ message: `[NODE HTTPREQUEST] SIMULATION: Node ${nodeIdentifier}: Would make ${resolvedConfig.method || 'GET'} request to ${resolvedConfig.url}`, type: 'info' });
-              let simResponseData: any = { message: "Simulated HTTP success" }; // Default body if none provided
-              const simStatusCode = resolvedConfig.simulatedStatusCode || 200; // Default to 200 if not specified
+              let simResponseData: any = { message: "Simulated HTTP success" }; 
+              const simStatusCode = resolvedConfig.simulatedStatusCode || 200; 
 
-              if (resolvedConfig.simulatedResponse) { // This is purely for the body
+              if (resolvedConfig.simulatedResponse) { 
                 try {
                   simResponseData = typeof resolvedConfig.simulatedResponse === 'string' 
                                       ? JSON.parse(resolvedConfig.simulatedResponse) 
                                       : resolvedConfig.simulatedResponse;
                 } catch (e: any) {
-                  // If parsing fails, assume it's a non-JSON string body
                   if (typeof resolvedConfig.simulatedResponse === 'string') {
                     simResponseData = resolvedConfig.simulatedResponse;
                   } else {
@@ -566,10 +565,10 @@ async function executeFlowInternal(
               
               currentAttemptOutput = { ...currentAttemptOutput, response: simResponseData, status_code: simStatusCode };
               
-              if (simStatusCode < 200 || simStatusCode >= 300) { // Check for error status
+              if (simStatusCode < 200 || simStatusCode >= 300) { 
                 const simError = new Error(`Simulated HTTP error for node ${nodeIdentifier} with status ${simStatusCode}`);
                 (simError as any).statusCode = simStatusCode;
-                throw simError; // This will trigger retry logic if configured for this status code
+                throw simError; 
               }
             } else {
               const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
@@ -683,7 +682,7 @@ async function executeFlowInternal(
                   let resolvedInitialValue = initialValue;
                   if (typeof initialValue === 'string' && initialValue.startsWith("{{") && initialValue.endsWith("}}")) {
                      resolvedInitialValue = resolveValue(initialValue, currentWorkflowData, serverLogs, additionalContexts);
-                  } else if (initialValue !== undefined && reducerFunction === 'sum' || reducerFunction === 'average') {
+                  } else if (initialValue !== undefined && (reducerFunction === 'sum' || reducerFunction === 'average')) {
                      resolvedInitialValue = parseFloat(initialValue);
                      if(isNaN(resolvedInitialValue)) resolvedInitialValue = undefined; 
                   }
@@ -693,20 +692,29 @@ async function executeFlowInternal(
                     case 'sum':
                       transformedData = arrToReduce.reduce((acc, val) => {
                         const numVal = parseFloat(String(val));
-                        if (isNaN(numVal)) throw new Error('Sum reducer encountered a non-numeric value in array.');
+                        if (isNaN(numVal)) { 
+                            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Sum reducer encountered a non-numeric value: '${val}'. Skipping.`, type: 'info'});
+                            return acc;
+                        }
                         return acc + numVal;
                       }, typeof resolvedInitialValue === 'number' ? resolvedInitialValue : 0);
                       break;
                     case 'average':
-                      if (arrToReduce.length === 0) {
+                      let sumForAvg = 0;
+                      let countForAvg = 0;
+                      arrToReduce.forEach(val => {
+                        const numVal = parseFloat(String(val));
+                        if (!isNaN(numVal)) {
+                            sumForAvg += numVal;
+                            countForAvg++;
+                        } else {
+                            serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Average reducer encountered a non-numeric value: '${val}'. Skipping.`, type: 'info'});
+                        }
+                      });
+                      if (countForAvg === 0) {
                         transformedData = (typeof resolvedInitialValue === 'number' && !isNaN(resolvedInitialValue)) ? resolvedInitialValue : 0; 
                       } else {
-                        const sum = arrToReduce.reduce((acc, val) => {
-                          const numVal = parseFloat(String(val));
-                          if (isNaN(numVal)) throw new Error('Average reducer encountered a non-numeric value in array.');
-                          return acc + numVal;
-                        }, 0);
-                        transformedData = sum / arrToReduce.length;
+                        transformedData = sumForAvg / countForAvg;
                       }
                       break;
                     case 'join':
@@ -1299,6 +1307,7 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
+
 
 
 

@@ -20,7 +20,7 @@ const GENERIC_ON_ERROR_WEBHOOK_SCHEMA = {
     label: 'On-Error Webhook (JSON, Optional)',
     type: 'json',
     placeholder: '{\n  "url": "https://my-error-logger.com/log",\n  "method": "POST",\n  "headers": {"X-API-Key": "{{env.ERROR_API_KEY}}"},\n  "bodyTemplate": {\n    "nodeId": "{{failed_node_id}}",\n    "nodeName": "{{failed_node_name}}",\n    "errorMessage": "{{error_message}}",\n    "timestamp": "{{timestamp}}",\n    "workflowDataSnapshot": "{{workflow_data_snapshot_json}}"\n  }\n}',
-    helperText: 'If node fails after retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR}}.',
+    helperText: 'If node fails after retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR}}. This is a fire-and-forget notification. It can be used for simple alerts or to send error details to an endpoint that acts as a Dead-Letter Queue (DLQ) processor or triggers a dedicated error-handling workflow. The `workflow_data_snapshot_json` payload is crucial for DLQ scenarios as it provides the complete context for later analysis or reprocessing.',
     defaultValue: undefined as (OnErrorWebhookConfig | undefined)
   }
 };
@@ -73,7 +73,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         body: '', 
         retry: {}, 
         onErrorWebhook: undefined, 
-        simulatedResponse: '{"message": "Simulated HTTP success"}', // Body only
+        simulatedResponse: '{"message": "Simulated HTTP success"}',
         simulatedStatusCode: 200 
     },
     configSchema: {
@@ -416,7 +416,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"' },
       inputMapping: { label: 'Input Mapping (JSON)', type: 'json', placeholder: '{\n  "targetWorkflowInputName": "{{currentWorkflow.someNode.output}}"\n}', helperText: 'Map data from this workflow to the inputs of the called workflow.' },
       outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow (from its simulatedOutput, via {{calledWorkflow.property}} placeholders) back to this node\'s output handle.' },
-      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "result": "mock data", "details": {"status":"ok"}\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow. This is the source for {{calledWorkflow.property}} placeholders in outputMapping.' },
+      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "result": "mock data", "details": {"status":"ok"}\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow. This JSON object is the direct data source that `outputMapping` placeholders (like `{{calledWorkflow.some_key}}`) will reference.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -617,9 +617,11 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'reducearray': 'dataTransform',
   'reduce array': 'dataTransform',
   'sum array': 'dataTransform',
+  'aggregate array': 'dataTransform',
   'average array': 'dataTransform',
-  'join array': 'dataTransform',
-  'count occurrences in array': 'dataTransform',
+  'join list': 'dataTransform',
+  'count items': 'dataTransform',
+
 
   // AI
   'aitask': 'aiTask',
@@ -723,12 +725,14 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
     case 'extractFields':
       return Milestone; 
     case 'concatenateStrings':
-    case 'reduceArray': 
       return Combine;
+    case 'reduceArray':
+      return Sigma;
     default:
       return FunctionSquare;
   }
 }
+
 
 
 
