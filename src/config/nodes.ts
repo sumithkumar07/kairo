@@ -34,7 +34,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'trigger',
     defaultConfig: { event: 'manualStart' },
     configSchema: {
-      event: { label: 'Event Type', type: 'string', defaultValue: 'manualStart', placeholder: 'e.g., manual, webhook' },
+      event: { label: 'Event Type', type: 'string', defaultValue: 'manualStart', placeholder: 'e.g., manual, webhook', required: true },
     },
     outputHandles: ['output'],
   },
@@ -52,11 +52,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       simulatedFileEvent: '{"eventType": "create", "filePath": "/uploads/new_report.csv", "fileName": "new_report.csv"}'
     },
     configSchema: {
-      directoryPath: { label: 'Directory Path', type: 'string', placeholder: '/mnt/shared_drive/input_files or {{env.WATCH_FOLDER}}' },
-      eventTypes: { label: 'Event Types (JSON Array)', type: 'json', placeholder: '["create", "modify", "delete"]', helperText: 'e.g., create, modify, delete.' },
+      directoryPath: { label: 'Directory Path', type: 'string', placeholder: '/mnt/shared_drive/input_files or {{env.WATCH_FOLDER}}', required: true },
+      eventTypes: { label: 'Event Types (JSON Array)', type: 'json', placeholder: '["create", "modify", "delete"]', helperText: 'e.g., create, modify, delete.', required: true },
       fileNamePattern: { label: 'File Name Pattern (Glob, Optional)', type: 'string', placeholder: '*.txt, report-*.csv' },
       pollingIntervalSeconds: { label: 'Polling Interval (seconds, Conceptual)', type: 'number', defaultValue: 60, helperText: 'Conceptual interval for checking for new files.' },
-      simulatedFileEvent: { label: 'Simulated File Event (JSON)', type: 'json', placeholder: '{"eventType": "create", "filePath": "/sim/data.txt", "fileName":"data.txt"}', helperText: 'JSON data representing the file event this trigger will output during simulation.'}
+      simulatedFileEvent: { label: 'Simulated File Event (JSON)', type: 'json', placeholder: '{"eventType": "create", "filePath": "/sim/data.txt", "fileName":"data.txt"}', helperText: 'JSON data representing the file event this trigger will output during simulation.', required: true }
     },
     outputHandles: ['fileEvent', 'status', 'error_message'],
   },
@@ -77,12 +77,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         simulatedStatusCode: 200 
     },
     configSchema: {
-      url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data' },
+      url: { label: 'URL', type: 'string', placeholder: 'https://api.example.com/data', required: true },
       method: { 
         label: 'Method', 
         type: 'select', 
         options: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         defaultValue: 'GET',
+        required: true,
       },
       headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
@@ -102,7 +103,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'trigger',
     defaultConfig: { cron: '0 * * * *' }, 
     configSchema: {
-      cron: { label: 'Cron Expression', type: 'string', defaultValue: '0 * * * *', placeholder: 'e.g., 0 9 * * MON' },
+      cron: { label: 'Cron Expression', type: 'string', defaultValue: '0 * * * *', placeholder: 'e.g., 0 9 * * MON', required: true },
     },
     outputHandles: ['triggered_at'],
   },
@@ -114,9 +115,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'action',
     defaultConfig: { to: '', subject: '', body: '', retry: {}, onErrorWebhook: undefined, simulatedMessageId: 'simulated-email-id-123' },
     configSchema: {
-      to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}' },
-      subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}' },
-      body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}' },
+      to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}', required: true },
+      subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}', required: true },
+      body: { label: 'Body (HTML or Text)', type: 'textarea', placeholder: 'Details: {{input.details}}', required: true },
       simulatedMessageId: { label: 'Simulated Message ID (String for Simulation Mode)', type: 'string', defaultValue: 'simulated-email-id-123', helperText: 'Message ID returned by this node when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
@@ -132,7 +133,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'io',
     defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {}, onErrorWebhook: undefined, simulatedResults: '[]', simulatedRowCount: 0 },
     configSchema: {
-      queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;' },
+      queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;', required: true },
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
       simulatedResults: { label: 'Simulated Results (JSON Array for Simulation Mode)', type: 'json', placeholder: '[{"column1": "mock_data", "column2": 123}]', helperText: 'Results array returned by this node when in simulation mode.' },
       simulatedRowCount: { label: 'Simulated Row Count (Number for Simulation Mode)', type: 'number', defaultValue: 0, helperText: 'Row count returned by this node when in simulation mode. If simulatedResults is provided, this will be its length unless explicitly set.' },
@@ -150,7 +151,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'logic',
     defaultConfig: { jsonString: '', path: '' },
     configSchema: {
-      jsonString: { label: 'JSON Input (e.g. {{prev_node.response}})', type: 'textarea', placeholder: '{{previous_node.response}}' },
+      jsonString: { label: 'JSON Input (e.g. {{prev_node.response}})', type: 'textarea', placeholder: '{{previous_node.response}}', required: true },
       path: { label: 'Extraction Path (e.g. $.data.items[0].name)', type: 'string', placeholder: '$.data.items[0].name' },
     },
     inputHandles: ['input'],
@@ -164,7 +165,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'io',
     defaultConfig: { message: 'Workflow log: ' },
     configSchema: {
-      message: { label: 'Message to Log', type: 'textarea', placeholder: 'Current value: {{data.value}}' },
+      message: { label: 'Message to Log', type: 'textarea', placeholder: 'Current value: {{data.value}}', required: true },
     },
     inputHandles: ['input'],
     outputHandles: ['output'],
@@ -177,8 +178,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'ai',
     defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {}, onErrorWebhook: undefined, simulatedOutput: 'This is a simulated AI response.' },
     configSchema: {
-      prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}' },
-      model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest' },
+      prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}', required: true },
+      model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest', required: true },
       simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response.', helperText: 'Text output from the AI model when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
@@ -194,7 +195,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'logic',
     defaultConfig: { condition: '' },
     configSchema: {
-        condition: { label: 'Condition string (e.g., {{data.value}} == "success", {{data.count}} > 10, {{data.isValid}} === true)', type: 'string', placeholder: '{{data.temperature}} > 30' },
+        condition: { label: 'Condition string (e.g., {{data.value}} == "success", {{data.count}} > 10, {{data.isValid}} === true)', type: 'string', placeholder: '{{data.temperature}} > 30', required: true },
     },
     inputHandles: ['input'],
     outputHandles: ['result'],
@@ -236,17 +237,18 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
             {value: 'getObjectProperty', label: 'Get Property From Object'},
             {value: 'reduceArray', label: 'Reduce Array (Sum, Avg, Join, Count)'},
           ],
-          defaultValue: 'toUpperCase'
+          defaultValue: 'toUpperCase',
+          required: true,
         },
-        inputString: { label: 'Input String (for case, split, concat)', type: 'textarea', placeholder: '{{input.text}}' },
-        inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'json', placeholder: '{{input.data}}' },
-        inputArrayPath: { label: 'Input Array Path (for length, getItem, reduce)', type: 'string', placeholder: '{{input.list_data}}' },
-        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' },
-        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' },
+        inputString: { label: 'Input String (for case, split, concat)', type: 'textarea', placeholder: '{{input.text}}' }, // Conditionally required
+        inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'json', placeholder: '{{input.data}}' }, // Conditionally required
+        inputArrayPath: { label: 'Input Array Path (for length, getItem, reduce)', type: 'string', placeholder: '{{input.list_data}}' }, // Conditionally required
+        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' }, // Conditionally required
+        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' }, // Conditionally required
         separator: { label: 'Separator (for concatenateStrings, or reduceArray with "join")', type: 'string', placeholder: '(empty for direct join)' },
-        delimiter: { label: 'Delimiter (for stringSplit)', type: 'string', placeholder: ',' },
-        index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' },
-        propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' },
+        delimiter: { label: 'Delimiter (for stringSplit)', type: 'string', placeholder: ',' }, // Conditionally required
+        index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' }, // Conditionally required
+        propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' }, // Conditionally required
         reducerFunction: {
           label: 'Reducer Function (for reduceArray)',
           type: 'select',
@@ -257,7 +259,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
             { value: 'countOccurrences', label: 'Count Occurrences (any type)' },
           ],
           defaultValue: 'sum',
-          helperText: 'Select if transformType is "Reduce Array".',
+          helperText: 'Select if transformType is "Reduce Array".', // Conditionally required
         },
         initialValue: { label: 'Initial Value (for reduceArray, Optional)', type: 'string', placeholder: '0 for sum, "" for join', helperText: 'Starting value for reduction. Type should match array elements or expected output.' },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -281,7 +283,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       onErrorWebhook: undefined,
     },
     configSchema: {
-      flowGroupNodes: { label: 'Flow Group Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"sub_node_1", \n  "type":"logMessage", \n  "name":"Log in Group", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Message from sub-flow {{inputMapping.dataFromParent}}"}\n}]', helperText: 'Define the nodes for this group.' },
+      flowGroupNodes: { label: 'Flow Group Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"sub_node_1", \n  "type":"logMessage", \n  "name":"Log in Group", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Message from sub-flow {{inputMapping.dataFromParent}}"}\n}]', helperText: 'Define the nodes for this group.', required: true },
       flowGroupConnections: { label: 'Flow Group Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[{\n  "sourceNodeId":"sub_node_1", \n  "targetNodeId":"sub_node_2", \n  "sourceHandle":"output"\n}]', helperText: 'Define connections between nodes in this group.' },
       inputMapping: { label: 'Input Mapping (JSON Object)', type: 'json', placeholder: '{\n  "internalInputName": "{{parentWorkflow.someNode.output}}",\n  "dataFromParent": "{{trigger.some_data}}"\n}', helperText: 'Map parent data to group inputs. Access mapped inputs inside group nodes using their "internalInputName".' },
       outputMapping: { label: 'Output Mapping (JSON Object)', type: 'json', placeholder: '{\n  "parentOutputName": "{{group_node_id.result}}"\n}', helperText: 'Map group results to parent outputs. This node will output these mapped values.' },
@@ -307,8 +309,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       onErrorWebhook: undefined,
     },
     configSchema: {
-      inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.' },
-      iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.' },
+      inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.', required: true },
+      iterationNodes: { label: 'Iteration Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_log", \n  "type":"logMessage", \n  "name":"Log Item", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Processing item: {{item.name}}"}\n}]', helperText: 'Nodes to execute for each item. Use {{item.property}} to access current item data.', required: true },
       iterationConnections: { label: 'Iteration Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the iteration sub-flow.' },
       iterationResultSource: { label: 'Iteration Result Source (Optional Placeholder)', type: 'string', placeholder: '{{last_node_in_subflow.output}}', helperText: 'Placeholder to extract a specific value from each iteration\'s data. If omitted, the entire output of the last executed node in each sub-flow iteration is collected.' },
       continueOnError: { label: 'Continue On Error', type: 'boolean', defaultValue: false, helperText: 'If true, loop continues if an iteration errors; results will show individual statuses.'},
@@ -333,8 +335,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       onErrorWebhook: undefined,
     },
     configSchema: {
-      condition: { label: 'Loop Condition (evaluates to boolean)', type: 'string', placeholder: '{{data.status}} === "pending" || {{counter.value}} < 10', helperText: 'The loop continues as long as this condition is true. Evaluated before each iteration.' },
-      loopNodes: { label: 'Loop Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_action", \n  "type":"httpRequest", \n  ...\n}]', helperText: 'Nodes to execute in each iteration. These nodes should eventually affect the loop condition.' },
+      condition: { label: 'Loop Condition (evaluates to boolean)', type: 'string', placeholder: '{{data.status}} === "pending" || {{counter.value}} < 10', helperText: 'The loop continues as long as this condition is true. Evaluated before each iteration.', required: true },
+      loopNodes: { label: 'Loop Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"loop_action", \n  "type":"httpRequest", \n  ...\n}]', helperText: 'Nodes to execute in each iteration. These nodes should eventually affect the loop condition.', required: true },
       loopConnections: { label: 'Loop Connections (JSON Array of Connection definitions)', type: 'json', placeholder: '[]', helperText: 'Connections between nodes within the loop sub-flow.' },
       maxIterations: { label: 'Max Iterations (Optional, Default 100)', type: 'number', defaultValue: 100, placeholder: '100', helperText: 'Safety limit to prevent infinite loops.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -360,7 +362,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         label: 'Branches (JSON Array of Branch definitions)', 
         type: 'json', 
         placeholder: '[{\n  "id": "branch_1",\n  "name": "Image Processing",\n  "nodes": [{"id":"img_op_1", "type":"aiTask", ...}],\n  "connections": [],\n  "inputMapping": {"img_data": "{{parent.image_url}}"},\n  "outputSource": "{{img_op_1.processed_image_url}}"\n}]',
-        helperText: 'Define branches to run in parallel. Each branch has id, nodes, connections, optional inputMapping, and optional outputSource.'
+        helperText: 'Define branches to run in parallel. Each branch has id, nodes, connections, optional inputMapping, and optional outputSource.',
+        required: true,
       },
       concurrencyLimit: {
         label: 'Concurrency Limit (Optional)',
@@ -389,9 +392,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       onErrorWebhook: undefined,
     },
     configSchema: {
-      instructions: { label: 'User Instructions', type: 'textarea', placeholder: 'Describe what the user needs to do.' },
-      inputFieldsSchema: { label: 'Input Fields Schema (JSON Array)', type: 'json', placeholder: '[{"id":"field_id","label":"Field Label","type":"text"}]', helperText: 'Define the form fields for user input (id, label, type: text/textarea/number/boolean/select, options[] for select).' },
-      simulatedResponse: { label: 'Simulated Response (JSON)', type: 'json', placeholder: '{"field_id":"simulated_value"}', helperText: 'Data this node will output during simulation. This JSON object, when parsed, becomes the value available on the node\'s \'output\' handle and should be consistent with the structure defined by inputFieldsSchema.' },
+      instructions: { label: 'User Instructions', type: 'textarea', placeholder: 'Describe what the user needs to do.', required: true },
+      inputFieldsSchema: { label: 'Input Fields Schema (JSON Array)', type: 'json', placeholder: '[{"id":"field_id","label":"Field Label","type":"text"}]', helperText: 'Define the form fields for user input (id, label, type: text/textarea/number/boolean/select, options[] for select).', required: true },
+      simulatedResponse: { label: 'Simulated Response (JSON)', type: 'json', placeholder: '{"field_id":"simulated_value"}', helperText: 'Data this node will output during simulation. This JSON object, when parsed, becomes the value available on the node\'s \'output\' handle and should be consistent with the structure defined by inputFieldsSchema.', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -413,10 +416,10 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       onErrorWebhook: undefined,
     },
     configSchema: {
-      calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"' },
+      calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"', required: true },
       inputMapping: { label: 'Input Mapping (JSON)', type: 'json', placeholder: '{\n  "targetWorkflowInputName": "{{currentWorkflow.someNode.output}}"\n}', helperText: 'Map data from this workflow to the inputs of the called workflow.' },
       outputMapping: { label: 'Output Mapping (JSON)', type: 'json', placeholder: '{\n  "currentWorkflowOutputName": "{{calledWorkflow.result}}"\n}', helperText: 'Map outputs from the called workflow (from its simulatedOutput, via {{calledWorkflow.property}} placeholders) back to this node\'s output handle.' },
-      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "result": "mock data", "details": {"status":"ok"}\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow. This JSON object is the direct data source that `outputMapping` placeholders (like `{{calledWorkflow.some_key}}`) will reference.' },
+      simulatedOutput: { label: 'Simulated Output (JSON for called workflow)', type: 'json', placeholder: '{\n  "result": "mock data", "details": {"status":"ok"}\n}', helperText: 'Data this node will output to simulate the called workflow\'s execution. Structure this as if it were the entire output object of the called workflow. This JSON object is the direct data source that `outputMapping` placeholders (like `{{calledWorkflow.some_key}}`) will reference.', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -431,10 +434,10 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'action', 
     defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined, simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
     configSchema: {
-      region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.' },
-      maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos' },
-      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment."},
-      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"videos": [{"id":"vid1", "title":"Mock Video"}]}', helperText: 'Data returned by this node when in simulation mode.'},
+      region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.', required: true },
+      maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos', required: true },
+      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment.", required: true},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"videos": [{"id":"vid1", "title":"Mock Video"}]}', helperText: 'Data returned by this node when in simulation mode.', required: true},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -449,9 +452,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'action',
     defaultConfig: { videoUrl: '', quality: 'best', retry: {}, onErrorWebhook: undefined, simulated_config: { filePath: '/simulated/path/to/video.mp4'} },
     configSchema: {
-      videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}' },
-      quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best' },
-      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"filePath": "/sim/video.mp4"}', helperText: 'Data returned by this node when in simulation mode.'},
+      videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}', required: true },
+      quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best', required: true },
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"filePath": "/sim/video.mp4"}', helperText: 'Data returned by this node when in simulation mode.', required: true},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -466,10 +469,10 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'action',
     defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {}, onErrorWebhook: undefined, simulated_config: { shortFilePath: '/simulated/path/to/short.mp4' } },
     configSchema: {
-      inputFile: { label: 'Input Video File Path', type: 'string', placeholder: '{{download_node.filePath}}' },
-      duration: { label: 'Short Duration (seconds)', type: 'number', defaultValue: 60 },
-      strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut'},
-      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"shortFilePath": "/sim/short.mp4"}', helperText: 'Data returned by this node when in simulation mode.'},
+      inputFile: { label: 'Input Video File Path', type: 'string', placeholder: '{{download_node.filePath}}', required: true },
+      duration: { label: 'Short Duration (seconds)', type: 'number', defaultValue: 60, required: true },
+      strategy: { label: 'Conversion Strategy', type: 'select', options: ['center_cut', 'first_segment', 'ai_highlights'], defaultValue: 'center_cut', required: true},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"shortFilePath": "/sim/short.mp4"}', helperText: 'Data returned by this node when in simulation mode.', required: true},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -484,13 +487,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'action',
     defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {}, onErrorWebhook: undefined, simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
     configSchema: {
-      filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}' },
-      title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short' },
+      filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}', required: true },
+      title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short', required: true },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
-      privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public'},
-      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secret.YOUTUBE_OAUTH_TOKEN}}', helperText: "Use {{secret.YOUTUBE_OAUTH_TOKEN}} or {{env.YOUTUBE_OAUTH_TOKEN}}."},
-      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"uploadStatus": "success", "videoId": "sim_yt_id"}', helperText: 'Data returned by this node when in simulation mode.'},
+      privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public', required: true},
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secret.YOUTUBE_OAUTH_TOKEN}}', helperText: "Use {{secret.YOUTUBE_OAUTH_TOKEN}} or {{env.YOUTUBE_OAUTH_TOKEN}}.", required: true},
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"uploadStatus": "success", "videoId": "sim_yt_id"}', helperText: 'Data returned by this node when in simulation mode.', required: true},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -505,7 +508,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'action', 
     defaultConfig: { task_description: '', parameters: {}, retry: {}, onErrorWebhook: undefined, simulated_config: {message: "Simulated custom action output"} },
     configSchema: {
-      task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do'},
+      task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do', required: true},
       parameters: { label: 'Parameters (JSON)', type: 'textarea', placeholder: '{\n  "custom_param": "value"\n}'},
       simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"result": "mock_custom_result"}', helperText: 'Data returned by this node when in simulation mode, if its logic is not directly executable.'},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -732,6 +735,7 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
 
 

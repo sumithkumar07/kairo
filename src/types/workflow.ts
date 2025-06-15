@@ -63,6 +63,7 @@ export interface ConfigFieldSchema {
   placeholder?: string;
   defaultValue?: any;
   helperText?: string;
+  required?: boolean; // Added
 }
 
 export interface BranchConfig {

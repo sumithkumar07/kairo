@@ -4,7 +4,7 @@
 import type { WorkflowNode, AvailableNodeType } from '@/types/workflow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import { NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 
 interface WorkflowNodeItemProps {
@@ -17,6 +17,33 @@ interface WorkflowNodeItemProps {
   isConnecting: boolean;
 }
 
+function isNodeConfigComplete(node: WorkflowNode, nodeType?: AvailableNodeType): boolean {
+  if (!nodeType || !nodeType.configSchema) {
+    return true; // No schema, or no specific fields to check, assume complete or not applicable
+  }
+
+  for (const [key, schemaEntry] of Object.entries(nodeType.configSchema)) {
+    if (schemaEntry.required) {
+      const value = node.config[key];
+      if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+        // Allow defaultValue to satisfy requirement if current value is exactly the default empty-like value
+        if (schemaEntry.defaultValue === value || (schemaEntry.defaultValue === undefined && value === '')) {
+           // If default is also empty/undefined, and current value is empty/undefined, it's incomplete
+        } else if (schemaEntry.defaultValue !== undefined && value !== schemaEntry.defaultValue) {
+            // If there's a non-empty default and value is empty, it might be okay if default is considered 'filled'
+            // This logic can be tricky. For now, simple check: if required and empty string/null/undefined, it's incomplete.
+        }
+         // Simplified: if required and current value is undefined, null, or empty string, it's incomplete.
+         if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
+            return false;
+         }
+      }
+    }
+  }
+  return true;
+}
+
+
 export function WorkflowNodeItem({
   node,
   nodeType,
@@ -27,6 +54,7 @@ export function WorkflowNodeItem({
   isConnecting,
 }: WorkflowNodeItemProps) {
   const IconComponent = nodeType?.icon || GripVertical; 
+  const configComplete = isNodeConfigComplete(node, nodeType);
 
   const getHandleAbsolutePosition = (handleId: string, isOutput: boolean): { x: number, y: number } => {
     const handles = isOutput ? nodeType?.outputHandles : nodeType?.inputHandles;
@@ -43,11 +71,10 @@ export function WorkflowNodeItem({
       id={`node-${node.id}`}
       draggable
       onDragStart={(e) => {
-        if (isConnecting) e.preventDefault(); // Prevent dragging node while connecting
+        if (isConnecting) e.preventDefault(); 
         else onDragStartInternal(e, node.id);
       }}
       onClick={(e) => {
-        // Prevent node selection if a handle was clicked
         if ((e.target as HTMLElement).closest('[data-handle-id]')) return;
         onClick(node.id);
       }}
@@ -56,6 +83,8 @@ export function WorkflowNodeItem({
         'flex flex-col overflow-hidden',
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border',
+        !configComplete && !isSelected && 'ring-yellow-500/70 border-yellow-500/70', // Warning style if not selected but incomplete
+        !configComplete && isSelected && 'ring-yellow-500 ring-offset-yellow-200' // Stronger warning if selected and incomplete
       )}
       style={{
         left: node.position.x,
@@ -69,6 +98,9 @@ export function WorkflowNodeItem({
         <CardTitle className="text-xs font-medium truncate flex-grow" title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
+        {!configComplete && (
+          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" title="Configuration incomplete" />
+        )}
       </CardHeader>
       <CardContent className="p-2 text-xs text-muted-foreground flex-grow overflow-hidden relative">
         <p className="truncate" title={node.type}>Type: {node.type}</p>
@@ -89,7 +121,7 @@ export function WorkflowNodeItem({
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Input: ${handleId}`}
               onClick={(e) => {
-                e.stopPropagation(); // Prevent card click
+                e.stopPropagation(); 
                 if (isConnecting) {
                   onHandleClick(node.id, handleId, 'input', getHandleAbsolutePosition(handleId, false));
                 }
@@ -114,7 +146,7 @@ export function WorkflowNodeItem({
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Output: ${handleId}`}
               onClick={(e) => {
-                e.stopPropagation(); // Prevent card click
+                e.stopPropagation(); 
                 if (!isConnecting) {
                   onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true));
                 }
@@ -126,3 +158,4 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+
