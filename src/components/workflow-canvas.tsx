@@ -32,6 +32,7 @@ interface WorkflowCanvasProps {
   isPanningForCursor: boolean; 
   connectionStartNodeId: string | null; 
   connectionStartHandleId: string | null; 
+  zoomLevel: number;
 }
 
 export function WorkflowCanvas({
@@ -54,6 +55,7 @@ export function WorkflowCanvas({
   isPanningForCursor, 
   connectionStartNodeId,
   connectionStartHandleId,
+  zoomLevel,
 }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingNodeOffset, setDraggingNodeOffset] = useState<{ x: number, y: number } | null>(null);
@@ -74,11 +76,11 @@ export function WorkflowCanvas({
       const canvasRect = canvasRef.current.getBoundingClientRect();
       
       onUpdateConnectionPreview({
-        x: event.clientX - canvasRect.left + canvasRef.current.scrollLeft - canvasOffset.x,
-        y: event.clientY - canvasRect.top + canvasRef.current.scrollTop - canvasOffset.y,
+        x: (event.clientX - canvasRect.left + canvasRef.current.scrollLeft) / zoomLevel - canvasOffset.x,
+        y: (event.clientY - canvasRect.top + canvasRef.current.scrollTop) / zoomLevel - canvasOffset.y,
       });
     }
-  }, [isConnecting, onUpdateConnectionPreview, connectionPreview, canvasOffset.x, canvasOffset.y]);
+  }, [isConnecting, onUpdateConnectionPreview, connectionPreview, canvasOffset.x, canvasOffset.y, zoomLevel]);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -87,12 +89,10 @@ export function WorkflowCanvas({
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const scrollLeft = canvasRef.current.scrollLeft;
     const scrollTop = canvasRef.current.scrollTop;
-
     
-    let dropXView = event.clientX - canvasRect.left + scrollLeft;
-    let dropYView = event.clientY - canvasRect.top + scrollTop;
+    let dropXView = (event.clientX - canvasRect.left + scrollLeft) / zoomLevel;
+    let dropYView = (event.clientY - canvasRect.top + scrollTop) / zoomLevel;
 
-    
     const dropXContent = dropXView - canvasOffset.x;
     const dropYContent = dropYView - canvasOffset.y;
 
@@ -101,7 +101,7 @@ export function WorkflowCanvas({
 
     if (draggedNodeData) { 
       const nodeType = JSON.parse(draggedNodeData) as AvailableNodeType;
-      const finalX = dropXContent - (NODE_WIDTH / 2);
+      const finalX = dropXContent - (NODE_WIDTH / 2); // Center the node on drop
       const finalY = dropYContent - (NODE_HEIGHT / 2);
       onCanvasDrop(nodeType, { x: Math.max(0, finalX), y: Math.max(0, finalY) });
     } else if (draggedNodeId && draggingNodeOffset) { 
@@ -111,7 +111,7 @@ export function WorkflowCanvas({
     }
     setDraggingNodeOffset(null);
     event.dataTransfer.clearData();
-  }, [onCanvasDrop, onNodeDragStop, draggingNodeOffset, canvasOffset]);
+  }, [onCanvasDrop, onNodeDragStop, draggingNodeOffset, canvasOffset, zoomLevel]);
 
   const handleNodeDragStartInternal = useCallback((event: React.DragEvent<HTMLDivElement>, nodeId: string) => {
     event.dataTransfer.setData('application/nodeId', nodeId);
@@ -119,17 +119,21 @@ export function WorkflowCanvas({
     
     const nodeElement = document.getElementById(`node-${nodeId}`);
     if (nodeElement) {
-        const nodeRect = nodeElement.getBoundingClientRect();
-        const canvasRect = canvasRef.current?.getBoundingClientRect();
+        const nodeRect = nodeElement.getBoundingClientRect(); // Screen coordinates
+        const canvasRect = canvasRef.current?.getBoundingClientRect(); // Screen coordinates
         if (canvasRect) {
-            
+            // Calculate offset relative to node's top-left, adjusted for canvas offset and zoom
+            // event.clientX/Y are screen coordinates of the mouse
+            // nodeRect.left/top are screen coordinates of the node's top-left
+            // The difference is the mouse's position *within the node element*, already scaled.
+            // We need to store this initial offset *within the node* at current zoom.
             setDraggingNodeOffset({
-                x: event.clientX - (nodeRect.left - canvasRect.left - canvasOffset.x),
-                y: event.clientY - (nodeRect.top - canvasRect.top - canvasOffset.y),
+                x: (event.clientX - nodeRect.left) / zoomLevel, 
+                y: (event.clientY - nodeRect.top) / zoomLevel,
             });
         }
     }
-  }, [canvasOffset.x, canvasOffset.y]);
+  }, [zoomLevel]); // Removed canvasOffset from dependencies as it's implicitly handled by using nodeRect
   
   const getHandlePosition = (node: WorkflowNode, handleId: string, isOutput: boolean): { x: number, y: number } => {
     const nodeTypeConfig = getNodeTypeConfig(node.type);
@@ -143,7 +147,6 @@ export function WorkflowCanvas({
   };
 
   const handleLocalCanvasMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    
     const targetIsCanvas = event.target === event.currentTarget || 
                            (event.target as HTMLElement).classList.contains('pannable-content-wrapper') ||
                            (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg'); 
@@ -152,21 +155,20 @@ export function WorkflowCanvas({
 
     if (targetIsCanvas && !clickedOnConnectionTarget) {
       if (event.button === 0) { 
-        onCanvasClick(); // Call original canvas click for deselection etc.
+        onCanvasClick(); 
         onCanvasPanStart(event); 
       }
     } else if (!targetIsCanvas && !clickedOnConnectionTarget) {
-        onCanvasClick(); // Clicks not on connections or background (i.e. on nodes or handles) should still deselect.
+        onCanvasClick(); 
     }
   };
   
   const handleMouseMoveOnCanvas = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
-      
       onUpdateConnectionPreview({
-        x: event.clientX - canvasRect.left + canvasRef.current.scrollLeft - canvasOffset.x,
-        y: event.clientY - canvasRect.top + canvasRef.current.scrollTop - canvasOffset.y,
+        x: (event.clientX - canvasRect.left + canvasRef.current.scrollLeft) / zoomLevel - canvasOffset.x,
+        y: (event.clientY - canvasRect.top + canvasRef.current.scrollTop) / zoomLevel - canvasOffset.y,
       });
     }
   };
@@ -193,7 +195,8 @@ export function WorkflowCanvas({
         <div 
           className="absolute top-0 left-0 w-full h-full pannable-content-wrapper"
           style={{ 
-            transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`,
+            transform: `translate(${canvasOffset.x * zoomLevel}px, ${canvasOffset.y * zoomLevel}px) scale(${zoomLevel})`,
+            transformOrigin: 'top left',
             minWidth: 'inherit', 
             minHeight: 'inherit',
           }}
@@ -254,7 +257,6 @@ export function WorkflowCanvas({
               onClick={onNodeClick}
               onDragStartInternal={handleNodeDragStartInternal}
               onHandleClick={(nodeId, handleId, handleType, handlePosition) => {
-                
                 const absoluteHandlePosition = {
                     x: handlePosition.x, 
                     y: handlePosition.y

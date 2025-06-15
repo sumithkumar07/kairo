@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Radio, Save, FolderOpen } from 'lucide-react';
+import { Zap, Bot, Radio, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -34,6 +34,9 @@ interface AIWorkflowBuilderPanelProps {
   isPanningForCursor: boolean; 
   connectionStartNodeId: string | null; 
   connectionStartHandleId: string | null; 
+  zoomLevel: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }
 
 export function AIWorkflowBuilderPanel({
@@ -60,6 +63,9 @@ export function AIWorkflowBuilderPanel({
   isPanningForCursor,
   connectionStartNodeId,
   connectionStartHandleId,
+  zoomLevel,
+  onZoomIn,
+  onZoomOut,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
 
@@ -71,6 +77,14 @@ export function AIWorkflowBuilderPanel({
           <p className="text-sm text-muted-foreground">Create powerful automations with natural language</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out">
+            <Minus className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground w-12 text-center">{(zoomLevel * 100).toFixed(0)}%</span>
+          <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In">
+            <Plus className="h-4 w-4" />
+          </Button>
+
           <Button variant="outline" size="sm" onClick={onLoadWorkflow}>
             <FolderOpen className="h-4 w-4 mr-2" />
             Load
@@ -116,6 +130,7 @@ export function AIWorkflowBuilderPanel({
           isPanningForCursor={isPanningForCursor}
           connectionStartNodeId={connectionStartNodeId}
           connectionStartHandleId={connectionStartHandleId}
+          zoomLevel={zoomLevel}
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -145,3 +160,4 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
+

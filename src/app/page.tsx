@@ -22,6 +22,9 @@ import { produce } from 'immer';
 import { MousePointer2, X } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'flowAIWorkflow';
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 2;
+const ZOOM_STEP = 0.1;
 
 export default function FlowAIPage() {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
@@ -47,6 +50,7 @@ export default function FlowAIPage() {
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
+  const [zoomLevel, setZoomLevel] = useState(1);
 
 
   const selectedNode = useMemo(() => {
@@ -86,11 +90,11 @@ export default function FlowAIPage() {
 
   const handleSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
-      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset };
+      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
     }
-  }, [nodes, connections, toast, canvasOffset]);
+  }, [nodes, connections, toast, canvasOffset, zoomLevel]);
 
   const handleLoadWorkflow = useCallback((showToast = true) => {
     if (typeof window !== 'undefined') {
@@ -101,6 +105,7 @@ export default function FlowAIPage() {
         setConnections(savedWorkflow.connections || []);
         nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
         setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
+        setZoomLevel(savedWorkflow.zoomLevel || 1);
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setExecutionLogs([]);
@@ -206,8 +211,8 @@ export default function FlowAIPage() {
   useEffect(() => {
     const handleGlobalMouseMove = (event: MouseEvent) => {
       if (!isPanning) return;
-      const deltaX = event.clientX - panStartRef.current.x;
-      const deltaY = event.clientY - panStartRef.current.y;
+      const deltaX = (event.clientX - panStartRef.current.x) / zoomLevel; // Adjust for zoom
+      const deltaY = (event.clientY - panStartRef.current.y) / zoomLevel; // Adjust for zoom
       setCanvasOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
       panStartRef.current = { x: event.clientX, y: event.clientY };
     };
@@ -231,7 +236,7 @@ export default function FlowAIPage() {
         document.body.style.cursor = 'default';
       }
     };
-  }, [isPanning]);
+  }, [isPanning, zoomLevel]);
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxId = 0;
@@ -286,6 +291,7 @@ export default function FlowAIPage() {
     setSelectedConnectionId(null);
     setExecutionLogs([]);
     setCanvasOffset({ x: 0, y: 0 }); 
+    setZoomLevel(1);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast]);
 
@@ -474,6 +480,14 @@ export default function FlowAIPage() {
     return AVAILABLE_NODES_CONFIG.find(nt => nt.type === selectedNode.type);
   }, [selectedNode]);
 
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
+  }, []);
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       {isLoadingAi && (
@@ -513,6 +527,9 @@ export default function FlowAIPage() {
           isPanningForCursor={isPanning}
           connectionStartNodeId={connectionStartNodeId} 
           connectionStartHandleId={connectionStartHandleId}
+          zoomLevel={zoomLevel}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
         />
         
         {isAssistantVisible && (
@@ -570,3 +587,4 @@ export default function FlowAIPage() {
     </div>
   );
 }
+
