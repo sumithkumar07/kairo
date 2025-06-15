@@ -6,6 +6,8 @@ import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, Log
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode } from '@/app/actions'; 
+import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
+
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -129,6 +131,36 @@ export default function FlowAIPage() {
       });
       return;
     }
+
+    const validationErrors: string[] = [];
+    nodes.forEach(node => {
+      const nodeType = AVAILABLE_NODES_CONFIG.find(nt => nt.type === node.type);
+      if (!isConfigComplete(node, nodeType)) {
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has incomplete configuration.`);
+      }
+      if (isNodeDisconnected(node, connections, nodeType)) {
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) is disconnected.`);
+      }
+      if (hasUnconnectedInputs(node, connections, nodeType)) {
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has unconnected input handles.`);
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      const errorSummary = validationErrors.slice(0, 3).join('\n');
+      const fullErrorMessage = validationErrors.length > 3 
+        ? `${errorSummary}\n...and ${validationErrors.length - 3} more issues.`
+        : errorSummary;
+      toast({
+        title: 'Workflow Validation Failed',
+        description: `Please fix the following issues before running:\n${fullErrorMessage}`,
+        variant: 'destructive',
+        duration: 7000, 
+      });
+      setIsWorkflowRunning(false); 
+      return;
+    }
+
     setIsWorkflowRunning(true);
     setExecutionLogs([{ timestamp: new Date().toLocaleTimeString(), message: 'Workflow execution started...', type: 'info' }]);
     try {
@@ -211,8 +243,8 @@ export default function FlowAIPage() {
   useEffect(() => {
     const handleGlobalMouseMove = (event: MouseEvent) => {
       if (!isPanning) return;
-      const deltaX = (event.clientX - panStartRef.current.x) / zoomLevel; // Adjust for zoom
-      const deltaY = (event.clientY - panStartRef.current.y) / zoomLevel; // Adjust for zoom
+      const deltaX = (event.clientX - panStartRef.current.x) / zoomLevel; 
+      const deltaY = (event.clientY - panStartRef.current.y) / zoomLevel; 
       setCanvasOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
       panStartRef.current = { x: event.clientX, y: event.clientY };
     };
@@ -587,4 +619,3 @@ export default function FlowAIPage() {
     </div>
   );
 }
-
