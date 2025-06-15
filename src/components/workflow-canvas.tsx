@@ -119,21 +119,15 @@ export function WorkflowCanvas({
     
     const nodeElement = document.getElementById(`node-${nodeId}`);
     if (nodeElement) {
-        const nodeRect = nodeElement.getBoundingClientRect(); // Screen coordinates
-        const canvasRect = canvasRef.current?.getBoundingClientRect(); // Screen coordinates
-        if (canvasRect) {
-            // Calculate offset relative to node's top-left, adjusted for canvas offset and zoom
-            // event.clientX/Y are screen coordinates of the mouse
-            // nodeRect.left/top are screen coordinates of the node's top-left
-            // The difference is the mouse's position *within the node element*, already scaled.
-            // We need to store this initial offset *within the node* at current zoom.
+        const nodeRect = nodeElement.getBoundingClientRect(); 
+        if (canvasRef.current) {
             setDraggingNodeOffset({
                 x: (event.clientX - nodeRect.left) / zoomLevel, 
                 y: (event.clientY - nodeRect.top) / zoomLevel,
             });
         }
     }
-  }, [zoomLevel]); // Removed canvasOffset from dependencies as it's implicitly handled by using nodeRect
+  }, [zoomLevel]); 
   
   const getHandlePosition = (node: WorkflowNode, handleId: string, isOutput: boolean): { x: number, y: number } => {
     const nodeTypeConfig = getNodeTypeConfig(node.type);
@@ -226,13 +220,26 @@ export function WorkflowCanvas({
               
               const isSelected = conn.id === selectedConnectionId;
               const strokeColor = isSelected ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
-              const strokeWidth = isSelected ? 3 : 2;
+              const strokeWidth = isSelected ? 2.5 : 1.5;
               const marker = isSelected ? "url(#arrow-selected)" : "url(#arrow)";
+
+              // Calculate control points for Bezier curve
+              const c1x = sourcePos.x + Math.abs(targetPos.x - sourcePos.x) / 2;
+              const c1y = sourcePos.y;
+              const c2x = targetPos.x - Math.abs(targetPos.x - sourcePos.x) / 2;
+              const c2y = targetPos.y;
+              const pathD = `M ${sourcePos.x} ${sourcePos.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${targetPos.x} ${targetPos.y}`;
 
               return (
                 <g key={conn.id}>
-                  <line x1={sourcePos.x} y1={sourcePos.y} x2={targetPos.x} y2={targetPos.y} stroke={strokeColor} strokeWidth={strokeWidth} markerEnd={marker} />
-                  <line data-connection-click-target="true" x1={sourcePos.x} y1={sourcePos.y} x2={targetPos.x} y2={targetPos.y} stroke="transparent" strokeWidth="10" className="cursor-pointer pointer-events-stroke"
+                  <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none" markerEnd={marker} />
+                  <path 
+                    data-connection-click-target="true" 
+                    d={pathD} 
+                    stroke="transparent" 
+                    strokeWidth="10" /* Increased for easier clicking */
+                    fill="none"
+                    className="cursor-pointer pointer-events-stroke"
                     onClick={(e) => { e.stopPropagation(); onConnectionClick(conn.id); }}
                   />
                 </g>
@@ -286,4 +293,3 @@ export function WorkflowCanvas({
     </ScrollArea>
   );
 }
-
