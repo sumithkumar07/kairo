@@ -209,6 +209,9 @@ export function WorkflowCanvas({
               <marker id="arrow-selected" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--destructive))" />
               </marker>
+              <marker id="arrow-preview" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--accent))" />
+              </marker>
             </defs>
             {connections.map((conn) => {
               const sourceNode = nodes.find(n => n.id === conn.sourceNodeId);
@@ -237,6 +240,7 @@ export function WorkflowCanvas({
                 x1={previewStartPos.x} y1={previewStartPos.y}
                 x2={connectionPreview.previewPosition.x} y2={connectionPreview.previewPosition.y}
                 stroke="hsl(var(--accent))" strokeWidth="2" strokeDasharray="5,5"
+                markerEnd="url(#arrow-preview)"
               />
             )}
           </svg>
