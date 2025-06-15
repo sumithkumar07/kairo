@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle } from 'lucide-react'; 
 import { NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 interface WorkflowNodeItemProps {
@@ -42,8 +43,8 @@ export function WorkflowNodeItem({
   const unconnectedInputsCheck = nodeType?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeType);
 
   let warningMessage = "";
-  if (!configCompleteCheck) warningMessage = "Configuration incomplete.";
-  else if (disconnectedCheck) warningMessage = "Node is disconnected. Connect an input to it.";
+  if (!configCompleteCheck) warningMessage = "Configuration incomplete. Required fields are missing.";
+  else if (disconnectedCheck) warningMessage = "Node is disconnected. Connect an input to it (unless it's a trigger).";
   else if (unconnectedInputsCheck) warningMessage = "One or more input handles are not connected.";
 
   const hasWarning = !configCompleteCheck || disconnectedCheck || unconnectedInputsCheck;
@@ -72,7 +73,7 @@ export function WorkflowNodeItem({
       }}
       className={cn(
         'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
-        'flex flex-col overflow-hidden bg-card', // Ensure card bg is used
+        'flex flex-col overflow-hidden bg-card', 
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-primary/30' : 'ring-1 ring-border',
         hasWarning && !isSelected && 'ring-yellow-500/70 border-yellow-500/70', 
@@ -87,14 +88,23 @@ export function WorkflowNodeItem({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-2 space-y-0",
-        isSelected ? "bg-primary/20" : "bg-card-foreground/5" // Darker header for dark mode
+        isSelected ? "bg-primary/20" : "bg-card-foreground/5" 
       )}>
         <IconComponent className="h-4 w-4 text-primary shrink-0" />
         <CardTitle className="text-xs font-medium truncate flex-grow text-foreground" title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
         {hasWarning && (
-          <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" title={warningMessage} />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{warningMessage}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </CardHeader>
       <CardContent className="p-2 text-xs text-muted-foreground flex-grow overflow-hidden relative">
@@ -107,26 +117,33 @@ export function WorkflowNodeItem({
           const isSelfInputDuringConnect = isConnecting && node.id === connectionStartNodeId;
 
           return (
-            <div 
-              key={`in-${node.id}-${handleId}`}
-              data-handle-id={handleId}
-              data-handle-type="input"
-              className={cn(
-                "absolute -left-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
-                isPotentialTarget 
-                  ? "bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
-                  : (isSelfInputDuringConnect ? "bg-muted opacity-50 cursor-not-allowed" : "bg-primary cursor-default"),
-                 isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-50 cursor-not-allowed" 
-              )}
-              style={{ top: `${yOffsetPercentage}%` }}
-              title={`Input: ${handleId}`}
-              onClick={(e) => {
-                e.stopPropagation(); 
-                if (isPotentialTarget) { 
-                  onHandleClick(node.id, handleId, 'input', getHandleAbsolutePosition(handleId, false));
-                }
-              }}
-            />
+            <TooltipProvider key={`in-tp-${node.id}-${handleId}`} delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    data-handle-id={handleId}
+                    data-handle-type="input"
+                    className={cn(
+                      "absolute -left-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      isPotentialTarget 
+                        ? "bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
+                        : (isSelfInputDuringConnect ? "bg-muted opacity-50 cursor-not-allowed" : "bg-primary cursor-default"),
+                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-50 cursor-not-allowed" 
+                    )}
+                    style={{ top: `${yOffsetPercentage}%` }}
+                    onClick={(e) => {
+                      e.stopPropagation(); 
+                      if (isPotentialTarget) { 
+                        onHandleClick(node.id, handleId, 'input', getHandleAbsolutePosition(handleId, false));
+                      }
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>Input: {handleId}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         })}
 
@@ -136,27 +153,34 @@ export function WorkflowNodeItem({
            const isActiveSource = isConnecting && node.id === connectionStartNodeId && handleId === connectionStartHandleId;
            const isOtherNodeOutputDuringConnect = isConnecting && node.id !== connectionStartNodeId;
           return (
-            <div
-              key={`out-${node.id}-${handleId}`}
-              data-handle-id={handleId}
-              data-handle-type="output"
-              className={cn(
-                "absolute -right-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
-                isActiveSource 
-                  ? "bg-orange-500 scale-110 cursor-grabbing" 
-                  : "bg-accent", // Using accent color for output handles
-                !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-accent/70" : "cursor-default",
-                isOtherNodeOutputDuringConnect && "opacity-50 cursor-not-allowed" 
-              )}
-              style={{ top: `${yOffsetPercentage}%` }}
-              title={`Output: ${handleId}`}
-              onClick={(e) => {
-                e.stopPropagation(); 
-                if (!isConnecting) {
-                  onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true));
-                }
-              }}
-            />
+            <TooltipProvider key={`out-tp-${node.id}-${handleId}`} delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    data-handle-id={handleId}
+                    data-handle-type="output"
+                    className={cn(
+                      "absolute -right-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      isActiveSource 
+                        ? "bg-orange-500 scale-110 cursor-grabbing" 
+                        : "bg-accent", 
+                      !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-accent/70" : "cursor-default",
+                      isOtherNodeOutputDuringConnect && "opacity-50 cursor-not-allowed" 
+                    )}
+                    style={{ top: `${yOffsetPercentage}%` }}
+                    onClick={(e) => {
+                      e.stopPropagation(); 
+                      if (!isConnecting) {
+                        onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true));
+                      }
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Output: {handleId}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         })}
       </CardContent>
