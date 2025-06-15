@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2 } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -213,7 +213,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     defaultConfig: { 
       transformType: 'toUpperCase', 
       inputString: '', 
-      inputObject: '{}', // Default to empty JSON string for object type
+      inputObject: '{}', 
       inputArrayPath: '', 
       fieldsToExtract: '[]', 
       stringsToConcatenate: '[]', 
@@ -270,8 +270,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         ...GENERIC_RETRY_CONFIG_SCHEMA,
         ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
-    inputHandles: ['input_data'], // Generic input for data
-    outputHandles: ['output_data', 'status', 'error_message'], // output_data structure depends on transformType
+    inputHandles: ['input_data'], 
+    outputHandles: ['output_data', 'status', 'error_message'], 
   },
   {
     type: 'executeFlowGroup',
@@ -430,6 +430,19 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
+    type: 'delay',
+    name: 'Delay',
+    icon: Timer,
+    description: 'Pauses workflow execution for a specified duration in milliseconds.',
+    category: 'control',
+    defaultConfig: { delayMs: 1000 },
+    configSchema: {
+      delayMs: { label: 'Delay (milliseconds)', type: 'number', defaultValue: 1000, required: true, placeholder: 'e.g., 5000 for 5 seconds', helperText: 'The duration for which the workflow will pause.' },
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output'],
   },
   {
     type: 'youtubeFetchTrending',
@@ -630,7 +643,6 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'join list': 'dataTransform',
   'count items': 'dataTransform',
 
-
   // AI
   'aitask': 'aiTask',
   'ai task': 'aiTask',
@@ -655,7 +667,6 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'invoke workflow': 'callExternalWorkflow',
   'run another workflow': 'callExternalWorkflow',
 
-
   // Iteration
   'foreach': 'forEach',
   'for each': 'forEach',
@@ -673,6 +684,10 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'fork': 'parallel',
   'fan out': 'parallel',
   'run in parallel': 'parallel',
+  'delay': 'delay',
+  'wait': 'delay',
+  'pause': 'delay',
+  'sleep': 'delay',
 
   // Interaction
   'manualinput': 'manualInput',
@@ -740,10 +755,3 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
-
-
-
-
-
-
-

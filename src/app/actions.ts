@@ -1287,6 +1287,17 @@ async function executeFlowInternal(
             }
             break;
 
+          case 'delay':
+            const delayMs = parseInt(String(resolvedConfig.delayMs), 10);
+            if (isNaN(delayMs) || delayMs < 0) {
+              throw new Error(`Node ${nodeIdentifier}: Invalid or missing 'delayMs' configuration. Must be a non-negative number.`);
+            }
+            serverLogs.push({ message: `[NODE DELAY] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`, type: 'info' });
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            serverLogs.push({ message: `[NODE DELAY] ${nodeIdentifier}: Delay finished after ${delayMs}ms.`, type: 'success' });
+            currentAttemptOutput = { ...currentAttemptOutput, output: { delayedFor: delayMs } };
+            break;
+
           case 'youtubeFetchTrending':
           case 'youtubeDownloadVideo':
           case 'videoConvertToShorts':
@@ -1410,4 +1421,3 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 }
 
     
-
