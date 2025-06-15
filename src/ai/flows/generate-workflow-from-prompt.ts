@@ -11,7 +11,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import type { RetryConfig, BranchConfig, OnErrorWebhookConfig } from '@/types/workflow'; // Import RetryConfig type
 
 // Define the schema for a node in the workflow.
@@ -222,6 +222,7 @@ const generateWorkflowFromPromptFlow = ai.defineFlow(
     
 
     
+
 
 
 
