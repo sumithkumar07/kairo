@@ -4,10 +4,16 @@
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge'; 
+import { useMemo } from 'react';
 
 interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
 }
+
+// Helper function to capitalize first letter
+const capitalizeFirstLetter = (string: string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+};
 
 export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeType: AvailableNodeType) => {
@@ -18,15 +24,15 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
   const getCategoryBadgeVariant = (category: AvailableNodeType['category']) => {
     switch (category) {
       case 'trigger':
-        return 'default'; // Will use primary color
+        return 'default'; 
       case 'action':
         return 'secondary'; 
       case 'io':
-        return 'outline'; // Will use foreground text color against card bg
+        return 'outline'; 
       case 'logic':
-        return 'destructive'; // Will use destructive color
+        return 'destructive';
       case 'ai':
-        return 'default'; // Can also use primary, or a specific "ai" variant if defined
+        return 'default'; 
       case 'group':
       case 'iteration':
       case 'control':
@@ -37,6 +43,20 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
     }
   };
 
+  const groupedNodes = useMemo(() => {
+    return availableNodes.reduce((acc, node) => {
+      const category = node.category || 'unknown';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(node);
+      return acc;
+    }, {} as Record<string, AvailableNodeType[]>);
+  }, [availableNodes]);
+
+  const categoryOrder: AvailableNodeType['category'][] = ['trigger', 'action', 'io', 'logic', 'ai', 'group', 'iteration', 'control', 'interaction', 'unknown'];
+
+
   return (
     <aside className="w-72 border-r bg-card h-full flex flex-col shadow-md">
       <div className="p-4 border-b">
@@ -44,31 +64,44 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
         <p className="text-sm text-muted-foreground">Drag nodes to build your workflow</p>
       </div>
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-2">
-          {availableNodes.map((nodeType) => (
-            <div
-              key={nodeType.type}
-              draggable
-              onDragStart={(e) => handleDragStart(e, nodeType)}
-              className="p-3 border rounded-lg hover:shadow-lg cursor-grab bg-background hover:bg-muted/50 transition-all flex flex-col gap-1.5"
-              title={nodeType.description || nodeType.name}
-            >
-              <div className="flex items-center gap-2">
-                <nodeType.icon className="h-5 w-5 text-primary shrink-0" />
-                <span className="text-sm font-semibold text-foreground">{nodeType.name}</span>
+        <div className="p-3 space-y-3">
+          {categoryOrder.map(categoryKey => {
+            const nodesInCategory = groupedNodes[categoryKey];
+            if (!nodesInCategory || nodesInCategory.length === 0) {
+              return null;
+            }
+            return (
+              <div key={categoryKey} className="space-y-2">
+                <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider px-1 pt-2">
+                  {capitalizeFirstLetter(categoryKey)}
+                </h3>
+                {nodesInCategory.map((nodeType) => (
+                  <div
+                    key={nodeType.type}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, nodeType)}
+                    className="p-3 border rounded-lg hover:shadow-lg cursor-grab bg-background hover:bg-muted/50 transition-all flex flex-col gap-1.5"
+                    title={nodeType.description || nodeType.name}
+                  >
+                    <div className="flex items-center gap-2">
+                      <nodeType.icon className="h-5 w-5 text-primary shrink-0" />
+                      <span className="text-sm font-semibold text-foreground">{nodeType.name}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{nodeType.description}</p>
+                    {/* Badge can be removed if category is already clear from heading, or kept for consistency */}
+                    {/* <Badge 
+                      variant={getCategoryBadgeVariant(nodeType.category)} 
+                      className="mt-1 capitalize text-xs self-start px-2 py-0.5"
+                    >
+                      {nodeType.category}
+                    </Badge> */}
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{nodeType.description}</p>
-              <Badge 
-                variant={getCategoryBadgeVariant(nodeType.category)} 
-                className="mt-1 capitalize text-xs self-start px-2 py-0.5"
-              >
-                {nodeType.category}
-              </Badge>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </ScrollArea>
     </aside>
   );
 }
-
