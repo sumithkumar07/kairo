@@ -209,11 +209,11 @@ function resolveNodeConfig(
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = value; 
+        resolvedConfig[key] = value; // Resolve retry sub-fields later or assume they are direct values/placeholders. For now, keep as is.
         continue;
       }
       if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
-         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts);
+         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); // Resolve webhook sub-fields
         continue;
       }
       if (typeof value === 'string') {
@@ -551,14 +551,16 @@ async function executeFlowInternal(
     const initialDelayMs = retryConfig?.delayMs || 0;
     const backoffFactor = retryConfig?.backoffFactor || 1; 
     const retryOnStatusCodes: number[] | undefined = retryConfig?.retryOnStatusCodes;
-    const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords?.map(k => k.toLowerCase());
+    const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords?.map(k => String(k).toLowerCase());
     const onErrorWebhookConfig: OnErrorWebhookConfig | undefined = resolvedConfig.onErrorWebhook;
 
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         let currentAttemptOutput: any = { status: 'success' }; 
-        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Attempt ${attempt}/${maxAttempts} starting...`, type: 'info' });
+        if (maxAttempts > 1) {
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Attempt ${attempt}/${maxAttempts} starting...`, type: 'info' });
+        }
 
         switch (node.type) {
           case 'trigger': 
@@ -1327,7 +1329,7 @@ async function executeFlowInternal(
         break; 
       
       } catch (error: any) { 
-        const errorDetails = error.message ? error.message : 'Unknown error during node execution.';
+        const errorDetails = error.message ? String(error.message) : 'Unknown error during node execution.';
         let statusCode: number | undefined;
         if (node.type === 'httpRequest' && error.statusCode) { 
             statusCode = error.statusCode;
@@ -1350,7 +1352,7 @@ async function executeFlowInternal(
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
           
           if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
-            handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
+            await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
           }
           break; 
         }
@@ -1360,10 +1362,16 @@ async function executeFlowInternal(
           shouldRetryThisError = false;
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
         }
-        if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0 && !retryOnErrorKeywords.some(keyword => errorDetails.toLowerCase().includes(keyword))) {
-          shouldRetryThisError = false;
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
+        if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0) {
+          const lowerErrorDetails = errorDetails.toLowerCase();
+          if (!retryOnErrorKeywords.some(keyword => lowerErrorDetails.includes(keyword))) {
+            shouldRetryThisError = false;
+            serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
+          } else {
+            serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message matched retry keyword. Will retry.`, type: 'info' });
+          }
         }
+
 
         if (!shouldRetryThisError) {
           finalNodeOutput = { status: 'error', error_message: errorDetails };
@@ -1373,12 +1381,19 @@ async function executeFlowInternal(
           }
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
            if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
-             handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
+             await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
            }
           break; 
         }
+        
+        // Calculate delay for the current attempt (which is the next attempt after a failure)
+        // The first attempt (attempt=1) has no preceding delay.
+        // If attempt 1 fails, attempt=2 is the first retry. Delay applies before attempt 2.
+        let delay = 0;
+        if (attempt > 0) { // Delay only applies for retries (attempt > 1 in the loop)
+            delay = (initialDelayMs || 0) * Math.pow(backoffFactor || 1, attempt -1); 
+        }
 
-        const delay = (initialDelayMs || 0) * Math.pow(backoffFactor || 1, attempt - 1);
         if (delay > 0) {
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
           await new Promise(resolve => setTimeout(resolve, delay));

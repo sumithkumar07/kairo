@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { WorkflowNode, AvailableNodeType, ConfigFieldSchema } from '@/types/workflow';
+import type { WorkflowNode, AvailableNodeType, ConfigFieldSchema, RetryConfig } from '@/types/workflow';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -13,10 +13,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React from 'react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 interface NodeConfigPanelProps {
@@ -43,30 +44,40 @@ export function NodeConfigPanel({
   onAddSuggestedNode
 }: NodeConfigPanelProps) {
   
-  const handleInputChange = (fieldKey: string, value: any) => {
-    if (nodeType?.configSchema?.[fieldKey]?.type === 'json') {
+  const handleInputChange = (fieldKey: string, value: any, isRetryField = false) => {
+    const updatePath = isRetryField ? ['config', 'retry', fieldKey] : ['config', fieldKey];
+    
+    let valueToSet = value;
+    const schema = isRetryField ? null : nodeType?.configSchema?.[fieldKey];
+
+    if (schema?.type === 'json') {
         try {
-            const parsedValue = JSON.parse(value);
-            const newConfig = produce(node.config, draftConfig => {
-              draftConfig[fieldKey] = parsedValue;
-            });
-            onConfigChange(node.id, newConfig);
-            return;
+            valueToSet = JSON.parse(value);
         } catch (e) {
-            const newConfig = produce(node.config, draftConfig => {
-              draftConfig[fieldKey] = value; 
-            });
-            onConfigChange(node.id, newConfig);
+            // Keep as string if JSON is invalid, console warn handled by caller
             console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Storing as string. Error:`, e);
-            return; 
         }
     }
-
+    
     const newConfig = produce(node.config, draftConfig => {
-      draftConfig[fieldKey] = value;
+      if (isRetryField) {
+        if (!draftConfig.retry) draftConfig.retry = {};
+        (draftConfig.retry as Record<string, any>)[fieldKey] = valueToSet;
+        // Clean up empty retry fields
+        if (valueToSet === undefined || valueToSet === null || valueToSet === '') {
+           delete (draftConfig.retry as Record<string, any>)[fieldKey];
+        }
+        if (Object.keys(draftConfig.retry).length === 0) {
+          delete draftConfig.retry;
+        }
+
+      } else {
+        draftConfig[fieldKey] = valueToSet;
+      }
     });
     onConfigChange(node.id, newConfig);
   };
+
 
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
@@ -164,6 +175,31 @@ export function NodeConfigPanel({
     };
   }, [node.config, node.aiExplanation]);
 
+  const currentRetryConfig: RetryConfig = node.config.retry || {};
+
+  const handleRetryConfigChange = (field: keyof RetryConfig, value: any) => {
+    let processedValue = value;
+    if (field === 'attempts' || field === 'delayMs' || field === 'backoffFactor') {
+      processedValue = value === '' ? undefined : parseInt(value, 10);
+      if (isNaN(processedValue as number)) processedValue = undefined;
+    } else if (field === 'retryOnStatusCodes') {
+      processedValue = value.trim() === '' ? undefined : value.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n));
+    } else if (field === 'retryOnErrorKeywords') {
+      processedValue = value.trim() === '' ? undefined : value.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    handleInputChange(field, processedValue, true);
+  };
+
+  const toggleRetryConfig = () => {
+    const newConfig = produce(node.config, draft => {
+        if (draft.retry) {
+            delete draft.retry;
+        } else {
+            draft.retry = { attempts: 3, delayMs: 1000 }; // Default retry
+        }
+    });
+    onConfigChange(node.id, newConfig);
+  };
 
   return (
     <Card className="shadow-lg flex flex-col h-full">
@@ -216,8 +252,13 @@ export function NodeConfigPanel({
             </div>
           )}
 
-          {nodeType?.configSchema && Object.keys(nodeType.configSchema).length > 0 ? (
-            Object.entries(nodeType.configSchema).map(([key, schema]) => (
+          {/* Main Config Fields */}
+          {nodeType?.configSchema && Object.keys(nodeType.configSchema)
+            .filter(key => key !== 'retry' && key !== 'onErrorWebhook') // Filter out retry/webhook as they are handled separately
+            .length > 0 ? (
+            Object.entries(nodeType.configSchema)
+              .filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook')
+              .map(([key, schema]) => (
               <div key={key}>
                  {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="font-semibold">{schema.label}</Label>}
                 {renderFormField(key, schema)}
@@ -244,9 +285,94 @@ export function NodeConfigPanel({
                 <p className="text-xs text-muted-foreground mt-1">Edit raw JSON for this node's config. Use with caution.</p>
              </div>
           )}
-          {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).length === 0) && Object.keys(node.config || {}).length === 0 && (
-             <p className="text-sm text-muted-foreground mt-2">No specific configuration schema or raw config available for this node type.</p>
+          {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).filter(key => key !== 'retry' && key !== 'onErrorWebhook').length === 0) && 
+           Object.keys(node.config || {}).filter(key => key !== 'retry' && key !== 'onErrorWebhook').length === 0 && (
+             <p className="text-sm text-muted-foreground mt-2">No specific configuration schema or raw config available for this node type (excluding retry/webhook).</p>
           )}
+
+          {/* Retry Configuration Section */}
+          {nodeType?.configSchema?.retry && (
+             <Accordion type="single" collapsible className="w-full mt-3">
+                <AccordionItem value="retry-config">
+                    <AccordionTrigger className="text-sm font-semibold hover:no-underline">
+                        <div className="flex items-center gap-2">
+                            <RotateCcwIcon className="h-4 w-4 text-primary" />
+                            Retry Configuration
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-2 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs text-muted-foreground">
+                                {currentRetryConfig.attempts ? 'Customize retry behavior.' : 'Retries are currently disabled.'}
+                            </Label>
+                            <Button variant="outline" size="sm" onClick={toggleRetryConfig} className="text-xs">
+                                {node.config.retry ? 'Disable Retries' : 'Enable Retries'}
+                            </Button>
+                        </div>
+                        {node.config.retry && (
+                            <>
+                                <div>
+                                    <Label htmlFor={`${node.id}-retry-attempts`} className="text-xs">Attempts</Label>
+                                    <Input type="number" id={`${node.id}-retry-attempts`}
+                                           value={currentRetryConfig.attempts ?? ''}
+                                           onChange={(e) => handleRetryConfigChange('attempts', e.target.value)}
+                                           placeholder="e.g., 3" className="mt-1 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground mt-0.5">Total execution attempts.</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor={`${node.id}-retry-delayMs`} className="text-xs">Initial Delay (ms)</Label>
+                                    <Input type="number" id={`${node.id}-retry-delayMs`}
+                                           value={currentRetryConfig.delayMs ?? ''}
+                                           onChange={(e) => handleRetryConfigChange('delayMs', e.target.value)}
+                                           placeholder="e.g., 1000" className="mt-1 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground mt-0.5">Delay before the first retry.</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor={`${node.id}-retry-backoffFactor`} className="text-xs">Backoff Factor</Label>
+                                    <Input type="number" id={`${node.id}-retry-backoffFactor`}
+                                           value={currentRetryConfig.backoffFactor ?? ''}
+                                           onChange={(e) => handleRetryConfigChange('backoffFactor', e.target.value)}
+                                           placeholder="e.g., 2 (for exponential)" className="mt-1 text-xs h-8" />
+                                     <p className="text-xs text-muted-foreground mt-0.5">Multiplier for subsequent delays.</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor={`${node.id}-retry-statusCodes`} className="text-xs">Retry on Status Codes (HTTP only)</Label>
+                                    <Input type="text" id={`${node.id}-retry-statusCodes`}
+                                           value={(currentRetryConfig.retryOnStatusCodes || []).join(', ')}
+                                           onChange={(e) => handleRetryConfigChange('retryOnStatusCodes', e.target.value)}
+                                           placeholder="e.g., 500, 503, 429 (comma-separated)" className="mt-1 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground mt-0.5">Comma-separated HTTP status codes.</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor={`${node.id}-retry-keywords`} className="text-xs">Retry on Error Keywords</Label>
+                                    <Input type="text" id={`${node.id}-retry-keywords`}
+                                           value={(currentRetryConfig.retryOnErrorKeywords || []).join(', ')}
+                                           onChange={(e) => handleRetryConfigChange('retryOnErrorKeywords', e.target.value)}
+                                           placeholder="e.g., timeout, unavailable (comma-separated)" className="mt-1 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground mt-0.5">Case-insensitive keywords in error messages.</p>
+                                </div>
+                            </>
+                        )}
+                    </AccordionContent>
+                </AccordionItem>
+             </Accordion>
+          )}
+
+          {/* Placeholder for OnErrorWebhook - can be implemented similarly to Retry if needed */}
+          {nodeType?.configSchema?.onErrorWebhook && (
+             <div className="mt-3 p-3 border rounded-md bg-muted/30">
+                 <Label className="font-semibold text-sm">On-Error Webhook (JSON)</Label>
+                 <Textarea
+                    value={node.config.onErrorWebhook ? JSON.stringify(node.config.onErrorWebhook, null, 2) : ''}
+                    onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)}
+                    placeholder={'{\n  "url": "...",\n  "method": "POST",\n  ...\n}'}
+                    className="mt-1 font-mono text-xs min-h-[80px]"
+                    rows={4}
+                 />
+                 <p className="text-xs text-muted-foreground mt-1">Configure webhook for notifications on final failure.</p>
+             </div>
+          )}
+
 
           <Separator className="my-4" />
           
