@@ -558,9 +558,12 @@ async function executeFlowInternal(
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         let currentAttemptOutput: any = { status: 'success' }; 
-        if (maxAttempts > 1) {
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Attempt ${attempt}/${maxAttempts} starting...`, type: 'info' });
+        if (maxAttempts > 1 && attempt > 1) {
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retry attempt ${attempt-1}/${maxAttempts-1} starting...`, type: 'info' });
+        } else if (maxAttempts > 1 && attempt === 1) {
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Initial attempt (1/${maxAttempts}) starting...`, type: 'info' });
         }
+
 
         switch (node.type) {
           case 'trigger': 
@@ -887,6 +890,35 @@ async function executeFlowInternal(
                 } 
               }
               break;
+            
+          case 'googleCalendarListEvents':
+            serverLogs.push({ message: `[NODE GOOGLECALENDARLISTEVENTS] SIMULATION: Node ${nodeIdentifier}: Conceptually would list events using Google Calendar API. Max Results: ${resolvedConfig.maxResults || 10}.`, type: 'info' });
+            if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+              serverLogs.push({ message: `[NODE GOOGLECALENDARLISTEVENTS] SIMULATION: Node ${nodeIdentifier}: Would use GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for OAuth 2.0 flow in real execution.`, type: 'info' });
+            } else {
+              serverLogs.push({ message: `[NODE GOOGLECALENDARLISTEVENTS] SIMULATION: Node ${nodeIdentifier}: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables not set. Real execution would fail.`, type: 'info' });
+            }
+            if (isSimulationMode || resolvedConfig.simulatedResponse) {
+              let simEventsData: any[] = [{summary: "Default Simulated Event", start: {dateTime: new Date().toISOString()}}];
+              if (resolvedConfig.simulatedResponse) {
+                try {
+                  simEventsData = typeof resolvedConfig.simulatedResponse === 'string'
+                                    ? JSON.parse(resolvedConfig.simulatedResponse)
+                                    : resolvedConfig.simulatedResponse;
+                  if (!Array.isArray(simEventsData)) {
+                    throw new Error("simulatedResponse for Google Calendar must be an array.");
+                  }
+                } catch (e: any) {
+                  serverLogs.push({ message: `[NODE GOOGLECALENDARLISTEVENTS] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedResponse JSON: ${e.message}. Using default simulation.`, type: 'info' });
+                }
+              }
+              currentAttemptOutput = { ...currentAttemptOutput, events: simEventsData };
+            } else {
+              const noSimError = `Node ${nodeIdentifier}: googleCalendarListEvents requires 'simulatedResponse' in config for execution in this environment.`;
+              serverLogs.push({ message: `[NODE GOOGLECALENDARLISTEVENTS] ${noSimError}`, type: 'error' });
+              throw new Error(noSimError);
+            }
+            break;
 
           case 'executeFlowGroup':
               const { flowGroupNodes: groupNodesStr, flowGroupConnections: groupConnectionsStr, inputMapping, outputMapping } = resolvedConfig;
@@ -1324,7 +1356,7 @@ async function executeFlowInternal(
         
         finalNodeOutput = currentAttemptOutput;
         if (attempt > 1 && finalNodeOutput.status === 'success') { 
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SUCCEEDED on attempt ${attempt}/${maxAttempts}.`, type: 'success' });
+          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SUCCEEDED on retry attempt ${attempt-1}/${maxAttempts-1}.`, type: 'success' });
         }
         break; 
       
@@ -1362,8 +1394,9 @@ async function executeFlowInternal(
           shouldRetryThisError = false;
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
         }
+        
         if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0) {
-          const lowerErrorDetails = errorDetails.toLowerCase();
+          const lowerErrorDetails = String(errorDetails).toLowerCase(); // Ensure errorDetails is a string
           if (!retryOnErrorKeywords.some(keyword => lowerErrorDetails.includes(keyword))) {
             shouldRetryThisError = false;
             serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
@@ -1386,18 +1419,16 @@ async function executeFlowInternal(
           break; 
         }
         
-        // Calculate delay for the current attempt (which is the next attempt after a failure)
-        // The first attempt (attempt=1) has no preceding delay.
-        // If attempt 1 fails, attempt=2 is the first retry. Delay applies before attempt 2.
+        
         let delay = 0;
-        if (attempt > 0) { // Delay only applies for retries (attempt > 1 in the loop)
+        if (attempt > 0) { 
             delay = (initialDelayMs || 0) * Math.pow(backoffFactor || 1, attempt -1); 
         }
 
         if (delay > 0) {
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
           await new Promise(resolve => setTimeout(resolve, delay));
-        } else {
+        } else if (attempt < maxAttempts) { 
           serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying immediately... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
         }
       }

@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -146,6 +146,27 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'], 
     outputHandles: ['results', 'rowCount', 'status', 'error_message'],
+  },
+  {
+    type: 'googleCalendarListEvents',
+    name: 'Google Calendar: List Events (Simulated)',
+    icon: CalendarDays,
+    description: 'Simulates fetching events from Google Calendar. Real execution would require Google OAuth setup. Supports retries and on-error webhook.',
+    category: 'action',
+    defaultConfig: { 
+        maxResults: 10, 
+        simulatedResponse: '[{"summary": "Team Sync", "start": {"dateTime": "2024-09-15T10:00:00-07:00"}, "end": {"dateTime": "2024-09-15T11:00:00-07:00"}}, {"summary": "Project Deadline", "start": {"date": "2024-09-20"}, "end": {"date": "2024-09-21"}}]', 
+        retry: {}, 
+        onErrorWebhook: undefined 
+    },
+    configSchema: {
+      maxResults: { label: 'Max Results (Optional)', type: 'number', defaultValue: 10, placeholder: '10', helperText: 'Maximum number of events to return.' },
+      simulatedResponse: { label: 'Simulated Events (JSON Array for Simulation Mode)', type: 'json', placeholder: '[{"summary": "My Event", "start": {"dateTime": "YYYY-MM-DDTHH:mm:ssZ"}}]', helperText: 'Array of event objects this node will output during simulation.', required: true },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'], // For future use e.g., calendarId
+    outputHandles: ['events', 'status', 'error_message'],
   },
   {
     type: 'parseJson',
@@ -699,6 +720,14 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'get user data': 'manualInput',
   'user decision': 'manualInput',
   'form input': 'manualInput',
+  
+  // Google Services (Simulated)
+  'googlecalendarlistevents': 'googleCalendarListEvents',
+  'list google calendar events': 'googleCalendarListEvents',
+  'fetch calendar events': 'googleCalendarListEvents',
+  'get calendar events': 'googleCalendarListEvents',
+  'google calendar': 'googleCalendarListEvents',
+
 
   // YouTube Specific (Conceptual)
   'youtubefetchtrending': 'youtubeFetchTrending',
@@ -755,3 +784,4 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
