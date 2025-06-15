@@ -10,7 +10,7 @@ const GENERIC_RETRY_CONFIG_SCHEMA = {
     label: 'Retry Config (JSON, Optional)', 
     type: 'json', 
     placeholder: '{\n  "attempts": 3,\n  "delayMs": 1000,\n  "backoffFactor": 2,\n  "retryOnStatusCodes": [500, 503, 429],\n  "retryOnErrorKeywords": ["timeout", "unavailable"]\n}',
-    helperText: 'Define retry strategy: attempts, delayMs, backoffFactor (e.g., 2 for exponential), retryOnStatusCodes (for HTTP), retryOnErrorKeywords (case-insensitive). All fields optional.',
+    helperText: 'Define retry strategy: attempts, delayMs, backoffFactor (e.g., 2 for exponential), retryOnStatusCodes (for HTTP nodes), retryOnErrorKeywords (case-insensitive keywords to match in error messages for any node type). All fields optional.',
     defaultValue: {} as RetryConfig
   }
 };
@@ -19,8 +19,8 @@ const GENERIC_ON_ERROR_WEBHOOK_SCHEMA = {
   onErrorWebhook: {
     label: 'On-Error Webhook (JSON, Optional)',
     type: 'json',
-    placeholder: '{\n  "url": "https://my-error-logger.com/log",\n  "method": "POST",\n  "headers": {"X-API-Key": "{{env.ERROR_API_KEY}}"},\n  "bodyTemplate": {\n    "nodeId": "{{failed_node_id}}",\n    "nodeName": "{{failed_node_name}}",\n    "errorMessage": "{{error_message}}",\n    "timestamp": "{{timestamp}}",\n    "workflowDataSnapshot": "{{workflow_data_snapshot_json}}"\n  }\n}',
-    helperText: 'If node fails after retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR}}. This is a fire-and-forget notification. It can be used for simple alerts or to send error details to an endpoint that acts as a Dead-Letter Queue (DLQ) processor or triggers a dedicated error-handling workflow. The `workflow_data_snapshot_json` payload is crucial for DLQ scenarios as it provides the complete context for later analysis or reprocessing.',
+    placeholder: '{\n  "url": "https://my-error-logger.com/log",\n  "method": "POST",\n  "headers": {"X-API-Key": "{{env.ERROR_API_KEY}}"},\n  "bodyTemplate": {\n    "nodeId": "{{failed_node_id}}",\n    "nodeName": "{{failed_node_name}}",\n    "errorMessage": "{{error_message}}",\n    "timestamp": "{{timestamp}}",\n    "workflowSnapshot": "{{workflow_data_snapshot_json}}"\n  }\n}',
+    helperText: 'If node fails after all retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR}}. This is a fire-and-forget notification. It can be used for simple alerts or to send error details to an endpoint that acts as a Dead-Letter Queue (DLQ) processor or triggers a dedicated error-handling workflow. The `workflow_data_snapshot_json` payload is crucial for DLQ scenarios as it provides the complete context for later analysis or reprocessing.',
     defaultValue: undefined as (OnErrorWebhookConfig | undefined)
   }
 };
@@ -42,21 +42,25 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'fileSystemTrigger',
     name: 'File System Trigger',
     icon: FilePlus2,
-    description: 'Conceptually triggers on file system events (simulated).',
+    description: 'Conceptually triggers on file system events (simulated). Supports retries and on-error webhook.',
     category: 'trigger',
     defaultConfig: { 
       directoryPath: '/uploads', 
       eventTypes: '["create", "modify"]', 
       fileNamePattern: '*.csv', 
       pollingIntervalSeconds: 60,
-      simulatedFileEvent: '{"eventType": "create", "filePath": "/uploads/new_report.csv", "fileName": "new_report.csv"}'
+      simulatedFileEvent: '{"eventType": "create", "filePath": "/uploads/new_report.csv", "fileName": "new_report.csv"}',
+      retry: {},
+      onErrorWebhook: undefined,
     },
     configSchema: {
       directoryPath: { label: 'Directory Path', type: 'string', placeholder: '/mnt/shared_drive/input_files or {{env.WATCH_FOLDER}}', required: true },
       eventTypes: { label: 'Event Types (JSON Array)', type: 'json', placeholder: '["create", "modify", "delete"]', helperText: 'e.g., create, modify, delete.', required: true },
       fileNamePattern: { label: 'File Name Pattern (Glob, Optional)', type: 'string', placeholder: '*.txt, report-*.csv' },
       pollingIntervalSeconds: { label: 'Polling Interval (seconds, Conceptual)', type: 'number', defaultValue: 60, helperText: 'Conceptual interval for checking for new files.' },
-      simulatedFileEvent: { label: 'Simulated File Event (JSON)', type: 'json', placeholder: '{"eventType": "create", "filePath": "/sim/data.txt", "fileName":"data.txt"}', helperText: 'JSON data representing the file event this trigger will output during simulation.', required: true }
+      simulatedFileEvent: { label: 'Simulated File Event (JSON)', type: 'json', placeholder: '{"eventType": "create", "filePath": "/sim/data.txt", "fileName":"data.txt"}', helperText: 'JSON data representing the file event this trigger will output during simulation.', required: true },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     outputHandles: ['fileEvent', 'status', 'error_message'],
   },
@@ -405,7 +409,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'callExternalWorkflow',
     name: 'Call External Workflow',
     icon: Share2, 
-    description: 'Calls another workflow by its ID (currently simulated). Define input/output mappings and simulated output.',
+    description: 'Calls another workflow by its ID (currently simulated). Define input/output mappings and simulated output. Supports retries and on-error webhook.',
     category: 'group',
     defaultConfig: {
       calledWorkflowId: '',
@@ -735,6 +739,7 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
 
 
