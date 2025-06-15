@@ -57,6 +57,7 @@ export default function FlowAIPage() {
 
   const [isExplainingWorkflow, setIsExplainingWorkflow] = useState(false);
   const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null);
+  const [isSimulationMode, setIsSimulationMode] = useState(true);
 
 
   const selectedNode = useMemo(() => {
@@ -100,11 +101,11 @@ export default function FlowAIPage() {
 
   const handleSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
-      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel };
+      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
     }
-  }, [nodes, connections, toast, canvasOffset, zoomLevel]);
+  }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode]);
 
   const handleLoadWorkflow = useCallback((showToast = true) => {
     if (typeof window !== 'undefined') {
@@ -116,6 +117,7 @@ export default function FlowAIPage() {
         nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
         setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
         setZoomLevel(savedWorkflow.zoomLevel || 1);
+        setIsSimulationMode(savedWorkflow.isSimulationMode === undefined ? true : savedWorkflow.isSimulationMode);
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setExecutionLogs([]);
@@ -184,9 +186,10 @@ export default function FlowAIPage() {
     }
 
     setIsWorkflowRunning(true);
-    setExecutionLogs([{ timestamp: new Date().toLocaleTimeString(), message: 'Workflow execution started...', type: 'info' }]);
+    const runModeMessage = isSimulationMode ? 'Simulation Mode' : 'Live Mode';
+    setExecutionLogs([{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
     try {
-      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections });
+      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections }, isSimulationMode);
       const newLogs: LogEntry[] = serverLogs.map(log => ({
         ...log,
         timestamp: new Date().toLocaleTimeString(),
@@ -206,7 +209,7 @@ export default function FlowAIPage() {
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, toast]);
+  }, [nodes, connections, toast, isSimulationMode]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeIdToDelete));
@@ -468,9 +471,9 @@ export default function FlowAIPage() {
       if (!sourceHandleIsOutput || !targetHandleIsInput) {
          let invalidReason = "Cannot connect an input to an input, or an output to an output.";
          if (sourceHandleIsOutput && !targetHandleIsInput) {
-            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle.`;
+            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle. Cannot connect an output to another output.`;
          } else if (!sourceHandleIsOutput && targetHandleIsInput) {
-            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle.`;
+            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle. Cannot connect an input to another input.`;
          }
          toast({ 
             title: 'Invalid Connection', 
@@ -597,6 +600,14 @@ export default function FlowAIPage() {
     toast({ title: 'Example Loaded', description: `${example.name} workflow is now on the canvas.` });
   }, [toast]);
 
+  const handleToggleSimulationMode = useCallback((newMode: boolean) => {
+    setIsSimulationMode(newMode);
+    toast({
+      title: `Execution Mode Changed`,
+      description: `Workflow will now run in ${newMode ? 'Simulation Mode' : 'Live Mode'}.`,
+    });
+  }, [toast]);
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       {(isLoadingAi || isExplainingWorkflow) && (
@@ -693,7 +704,6 @@ export default function FlowAIPage() {
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
                 onClearExplanation={() => setWorkflowExplanation(null)}
-                selectedConnectionId={selectedConnectionId} 
                 exampleWorkflows={EXAMPLE_WORKFLOWS}
                 onLoadExampleWorkflow={handleLoadExampleWorkflow}
               />
@@ -702,7 +712,9 @@ export default function FlowAIPage() {
               <ExecutionLogPanel 
                 logs={executionLogs} 
                 onRunWorkflow={handleRunWorkflow} 
-                isWorkflowRunning={isWorkflowRunning} 
+                isWorkflowRunning={isWorkflowRunning}
+                isSimulationMode={isSimulationMode}
+                onToggleSimulationMode={handleToggleSimulationMode}
               />
             </div>
           </aside>

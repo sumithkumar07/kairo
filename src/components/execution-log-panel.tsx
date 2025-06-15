@@ -5,17 +5,27 @@ import type { LogEntry } from '@/types/workflow'; // Import LogEntry
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Play, RotateCcw } from 'lucide-react'; 
+import { Play, RotateCcw, Settings2 } from 'lucide-react'; 
 import { Separator } from './ui/separator';
 import { useEffect, useRef } from 'react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface ExecutionLogPanelProps {
   logs: LogEntry[];
   onRunWorkflow: () => void;
   isWorkflowRunning?: boolean; 
+  isSimulationMode: boolean;
+  onToggleSimulationMode: (isSimulating: boolean) => void;
 }
 
-export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: ExecutionLogPanelProps) {
+export function ExecutionLogPanel({ 
+  logs, 
+  onRunWorkflow, 
+  isWorkflowRunning,
+  isSimulationMode,
+  onToggleSimulationMode,
+}: ExecutionLogPanelProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,8 +37,24 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
   return (
     <Card className="shadow-lg flex-grow flex flex-col">
       <CardHeader>
-        <CardTitle className="text-lg">Execution & Logs</CardTitle>
-        <CardDescription>Run your workflow and see its output.</CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle className="text-lg">Execution & Logs</CardTitle>
+            <CardDescription>Run your workflow and see its output.</CardDescription>
+          </div>
+          <div className="flex items-center space-x-2" title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"}>
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <Label htmlFor="simulation-mode-switch" className="text-xs text-muted-foreground cursor-pointer">
+              Simulate
+            </Label>
+            <Switch
+              id="simulation-mode-switch"
+              checked={isSimulationMode}
+              onCheckedChange={onToggleSimulationMode}
+              aria-label="Toggle simulation mode"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3 flex-grow flex flex-col">
         <Button onClick={onRunWorkflow} disabled={isWorkflowRunning} className="w-full">
@@ -37,7 +63,7 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
           ) : (
             <Play className="mr-2 h-4 w-4" />
           )}
-          {isWorkflowRunning ? 'Executing Workflow...' : 'Run Workflow'}
+          {isWorkflowRunning ? 'Executing Workflow...' : `Run Workflow ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
         </Button>
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">Logs:</p>
