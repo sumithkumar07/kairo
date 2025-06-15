@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +7,7 @@ import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Trash2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 
 interface AIWorkflowAssistantPanelProps {
@@ -17,6 +16,10 @@ interface AIWorkflowAssistantPanelProps {
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
+  // Props for connection selection (though the view is now in page.tsx)
+  selectedConnectionId: string | null; 
+  handleDeleteSelectedConnection?: () => void;
+  setSelectedConnectionId?: (id: string | null) => void;
 }
 
 const examplePrompts = [
@@ -32,6 +35,9 @@ export function AIWorkflowAssistantPanel({
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
+  selectedConnectionId, // Keep for conditional rendering logic if needed elsewhere
+  handleDeleteSelectedConnection, 
+  setSelectedConnectionId,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [isLoadingLocal, setIsLoadingLocal] = useState(false); // Local loading for prompt generation
@@ -72,7 +78,7 @@ export function AIWorkflowAssistantPanel({
 
   const handleExamplePromptClick = (example: string) => {
     setPrompt(example);
-    setWorkflowExplanation(null); // Clear explanation if user picks an example
+    if (workflowExplanation) onClearExplanation(); // Clear explanation if user picks an example
   };
 
   const currentIsLoading = isLoadingLocal || isExplainingWorkflow;
@@ -109,6 +115,28 @@ export function AIWorkflowAssistantPanel({
       </>
     );
   }
+
+
+  // The connection selected view is now primarily handled in page.tsx's aside structure.
+  // This panel will focus on prompting and displaying explanations.
+  // If selectedConnectionId and its handlers were needed here, this is where the logic would go.
+  // Example (though redundant with page.tsx's current structure):
+  // if (selectedConnectionId && handleDeleteSelectedConnection && setSelectedConnectionId) {
+  //   return (
+  //     <div className="p-6 text-center flex flex-col items-center justify-center h-full space-y-3">
+  //       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-primary mb-2"><path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z"></path><line x1="12" y1="13" x2="12" y2="17"></line><line x1="12" y1="8" x2="12" y2="10"></line></svg>
+  //       <p className="text-md font-semibold text-foreground">Connection Selected</p>
+  //       <div className="flex gap-2">
+  //         <Button variant="destructive" size="sm" onClick={handleDeleteSelectedConnection}>
+  //             <Trash2 className="mr-2 h-4 w-4" /> Delete
+  //         </Button>
+  //         <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
+  //             <XCircle className="mr-2 h-4 w-4" /> Deselect
+  //         </Button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <>

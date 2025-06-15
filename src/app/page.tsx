@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/li
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react'; // Added Trash2
 import { Button } from '@/components/ui/button';
 
 import { NodeLibrary } from '@/components/node-library';
@@ -118,7 +117,7 @@ export default function FlowAIPage() {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setExecutionLogs([]);
-        setWorkflowExplanation(null); // Clear any existing explanation
+        setWorkflowExplanation(null); 
         if (showToast) {
           toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
         }
@@ -225,7 +224,7 @@ export default function FlowAIPage() {
 
       if (isCtrlOrMeta && event.key.toLowerCase() === 's') { event.preventDefault(); handleSaveWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleLoadWorkflow(true); return; }
-      if (isCtrlOrMeta && event.key === 'Enter') { event.preventDefault(); handleRunWorkflow(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
       
       if (event.key === 'Escape') {
         if (isConnecting) handleCancelConnection();
@@ -331,7 +330,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setExecutionLogs([]);
-    setWorkflowExplanation(null); // Clear any existing explanation
+    setWorkflowExplanation(null);
     setCanvasOffset({ x: 0, y: 0 }); 
     setZoomLevel(1);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
@@ -417,7 +416,7 @@ export default function FlowAIPage() {
     setSelectedConnectionId(null);
     setIsAssistantVisible(true);
     if (isConnecting) handleCancelConnection();
-    setWorkflowExplanation(null); // Clear explanation when a node is selected
+    setWorkflowExplanation(null); 
   };
 
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
@@ -620,22 +619,27 @@ export default function FlowAIPage() {
                 onAddSuggestedNode={handleAddSuggestedNode}
               />
             ) : selectedConnectionId ? (
-                <div className="p-6 text-center flex flex-col items-center justify-center h-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-destructive mb-3"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    <p className="text-md font-semibold text-foreground mb-1">Connection Selected</p>
-                    <p className="text-sm text-muted-foreground mb-4">
-                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Esc</kbd> to deselect.
+                <div className="p-6 text-center flex flex-col items-center justify-center h-full space-y-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-primary mb-2"><path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z"></path><line x1="12" y1="13" x2="12" y2="17"></line><line x1="12" y1="8" x2="12" y2="10"></line></svg>
+                    <p className="text-md font-semibold text-foreground">Connection Selected</p>
+                    <p className="text-sm text-muted-foreground">
+                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Esc</kbd> to deselect.
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
-                        <X className="mr-2 h-4 w-4" /> Deselect Connection
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="destructive" size="sm" onClick={handleDeleteSelectedConnection}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Connection
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
+                            <X className="mr-2 h-4 w-4" /> Deselect
+                        </Button>
+                    </div>
                 </div>
             ) : isConnecting ? (
                  <div className="p-6 text-center flex flex-col items-center justify-center h-full">
                     <MousePointer2 className="h-10 w-10 mx-auto text-primary mb-3" />
                     <p className="text-md font-semibold text-foreground mb-1">Creating Connection</p>
                     <p className="text-sm text-muted-foreground mb-4">
-                        Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Esc</kbd> to cancel.
+                        Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Esc</kbd> to cancel.
                     </p>
                     <Button variant="outline" size="sm" onClick={handleCancelConnection}>
                         <X className="mr-2 h-4 w-4" /> Cancel
@@ -648,6 +652,9 @@ export default function FlowAIPage() {
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
                 onClearExplanation={() => setWorkflowExplanation(null)}
+                handleDeleteSelectedConnection={handleDeleteSelectedConnection}
+                setSelectedConnectionId={setSelectedConnectionId}
+                selectedConnectionId={selectedConnectionId}
               />
             )}
             <div className="mt-auto border-t">
@@ -663,4 +670,3 @@ export default function FlowAIPage() {
     </div>
   );
 }
-
