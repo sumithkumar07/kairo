@@ -459,11 +459,24 @@ export default function FlowAIPage() {
         return;
       }
 
-      const sourceHandleIsOutput = sourceNode.outputHandles?.includes(connectionStartHandleId);
-      const targetHandleIsInput = targetNode.inputHandles?.includes(endHandleId);
+      const sourceNodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === sourceNode.type);
+      const targetNodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === targetNode.type);
+
+      const sourceHandleIsOutput = sourceNodeConfig?.outputHandles?.includes(connectionStartHandleId);
+      const targetHandleIsInput = targetNodeConfig?.inputHandles?.includes(endHandleId);
 
       if (!sourceHandleIsOutput || !targetHandleIsInput) {
-         toast({ title: 'Invalid Connection', description: 'Cannot connect an input to an input, or an output to an output.', variant: 'destructive'});
+         let invalidReason = "Cannot connect an input to an input, or an output to an output.";
+         if (sourceHandleIsOutput && !targetHandleIsInput) {
+            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle.`;
+         } else if (!sourceHandleIsOutput && targetHandleIsInput) {
+            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle.`;
+         }
+         toast({ 
+            title: 'Invalid Connection', 
+            description: invalidReason, 
+            variant: 'destructive'
+         });
          handleCancelConnection();
          return;
       }
@@ -651,7 +664,7 @@ export default function FlowAIPage() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-primary mb-2"><path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z"></path><line x1="12" y1="13" x2="12" y2="17"></line><line x1="12" y1="8" x2="12" y2="10"></line></svg>
                     <p className="text-md font-semibold text-foreground">Connection Selected</p>
                     <p className="text-sm text-muted-foreground">
-                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Esc</kbd> to deselect.
+                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to deselect.
                     </p>
                     <div className="flex gap-2">
                         <Button variant="destructive" size="sm" onClick={handleDeleteSelectedConnection}>
@@ -667,7 +680,7 @@ export default function FlowAIPage() {
                     <MousePointer2 className="h-10 w-10 mx-auto text-primary mb-3" />
                     <p className="text-md font-semibold text-foreground mb-1">Creating Connection</p>
                     <p className="text-sm text-muted-foreground mb-4">
-                        Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-200 dark:border-neutral-600">Esc</kbd> to cancel.
+                        Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to cancel.
                     </p>
                     <Button variant="outline" size="sm" onClick={handleCancelConnection}>
                         <X className="mr-2 h-4 w-4" /> Cancel
