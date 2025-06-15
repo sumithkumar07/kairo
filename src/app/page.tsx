@@ -12,7 +12,17 @@ import { EXAMPLE_WORKFLOWS, type ExampleWorkflow } from '@/config/example-workfl
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Trash2 } from 'lucide-react'; 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button'; // Import buttonVariants
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
@@ -60,6 +70,9 @@ export default function FlowAIPage() {
   const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null);
   const [isSimulationMode, setIsSimulationMode] = useState(true);
 
+  const [showDeleteNodeConfirmDialog, setShowDeleteNodeConfirmDialog] = useState(false);
+  const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
+
 
   const selectedNode = useMemo(() => {
     return nodes.find(node => node.id === selectedNodeId) || null;
@@ -67,12 +80,10 @@ export default function FlowAIPage() {
 
   useEffect(() => {
     const fetchSuggestion = async () => {
-      setIsLoadingSuggestion(true);
-      // Clear previous suggestions first
-      setSuggestedNextNodeInfo(null);
-      setInitialCanvasSuggestion(null);
-
       if (selectedNodeId && selectedNode) {
+        setIsLoadingSuggestion(true);
+        setInitialCanvasSuggestion(null); 
+        setWorkflowExplanation(null); 
         try {
           let context = `Workflow in progress. Current node: "${selectedNode.name}" (Type: ${selectedNode.type}).`;
           if (selectedNode.aiExplanation) {
@@ -87,10 +98,13 @@ export default function FlowAIPage() {
           setSuggestedNextNodeInfo({ suggestion: suggestionResult, forNodeId: selectedNodeId });
         } catch (error: any) {
           console.warn("Failed to fetch next node suggestion for selected node:", error);
-          // Do not toast here, as it can be noisy if suggestions frequently fail. Log is enough.
+          setSuggestedNextNodeInfo(null);
+        } finally {
+          setIsLoadingSuggestion(false);
         }
-      } else if (!selectedNodeId && nodes.length === 0 && !selectedConnectionId && !workflowExplanation) { 
-        // Only fetch initial if canvas is truly empty and no other panel is active
+      } else if (!selectedNodeId && nodes.length === 0 && !selectedConnectionId && !workflowExplanation && !initialCanvasSuggestion && !isLoadingSuggestion) { 
+        setIsLoadingSuggestion(true);
+        setSuggestedNextNodeInfo(null); 
         try {
           const suggestionResult = await suggestNextWorkflowNode({
             currentNodeType: undefined,
@@ -99,35 +113,21 @@ export default function FlowAIPage() {
           setInitialCanvasSuggestion(suggestionResult);
         } catch (error: any) {
           console.warn("Failed to fetch initial canvas suggestion:", error);
+          setInitialCanvasSuggestion(null);
+        } finally {
+           setIsLoadingSuggestion(false);
         }
+      } else if (!selectedNodeId) {
+         setSuggestedNextNodeInfo(null); 
+         if (workflowExplanation || selectedConnectionId || nodes.length > 0) {
+           setInitialCanvasSuggestion(null); 
+         }
       }
-      setIsLoadingSuggestion(false);
     };
-
-    // Conditions for fetching suggestions:
-    if (selectedNodeId) { // A node is selected
-      setInitialCanvasSuggestion(null); // Clear initial suggestion
-      setWorkflowExplanation(null); // Clear global explanation
-      fetchSuggestion();
-    } else if (nodes.length === 0 && !selectedConnectionId && !workflowExplanation && !initialCanvasSuggestion && !isLoadingSuggestion) { // Canvas is empty, no connection selected, no explanation, no existing suggestion, not loading
-      fetchSuggestion();
-    } else if (nodes.length > 0 && !selectedNodeId) { // Canvas not empty, but no node selected
-      setSuggestedNextNodeInfo(null); // Clear specific node suggestion
-      // Don't clear initialCanvasSuggestion here, as it might be shown on purpose if explanation was cleared.
-    } else if (!selectedNodeId && !selectedConnectionId && !workflowExplanation) {
-      // If nothing is selected and no explanation is active, re-evaluate initial suggestion needs.
-      // This handles cases like clearing explanation on an empty canvas.
-      if(nodes.length === 0 && !initialCanvasSuggestion && !isLoadingSuggestion) {
-        fetchSuggestion();
-      }
-    } else {
-      // In other cases (like a connection is selected, or explanation is showing), clear suggestions
-      setInitialCanvasSuggestion(null);
-      setSuggestedNextNodeInfo(null);
-    }
-
+    
+    fetchSuggestion();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation]); // Removed selectedNode from deps as it's derived from selectedNodeId and nodes
+  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation]); // Added workflowExplanation
 
 
   const handleSaveWorkflow = useCallback(() => {
@@ -245,13 +245,26 @@ export default function FlowAIPage() {
   }, [nodes, connections, toast, isSimulationMode]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
-    setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeIdToDelete));
-    setConnections(prevConns => prevConns.filter(conn => conn.sourceNodeId !== nodeIdToDelete && conn.targetNodeId !== nodeIdToDelete));
-    if (selectedNodeId === nodeIdToDelete) {
+    setNodeToDeleteId(nodeIdToDelete);
+    setShowDeleteNodeConfirmDialog(true);
+  }, []);
+
+  const confirmDeleteNode = useCallback(() => {
+    if (!nodeToDeleteId) return;
+    setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeToDeleteId));
+    setConnections(prevConns => prevConns.filter(conn => conn.sourceNodeId !== nodeToDeleteId && conn.targetNodeId !== nodeToDeleteId));
+    if (selectedNodeId === nodeToDeleteId) {
       setSelectedNodeId(null); 
     }
-    toast({ title: 'Node Deleted', description: `Node ${nodeIdToDelete} and its connections removed.` });
-  }, [selectedNodeId, toast]);
+    toast({ title: 'Node Deleted', description: `Node ${nodeToDeleteId} and its connections removed.` });
+    setNodeToDeleteId(null);
+    setShowDeleteNodeConfirmDialog(false);
+  }, [nodeToDeleteId, selectedNodeId, toast]);
+
+  const cancelDeleteNode = useCallback(() => {
+    setNodeToDeleteId(null);
+    setShowDeleteNodeConfirmDialog(false);
+  }, []);
 
   const handleDeleteSelectedConnection = useCallback(() => {
     if (selectedConnectionId) {
@@ -382,7 +395,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setExecutionLogs([]);
-    setWorkflowExplanation(null);
+    setWorkflowExplanation(null); // Clear global explanation
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
     setCanvasOffset({ x: 0, y: 0 }); 
@@ -567,22 +580,17 @@ export default function FlowAIPage() {
     if (isConnecting) {
       handleCancelConnection();
     }
-    // The useEffect hook for suggestions will handle fetching initial suggestions if needed
-    // when states like selectedNodeId, selectedConnectionId, workflowExplanation become null
-    // and the canvas is empty.
   }, [isConnecting, handleCancelConnection]);
 
   const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
     if (event.button !== 0) return; 
     
-    // Check if the click was on a draggable node or a connection handle.
-    // If so, let their respective handlers manage the event.
     const targetElement = event.target as HTMLElement;
     if (targetElement.closest('.workflow-node-item') || targetElement.closest('[data-handle-id]')) {
         return;
     }
     
-    handleCanvasClick(); // This will deselect, clear explanation, etc.
+    handleCanvasClick(); 
     if (!isConnecting) {
       setIsPanning(true);
       panStartRef.current = { x: event.clientX, y: event.clientY };
@@ -603,11 +611,9 @@ export default function FlowAIPage() {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
       if (!newVisibility && (selectedNodeId || selectedConnectionId || workflowExplanation || initialCanvasSuggestion)) {
-        // If hiding panel, clear selections to avoid a confusing state when it's re-opened
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setWorkflowExplanation(null); 
-        // Initial canvas suggestion might persist if canvas is empty, which is fine
       }
       return newVisibility;
     });
@@ -792,8 +798,23 @@ export default function FlowAIPage() {
           </aside>
         )}
       </div>
+      <AlertDialog open={showDeleteNodeConfirmDialog} onOpenChange={setShowDeleteNodeConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Node?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this node and its connections? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteNode}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteNode} className={buttonVariants({ variant: "destructive" })}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
 
