@@ -9,7 +9,7 @@ import { executeWorkflow, suggestNextWorkflowNode } from '@/app/actions';
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Keep for potential future use
+import { Button } from '@/components/ui/button';
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
@@ -44,7 +44,6 @@ export default function FlowAIPage() {
   const [suggestedNextNodeInfo, setSuggestedNextNodeInfo] = useState<{ suggestion: SuggestNextNodeOutput; forNodeId: string } | null>(null);
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
 
-  // State for canvas panning
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
@@ -182,6 +181,7 @@ export default function FlowAIPage() {
       if (isCtrlOrMeta && event.key.toLowerCase() === 's') { event.preventDefault(); handleSaveWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleLoadWorkflow(true); return; }
       if (isCtrlOrMeta && event.key === 'Enter') { event.preventDefault(); handleRunWorkflow(); return; }
+      
       if (event.key === 'Escape') {
         if (isConnecting) handleCancelConnection();
         if (selectedNodeId) setSelectedNodeId(null);
@@ -189,8 +189,8 @@ export default function FlowAIPage() {
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedNodeId) handleDeleteNode(selectedNodeId);
-        else if (selectedConnectionId) handleDeleteSelectedConnection();
+        if (selectedNodeId && !isInputField(document.activeElement)) handleDeleteNode(selectedNodeId);
+        else if (selectedConnectionId && !isInputField(document.activeElement)) handleDeleteSelectedConnection();
         return;
       }
     };
@@ -203,7 +203,6 @@ export default function FlowAIPage() {
     handleDeleteNode, handleDeleteSelectedConnection
   ]); 
 
-  // Effect for global mouse listeners for panning
   useEffect(() => {
     const handleGlobalMouseMove = (event: MouseEvent) => {
       if (!isPanning) return;
@@ -286,7 +285,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setExecutionLogs([]);
-    setCanvasOffset({ x: 0, y: 0 }); // Reset pan on new workflow
+    setCanvasOffset({ x: 0, y: 0 }); 
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast]);
 
@@ -375,14 +374,14 @@ export default function FlowAIPage() {
     setIsConnecting(true);
     setConnectionStartNodeId(startNodeId);
     setConnectionStartHandleId(startHandleId);
-    setConnectionPreviewPosition(startHandlePos); // Position relative to canvas content, not screen
+    setConnectionPreviewPosition(startHandlePos); 
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
   }, []);
 
   const handleUpdateConnectionPreview = useCallback((mousePosition: { x: number; y: number }) => {
     if (isConnecting) {
-      setConnectionPreviewPosition(mousePosition); // Position relative to canvas content
+      setConnectionPreviewPosition(mousePosition); 
     }
   }, [isConnecting]);
 
@@ -435,7 +434,6 @@ export default function FlowAIPage() {
   }, []);
   
   const handleCanvasClick = useCallback(() => {
-    // This function is primarily for deselecting. Panning initiation is handled by handleCanvasPanStart.
     if (isConnecting) {
       handleCancelConnection();
     } else {
@@ -445,17 +443,13 @@ export default function FlowAIPage() {
   }, [isConnecting, handleCancelConnection]);
 
   const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
-    // Call generic canvas click for deselection first
     handleCanvasClick(); 
-    
-    // Then initiate panning if not in connection mode
     if (!isConnecting) {
       setIsPanning(true);
       panStartRef.current = { x: event.clientX, y: event.clientY };
       document.body.style.cursor = 'grabbing';
     }
   }, [handleCanvasClick, isConnecting]);
-
 
   const handleConnectionClick = useCallback((connectionId: string) => {
     setSelectedConnectionId(connectionId);
@@ -513,10 +507,12 @@ export default function FlowAIPage() {
             startHandleId: connectionStartHandleId,
             previewPosition: connectionPreviewPosition,
           }}
-          onCanvasClick={handleCanvasClick} // For deselection
-          onCanvasPanStart={handleCanvasPanStart} // For initiating pan
+          onCanvasClick={handleCanvasClick} 
+          onCanvasPanStart={handleCanvasPanStart} 
           canvasOffset={canvasOffset}
-          isPanningForCursor={isPanning} // For cursor style
+          isPanningForCursor={isPanning}
+          connectionStartNodeId={connectionStartNodeId} 
+          connectionStartHandleId={connectionStartHandleId}
         />
         
         {isAssistantVisible && (
@@ -574,5 +570,3 @@ export default function FlowAIPage() {
     </div>
   );
 }
-
-    

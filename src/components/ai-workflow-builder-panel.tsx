@@ -28,10 +28,12 @@ interface AIWorkflowBuilderPanelProps {
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: () => void; // For deselection logic
-  onCanvasPanStart: (event: React.MouseEvent) => void; // For initiating pan
-  canvasOffset: { x: number; y: number }; // For transforming content
-  isPanningForCursor: boolean; // For cursor style
+  onCanvasClick: () => void; 
+  onCanvasPanStart: (event: React.MouseEvent) => void; 
+  canvasOffset: { x: number; y: number }; 
+  isPanningForCursor: boolean; 
+  connectionStartNodeId: string | null; 
+  connectionStartHandleId: string | null; 
 }
 
 export function AIWorkflowBuilderPanel({
@@ -56,6 +58,8 @@ export function AIWorkflowBuilderPanel({
   onCanvasPanStart,
   canvasOffset,
   isPanningForCursor,
+  connectionStartNodeId,
+  connectionStartHandleId,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
 
@@ -110,6 +114,8 @@ export function AIWorkflowBuilderPanel({
           onCanvasPanStart={onCanvasPanStart}
           canvasOffset={canvasOffset}
           isPanningForCursor={isPanningForCursor}
+          connectionStartNodeId={connectionStartNodeId}
+          connectionStartHandleId={connectionStartHandleId}
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

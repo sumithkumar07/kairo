@@ -26,10 +26,12 @@ interface WorkflowCanvasProps {
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: () => void; // For deselection logic
-  onCanvasPanStart: (event: React.MouseEvent) => void; // For initiating pan
-  canvasOffset: { x: number; y: number }; // For transforming content
-  isPanningForCursor: boolean; // For cursor style from FlowAIPage
+  onCanvasClick: () => void; 
+  onCanvasPanStart: (event: React.MouseEvent) => void; 
+  canvasOffset: { x: number; y: number }; 
+  isPanningForCursor: boolean; 
+  connectionStartNodeId: string | null; 
+  connectionStartHandleId: string | null; 
 }
 
 export function WorkflowCanvas({
@@ -48,8 +50,10 @@ export function WorkflowCanvas({
   connectionPreview,
   onCanvasClick,
   onCanvasPanStart,
-  canvasOffset, // Prop from FlowAIPage
-  isPanningForCursor, // Prop from FlowAIPage
+  canvasOffset, 
+  isPanningForCursor, 
+  connectionStartNodeId,
+  connectionStartHandleId,
 }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingNodeOffset, setDraggingNodeOffset] = useState<{ x: number, y: number } | null>(null);
@@ -68,7 +72,7 @@ export function WorkflowCanvas({
     event.dataTransfer.dropEffect = 'move';
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
-      // Calculate position relative to the panned content wrapper
+      
       onUpdateConnectionPreview({
         x: event.clientX - canvasRect.left + canvasRef.current.scrollLeft - canvasOffset.x,
         y: event.clientY - canvasRect.top + canvasRef.current.scrollTop - canvasOffset.y,
@@ -84,11 +88,11 @@ export function WorkflowCanvas({
     const scrollLeft = canvasRef.current.scrollLeft;
     const scrollTop = canvasRef.current.scrollTop;
 
-    // Drop position relative to viewport + scroll
+    
     let dropXView = event.clientX - canvasRect.left + scrollLeft;
     let dropYView = event.clientY - canvasRect.top + scrollTop;
 
-    // Adjust for canvas pan to get drop position relative to content wrapper
+    
     const dropXContent = dropXView - canvasOffset.x;
     const dropYContent = dropYView - canvasOffset.y;
 
@@ -118,7 +122,7 @@ export function WorkflowCanvas({
         const nodeRect = nodeElement.getBoundingClientRect();
         const canvasRect = canvasRef.current?.getBoundingClientRect();
         if (canvasRect) {
-            // Calculate offset relative to the node's top-left corner within the panned context
+            
             setDraggingNodeOffset({
                 x: event.clientX - (nodeRect.left - canvasRect.left - canvasOffset.x),
                 y: event.clientY - (nodeRect.top - canvasRect.top - canvasOffset.y),
@@ -139,25 +143,25 @@ export function WorkflowCanvas({
   };
 
   const handleLocalCanvasMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    // Check if the click is on the canvas background itself
+    
     const targetIsCanvas = event.target === event.currentTarget || 
                            (event.target as HTMLElement).classList.contains('pannable-content-wrapper') ||
-                           (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg'); // Allow clicks on SVG itself
+                           (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg'); 
 
     const clickedOnConnectionTarget = (event.target as HTMLElement).dataset?.connectionClickTarget === 'true';
 
     if (targetIsCanvas && !clickedOnConnectionTarget) {
-      if (event.button === 0) { // Only left click
-        onCanvasPanStart(event); // This will also handle deselection via onCanvasClick in FlowAIPage
+      if (event.button === 0) { 
+        onCanvasPanStart(event); 
       }
     }
-    // Node and connection clicks are handled by their own onClick handlers which should stop propagation.
+    
   };
   
   const handleMouseMoveOnCanvas = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
-      // Calculate position relative to the panned content wrapper
+      
       onUpdateConnectionPreview({
         x: event.clientX - canvasRect.left + canvasRef.current.scrollLeft - canvasOffset.x,
         y: event.clientY - canvasRect.top + canvasRef.current.scrollTop - canvasOffset.y,
@@ -188,13 +192,13 @@ export function WorkflowCanvas({
           className="absolute top-0 left-0 w-full h-full pannable-content-wrapper"
           style={{ 
             transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`,
-            minWidth: 'inherit', // Ensure this inner div is also large
+            minWidth: 'inherit', 
             minHeight: 'inherit',
           }}
         >
           <svg 
             className="absolute top-0 left-0 w-full h-full pointer-events-none" 
-            style={{ minWidth: 'inherit', minHeight: 'inherit' }} // Ensure SVG covers the pannable area
+            style={{ minWidth: 'inherit', minHeight: 'inherit' }} 
           >
             <defs>
               <marker id="arrow" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
@@ -244,9 +248,9 @@ export function WorkflowCanvas({
               onClick={onNodeClick}
               onDragStartInternal={handleNodeDragStartInternal}
               onHandleClick={(nodeId, handleId, handleType, handlePosition) => {
-                // Calculate handle position relative to the panned content, not screen
+                
                 const absoluteHandlePosition = {
-                    x: handlePosition.x, // getHandlePosition already returns relative to content
+                    x: handlePosition.x, 
                     y: handlePosition.y
                 };
                 if (handleType === 'output' && !isConnecting) {
@@ -256,6 +260,8 @@ export function WorkflowCanvas({
                 }
               }}
               isConnecting={isConnecting}
+              connectionStartNodeId={connectionStartNodeId}
+              connectionStartHandleId={connectionStartHandleId}
             />
           ))}
         </div>
