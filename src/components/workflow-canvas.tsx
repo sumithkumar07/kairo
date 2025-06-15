@@ -152,10 +152,12 @@ export function WorkflowCanvas({
 
     if (targetIsCanvas && !clickedOnConnectionTarget) {
       if (event.button === 0) { 
+        onCanvasClick(); // Call original canvas click for deselection etc.
         onCanvasPanStart(event); 
       }
+    } else if (!targetIsCanvas && !clickedOnConnectionTarget) {
+        onCanvasClick(); // Clicks not on connections or background (i.e. on nodes or handles) should still deselect.
     }
-    
   };
   
   const handleMouseMoveOnCanvas = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -262,6 +264,7 @@ export function WorkflowCanvas({
               isConnecting={isConnecting}
               connectionStartNodeId={connectionStartNodeId}
               connectionStartHandleId={connectionStartHandleId}
+              connections={connections} 
             />
           ))}
         </div>
@@ -277,3 +280,4 @@ export function WorkflowCanvas({
     </ScrollArea>
   );
 }
+

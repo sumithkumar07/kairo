@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { WorkflowNode, AvailableNodeType } from '@/types/workflow';
+import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/types/workflow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle } from 'lucide-react'; 
@@ -17,25 +17,43 @@ interface WorkflowNodeItemProps {
   isConnecting: boolean;
   connectionStartNodeId: string | null; 
   connectionStartHandleId: string | null; 
+  connections: WorkflowConnection[]; // Added to check for disconnections
 }
 
-function isNodeConfigComplete(node: WorkflowNode, nodeType?: AvailableNodeType): boolean {
+function isConfigComplete(node: WorkflowNode, nodeType?: AvailableNodeType): boolean {
   if (!nodeType || !nodeType.configSchema) {
     return true; 
   }
-
   for (const [key, schemaEntry] of Object.entries(nodeType.configSchema)) {
     if (schemaEntry.required) {
       const value = node.config[key];
       if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
-        
-         if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
-            return false;
-         }
+        return false;
       }
     }
   }
   return true;
+}
+
+function isNodeDisconnected(node: WorkflowNode, connections: WorkflowConnection[], nodeType?: AvailableNodeType): boolean {
+  if (nodeType?.category === 'trigger') {
+    return false; // Triggers are entry points, not considered disconnected if they have no inputs
+  }
+  // Check if there are any connections targeting this node's input handles
+  return !connections.some(conn => conn.targetNodeId === node.id);
+}
+
+function hasUnconnectedInputs(node: WorkflowNode, connections: WorkflowConnection[], nodeType?: AvailableNodeType): boolean {
+  if (nodeType?.category === 'trigger' || !nodeType?.inputHandles || nodeType.inputHandles.length === 0) {
+    return false; // Triggers or nodes without defined input handles don't have this issue
+  }
+  // Check if every defined input handle has at least one connection targeting it
+  for (const handleId of nodeType.inputHandles) {
+    if (!connections.some(conn => conn.targetNodeId === node.id && conn.targetHandle === handleId)) {
+      return true; // Found an unconnected input handle
+    }
+  }
+  return false;
 }
 
 
@@ -49,9 +67,20 @@ export function WorkflowNodeItem({
   isConnecting,
   connectionStartNodeId,
   connectionStartHandleId,
+  connections,
 }: WorkflowNodeItemProps) {
   const IconComponent = nodeType?.icon || GripVertical; 
-  const configComplete = isNodeConfigComplete(node, nodeType);
+  
+  const configComplete = isConfigComplete(node, nodeType);
+  const disconnected = isNodeDisconnected(node, connections, nodeType);
+  const unconnectedInputs = hasUnconnectedInputs(node, connections, nodeType);
+
+  let warningMessage = "";
+  if (!configComplete) warningMessage = "Configuration incomplete.";
+  else if (disconnected) warningMessage = "Node is disconnected. Connect an input to it.";
+  else if (unconnectedInputs) warningMessage = "One or more input handles are not connected.";
+
+  const hasWarning = !configComplete || disconnected || unconnectedInputs;
 
   const getHandleAbsolutePosition = (handleId: string, isOutput: boolean): { x: number, y: number } => {
     const handles = isOutput ? nodeType?.outputHandles : nodeType?.inputHandles;
@@ -80,8 +109,8 @@ export function WorkflowNodeItem({
         'flex flex-col overflow-hidden',
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border',
-        !configComplete && !isSelected && 'ring-yellow-500/70 border-yellow-500/70', 
-        !configComplete && isSelected && 'ring-yellow-500 ring-offset-yellow-200' 
+        hasWarning && !isSelected && 'ring-yellow-500/70 border-yellow-500/70', 
+        hasWarning && isSelected && 'ring-yellow-500 ring-offset-yellow-200' 
       )}
       style={{
         left: node.position.x,
@@ -95,13 +124,12 @@ export function WorkflowNodeItem({
         <CardTitle className="text-xs font-medium truncate flex-grow" title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
-        {!configComplete && (
-          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" title="Configuration incomplete" />
+        {hasWarning && (
+          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" title={warningMessage} />
         )}
       </CardHeader>
       <CardContent className="p-2 text-xs text-muted-foreground flex-grow overflow-hidden relative">
         <p className="truncate" title={node.type}>Type: {node.type}</p>
-        
         
         {nodeType?.inputHandles?.map((handleId, index) => {
           const numHandles = nodeType.inputHandles?.length || 1;
@@ -116,8 +144,8 @@ export function WorkflowNodeItem({
                 "absolute -left-2 w-4 h-4 rounded-full border-2 border-background shadow transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                 isPotentialTarget 
                   ? "bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
-                  : "bg-primary cursor-default",
-                isConnecting && !isPotentialTarget && "opacity-50 cursor-not-allowed" 
+                  : (isConnecting && node.id === connectionStartNodeId ? "bg-muted opacity-50 cursor-not-allowed" : "bg-primary cursor-default"),
+                 isConnecting && !isPotentialTarget && node.id !== connectionStartNodeId && "opacity-50 cursor-not-allowed" 
               )}
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Input: ${handleId}`}
@@ -131,7 +159,6 @@ export function WorkflowNodeItem({
           );
         })}
 
-        
         {nodeType?.outputHandles?.map((handleId, index) => {
            const numHandles = nodeType.outputHandles?.length || 1;
            const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
@@ -164,3 +191,4 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+
