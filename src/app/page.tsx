@@ -83,10 +83,118 @@ export default function FlowAIPage() {
   }, [selectedNodeId, selectedNode]);
 
 
+  const handleSaveWorkflow = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
+      toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
+    }
+  }, [nodes, connections, toast]);
+
+  const handleLoadWorkflow = useCallback((showToast = true) => {
+    if (typeof window !== 'undefined') {
+      const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedWorkflowJson) {
+        const savedWorkflow = JSON.parse(savedWorkflowJson);
+        setNodes(savedWorkflow.nodes || []);
+        setConnections(savedWorkflow.connections || []);
+        nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
+        setSelectedNodeId(null);
+        setSelectedConnectionId(null);
+        setExecutionLogs([]);
+        if (showToast) {
+          toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
+        }
+      } else {
+        if (showToast) {
+          toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
+        }
+      }
+    }
+  }, [toast]);
+  
+  const handleRunWorkflow = useCallback(async () => {
+    if (nodes.length === 0) {
+      toast({
+        title: 'Empty Workflow',
+        description: 'Add some nodes to the canvas before running.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsWorkflowRunning(true);
+    setExecutionLogs([{ timestamp: new Date().toLocaleTimeString(), message: 'Workflow execution started...', type: 'info' }]);
+    try {
+      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections });
+      const newLogs: LogEntry[] = serverLogs.map(log => ({
+        ...log,
+        timestamp: new Date().toLocaleTimeString(),
+      }));
+      setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
+      toast({
+        title: 'Workflow Execution Attempted',
+        description: 'Check logs for details.',
+      });
+    } catch (error: any) {
+      const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
+      setExecutionLogs(prevLogs => [
+        ...prevLogs,
+        { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
+      ]);
+      toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
+    } finally {
+      setIsWorkflowRunning(false);
+    }
+  }, [nodes, connections, toast]);
+
+  const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
+    setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeIdToDelete));
+    setConnections(prevConns => prevConns.filter(conn => conn.sourceNodeId !== nodeIdToDelete && conn.targetNodeId !== nodeIdToDelete));
+    if (selectedNodeId === nodeIdToDelete) {
+      setSelectedNodeId(null);
+    }
+    toast({ title: 'Node Deleted', description: `Node ${nodeIdToDelete} and its connections removed.` });
+  }, [selectedNodeId, toast]);
+
+  const handleDeleteSelectedConnection = useCallback(() => {
+    if (selectedConnectionId) {
+      setConnections(prev => prev.filter(conn => conn.id !== selectedConnectionId));
+      setSelectedConnectionId(null);
+      toast({ title: "Connection Deleted", description: "The selected connection has been removed." });
+    }
+  }, [selectedConnectionId, toast]);
+
+
   useEffect(() => {
     handleLoadWorkflow(false); 
     
-    const handleEscapeKey = (event: KeyboardEvent) => {
+    const isInputField = (target: EventTarget | null): boolean => {
+      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isInputField(event.target)) {
+        return; // Don't interfere with typing in inputs
+      }
+
+      const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+
+      if (isCtrlOrMeta && event.key === 's') {
+        event.preventDefault();
+        handleSaveWorkflow();
+        return;
+      }
+      if (isCtrlOrMeta && event.key === 'o') {
+        event.preventDefault();
+        handleLoadWorkflow(true);
+        return;
+      }
+      if (isCtrlOrMeta && event.key === 'Enter') {
+        event.preventDefault();
+        handleRunWorkflow();
+        return;
+      }
+
       if (event.key === 'Escape') {
         if (isConnecting) {
           handleCancelConnection();
@@ -97,30 +205,33 @@ export default function FlowAIPage() {
         if (selectedConnectionId) {
           setSelectedConnectionId(null);
         }
+        return;
       }
-    };
 
-    const handleDeleteKey = (event: KeyboardEvent) => {
-      if ((event.key === 'Delete' || event.key === 'Backspace')) {
-        if (selectedNodeId && !isInputField(event.target)) {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (selectedNodeId) {
            handleDeleteNode(selectedNodeId);
         } else if (selectedConnectionId) {
           handleDeleteSelectedConnection();
         }
+        return;
       }
     };
 
-    const isInputField = (target: EventTarget | null): boolean => {
-      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
-    }
-
-    window.addEventListener('keydown', handleEscapeKey);
-    window.addEventListener('keydown', handleDeleteKey);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleEscapeKey);
-      window.removeEventListener('keydown', handleDeleteKey);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isConnecting, selectedNodeId, selectedConnectionId]); // Ensure all dependencies are listed
+  }, [
+    isConnecting, 
+    selectedNodeId, 
+    selectedConnectionId, 
+    handleSaveWorkflow, 
+    handleLoadWorkflow, 
+    handleRunWorkflow, 
+    handleDeleteNode, 
+    handleDeleteSelectedConnection
+  ]); // Dependencies updated
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxId = 0;
@@ -258,40 +369,6 @@ export default function FlowAIPage() {
       })
     );
   }, []);
-
-  const handleRunWorkflow = useCallback(async () => {
-    if (nodes.length === 0) {
-      toast({
-        title: 'Empty Workflow',
-        description: 'Add some nodes to the canvas before running.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsWorkflowRunning(true);
-    setExecutionLogs([{ timestamp: new Date().toLocaleTimeString(), message: 'Workflow execution started...', type: 'info' }]);
-    try {
-      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections });
-      const newLogs: LogEntry[] = serverLogs.map(log => ({
-        ...log,
-        timestamp: new Date().toLocaleTimeString(),
-      }));
-      setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
-      toast({
-        title: 'Workflow Execution Attempted',
-        description: 'Check logs for details.',
-      });
-    } catch (error: any) {
-      const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
-      setExecutionLogs(prevLogs => [
-        ...prevLogs,
-        { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
-      ]);
-      toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
-    } finally {
-      setIsWorkflowRunning(false);
-    }
-  }, [nodes, connections, toast]);
   
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -299,45 +376,6 @@ export default function FlowAIPage() {
     setIsAssistantVisible(true);
     if (isConnecting) handleCancelConnection();
   };
-
-  const handleSaveWorkflow = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
-      toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
-    }
-  }, [nodes, connections]);
-
-  const handleLoadWorkflow = useCallback((showToast = true) => {
-    if (typeof window !== 'undefined') {
-      const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (savedWorkflowJson) {
-        const savedWorkflow = JSON.parse(savedWorkflowJson);
-        setNodes(savedWorkflow.nodes || []);
-        setConnections(savedWorkflow.connections || []);
-        nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
-        setSelectedNodeId(null);
-        setSelectedConnectionId(null);
-        setExecutionLogs([]);
-        if (showToast) {
-          toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
-        }
-      } else {
-        if (showToast) {
-          toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
-        }
-      }
-    }
-  }, [toast]);
-
-  const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
-    setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeIdToDelete));
-    setConnections(prevConns => prevConns.filter(conn => conn.sourceNodeId !== nodeIdToDelete && conn.targetNodeId !== nodeIdToDelete));
-    if (selectedNodeId === nodeIdToDelete) {
-      setSelectedNodeId(null);
-    }
-    toast({ title: 'Node Deleted', description: `Node ${nodeIdToDelete} and its connections removed.` });
-  }, [selectedNodeId, toast]);
 
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
     setIsConnecting(true);
@@ -415,17 +453,8 @@ export default function FlowAIPage() {
     setSelectedConnectionId(connectionId);
     setSelectedNodeId(null);
     if (isConnecting) handleCancelConnection();
-    setIsAssistantVisible(true); // Keep assistant visible or toggle based on preference
+    setIsAssistantVisible(true); 
   }, [isConnecting, handleCancelConnection]);
-
-  const handleDeleteSelectedConnection = useCallback(() => {
-    if (selectedConnectionId) {
-      setConnections(prev => prev.filter(conn => conn.id !== selectedConnectionId));
-      setSelectedConnectionId(null);
-      toast({ title: "Connection Deleted", description: "The selected connection has been removed." });
-    }
-  }, [selectedConnectionId, toast]);
-
 
   const toggleAssistantPanel = () => {
     setIsAssistantVisible(prev => {
@@ -498,7 +527,7 @@ export default function FlowAIPage() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-destructive mb-3"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     <p className="text-md font-semibold text-foreground mb-1">Connection Selected</p>
                     <p className="text-sm text-muted-foreground mb-4">
-                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Backspace</kbd> to remove this connection.
+                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Esc</kbd> to deselect.
                     </p>
                     <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
                         <X className="mr-2 h-4 w-4" /> Deselect Connection
@@ -535,3 +564,4 @@ export default function FlowAIPage() {
   );
 }
 
+    
