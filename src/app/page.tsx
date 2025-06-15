@@ -8,7 +8,7 @@ import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode } from '@/app/actions'; 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, FolderOpen, Trash2, XCircle, MousePointer2 } from 'lucide-react';
+import { Loader2, Save, FolderOpen, Trash2, X, MousePointer2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { NodeLibrary } from '@/components/node-library';
@@ -445,13 +445,14 @@ export default function FlowAIPage() {
                 onAddSuggestedNode={handleAddSuggestedNode}
               />
             ) : isConnecting ? (
-                 <div className="p-4 text-center">
-                    <MousePointer2 className="h-8 w-8 mx-auto text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                        Connecting: Click an input handle on a target node to complete the connection.
+                 <div className="p-6 text-center flex flex-col items-center justify-center h-full">
+                    <MousePointer2 className="h-10 w-10 mx-auto text-primary mb-3" />
+                    <p className="text-md font-semibold text-foreground mb-1">Creating Connection</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Click an input handle on a target node to complete the connection.
                     </p>
-                    <Button variant="outline" size="sm" onClick={handleCancelConnection} className="mt-4">
-                        <XCircle className="mr-2 h-4 w-4" /> Cancel Connection
+                    <Button variant="outline" size="sm" onClick={handleCancelConnection}>
+                        <X className="mr-2 h-4 w-4" /> Cancel Connection
                     </Button>
                 </div>
             ) : (
@@ -473,4 +474,3 @@ export default function FlowAIPage() {
     </div>
   );
 }
-

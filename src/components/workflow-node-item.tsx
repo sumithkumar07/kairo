@@ -83,8 +83,8 @@ export function WorkflowNodeItem({
               data-handle-id={handleId}
               data-handle-type="input"
               className={cn(
-                "absolute -left-2 w-4 h-4 bg-primary rounded-full border-2 border-background shadow transform -translate-y-1/2",
-                isConnecting ? "cursor-pointer hover:bg-primary/70" : "cursor-default"
+                "absolute -left-2 w-4 h-4 bg-primary rounded-full border-2 border-background shadow transform -translate-y-1/2 transition-transform",
+                isConnecting ? "cursor-pointer hover:scale-125 hover:bg-primary/70" : "cursor-default"
               )}
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Input: ${handleId}`}
@@ -108,8 +108,8 @@ export function WorkflowNodeItem({
               data-handle-id={handleId}
               data-handle-type="output"
               className={cn(
-                "absolute -right-2 w-4 h-4 bg-accent rounded-full border-2 border-background shadow transform -translate-y-1/2",
-                !isConnecting ? "cursor-pointer hover:bg-accent/70" : "cursor-default"
+                "absolute -right-2 w-4 h-4 bg-accent rounded-full border-2 border-background shadow transform -translate-y-1/2 transition-transform",
+                !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-accent/70" : "cursor-default"
               )}
               style={{ top: `${yOffsetPercentage}%` }}
               title={`Output: ${handleId}`}

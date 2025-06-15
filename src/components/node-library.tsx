@@ -3,7 +3,7 @@
 
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge'; // Import Badge
+import { Badge } from '@/components/ui/badge'; 
 
 interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
@@ -18,15 +18,20 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
   const getCategoryBadgeVariant = (category: AvailableNodeType['category']) => {
     switch (category) {
       case 'trigger':
-        return 'default'; // bg-primary
+        return 'default'; 
       case 'action':
-        return 'secondary'; // bg-secondary
+        return 'secondary'; 
       case 'io':
-        return 'outline'; // text-foreground, border
+        return 'outline'; 
       case 'logic':
-        return 'destructive'; // bg-destructive (example, can be changed)
+        return 'destructive'; 
       case 'ai':
-        return 'default'; // another color or style if needed
+        return 'default'; 
+      case 'group':
+      case 'iteration':
+      case 'control':
+      case 'interaction':
+          return 'outline'
       default:
         return 'outline';
     }

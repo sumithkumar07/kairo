@@ -244,8 +244,8 @@ export function NodeConfigPanel({
                     </Button>
                 </div>
             )}
-            {!isLoadingSuggestion && (!suggestedNextNodeInfo || suggestedNextNodeInfo.forNodeId !== node.id) && (
-                 <p className="text-xs text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30 italic">No specific suggestion available right now.</p>
+            {!isLoadingSuggestion && (!suggestedNextNodeInfo || suggestedNextNodeInfo.forNodeId !== node.id || !suggestedNodeConfig) && (
+                 <p className="text-xs text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30 italic">No specific suggestion available right now, or suggestion type not found.</p>
             )}
           </div>
 
