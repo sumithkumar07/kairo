@@ -94,7 +94,7 @@ export function AIWorkflowAssistantPanel({
               <p className="ml-3 text-muted-foreground">AI is analyzing...</p>
             </div>
           ) : workflowExplanation ? (
-            <div className="p-3 bg-accent/10 rounded-md text-sm text-accent-foreground/80 space-y-2 whitespace-pre-wrap">
+            <div className="p-3 bg-accent/10 rounded-md text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed">
               {workflowExplanation}
             </div>
           ) : (

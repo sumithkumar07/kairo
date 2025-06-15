@@ -51,7 +51,14 @@ export function NodeConfigPanel({
             onConfigChange(node.id, newConfig);
             return;
         } catch (e) {
-            console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Config not updated. Error:`, e);
+            // If parsing fails but user is typing, we might want to update with raw string
+            // For simplicity, let's allow the raw string if parsing fails,
+            // but a better UX might show a validation error.
+            const newConfig = produce(node.config, draftConfig => {
+              draftConfig[fieldKey] = value; // Store as string if JSON parse fails
+            });
+            onConfigChange(node.id, newConfig);
+            console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Storing as string. Error:`, e);
             return; 
         }
     }
@@ -64,6 +71,7 @@ export function NodeConfigPanel({
 
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
+    // For JSON type, always display as string in textarea, even if it's an object in config
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
@@ -86,7 +94,7 @@ export function NodeConfigPanel({
         return (
           <Textarea
             id={`${node.id}-${fieldKey}`}
-            value={currentValue}
+            value={String(currentValue)} // Ensure it's always a string for textarea
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
             className="mt-1 min-h-[80px] font-mono text-xs"
@@ -96,7 +104,7 @@ export function NodeConfigPanel({
       case 'select':
         return (
           <Select
-            value={currentValue}
+            value={String(currentValue)}
             onValueChange={(value) => handleInputChange(fieldKey, value)}
           >
             <SelectTrigger id={`${node.id}-${fieldKey}`} className="mt-1">
@@ -120,7 +128,7 @@ export function NodeConfigPanel({
               onCheckedChange={(checked) => handleInputChange(fieldKey, checked)}
             />
             <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer">
-              {fieldSchema.label} {currentValue ? "(Enabled)" : "(Disabled)"}
+              {schema.label} {currentValue ? "(Enabled)" : "(Disabled)"}
             </Label>
           </div>
         );
@@ -177,7 +185,7 @@ export function NodeConfigPanel({
               <Textarea
                 value={node.aiExplanation}
                 readOnly
-                className="mt-1 text-xs text-muted-foreground bg-background/50 min-h-[100px] max-h-[200px]"
+                className="mt-1 text-xs text-muted-foreground bg-background/50 min-h-[100px] max-h-[200px] font-mono leading-relaxed"
                 rows={5}
               />
               <p className="text-xs text-muted-foreground mt-1">This is how the AI understands and configured this node.</p>
@@ -202,7 +210,9 @@ export function NodeConfigPanel({
                             const newConfig = JSON.parse(e.target.value);
                             onConfigChange(node.id, newConfig);
                         } catch (err) {
-                           console.warn(`[NodeConfigPanel] Invalid raw JSON for node '${node.id}'. Config not updated. Error:`, err);
+                           // Allow storing malformed JSON as string for live editing
+                           onConfigChange(node.id, e.target.value);
+                           console.warn(`[NodeConfigPanel] Invalid raw JSON for node '${node.id}'. Storing as string. Error:`, err);
                         }
                     }}
                     className="mt-1 font-mono text-xs min-h-[100px]"

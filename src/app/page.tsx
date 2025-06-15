@@ -64,7 +64,7 @@ export default function FlowAIPage() {
 
   useEffect(() => {
     if (selectedNode && selectedNodeId) {
-      setWorkflowExplanation(null); // Clear explanation when a node is selected
+      setWorkflowExplanation(null); 
       const fetchSuggestion = async () => {
         setIsLoadingSuggestion(true);
         setSuggestedNextNodeInfo(null); 
@@ -90,11 +90,11 @@ export default function FlowAIPage() {
       fetchSuggestion();
     } else {
       setSuggestedNextNodeInfo(null); 
-      if (!selectedConnectionId) { // Don't clear explanation if a connection is selected
-         // No node is selected, keep existing explanation or prompt
+      if (!selectedConnectionId && !workflowExplanation) { 
+         // No node is selected, and no global explanation is active
       }
     }
-  }, [selectedNodeId, selectedNode, selectedConnectionId]);
+  }, [selectedNodeId, selectedNode, selectedConnectionId, workflowExplanation]);
 
 
   const handleSaveWorkflow = useCallback(() => {
@@ -118,7 +118,7 @@ export default function FlowAIPage() {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setExecutionLogs([]);
-        setWorkflowExplanation(null);
+        setWorkflowExplanation(null); // Clear any existing explanation
         if (showToast) {
           toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
         }
@@ -147,7 +147,7 @@ export default function FlowAIPage() {
         validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has incomplete configuration.`);
       }
       if (nodeTypeConfig?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeTypeConfig)) {
-        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) is disconnected.`);
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) is disconnected or missing inputs.`);
       }
       if (nodeTypeConfig?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeTypeConfig)) {
         validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has unconnected input handles.`);
@@ -231,7 +231,7 @@ export default function FlowAIPage() {
         if (isConnecting) handleCancelConnection();
         if (selectedNodeId) setSelectedNodeId(null);
         if (selectedConnectionId) setSelectedConnectionId(null);
-        // if (workflowExplanation) setWorkflowExplanation(null); // Optionally clear explanation on Escape
+        if (workflowExplanation) setWorkflowExplanation(null); 
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -244,7 +244,7 @@ export default function FlowAIPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    isConnecting, selectedNodeId, selectedConnectionId, 
+    isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow, 
     handleDeleteNode, handleDeleteSelectedConnection
   ]); 
@@ -331,7 +331,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setExecutionLogs([]);
-    setWorkflowExplanation(null);
+    setWorkflowExplanation(null); // Clear any existing explanation
     setCanvasOffset({ x: 0, y: 0 }); 
     setZoomLevel(1);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
@@ -417,6 +417,7 @@ export default function FlowAIPage() {
     setSelectedConnectionId(null);
     setIsAssistantVisible(true);
     if (isConnecting) handleCancelConnection();
+    setWorkflowExplanation(null); // Clear explanation when a node is selected
   };
 
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
@@ -485,13 +486,11 @@ export default function FlowAIPage() {
   
   const handleCanvasClick = useCallback(() => {
     if (isConnecting) {
-      // If user clicks canvas while connecting, cancel connection
       handleCancelConnection();
     } else {
-      // If not connecting, deselect any selected node or connection
       setSelectedNodeId(null); 
       setSelectedConnectionId(null);
-      // Do not clear workflowExplanation here, it's handled by node/connection selection logic
+      // Do not clear workflowExplanation here, it's handled by node/connection selection logic or Escape key
     }
   }, [isConnecting, handleCancelConnection]);
 
@@ -509,13 +508,13 @@ export default function FlowAIPage() {
     setSelectedNodeId(null);
     if (isConnecting) handleCancelConnection();
     setIsAssistantVisible(true); 
-    setWorkflowExplanation(null); // Clear explanation when a connection is selected
+    setWorkflowExplanation(null); 
   }, [isConnecting, handleCancelConnection]);
 
   const toggleAssistantPanel = () => {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
-      if (!newVisibility && (selectedNodeId || selectedConnectionId)) {
+      if (!newVisibility && (selectedNodeId || selectedConnectionId || workflowExplanation)) {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         // setWorkflowExplanation(null); // Keep explanation if panel is just hidden
@@ -549,7 +548,7 @@ export default function FlowAIPage() {
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
-      setIsAssistantVisible(true); // Ensure assistant is visible to show explanation
+      setIsAssistantVisible(true); 
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
       setWorkflowExplanation('Failed to get explanation.');
@@ -583,7 +582,7 @@ export default function FlowAIPage() {
           onToggleAssistant={toggleAssistantPanel}
           isAssistantVisible={isAssistantVisible}
           onSaveWorkflow={handleSaveWorkflow}
-          onLoadWorkflow={handleLoadWorkflow}
+          onLoadWorkflow={() => handleLoadWorkflow(true)}
           isConnecting={isConnecting}
           onStartConnection={handleStartConnection}
           onCompleteConnection={handleCompleteConnection}
