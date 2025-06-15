@@ -5,7 +5,7 @@ import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle } from 'lucide-react'; 
-import { NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
+import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon } from '@/config/nodes'; // Added getDataTransformIcon
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -36,7 +36,13 @@ export function WorkflowNodeItem({
   connectionStartHandleId,
   connections,
 }: WorkflowNodeItemProps) {
-  const IconComponent = nodeType?.icon || GripVertical; 
+  
+  let IconComponent;
+  if (node.type === 'dataTransform' && nodeType) {
+    IconComponent = getDataTransformIcon(node.config?.transformType);
+  } else {
+    IconComponent = nodeType?.icon || GripVertical;
+  }
   
   const configCompleteCheck = isConfigComplete(node, nodeType);
   const disconnectedCheck = nodeType?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeType);
@@ -95,7 +101,7 @@ export function WorkflowNodeItem({
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
         {hasWarning && (
-          <TooltipProvider>
+          <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
@@ -124,10 +130,10 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="input"
                     className={cn(
-                      "absolute -left-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
-                      isPotentialTarget 
-                        ? "bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
-                        : (isSelfInputDuringConnect ? "bg-muted opacity-50 cursor-not-allowed" : "bg-primary cursor-default"),
+                      "absolute -left-2 w-4 h-4 rounded-full border-2 bg-green-500 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                       isPotentialTarget 
+                        ? "border-background hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
+                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-50 cursor-not-allowed" : "border-background bg-primary cursor-default"),
                       isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-50 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
