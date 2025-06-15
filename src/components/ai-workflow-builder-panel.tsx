@@ -10,7 +10,9 @@ interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
   selectedNodeId: string | null;
+  selectedConnectionId: string | null; // Added
   onNodeClick: (nodeId: string) => void;
+  onConnectionClick: (connectionId: string) => void; // Added
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
@@ -33,7 +35,9 @@ export function AIWorkflowBuilderPanel({
   nodes,
   connections,
   selectedNodeId,
+  selectedConnectionId, // Added
   onNodeClick,
+  onConnectionClick, // Added
   onNodeDragStop,
   onCanvasDrop,
   onToggleAssistant,
@@ -86,7 +90,9 @@ export function AIWorkflowBuilderPanel({
           nodes={nodes}
           connections={connections}
           selectedNodeId={selectedNodeId}
+          selectedConnectionId={selectedConnectionId} // Pass down
           onNodeClick={onNodeClick}
+          onConnectionClick={onConnectionClick} // Pass down
           onNodeDragStop={onNodeDragStop}
           onCanvasDrop={onCanvasDrop}
           isConnecting={isConnecting}
@@ -124,3 +130,4 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
+

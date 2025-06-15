@@ -27,6 +27,7 @@ export default function FlowAIPage() {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const [isAssistantVisible, setIsAssistantVisible] = useState(true);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
@@ -90,13 +91,36 @@ export default function FlowAIPage() {
         if (isConnecting) {
           handleCancelConnection();
         }
+        if (selectedNodeId) {
+          setSelectedNodeId(null);
+        }
+        if (selectedConnectionId) {
+          setSelectedConnectionId(null);
+        }
       }
     };
+
+    const handleDeleteKey = (event: KeyboardEvent) => {
+      if ((event.key === 'Delete' || event.key === 'Backspace')) {
+        if (selectedNodeId && !isInputField(event.target)) {
+           handleDeleteNode(selectedNodeId);
+        } else if (selectedConnectionId) {
+          handleDeleteSelectedConnection();
+        }
+      }
+    };
+
+    const isInputField = (target: EventTarget | null): boolean => {
+      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+    }
+
     window.addEventListener('keydown', handleEscapeKey);
+    window.addEventListener('keydown', handleDeleteKey);
     return () => {
       window.removeEventListener('keydown', handleEscapeKey);
+      window.removeEventListener('keydown', handleDeleteKey);
     };
-  }, [isConnecting]); // handleLoadWorkflow and handleCancelConnection are stable
+  }, [isConnecting, selectedNodeId, selectedConnectionId]); // Ensure all dependencies are listed
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxId = 0;
@@ -148,6 +172,7 @@ export default function FlowAIPage() {
     setNodes(newNodes);
     setConnections(newConnections);
     setSelectedNodeId(null); 
+    setSelectedConnectionId(null);
     setExecutionLogs([]);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast]);
@@ -170,6 +195,7 @@ export default function FlowAIPage() {
       draft.push(newNode);
     }));
     setSelectedNodeId(newNodeId);
+    setSelectedConnectionId(null);
     setIsAssistantVisible(true); 
   }, []);
 
@@ -269,6 +295,7 @@ export default function FlowAIPage() {
   
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeId(nodeId);
+    setSelectedConnectionId(null);
     setIsAssistantVisible(true);
     if (isConnecting) handleCancelConnection();
   };
@@ -290,6 +317,7 @@ export default function FlowAIPage() {
         setConnections(savedWorkflow.connections || []);
         nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
         setSelectedNodeId(null);
+        setSelectedConnectionId(null);
         setExecutionLogs([]);
         if (showToast) {
           toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
@@ -317,6 +345,7 @@ export default function FlowAIPage() {
     setConnectionStartHandleId(startHandleId);
     setConnectionPreviewPosition(startHandlePos);
     setSelectedNodeId(null); 
+    setSelectedConnectionId(null);
   }, []);
 
   const handleUpdateConnectionPreview = useCallback((mousePosition: { x: number; y: number }) => {
@@ -378,14 +407,32 @@ export default function FlowAIPage() {
       handleCancelConnection();
     } else {
       setSelectedNodeId(null); 
+      setSelectedConnectionId(null);
     }
   }, [isConnecting, handleCancelConnection]);
+
+  const handleConnectionClick = useCallback((connectionId: string) => {
+    setSelectedConnectionId(connectionId);
+    setSelectedNodeId(null);
+    if (isConnecting) handleCancelConnection();
+    setIsAssistantVisible(true); // Keep assistant visible or toggle based on preference
+  }, [isConnecting, handleCancelConnection]);
+
+  const handleDeleteSelectedConnection = useCallback(() => {
+    if (selectedConnectionId) {
+      setConnections(prev => prev.filter(conn => conn.id !== selectedConnectionId));
+      setSelectedConnectionId(null);
+      toast({ title: "Connection Deleted", description: "The selected connection has been removed." });
+    }
+  }, [selectedConnectionId, toast]);
+
 
   const toggleAssistantPanel = () => {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
-      if (!newVisibility && selectedNodeId) {
+      if (!newVisibility && (selectedNodeId || selectedConnectionId)) {
         setSelectedNodeId(null);
+        setSelectedConnectionId(null);
       }
       return newVisibility;
     });
@@ -411,7 +458,9 @@ export default function FlowAIPage() {
           nodes={nodes}
           connections={connections}
           selectedNodeId={selectedNodeId}
+          selectedConnectionId={selectedConnectionId}
           onNodeClick={handleNodeClick}
+          onConnectionClick={handleConnectionClick}
           onNodeDragStop={updateNodePosition}
           onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
@@ -444,15 +493,26 @@ export default function FlowAIPage() {
                 isLoadingSuggestion={isLoadingSuggestion}
                 onAddSuggestedNode={handleAddSuggestedNode}
               />
+            ) : selectedConnectionId ? (
+                <div className="p-6 text-center flex flex-col items-center justify-center h-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-destructive mb-3"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <p className="text-md font-semibold text-foreground mb-1">Connection Selected</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Backspace</kbd> to remove this connection.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
+                        <X className="mr-2 h-4 w-4" /> Deselect Connection
+                    </Button>
+                </div>
             ) : isConnecting ? (
                  <div className="p-6 text-center flex flex-col items-center justify-center h-full">
                     <MousePointer2 className="h-10 w-10 mx-auto text-primary mb-3" />
                     <p className="text-md font-semibold text-foreground mb-1">Creating Connection</p>
                     <p className="text-sm text-muted-foreground mb-4">
-                        Click an input handle on a target node to complete the connection.
+                        Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Esc</kbd> to cancel.
                     </p>
                     <Button variant="outline" size="sm" onClick={handleCancelConnection}>
-                        <X className="mr-2 h-4 w-4" /> Cancel Connection
+                        <X className="mr-2 h-4 w-4" /> Cancel
                     </Button>
                 </div>
             ) : (
@@ -474,3 +534,4 @@ export default function FlowAIPage() {
     </div>
   );
 }
+

@@ -12,7 +12,9 @@ interface WorkflowCanvasProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
   selectedNodeId: string | null;
+  selectedConnectionId: string | null; // Added
   onNodeClick: (nodeId: string) => void;
+  onConnectionClick: (connectionId: string) => void; // Added
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   isConnecting: boolean;
@@ -31,7 +33,9 @@ export function WorkflowCanvas({
   nodes,
   connections,
   selectedNodeId,
+  selectedConnectionId, // Added
   onNodeClick,
+  onConnectionClick, // Added
   onNodeDragStop,
   onCanvasDrop,
   isConnecting,
@@ -130,12 +134,18 @@ export function WorkflowCanvas({
   };
 
   const handleMouseDownOnCanvas = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget || (event.target as HTMLElement)?.classList.contains('pannable-content-wrapper')) {
-      if (event.button !== 0) return; // Only left click for panning
+    if (event.target === event.currentTarget || (event.target as HTMLElement)?.classList.contains('pannable-content-wrapper') || (event.target as HTMLElement).closest('svg')) { // Allow clicks on SVG itself to deselect
+      if (event.button !== 0) return; // Only left click
+      
+      // If click is on a connection line's transparent click target, don't pan or deselect all.
+      // The connection click handler will manage selection.
+      const clickedOnConnectionTarget = (event.target as HTMLElement).dataset?.connectionClickTarget === 'true';
+      if (clickedOnConnectionTarget) return;
+
       if (isConnecting) {
         onCanvasClick(); // This will cancel the connection
       } else {
-        onCanvasClick(); // This will deselect nodes
+        onCanvasClick(); // This will deselect nodes and connections
         setIsPanning(true);
         panStartRef.current = { x: event.clientX, y: event.clientY };
         document.body.style.cursor = 'grabbing';
@@ -229,6 +239,17 @@ export function WorkflowCanvas({
               >
                 <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--primary))" />
               </marker>
+              <marker
+                id="arrow-selected"
+                markerWidth="10"
+                markerHeight="7"
+                refX="8" 
+                refY="3.5"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--destructive))" />
+              </marker>
             </defs>
             {connections.map((conn) => {
               const sourceNode = nodes.find(n => n.id === conn.sourceNodeId);
@@ -238,17 +259,38 @@ export function WorkflowCanvas({
               const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
               const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
               
+              const isSelected = conn.id === selectedConnectionId;
+              const strokeColor = isSelected ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
+              const strokeWidth = isSelected ? 3 : 2;
+              const marker = isSelected ? "url(#arrow-selected)" : "url(#arrow)";
+
               return (
-                <line
-                  key={conn.id}
-                  x1={sourcePos.x}
-                  y1={sourcePos.y}
-                  x2={targetPos.x}
-                  y2={targetPos.y}
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="2"
-                  markerEnd="url(#arrow)"
-                />
+                <g key={conn.id}>
+                  <line
+                    x1={sourcePos.x}
+                    y1={sourcePos.y}
+                    x2={targetPos.x}
+                    y2={targetPos.y}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                    markerEnd={marker}
+                  />
+                  {/* Invisible click target */}
+                  <line
+                    data-connection-click-target="true"
+                    x1={sourcePos.x}
+                    y1={sourcePos.y}
+                    x2={targetPos.x}
+                    y2={targetPos.y}
+                    stroke="transparent"
+                    strokeWidth="10" 
+                    className="cursor-pointer pointer-events-stroke"
+                    onClick={(e) => { 
+                      e.stopPropagation(); // Prevent canvas click from deselecting
+                      onConnectionClick(conn.id); 
+                    }}
+                  />
+                </g>
               );
             })}
             {isConnecting && previewStartPos && connectionPreview?.previewPosition && (
@@ -295,3 +337,4 @@ export function WorkflowCanvas({
     </ScrollArea>
   );
 }
+
