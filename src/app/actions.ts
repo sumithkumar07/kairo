@@ -717,19 +717,60 @@ async function executeFlowInternal(
           
           case 'dataTransform':
               const { transformType, inputString, inputObject, inputArrayPath, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName, reducerFunction, initialValue } = resolvedConfig;
-              let transformedData: any = null; serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
+              let transformedData: any = null; 
+              serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
+              
+              const ensureString = (val: any, fieldName: string, transform: string): string => {
+                if (typeof val !== 'string') throw new Error(`dataTransform '${transform}' for node ${nodeIdentifier}: '${fieldName}' must be a string. Received: ${typeof val}`);
+                return val;
+              };
+              const ensureObject = (val: any, fieldName: string, transform: string): object => {
+                 if (typeof val !== 'object' || val === null) throw new Error(`dataTransform '${transform}' for node ${nodeIdentifier}: '${fieldName}' must be an object. Received: ${typeof val}`);
+                 return val;
+              };
+              const ensureArray = (val: any, fieldName: string, transform: string): any[] => {
+                 if (!Array.isArray(val)) throw new Error(`dataTransform '${transform}' for node ${nodeIdentifier}: '${fieldName}' (resolved from path '${inputArrayPath || fieldsToExtract || stringsToConcatenate}') must be an array. Received: ${typeof val}`);
+                 return val;
+              };
+
+
               switch (transformType) {
-                case 'toUpperCase': if (typeof inputString !== 'string') throw new Error('toUpperCase requires inputString to be a string.'); transformedData = inputString.toUpperCase(); break;
-                case 'toLowerCase': if (typeof inputString !== 'string') throw new Error('toLowerCase requires inputString to be a string.'); transformedData = inputString.toLowerCase(); break;
-                case 'extractFields': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('extractFields requires inputObject to be an object.'); if (!Array.isArray(fieldsToExtract) || !fieldsToExtract.every(f => typeof f === 'string')) throw new Error('extractFields requires fieldsToExtract to be an array of strings.'); transformedData = {}; for (const field of fieldsToExtract) if (inputObject.hasOwnProperty(field)) (transformedData as Record<string, any>)[field] = inputObject[field]; break;
-                case 'concatenateStrings': let stringsToJoin = stringsToConcatenate; if (typeof stringsToConcatenate === 'string') stringsToJoin = [stringsToConcatenate]; if (!Array.isArray(stringsToJoin) || !stringsToJoin.every(s => typeof s === 'string' || typeof s === 'number' || typeof s === 'boolean' || s === null || s === undefined)) throw new Error('concatenateStrings requires stringsToConcatenate to be an array of strings, numbers, booleans, nulls or undefineds.'); transformedData = stringsToJoin.map(s => String(s ?? '')).join(separator || ''); break;
-                case 'stringSplit': if (typeof inputString !== 'string') throw new Error('stringSplit requires inputString to be a string.'); if (typeof delimiter !== 'string') throw new Error('stringSplit requires delimiter to be a string.'); transformedData = { array: inputString.split(delimiter) }; break;
-                case 'arrayLength': const arrForLength = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts); if (!Array.isArray(arrForLength)) throw new Error(`arrayLength requires inputArrayPath ('${inputArrayPath}') to resolve to an array.`); transformedData = { length: arrForLength.length }; break;
-                case 'getItemAtIndex': const arrForGetItem = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts); if (!Array.isArray(arrForGetItem)) throw new Error(`getItemAtIndex requires inputArrayPath ('${inputArrayPath}') to resolve to an array.`); const idx = Number(index); if (isNaN(idx) || idx < 0 || idx >= arrForGetItem.length) throw new Error('getItemAtIndex requires a valid, in-bounds numeric index.'); transformedData = { item: arrForGetItem[idx] }; break;
-                case 'getObjectProperty': if (typeof inputObject !== 'object' || inputObject === null) throw new Error('getObjectProperty requires inputObject to be an object.'); if (typeof propertyName !== 'string' || propertyName.trim() === '') throw new Error('getObjectProperty requires a non-empty propertyName string.'); transformedData = { propertyValue: inputObject[propertyName] }; break;
+                case 'toUpperCase': transformedData = ensureString(inputString, 'inputString', 'toUpperCase').toUpperCase(); break;
+                case 'toLowerCase': transformedData = ensureString(inputString, 'inputString', 'toLowerCase').toLowerCase(); break;
+                case 'extractFields': 
+                    const objForExtract = ensureObject(inputObject, 'inputObject', 'extractFields');
+                    const fields = ensureArray(fieldsToExtract, 'fieldsToExtract', 'extractFields');
+                    transformedData = {}; 
+                    for (const field of fields) {
+                      if (typeof field === 'string' && objForExtract.hasOwnProperty(field)) (transformedData as Record<string, any>)[field] = (objForExtract as Record<string, any>)[field];
+                    }
+                    break;
+                case 'concatenateStrings': 
+                    let stringsToJoin = ensureArray(stringsToConcatenate, 'stringsToConcatenate', 'concatenateStrings');
+                    transformedData = stringsToJoin.map(s => String(s ?? '')).join(separator || ''); 
+                    break;
+                case 'stringSplit': 
+                    transformedData = { array: ensureString(inputString, 'inputString', 'stringSplit').split(ensureString(delimiter, 'delimiter', 'stringSplit')) }; 
+                    break;
+                case 'arrayLength': 
+                    const arrForLength = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts); 
+                    transformedData = { length: ensureArray(arrForLength, 'inputArrayPath', 'arrayLength').length }; 
+                    break;
+                case 'getItemAtIndex': 
+                    const arrForGetItem = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
+                    const idx = Number(index); 
+                    if (isNaN(idx) || idx < 0 || idx >= ensureArray(arrForGetItem, 'inputArrayPath', 'getItemAtIndex').length) throw new Error(`dataTransform 'getItemAtIndex' for node ${nodeIdentifier}: requires a valid, in-bounds numeric index. Got: ${index}`); 
+                    transformedData = { item: arrForGetItem[idx] }; 
+                    break;
+                case 'getObjectProperty': 
+                    const objForGetProp = ensureObject(inputObject, 'inputObject', 'getObjectProperty');
+                    const propName = ensureString(propertyName, 'propertyName', 'getObjectProperty');
+                    if(propName.trim() === '') throw new Error(`dataTransform 'getObjectProperty' for node ${nodeIdentifier}: propertyName cannot be empty.`);
+                    transformedData = { propertyValue: (objForGetProp as Record<string,any>)[propName] }; 
+                    break;
                 case 'reduceArray':
                   const arrToReduce = resolveValue(inputArrayPath, currentWorkflowData, serverLogs, additionalContexts);
-                  if (!Array.isArray(arrToReduce)) throw new Error(`reduceArray requires inputArrayPath ('${inputArrayPath}') to resolve to an array. Resolved to: ${JSON.stringify(arrToReduce)}`);
+                  ensureArray(arrToReduce, 'inputArrayPath', 'reduceArray');
                   
                   let resolvedInitialValue = initialValue;
                   if (typeof initialValue === 'string' && initialValue.startsWith("{{") && initialValue.endsWith("}}")) {
@@ -738,7 +779,6 @@ async function executeFlowInternal(
                      resolvedInitialValue = parseFloat(initialValue);
                      if(isNaN(resolvedInitialValue)) resolvedInitialValue = undefined; 
                   }
-
 
                   switch (reducerFunction) {
                     case 'sum':
@@ -773,11 +813,11 @@ async function executeFlowInternal(
                       transformedData = (resolvedInitialValue !== undefined ? String(resolvedInitialValue) : '') + arrToReduce.map(String).join(separator || '');
                       break;
                     case 'countOccurrences':
-                      transformedData = arrToReduce.reduce((acc, val) => {
+                      transformedData = arrToReduce.reduce((acc: Record<string,number>, val) => {
                         const key = String(val);
-                        (acc as Record<string, number>)[key] = ((acc as Record<string, number>)[key] || 0) + 1;
+                        acc[key] = (acc[key] || 0) + 1;
                         return acc;
-                      }, resolvedInitialValue !== undefined && typeof resolvedInitialValue === 'object' ? resolvedInitialValue : {});
+                      }, typeof resolvedInitialValue === 'object' && resolvedInitialValue !== null && !Array.isArray(resolvedInitialValue) ? resolvedInitialValue as Record<string,number> : {});
                       break;
                     default:
                       throw new Error(`Unsupported reducerFunction: ${reducerFunction}`);
@@ -1370,3 +1410,4 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 }
 
     
+

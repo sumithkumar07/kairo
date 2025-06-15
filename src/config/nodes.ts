@@ -213,7 +213,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     defaultConfig: { 
       transformType: 'toUpperCase', 
       inputString: '', 
-      inputObject: {},
+      inputObject: '{}', // Default to empty JSON string for object type
       inputArrayPath: '', 
       fieldsToExtract: '[]', 
       stringsToConcatenate: '[]', 
@@ -243,18 +243,19 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
           ],
           defaultValue: 'toUpperCase',
           required: true,
+          helperText: "Select the desired data transformation. Specific parameters below will apply based on this selection."
         },
-        inputString: { label: 'Input String (for case, split, concat)', type: 'textarea', placeholder: '{{input.text}}' }, // Conditionally required
-        inputObject: { label: 'Input Object (for extractFields, getProperty)', type: 'json', placeholder: '{{input.data}}' }, // Conditionally required
-        inputArrayPath: { label: 'Input Array Path (for length, getItem, reduce)', type: 'string', placeholder: '{{input.list_data}}' }, // Conditionally required
-        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings for extractFields)', type: 'json', placeholder: '["name", "email"]' }, // Conditionally required
-        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array for concatenateStrings)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]' }, // Conditionally required
-        separator: { label: 'Separator (for concatenateStrings, or reduceArray with "join")', type: 'string', placeholder: '(empty for direct join)' },
-        delimiter: { label: 'Delimiter (for stringSplit)', type: 'string', placeholder: ',' }, // Conditionally required
-        index: { label: 'Index (for getItemAtIndex, 0-based)', type: 'number', placeholder: '0' }, // Conditionally required
-        propertyName: { label: 'Property Name (for getObjectProperty)', type: 'string', placeholder: 'user.name' }, // Conditionally required
+        inputString: { label: 'Input String', type: 'textarea', placeholder: '{{input.text}}', helperText: "Used by: toUpperCase, toLowerCase, stringSplit. Also one of the elements for concatenateStrings." },
+        inputObject: { label: 'Input Object (JSON)', type: 'json', placeholder: '{{input.data_object}}', helperText: "Used by: extractFields, getObjectProperty." },
+        inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{input.list_data}} or {{string_split_node.output_data.array}}', helperText: "Used by: arrayLength, getItemAtIndex, reduceArray. This should be a placeholder resolving to an array." },
+        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings)', type: 'json', placeholder: '["name", "email"]', helperText: "Used by: extractFields. Defines which top-level keys to pick from Input Object." },
+        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]', helperText: "Used by: concatenateStrings. An array of strings or placeholders that resolve to strings." },
+        separator: { label: 'Separator', type: 'string', placeholder: '(empty for direct join)', helperText: "Used by: concatenateStrings, reduceArray (with 'join' reducer)." },
+        delimiter: { label: 'Delimiter', type: 'string', placeholder: ',', helperText: "Used by: stringSplit." },
+        index: { label: 'Index (0-based)', type: 'number', placeholder: '0', helperText: "Used by: getItemAtIndex." },
+        propertyName: { label: 'Property Name', type: 'string', placeholder: 'user.address.city', helperText: "Used by: getObjectProperty." },
         reducerFunction: {
-          label: 'Reducer Function (for reduceArray)',
+          label: 'Reducer Function',
           type: 'select',
           options: [
             { value: 'sum', label: 'Sum (numbers)' },
@@ -263,14 +264,14 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
             { value: 'countOccurrences', label: 'Count Occurrences (any type)' },
           ],
           defaultValue: 'sum',
-          helperText: 'Select if transformType is "Reduce Array".', // Conditionally required
+          helperText: "Used by: reduceArray. Defines the reduction operation.",
         },
-        initialValue: { label: 'Initial Value (for reduceArray, Optional)', type: 'string', placeholder: '0 for sum, "" for join', helperText: 'Starting value for reduction. Type should match array elements or expected output.' },
+        initialValue: { label: 'Initial Value (Optional)', type: 'string', placeholder: 'e.g., 0 for sum, "" for join', helperText: 'Used by: reduceArray. Starting value for reduction. Type should match array elements or expected output (e.g., "0" for sum, "{}" for count). Can be a placeholder.' },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
         ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
-    inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'status', 'error_message'],
+    inputHandles: ['input_data'], // Generic input for data
+    outputHandles: ['output_data', 'status', 'error_message'], // output_data structure depends on transformType
   },
   {
     type: 'executeFlowGroup',
@@ -739,6 +740,7 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
 
 
