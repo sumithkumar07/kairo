@@ -8,8 +8,8 @@ import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode } from '@/app/actions'; 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, FolderOpen, Trash2, X, MousePointer2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Keep for potential future use
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
@@ -17,9 +17,9 @@ import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-pan
 import { NodeConfigPanel } from '@/components/node-config-panel';
 import { ExecutionLogPanel } from '@/components/execution-log-panel';
 
-
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { produce } from 'immer';
+import { MousePointer2, X } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'flowAIWorkflow';
 
@@ -36,26 +36,29 @@ export default function FlowAIPage() {
   const { toast } = useToast();
   const nextNodeIdRef = useRef(1); 
 
-  // State for manual connection creation
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStartNodeId, setConnectionStartNodeId] = useState<string | null>(null);
   const [connectionStartHandleId, setConnectionStartHandleId] = useState<string | null>(null);
   const [connectionPreviewPosition, setConnectionPreviewPosition] = useState<{ x: number; y: number } | null>(null);
 
-  // State for AI node suggestions
   const [suggestedNextNodeInfo, setSuggestedNextNodeInfo] = useState<{ suggestion: SuggestNextNodeOutput; forNodeId: string } | null>(null);
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
+
+  // State for canvas panning
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0 });
+
 
   const selectedNode = useMemo(() => {
     return nodes.find(node => node.id === selectedNodeId) || null;
   }, [nodes, selectedNodeId]);
 
-  // Fetch next node suggestion when a node is selected
   useEffect(() => {
     if (selectedNode && selectedNodeId) {
       const fetchSuggestion = async () => {
         setIsLoadingSuggestion(true);
-        setSuggestedNextNodeInfo(null); // Clear previous suggestion
+        setSuggestedNextNodeInfo(null); 
         try {
           let context = `Workflow in progress. Current node: "${selectedNode.name}" (Type: ${selectedNode.type}).`;
           if (selectedNode.aiExplanation) {
@@ -71,25 +74,24 @@ export default function FlowAIPage() {
           setSuggestedNextNodeInfo({ suggestion: suggestionResult, forNodeId: selectedNodeId });
         } catch (error: any) {
           console.warn("Failed to fetch next node suggestion:", error);
-          // Do not toast for suggestions to avoid being too noisy
         } finally {
           setIsLoadingSuggestion(false);
         }
       };
       fetchSuggestion();
     } else {
-      setSuggestedNextNodeInfo(null); // Clear suggestion if no node is selected
+      setSuggestedNextNodeInfo(null); 
     }
   }, [selectedNodeId, selectedNode]);
 
 
   const handleSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
-      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current };
+      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
     }
-  }, [nodes, connections, toast]);
+  }, [nodes, connections, toast, canvasOffset]);
 
   const handleLoadWorkflow = useCallback((showToast = true) => {
     if (typeof window !== 'undefined') {
@@ -99,6 +101,7 @@ export default function FlowAIPage() {
         setNodes(savedWorkflow.nodes || []);
         setConnections(savedWorkflow.connections || []);
         nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
+        setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setExecutionLogs([]);
@@ -164,7 +167,6 @@ export default function FlowAIPage() {
     }
   }, [selectedConnectionId, toast]);
 
-
   useEffect(() => {
     handleLoadWorkflow(false); 
     
@@ -173,65 +175,64 @@ export default function FlowAIPage() {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isInputField(event.target)) {
-        return; // Don't interfere with typing in inputs
-      }
+      if (isInputField(event.target)) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
-      if (isCtrlOrMeta && event.key === 's') {
-        event.preventDefault();
-        handleSaveWorkflow();
-        return;
-      }
-      if (isCtrlOrMeta && event.key === 'o') {
-        event.preventDefault();
-        handleLoadWorkflow(true);
-        return;
-      }
-      if (isCtrlOrMeta && event.key === 'Enter') {
-        event.preventDefault();
-        handleRunWorkflow();
-        return;
-      }
-
+      if (isCtrlOrMeta && event.key.toLowerCase() === 's') { event.preventDefault(); handleSaveWorkflow(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleLoadWorkflow(true); return; }
+      if (isCtrlOrMeta && event.key === 'Enter') { event.preventDefault(); handleRunWorkflow(); return; }
       if (event.key === 'Escape') {
-        if (isConnecting) {
-          handleCancelConnection();
-        }
-        if (selectedNodeId) {
-          setSelectedNodeId(null);
-        }
-        if (selectedConnectionId) {
-          setSelectedConnectionId(null);
-        }
+        if (isConnecting) handleCancelConnection();
+        if (selectedNodeId) setSelectedNodeId(null);
+        if (selectedConnectionId) setSelectedConnectionId(null);
         return;
       }
-
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedNodeId) {
-           handleDeleteNode(selectedNodeId);
-        } else if (selectedConnectionId) {
-          handleDeleteSelectedConnection();
-        }
+        if (selectedNodeId) handleDeleteNode(selectedNodeId);
+        else if (selectedConnectionId) handleDeleteSelectedConnection();
         return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    isConnecting, 
-    selectedNodeId, 
-    selectedConnectionId, 
-    handleSaveWorkflow, 
-    handleLoadWorkflow, 
-    handleRunWorkflow, 
-    handleDeleteNode, 
-    handleDeleteSelectedConnection
-  ]); // Dependencies updated
+    isConnecting, selectedNodeId, selectedConnectionId, 
+    handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow, 
+    handleDeleteNode, handleDeleteSelectedConnection
+  ]); 
+
+  // Effect for global mouse listeners for panning
+  useEffect(() => {
+    const handleGlobalMouseMove = (event: MouseEvent) => {
+      if (!isPanning) return;
+      const deltaX = event.clientX - panStartRef.current.x;
+      const deltaY = event.clientY - panStartRef.current.y;
+      setCanvasOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+      panStartRef.current = { x: event.clientX, y: event.clientY };
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isPanning) {
+        setIsPanning(false);
+        document.body.style.cursor = 'default';
+      }
+    };
+
+    if (isPanning) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      if (document.body.style.cursor === 'grabbing') {
+        document.body.style.cursor = 'default';
+      }
+    };
+  }, [isPanning]);
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxId = 0;
@@ -285,6 +286,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setExecutionLogs([]);
+    setCanvasOffset({ x: 0, y: 0 }); // Reset pan on new workflow
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast]);
 
@@ -318,15 +320,13 @@ export default function FlowAIPage() {
       toast({ title: "Error", description: `Cannot add suggested node: Type "${suggestedNodeTypeString}" not found.`, variant: "destructive" });
       return;
     }
-    // Position the new node to the right of the selected node
     const position = {
-      x: selectedNode.position.x + NODE_WIDTH + 60, // 60px spacing
+      x: selectedNode.position.x + NODE_WIDTH + 60,
       y: selectedNode.position.y,
     };
     addNodeToCanvas(nodeTypeToAdd, position);
     toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
   }, [selectedNode, addNodeToCanvas, toast]);
-
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     setNodes((prevNodes) =>
@@ -341,9 +341,7 @@ export default function FlowAIPage() {
     setNodes(prevNodes => 
       produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
-        if (node) {
-          node.config = newConfig;
-        }
+        if (node) node.config = newConfig;
       })
     );
   }, []);
@@ -352,9 +350,7 @@ export default function FlowAIPage() {
     setNodes(prevNodes => 
       produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
-        if (node) {
-          node.name = newName;
-        }
+        if (node) node.name = newName;
       })
     );
   }, []);
@@ -363,9 +359,7 @@ export default function FlowAIPage() {
     setNodes(prevNodes => 
       produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
-        if (node) {
-          node.description = newDescription;
-        }
+        if (node) node.description = newDescription;
       })
     );
   }, []);
@@ -381,14 +375,14 @@ export default function FlowAIPage() {
     setIsConnecting(true);
     setConnectionStartNodeId(startNodeId);
     setConnectionStartHandleId(startHandleId);
-    setConnectionPreviewPosition(startHandlePos);
+    setConnectionPreviewPosition(startHandlePos); // Position relative to canvas content, not screen
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
   }, []);
 
   const handleUpdateConnectionPreview = useCallback((mousePosition: { x: number; y: number }) => {
     if (isConnecting) {
-      setConnectionPreviewPosition(mousePosition);
+      setConnectionPreviewPosition(mousePosition); // Position relative to canvas content
     }
   }, [isConnecting]);
 
@@ -441,6 +435,7 @@ export default function FlowAIPage() {
   }, []);
   
   const handleCanvasClick = useCallback(() => {
+    // This function is primarily for deselecting. Panning initiation is handled by handleCanvasPanStart.
     if (isConnecting) {
       handleCancelConnection();
     } else {
@@ -448,6 +443,19 @@ export default function FlowAIPage() {
       setSelectedConnectionId(null);
     }
   }, [isConnecting, handleCancelConnection]);
+
+  const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
+    // Call generic canvas click for deselection first
+    handleCanvasClick(); 
+    
+    // Then initiate panning if not in connection mode
+    if (!isConnecting) {
+      setIsPanning(true);
+      panStartRef.current = { x: event.clientX, y: event.clientY };
+      document.body.style.cursor = 'grabbing';
+    }
+  }, [handleCanvasClick, isConnecting]);
+
 
   const handleConnectionClick = useCallback((connectionId: string) => {
     setSelectedConnectionId(connectionId);
@@ -505,7 +513,10 @@ export default function FlowAIPage() {
             startHandleId: connectionStartHandleId,
             previewPosition: connectionPreviewPosition,
           }}
-          onCanvasClick={handleCanvasClick}
+          onCanvasClick={handleCanvasClick} // For deselection
+          onCanvasPanStart={handleCanvasPanStart} // For initiating pan
+          canvasOffset={canvasOffset}
+          isPanningForCursor={isPanning} // For cursor style
         />
         
         {isAssistantVisible && (

@@ -10,9 +10,9 @@ interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
   selectedNodeId: string | null;
-  selectedConnectionId: string | null; // Added
+  selectedConnectionId: string | null; 
   onNodeClick: (nodeId: string) => void;
-  onConnectionClick: (connectionId: string) => void; // Added
+  onConnectionClick: (connectionId: string) => void; 
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
@@ -28,16 +28,19 @@ interface AIWorkflowBuilderPanelProps {
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: () => void;
+  onCanvasClick: () => void; // For deselection logic
+  onCanvasPanStart: (event: React.MouseEvent) => void; // For initiating pan
+  canvasOffset: { x: number; y: number }; // For transforming content
+  isPanningForCursor: boolean; // For cursor style
 }
 
 export function AIWorkflowBuilderPanel({
   nodes,
   connections,
   selectedNodeId,
-  selectedConnectionId, // Added
+  selectedConnectionId,
   onNodeClick,
-  onConnectionClick, // Added
+  onConnectionClick,
   onNodeDragStop,
   onCanvasDrop,
   onToggleAssistant,
@@ -50,6 +53,9 @@ export function AIWorkflowBuilderPanel({
   onUpdateConnectionPreview,
   connectionPreview,
   onCanvasClick,
+  onCanvasPanStart,
+  canvasOffset,
+  isPanningForCursor,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
 
@@ -90,9 +96,9 @@ export function AIWorkflowBuilderPanel({
           nodes={nodes}
           connections={connections}
           selectedNodeId={selectedNodeId}
-          selectedConnectionId={selectedConnectionId} // Pass down
+          selectedConnectionId={selectedConnectionId} 
           onNodeClick={onNodeClick}
-          onConnectionClick={onConnectionClick} // Pass down
+          onConnectionClick={onConnectionClick} 
           onNodeDragStop={onNodeDragStop}
           onCanvasDrop={onCanvasDrop}
           isConnecting={isConnecting}
@@ -101,6 +107,9 @@ export function AIWorkflowBuilderPanel({
           onUpdateConnectionPreview={onUpdateConnectionPreview}
           connectionPreview={connectionPreview}
           onCanvasClick={onCanvasClick}
+          onCanvasPanStart={onCanvasPanStart}
+          canvasOffset={canvasOffset}
+          isPanningForCursor={isPanningForCursor}
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -130,4 +139,3 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
-
