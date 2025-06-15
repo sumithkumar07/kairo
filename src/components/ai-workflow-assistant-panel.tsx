@@ -3,7 +3,8 @@
 
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import { enhanceAndGenerateWorkflow } from '@/app/actions'; // Updated to use the new action
+import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
+import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +13,11 @@ import { Lightbulb, Loader2, Send } from 'lucide-react';
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
   setIsLoadingGlobal: (isLoading: boolean) => void;
+  // Props for node suggestions are passed to NodeConfigPanel, not directly used here
+  // but need to be accepted if this component wraps NodeConfigPanel conditionally.
+  // However, since FlowAIPage directly renders NodeConfigPanel or this,
+  // these props are not strictly needed here if NodeConfigPanel is chosen directly.
+  // For simplicity, we assume FlowAIPage handles the conditional rendering.
 }
 
 const examplePrompts = [
@@ -21,7 +27,10 @@ const examplePrompts = [
   "Process uploaded CSV files and generate reports"
 ];
 
-export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlobal }: AIWorkflowAssistantPanelProps) {
+export function AIWorkflowAssistantPanel({ 
+  onWorkflowGenerated, 
+  setIsLoadingGlobal,
+}: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -39,14 +48,13 @@ export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlob
     setIsLoading(true);
     setIsLoadingGlobal(true);
     try {
-      // Call the new action that includes the enhancement step
       const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
       toast({
         title: 'Workflow Generated!',
         description: 'The AI has processed your prompt and generated a workflow.',
       });
-      // setPrompt(''); // Keep prompt for potential refinement
+      // setPrompt(''); 
     } catch (error: any) {
       console.error('AI generation error:', error);
       toast({
@@ -65,7 +73,10 @@ export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlob
   };
 
   return (
-    <aside className="w-96 border-l bg-card shadow-sm flex flex-col">
+    // This component is rendered when NO node is selected.
+    // NodeConfigPanel is rendered by FlowAIPage when a node IS selected.
+    // So, no need to handle suggestion props directly here.
+    <>
       <div className="p-4 border-b">
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Lightbulb className="h-5 w-5 text-primary" />
@@ -121,6 +132,6 @@ export function AIWorkflowAssistantPanel({ onWorkflowGenerated, setIsLoadingGlob
           </Button>
         </div>
       </div>
-    </aside>
+    </>
   );
 }

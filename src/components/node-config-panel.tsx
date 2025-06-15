@@ -2,6 +2,7 @@
 'use client';
 
 import type { WorkflowNode, AvailableNodeType, ConfigFieldSchema } from '@/types/workflow';
+import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -10,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2 } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2 } from 'lucide-react'; 
+import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
+
 
 interface NodeConfigPanelProps {
   node: WorkflowNode;
@@ -20,6 +24,9 @@ interface NodeConfigPanelProps {
   onNodeNameChange: (nodeId: string, newName: string) => void;
   onNodeDescriptionChange: (nodeId: string, newDescription: string) => void;
   onDeleteNode: (nodeId: string) => void;
+  suggestedNextNodeInfo: { suggestion: SuggestNextNodeOutput; forNodeId: string } | null;
+  isLoadingSuggestion: boolean;
+  onAddSuggestedNode: (nodeTypeString: string) => void;
 }
 
 export function NodeConfigPanel({ 
@@ -28,11 +35,13 @@ export function NodeConfigPanel({
   onConfigChange, 
   onNodeNameChange, 
   onNodeDescriptionChange,
-  onDeleteNode 
+  onDeleteNode,
+  suggestedNextNodeInfo,
+  isLoadingSuggestion,
+  onAddSuggestedNode
 }: NodeConfigPanelProps) {
   
   const handleInputChange = (fieldKey: string, value: any) => {
-    // For JSON type fields, try to parse, otherwise store as string
     if (nodeType?.configSchema?.[fieldKey]?.type === 'json') {
         try {
             const parsedValue = JSON.parse(value);
@@ -43,8 +52,6 @@ export function NodeConfigPanel({
             return;
         } catch (e) {
             console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Config not updated. Error:`, e);
-            // Do not update config if JSON is invalid. User needs to fix the input.
-            // To make this more user-friendly, a visual error could be shown here.
             return; 
         }
     }
@@ -58,10 +65,8 @@ export function NodeConfigPanel({
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
-        // If the current config value for a JSON field is an object/array, stringify it for the textarea
         currentValue = JSON.stringify(currentValue, null, 2);
     }
-
 
     switch (fieldSchema.type) {
       case 'string':
@@ -77,11 +82,11 @@ export function NodeConfigPanel({
           />
         );
       case 'textarea':
-      case 'json': // Treat json for input like textarea, but value is stringified/parsed
+      case 'json':
         return (
           <Textarea
             id={`${node.id}-${fieldKey}`}
-            value={currentValue} // currentValue is already stringified for JSON or is a string for textarea
+            value={currentValue}
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
             className="mt-1 min-h-[80px] font-mono text-xs"
@@ -123,6 +128,10 @@ export function NodeConfigPanel({
         return <p className="text-destructive text-xs mt-1">Unsupported field type: {fieldSchema.type}</p>;
     }
   };
+  
+  const suggestedNodeConfig = suggestedNextNodeInfo?.suggestion?.suggestedNode 
+    ? AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNextNodeInfo.suggestion.suggestedNode) 
+    : null;
 
   return (
     <Card className="shadow-lg flex flex-col h-full">
@@ -191,9 +200,8 @@ export function NodeConfigPanel({
                     onChange={(e) => {
                         try {
                             const newConfig = JSON.parse(e.target.value);
-                            onConfigChange(node.id, newConfig); // For raw config, allow direct update if JSON is valid
+                            onConfigChange(node.id, newConfig);
                         } catch (err) {
-                           // User will see invalid JSON in text area, config won't update
                            console.warn(`[NodeConfigPanel] Invalid raw JSON for node '${node.id}'. Config not updated. Error:`, err);
                         }
                     }}
@@ -206,6 +214,41 @@ export function NodeConfigPanel({
           {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).length === 0) && Object.keys(node.config || {}).length === 0 && (
              <p className="text-sm text-muted-foreground mt-2">No specific configuration schema or raw config available for this node type.</p>
           )}
+
+          <Separator className="my-4" />
+
+          <div>
+            <Label className="font-semibold text-primary flex items-center gap-2">
+                <Wand2 className="h-4 w-4" />
+                AI Node Suggestion
+            </Label>
+            {isLoadingSuggestion && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Fetching suggestions...</span>
+                </div>
+            )}
+            {!isLoadingSuggestion && suggestedNextNodeInfo && suggestedNextNodeInfo.forNodeId === node.id && suggestedNodeConfig && (
+                <div className="mt-2 p-3 border rounded-md bg-primary/5 space-y-2">
+                    <p className="text-sm">
+                        Consider adding: <span className="font-semibold text-primary">{suggestedNodeConfig.name}</span>
+                        <span className="text-xs text-muted-foreground ml-1">({suggestedNextNodeInfo.suggestion.suggestedNode})</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground italic">Reason: {suggestedNextNodeInfo.suggestion.reason}</p>
+                    <Button 
+                        size="sm" 
+                        onClick={() => onAddSuggestedNode(suggestedNextNodeInfo.suggestion.suggestedNode)}
+                        className="w-full"
+                    >
+                       <Wand2 className="mr-2 h-4 w-4" /> Add Suggested Node
+                    </Button>
+                </div>
+            )}
+            {!isLoadingSuggestion && (!suggestedNextNodeInfo || suggestedNextNodeInfo.forNodeId !== node.id) && (
+                 <p className="text-xs text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30 italic">No specific suggestion available right now.</p>
+            )}
+          </div>
+
         </CardContent>
       </ScrollArea>
     </Card>

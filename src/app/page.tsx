@@ -4,11 +4,12 @@
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import { executeWorkflow } from '@/app/actions'; 
+import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
+import { executeWorkflow, suggestNextWorkflowNode } from '@/app/actions'; 
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, FolderOpen, Trash2, XCircle, MousePointer2 } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Added Button import
+import { Button } from '@/components/ui/button';
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
@@ -32,16 +33,57 @@ export default function FlowAIPage() {
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
   
   const { toast } = useToast();
-  const nextNodeIdRef = useRef(1); // For AI generated nodes
+  const nextNodeIdRef = useRef(1); 
 
   // State for manual connection creation
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStartNodeId, setConnectionStartNodeId] = useState<string | null>(null);
-  const [connectionStartHandleId, setConnectionStartHandleId] = useState<string | null>(null); // e.g., 'output1'
+  const [connectionStartHandleId, setConnectionStartHandleId] = useState<string | null>(null);
   const [connectionPreviewPosition, setConnectionPreviewPosition] = useState<{ x: number; y: number } | null>(null);
 
+  // State for AI node suggestions
+  const [suggestedNextNodeInfo, setSuggestedNextNodeInfo] = useState<{ suggestion: SuggestNextNodeOutput; forNodeId: string } | null>(null);
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
+
+  const selectedNode = useMemo(() => {
+    return nodes.find(node => node.id === selectedNodeId) || null;
+  }, [nodes, selectedNodeId]);
+
+  // Fetch next node suggestion when a node is selected
   useEffect(() => {
-    handleLoadWorkflow(false); // Attempt to load on mount, suppress toast if no workflow found
+    if (selectedNode && selectedNodeId) {
+      const fetchSuggestion = async () => {
+        setIsLoadingSuggestion(true);
+        setSuggestedNextNodeInfo(null); // Clear previous suggestion
+        try {
+          let context = `Workflow in progress. Current node: "${selectedNode.name}" (Type: ${selectedNode.type}).`;
+          if (selectedNode.aiExplanation) {
+            context += ` AI Explanation (summary): ${selectedNode.aiExplanation.substring(0, 150)}...`;
+          } else if (selectedNode.description) {
+            context += ` Description: ${selectedNode.description.substring(0,150)}...`;
+          }
+          
+          const suggestionResult = await suggestNextWorkflowNode({
+            currentNodeType: selectedNode.type,
+            workflowContext: context,
+          });
+          setSuggestedNextNodeInfo({ suggestion: suggestionResult, forNodeId: selectedNodeId });
+        } catch (error: any) {
+          console.warn("Failed to fetch next node suggestion:", error);
+          // Do not toast for suggestions to avoid being too noisy
+        } finally {
+          setIsLoadingSuggestion(false);
+        }
+      };
+      fetchSuggestion();
+    } else {
+      setSuggestedNextNodeInfo(null); // Clear suggestion if no node is selected
+    }
+  }, [selectedNodeId, selectedNode]);
+
+
+  useEffect(() => {
+    handleLoadWorkflow(false); 
     
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -54,7 +96,7 @@ export default function FlowAIPage() {
     return () => {
       window.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [isConnecting]); // Only re-bind if isConnecting changes, handleLoadWorkflow is stable
+  }, [isConnecting]); // handleLoadWorkflow and handleCancelConnection are stable
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxId = 0;
@@ -83,7 +125,7 @@ export default function FlowAIPage() {
     nextNodeIdRef.current = maxId + 1;
 
     const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
-      id: crypto.randomUUID(), // Use UUID for connections
+      id: crypto.randomUUID(),
       sourceNodeId: conn.sourceNodeId, 
       targetNodeId: conn.targetNodeId,
       sourceHandle: conn.sourcePort,
@@ -130,6 +172,24 @@ export default function FlowAIPage() {
     setSelectedNodeId(newNodeId);
     setIsAssistantVisible(true); 
   }, []);
+
+  const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
+    if (!selectedNode) return;
+
+    const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
+    if (!nodeTypeToAdd) {
+      toast({ title: "Error", description: `Cannot add suggested node: Type "${suggestedNodeTypeString}" not found.`, variant: "destructive" });
+      return;
+    }
+    // Position the new node to the right of the selected node
+    const position = {
+      x: selectedNode.position.x + NODE_WIDTH + 60, // 60px spacing
+      y: selectedNode.position.y,
+    };
+    addNodeToCanvas(nodeTypeToAdd, position);
+    toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
+  }, [selectedNode, addNodeToCanvas, toast]);
+
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     setNodes((prevNodes) =>
@@ -251,13 +311,12 @@ export default function FlowAIPage() {
     toast({ title: 'Node Deleted', description: `Node ${nodeIdToDelete} and its connections removed.` });
   }, [selectedNodeId, toast]);
 
-  // Connection Logic
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
     setIsConnecting(true);
     setConnectionStartNodeId(startNodeId);
     setConnectionStartHandleId(startHandleId);
     setConnectionPreviewPosition(startHandlePos);
-    setSelectedNodeId(null); // Deselect node when starting connection
+    setSelectedNodeId(null); 
   }, []);
 
   const handleUpdateConnectionPreview = useCallback((mousePosition: { x: number; y: number }) => {
@@ -268,7 +327,6 @@ export default function FlowAIPage() {
 
   const handleCompleteConnection = useCallback((endNodeId: string, endHandleId: string) => {
     if (isConnecting && connectionStartNodeId && connectionStartHandleId && connectionStartNodeId !== endNodeId) {
-      // Prevent self-loops for simplicity, or connecting output to output / input to input
       const sourceNode = nodes.find(n => n.id === connectionStartNodeId);
       const targetNode = nodes.find(n => n.id === endNodeId);
       if (!sourceNode || !targetNode) {
@@ -276,7 +334,6 @@ export default function FlowAIPage() {
         return;
       }
 
-      // Check if sourceHandle is an output and targetHandle is an input
       const sourceHandleIsOutput = sourceNode.outputHandles?.includes(connectionStartHandleId);
       const targetHandleIsInput = targetNode.inputHandles?.includes(endHandleId);
 
@@ -294,7 +351,6 @@ export default function FlowAIPage() {
         targetHandle: endHandleId,
       };
       setConnections(prev => produce(prev, draft => {
-        // Avoid duplicate connections between same handles
         const exists = draft.find(c => 
             c.sourceNodeId === newConnection.sourceNodeId && c.sourceHandle === newConnection.sourceHandle &&
             c.targetNodeId === newConnection.targetNodeId && c.targetHandle === newConnection.targetHandle
@@ -321,7 +377,7 @@ export default function FlowAIPage() {
     if (isConnecting) {
       handleCancelConnection();
     } else {
-      setSelectedNodeId(null); // Deselect node if clicking on canvas
+      setSelectedNodeId(null); 
     }
   }, [isConnecting, handleCancelConnection]);
 
@@ -334,10 +390,6 @@ export default function FlowAIPage() {
       return newVisibility;
     });
   };
-
-  const selectedNode = useMemo(() => {
-    return nodes.find(node => node.id === selectedNodeId) || null;
-  }, [nodes, selectedNodeId]);
 
   const selectedNodeType = useMemo(() => {
     if (!selectedNode) return undefined;
@@ -388,6 +440,9 @@ export default function FlowAIPage() {
                 onNodeNameChange={handleNodeNameChange}
                 onNodeDescriptionChange={handleNodeDescriptionChange}
                 onDeleteNode={handleDeleteNode}
+                suggestedNextNodeInfo={suggestedNextNodeInfo}
+                isLoadingSuggestion={isLoadingSuggestion}
+                onAddSuggestedNode={handleAddSuggestedNode}
               />
             ) : isConnecting ? (
                  <div className="p-4 text-center">
@@ -418,3 +473,4 @@ export default function FlowAIPage() {
     </div>
   );
 }
+
