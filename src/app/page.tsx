@@ -5,7 +5,7 @@ import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode } from '@/app/actions'; 
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions'; 
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 
 
@@ -54,6 +54,9 @@ export default function FlowAIPage() {
   const panStartRef = useRef({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
 
+  const [isExplainingWorkflow, setIsExplainingWorkflow] = useState(false);
+  const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null);
+
 
   const selectedNode = useMemo(() => {
     return nodes.find(node => node.id === selectedNodeId) || null;
@@ -61,6 +64,7 @@ export default function FlowAIPage() {
 
   useEffect(() => {
     if (selectedNode && selectedNodeId) {
+      setWorkflowExplanation(null); // Clear explanation when a node is selected
       const fetchSuggestion = async () => {
         setIsLoadingSuggestion(true);
         setSuggestedNextNodeInfo(null); 
@@ -86,8 +90,11 @@ export default function FlowAIPage() {
       fetchSuggestion();
     } else {
       setSuggestedNextNodeInfo(null); 
+      if (!selectedConnectionId) { // Don't clear explanation if a connection is selected
+         // No node is selected, keep existing explanation or prompt
+      }
     }
-  }, [selectedNodeId, selectedNode]);
+  }, [selectedNodeId, selectedNode, selectedConnectionId]);
 
 
   const handleSaveWorkflow = useCallback(() => {
@@ -111,6 +118,7 @@ export default function FlowAIPage() {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setExecutionLogs([]);
+        setWorkflowExplanation(null);
         if (showToast) {
           toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
         }
@@ -134,14 +142,14 @@ export default function FlowAIPage() {
 
     const validationErrors: string[] = [];
     nodes.forEach(node => {
-      const nodeType = AVAILABLE_NODES_CONFIG.find(nt => nt.type === node.type);
-      if (!isConfigComplete(node, nodeType)) {
+      const nodeTypeConfig = AVAILABLE_NODES_CONFIG.find(nt => nt.type === node.type);
+      if (!isConfigComplete(node, nodeTypeConfig)) {
         validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has incomplete configuration.`);
       }
-      if (isNodeDisconnected(node, connections, nodeType)) {
+      if (nodeTypeConfig?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeTypeConfig)) {
         validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) is disconnected.`);
       }
-      if (hasUnconnectedInputs(node, connections, nodeType)) {
+      if (nodeTypeConfig?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeTypeConfig)) {
         validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has unconnected input handles.`);
       }
     });
@@ -223,6 +231,7 @@ export default function FlowAIPage() {
         if (isConnecting) handleCancelConnection();
         if (selectedNodeId) setSelectedNodeId(null);
         if (selectedConnectionId) setSelectedConnectionId(null);
+        // if (workflowExplanation) setWorkflowExplanation(null); // Optionally clear explanation on Escape
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -322,6 +331,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setExecutionLogs([]);
+    setWorkflowExplanation(null);
     setCanvasOffset({ x: 0, y: 0 }); 
     setZoomLevel(1);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
@@ -347,6 +357,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(newNodeId);
     setSelectedConnectionId(null);
     setIsAssistantVisible(true); 
+    setWorkflowExplanation(null);
   }, []);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
@@ -415,6 +426,7 @@ export default function FlowAIPage() {
     setConnectionPreviewPosition(startHandlePos); 
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
+    setWorkflowExplanation(null);
   }, []);
 
   const handleUpdateConnectionPreview = useCallback((mousePosition: { x: number; y: number }) => {
@@ -473,10 +485,13 @@ export default function FlowAIPage() {
   
   const handleCanvasClick = useCallback(() => {
     if (isConnecting) {
+      // If user clicks canvas while connecting, cancel connection
       handleCancelConnection();
     } else {
+      // If not connecting, deselect any selected node or connection
       setSelectedNodeId(null); 
       setSelectedConnectionId(null);
+      // Do not clear workflowExplanation here, it's handled by node/connection selection logic
     }
   }, [isConnecting, handleCancelConnection]);
 
@@ -494,6 +509,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null);
     if (isConnecting) handleCancelConnection();
     setIsAssistantVisible(true); 
+    setWorkflowExplanation(null); // Clear explanation when a connection is selected
   }, [isConnecting, handleCancelConnection]);
 
   const toggleAssistantPanel = () => {
@@ -502,6 +518,7 @@ export default function FlowAIPage() {
       if (!newVisibility && (selectedNodeId || selectedConnectionId)) {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
+        // setWorkflowExplanation(null); // Keep explanation if panel is just hidden
       }
       return newVisibility;
     });
@@ -520,12 +537,35 @@ export default function FlowAIPage() {
     setZoomLevel(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
   }, []);
 
+  const handleGetWorkflowExplanation = useCallback(async () => {
+    if (nodes.length === 0) {
+      toast({ title: 'Empty Workflow', description: 'Add nodes to the canvas to get an explanation.', variant: 'default' });
+      return;
+    }
+    setIsExplainingWorkflow(true);
+    setWorkflowExplanation(null);
+    setSelectedNodeId(null); 
+    setSelectedConnectionId(null);
+    try {
+      const explanation = await getWorkflowExplanation({ nodes, connections });
+      setWorkflowExplanation(explanation);
+      setIsAssistantVisible(true); // Ensure assistant is visible to show explanation
+    } catch (error: any) {
+      toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
+      setWorkflowExplanation('Failed to get explanation.');
+    } finally {
+      setIsExplainingWorkflow(false);
+    }
+  }, [nodes, connections, toast]);
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {isLoadingAi && (
+      {(isLoadingAi || isExplainingWorkflow) && (
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="ml-4 text-lg text-foreground">AI is generating your workflow...</p>
+          <p className="ml-4 text-lg text-foreground">
+            {isLoadingAi ? 'AI is generating your workflow...' : 'AI is explaining the workflow...'}
+          </p>
         </div>
       )}
 
@@ -562,6 +602,8 @@ export default function FlowAIPage() {
           zoomLevel={zoomLevel}
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
+          onExplainWorkflow={handleGetWorkflowExplanation}
+          isExplainingWorkflow={isExplainingWorkflow}
         />
         
         {isAssistantVisible && (
@@ -604,6 +646,9 @@ export default function FlowAIPage() {
               <AIWorkflowAssistantPanel
                 onWorkflowGenerated={handleAiPromptSubmit}
                 setIsLoadingGlobal={setIsLoadingAi}
+                isExplainingWorkflow={isExplainingWorkflow}
+                workflowExplanation={workflowExplanation}
+                onClearExplanation={() => setWorkflowExplanation(null)}
               />
             )}
             <div className="mt-auto border-t">
@@ -619,3 +664,4 @@ export default function FlowAIPage() {
     </div>
   );
 }
+

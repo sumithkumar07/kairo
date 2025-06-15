@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Radio, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus } from 'lucide-react';
+import { Zap, Bot, Radio, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -37,6 +37,8 @@ interface AIWorkflowBuilderPanelProps {
   zoomLevel: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onExplainWorkflow: () => void;
+  isExplainingWorkflow: boolean;
 }
 
 export function AIWorkflowBuilderPanel({
@@ -66,6 +68,8 @@ export function AIWorkflowBuilderPanel({
   zoomLevel,
   onZoomIn,
   onZoomOut,
+  onExplainWorkflow,
+  isExplainingWorkflow,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
 
@@ -92,6 +96,16 @@ export function AIWorkflowBuilderPanel({
           <Button variant="outline" size="sm" onClick={onSaveWorkflow}>
             <Save className="h-4 w-4 mr-2" />
             Save
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onExplainWorkflow} 
+            disabled={!hasWorkflow || isExplainingWorkflow}
+            title="Explain this workflow"
+          >
+            <MessageSquareText className="h-4 w-4 mr-2" />
+            Explain
           </Button>
           <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
             <Radio className="h-4 w-4 mr-2" />

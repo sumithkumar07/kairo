@@ -16,6 +16,11 @@ import {
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
+import {
+  explainWorkflow as genkitExplainWorkflow,
+  type ExplainWorkflowInput,
+  type ExplainWorkflowOutput,
+} from '@/ai/flows/explain-workflow-flow';
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
@@ -420,6 +425,26 @@ export async function suggestNextWorkflowNode(
       throw new Error(`Failed to suggest next node: ${error.message}`);
     }
     throw new Error("Failed to suggest next node due to an unknown error.");
+  }
+}
+
+export async function getWorkflowExplanation(
+  workflowData: ExplainWorkflowInput
+): Promise<string> {
+  try {
+    console.log("[SERVER ACTION] Requesting workflow explanation for:", JSON.stringify(workflowData.nodes.map(n=>n.id), null, 2));
+    const result = await genkitExplainWorkflow(workflowData);
+    if (!result || !result.explanation) {
+      throw new Error("AI failed to provide an explanation for the workflow.");
+    }
+    console.log("[SERVER ACTION] Workflow explanation received.");
+    return result.explanation;
+  } catch (error) {
+    console.error("[SERVER ACTION] Error in getWorkflowExplanation:", error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to get workflow explanation from AI: ${error.message}`);
+    }
+    throw new Error("Failed to get workflow explanation from AI due to an unknown error.");
   }
 }
 

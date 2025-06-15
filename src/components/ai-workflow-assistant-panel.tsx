@@ -3,21 +3,20 @@
 
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
+// import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node'; // Not directly used here
 import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText } from 'lucide-react';
+import { ScrollArea } from './ui/scroll-area';
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
   setIsLoadingGlobal: (isLoading: boolean) => void;
-  // Props for node suggestions are passed to NodeConfigPanel, not directly used here
-  // but need to be accepted if this component wraps NodeConfigPanel conditionally.
-  // However, since FlowAIPage directly renders NodeConfigPanel or this,
-  // these props are not strictly needed here if NodeConfigPanel is chosen directly.
-  // For simplicity, we assume FlowAIPage handles the conditional rendering.
+  isExplainingWorkflow: boolean;
+  workflowExplanation: string | null;
+  onClearExplanation: () => void;
 }
 
 const examplePrompts = [
@@ -30,9 +29,12 @@ const examplePrompts = [
 export function AIWorkflowAssistantPanel({ 
   onWorkflowGenerated, 
   setIsLoadingGlobal,
+  isExplainingWorkflow,
+  workflowExplanation,
+  onClearExplanation,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLocal, setIsLoadingLocal] = useState(false); // Local loading for prompt generation
   const { toast } = useToast();
 
   const handleSubmit = async () => {
@@ -45,8 +47,8 @@ export function AIWorkflowAssistantPanel({
       return;
     }
 
-    setIsLoading(true);
-    setIsLoadingGlobal(true);
+    setIsLoadingLocal(true);
+    setIsLoadingGlobal(true); // Also set global loading for AI generation
     try {
       const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
@@ -54,7 +56,7 @@ export function AIWorkflowAssistantPanel({
         title: 'Workflow Generated!',
         description: 'The AI has processed your prompt and generated a workflow.',
       });
-      // setPrompt(''); 
+      // setPrompt(''); // Keep prompt for potential refinement
     } catch (error: any) {
       console.error('AI generation error:', error);
       toast({
@@ -63,19 +65,52 @@ export function AIWorkflowAssistantPanel({
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingLocal(false);
       setIsLoadingGlobal(false);
     }
   };
 
   const handleExamplePromptClick = (example: string) => {
     setPrompt(example);
+    setWorkflowExplanation(null); // Clear explanation if user picks an example
   };
 
+  const currentIsLoading = isLoadingLocal || isExplainingWorkflow;
+
+  if (workflowExplanation || isExplainingWorkflow) {
+    return (
+      <>
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Workflow Explanation
+          </h2>
+          <p className="text-sm text-muted-foreground">AI-generated summary of the current workflow.</p>
+        </div>
+        <ScrollArea className="p-4 flex-1">
+          {isExplainingWorkflow ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-3 text-muted-foreground">AI is analyzing...</p>
+            </div>
+          ) : workflowExplanation ? (
+            <div className="p-3 bg-accent/10 rounded-md text-sm text-accent-foreground/80 space-y-2 whitespace-pre-wrap">
+              {workflowExplanation}
+            </div>
+          ) : (
+             <p className="text-muted-foreground text-center p-4">No explanation available.</p>
+          )}
+        </ScrollArea>
+        <div className="p-4 border-t bg-background/50 mt-auto">
+          <Button variant="outline" onClick={onClearExplanation} className="w-full">
+            <XCircle className="mr-2 h-4 w-4" /> Back to Prompt
+          </Button>
+        </div>
+      </>
+    );
+  }
+
   return (
-    // This component is rendered when NO node is selected.
-    // NodeConfigPanel is rendered by FlowAIPage when a node IS selected.
-    // So, no need to handle suggestion props directly here.
     <>
       <div className="p-4 border-b">
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -100,6 +135,7 @@ export function AIWorkflowAssistantPanel({
                 size="sm" 
                 className="w-full text-left justify-start h-auto py-1.5 text-xs"
                 onClick={() => handleExamplePromptClick(ex)}
+                disabled={currentIsLoading}
               >
                 &quot;{ex}&quot;
               </Button>
@@ -116,15 +152,15 @@ export function AIWorkflowAssistantPanel({
             onChange={(e) => setPrompt(e.target.value)}
             className="flex-grow min-h-[60px] resize-none text-sm"
             rows={3}
-            disabled={isLoading}
+            disabled={currentIsLoading}
           />
           <Button 
             onClick={handleSubmit} 
-            disabled={isLoading || !prompt.trim()} 
+            disabled={currentIsLoading || !prompt.trim()} 
             className="h-auto py-2.5 self-end"
             size="lg"
           >
-            {isLoading ? (
+            {isLoadingLocal ? ( // Use local loading for this button specifically
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
