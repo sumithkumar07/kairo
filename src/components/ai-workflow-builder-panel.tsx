@@ -75,10 +75,10 @@ export function AIWorkflowBuilderPanel({
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
-      <div className="p-4 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center">
+      <div className="p-4 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-md">
         <div>
-          <h1 className="text-xl font-bold text-foreground">AI Workflow Builder</h1>
-          <p className="text-sm text-muted-foreground">Create powerful automations with natural language</p>
+          <h1 className="text-xl font-bold text-foreground">FlowAI Builder</h1>
+          <p className="text-sm text-muted-foreground">Automate with AI-driven workflows</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out">
@@ -107,7 +107,11 @@ export function AIWorkflowBuilderPanel({
             <MessageSquareText className="h-4 w-4 mr-2" />
             Explain
           </Button>
-          <Button variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-accent-foreground bg-accent hover:bg-accent/90 border-accent"
+          >
             <Radio className="h-4 w-4 mr-2" />
             AI Ready
           </Button>
@@ -148,7 +152,7 @@ export function AIWorkflowBuilderPanel({
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-          <div className="p-6 bg-primary/10 rounded-full mb-6">
+          <div className="p-6 bg-primary/10 rounded-full mb-6 shadow-lg">
             <Zap className="h-16 w-16 text-primary" />
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
@@ -161,11 +165,11 @@ export function AIWorkflowBuilderPanel({
               AI-Powered
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 bg-green-500 rounded-full"></span>
+              <span className="h-2 w-2 bg-accent rounded-full"></span>
               Drag & Drop
             </span>
              <span className="flex items-center gap-1">
-              <span className="h-2 w-2 bg-accent rounded-full"></span>
+              <span className="h-2 w-2 bg-secondary rounded-full"></span>
               Save & Load
             </span>
           </div>

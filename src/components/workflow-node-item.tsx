@@ -38,8 +38,8 @@ export function WorkflowNodeItem({
   const IconComponent = nodeType?.icon || GripVertical; 
   
   const configCompleteCheck = isConfigComplete(node, nodeType);
-  const disconnectedCheck = isNodeDisconnected(node, connections, nodeType);
-  const unconnectedInputsCheck = hasUnconnectedInputs(node, connections, nodeType);
+  const disconnectedCheck = nodeType?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeType);
+  const unconnectedInputsCheck = nodeType?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeType);
 
   let warningMessage = "";
   if (!configCompleteCheck) warningMessage = "Configuration incomplete.";
@@ -71,12 +71,12 @@ export function WorkflowNodeItem({
         onClick(node.id);
       }}
       className={cn(
-        'absolute shadow-md hover:shadow-xl transition-all duration-150 ease-in-out',
-        'flex flex-col overflow-hidden',
+        'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
+        'flex flex-col overflow-hidden bg-card', // Ensure card bg is used
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
-        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-border',
+        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-primary/30' : 'ring-1 ring-border',
         hasWarning && !isSelected && 'ring-yellow-500/70 border-yellow-500/70', 
-        hasWarning && isSelected && 'ring-yellow-500 ring-offset-yellow-200' 
+        hasWarning && isSelected && 'ring-yellow-500 ring-offset-yellow-300/50' 
       )}
       style={{
         left: node.position.x,
@@ -85,13 +85,16 @@ export function WorkflowNodeItem({
         height: `${NODE_HEIGHT}px`,
       }}
     >
-      <CardHeader className="p-2 border-b bg-primary/5 flex-row items-center gap-2 space-y-0">
+      <CardHeader className={cn(
+        "p-2 border-b flex-row items-center gap-2 space-y-0",
+        isSelected ? "bg-primary/20" : "bg-card-foreground/5" // Darker header for dark mode
+      )}>
         <IconComponent className="h-4 w-4 text-primary shrink-0" />
-        <CardTitle className="text-xs font-medium truncate flex-grow" title={node.name}>
+        <CardTitle className="text-xs font-medium truncate flex-grow text-foreground" title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
         {hasWarning && (
-          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" title={warningMessage} />
+          <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" title={warningMessage} />
         )}
       </CardHeader>
       <CardContent className="p-2 text-xs text-muted-foreground flex-grow overflow-hidden relative">
@@ -109,7 +112,7 @@ export function WorkflowNodeItem({
               data-handle-id={handleId}
               data-handle-type="input"
               className={cn(
-                "absolute -left-2 w-4 h-4 rounded-full border-2 border-background shadow transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                "absolute -left-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                 isPotentialTarget 
                   ? "bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
                   : (isSelfInputDuringConnect ? "bg-muted opacity-50 cursor-not-allowed" : "bg-primary cursor-default"),
@@ -138,10 +141,10 @@ export function WorkflowNodeItem({
               data-handle-id={handleId}
               data-handle-type="output"
               className={cn(
-                "absolute -right-2 w-4 h-4 rounded-full border-2 border-background shadow transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                "absolute -right-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                 isActiveSource 
                   ? "bg-orange-500 scale-110 cursor-grabbing" 
-                  : "bg-accent",
+                  : "bg-accent", // Using accent color for output handles
                 !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-accent/70" : "cursor-default",
                 isOtherNodeOutputDuringConnect && "opacity-50 cursor-not-allowed" 
               )}
@@ -160,3 +163,4 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+
