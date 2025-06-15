@@ -35,8 +35,8 @@ const examplePrompts = [
   "Process uploaded CSV files and generate reports"
 ];
 
-export function AIWorkflowAssistantPanel({ 
-  onWorkflowGenerated, 
+export function AIWorkflowAssistantPanel({
+  onWorkflowGenerated,
   setIsLoadingGlobal,
   isExplainingWorkflow,
   workflowExplanation,
@@ -49,7 +49,7 @@ export function AIWorkflowAssistantPanel({
   isCanvasEmpty,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [isLoadingLocal, setIsLoadingLocal] = useState(false); 
+  const [isLoadingLocal, setIsLoadingLocal] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async () => {
@@ -63,7 +63,7 @@ export function AIWorkflowAssistantPanel({
     }
 
     setIsLoadingLocal(true);
-    setIsLoadingGlobal(true); 
+    setIsLoadingGlobal(true);
     try {
       const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
@@ -71,7 +71,7 @@ export function AIWorkflowAssistantPanel({
         title: 'Workflow Generated!',
         description: 'The AI has processed your prompt and generated a workflow.',
       });
-      // setPrompt(''); 
+      // setPrompt('');
     } catch (error: any) {
       console.error('AI generation error:', error);
       toast({
@@ -87,12 +87,16 @@ export function AIWorkflowAssistantPanel({
 
   const handleExamplePromptClick = (example: string) => {
     setPrompt(example);
-    if (workflowExplanation) onClearExplanation(); 
+    if (workflowExplanation) {
+        onClearExplanation(); // Ensuring this calls the prop
+    }
   };
 
   const handleExampleWorkflowClick = (example: ExampleWorkflow) => {
     onLoadExampleWorkflow(example);
-    if (workflowExplanation) onClearExplanation();
+    if (workflowExplanation) {
+        onClearExplanation(); // Ensuring this calls the prop
+    }
   }
 
   const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion;
@@ -143,7 +147,7 @@ export function AIWorkflowAssistantPanel({
         </h2>
         <p className="text-sm text-muted-foreground">Describe your automation or load an example</p>
       </div>
-      
+
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
           {isCanvasEmpty && isLoadingSuggestion && (
@@ -160,8 +164,8 @@ export function AIWorkflowAssistantPanel({
                 Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
               </p>
               <p className="text-xs text-primary-foreground/70 italic ml-6">{initialCanvasSuggestion.reason}</p>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
                 className="w-full bg-primary/80 hover:bg-primary text-primary-foreground"
                 disabled={currentIsLoading}
@@ -176,7 +180,7 @@ export function AIWorkflowAssistantPanel({
               Hi! I&apos;m your AI workflow assistant. Describe what you want to automate and I&apos;ll generate a complete workflow for you. I can even try to enhance your prompt first!
             </div>
           )}
-          
+
           {isCanvasEmpty && !initialCanvasSuggestion && !isLoadingSuggestion && (
              <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
               Your canvas is empty! Describe your desired workflow below, or try an example.
@@ -188,10 +192,10 @@ export function AIWorkflowAssistantPanel({
             <h3 className="text-sm font-medium text-muted-foreground mb-2 mt-3">Try these example prompts:</h3>
             <div className="space-y-2">
               {examplePrompts.map((ex, index) => (
-                <Button 
-                  key={`prompt-${index}`} 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  key={`prompt-${index}`}
+                  variant="outline"
+                  size="sm"
                   className="w-full text-left justify-start h-auto py-1.5 text-xs"
                   onClick={() => handleExamplePromptClick(ex)}
                   disabled={currentIsLoading}
@@ -208,10 +212,10 @@ export function AIWorkflowAssistantPanel({
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Or load an example workflow:</h3>
             <div className="space-y-2">
               {exampleWorkflows.map((ex, index) => (
-                <Button 
+                <Button
                   key={`workflow-${index}`}
-                  variant="outline" 
-                  size="sm" 
+                  variant="outline"
+                  size="sm"
                   className="w-full text-left justify-start h-auto py-1.5 text-xs flex flex-col items-start"
                   onClick={() => handleExampleWorkflowClick(ex)}
                   disabled={currentIsLoading}
@@ -236,13 +240,13 @@ export function AIWorkflowAssistantPanel({
             rows={3}
             disabled={currentIsLoading}
           />
-          <Button 
-            onClick={handleSubmit} 
-            disabled={currentIsLoading || !prompt.trim()} 
+          <Button
+            onClick={handleSubmit}
+            disabled={currentIsLoading || !prompt.trim()}
             className="h-auto py-2.5 self-end"
             size="lg"
           >
-            {isLoadingLocal ? ( 
+            {isLoadingLocal ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
@@ -253,4 +257,3 @@ export function AIWorkflowAssistantPanel({
     </>
   );
 }
-
