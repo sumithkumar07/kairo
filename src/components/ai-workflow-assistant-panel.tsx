@@ -87,15 +87,15 @@ export function AIWorkflowAssistantPanel({
 
   const handleExamplePromptClick = (example: string) => {
     setPrompt(example);
-    if (workflowExplanation) {
-        onClearExplanation(); // Ensuring this calls the prop
+    if (workflowExplanation) { // workflowExplanation is a prop
+        onClearExplanation();    // onClearExplanation is a prop
     }
   };
 
   const handleExampleWorkflowClick = (example: ExampleWorkflow) => {
     onLoadExampleWorkflow(example);
-    if (workflowExplanation) {
-        onClearExplanation(); // Ensuring this calls the prop
+    if (workflowExplanation) { // workflowExplanation is a prop
+        onClearExplanation(); // onClearExplanation is a prop
     }
   }
 

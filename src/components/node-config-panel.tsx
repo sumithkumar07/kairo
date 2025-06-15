@@ -45,18 +45,18 @@ export function NodeConfigPanel({
 }: NodeConfigPanelProps) {
   
   const handleInputChange = (fieldKey: string, value: any, isRetryField = false) => {
-    const updatePath = isRetryField ? ['config', 'retry', fieldKey] : ['config', fieldKey];
+    // const updatePath = isRetryField ? ['config', 'retry', fieldKey] : ['config', fieldKey]; // Not used directly with immer
     
     let valueToSet = value;
     const schema = isRetryField ? null : nodeType?.configSchema?.[fieldKey];
 
     if (schema?.type === 'json') {
-        try {
-            valueToSet = JSON.parse(value);
-        } catch (e) {
-            // Keep as string if JSON is invalid, console warn handled by caller
-            console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Storing as string. Error:`, e);
-        }
+        // For JSON fields, we expect the value to be a string from the textarea
+        // The actual parsing (if needed by the backend) or validation happens elsewhere.
+        // We store it as a string as entered by the user, unless it's explicitly an object already (e.g. from AI)
+        // If it's already an object (e.g. from AI generation), keep it as an object.
+        // If it's a string (from user input), keep it as a string.
+        // No automatic parsing to JSON object here, to avoid premature errors for invalid user JSON input.
     }
     
     const newConfig = produce(node.config, draftConfig => {
@@ -64,7 +64,7 @@ export function NodeConfigPanel({
         if (!draftConfig.retry) draftConfig.retry = {};
         (draftConfig.retry as Record<string, any>)[fieldKey] = valueToSet;
         // Clean up empty retry fields
-        if (valueToSet === undefined || valueToSet === null || valueToSet === '') {
+        if (valueToSet === undefined || valueToSet === null || (typeof valueToSet === 'string' && valueToSet.trim() === '') || (Array.isArray(valueToSet) && valueToSet.length === 0) ) {
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
         }
         if (Object.keys(draftConfig.retry).length === 0) {
@@ -80,10 +80,30 @@ export function NodeConfigPanel({
 
 
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
-    let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
+    let currentValue: any;
+    if (node.config[fieldKey] !== undefined) {
+        currentValue = node.config[fieldKey];
+    } else if (fieldSchema.defaultValue !== undefined) {
+        currentValue = fieldSchema.defaultValue;
+    } else {
+        // Fallback if no value and no schema default
+        if (fieldSchema.type === 'json') {
+            currentValue = '{}'; // Default to empty object string for JSON
+        } else if (fieldSchema.type === 'number') {
+            currentValue = ''; // Allow empty string for number input, it will coerce to 0 on change if needed by backend
+        } else if (fieldSchema.type === 'boolean') {
+            currentValue = false; 
+        }
+        else {
+            currentValue = '';
+        }
+    }
+
+    // Ensure JSON is stringified for textarea if it's an object
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
+
 
     switch (fieldSchema.type) {
       case 'string':
@@ -92,9 +112,9 @@ export function NodeConfigPanel({
           <Input
             type={fieldSchema.type === 'number' ? 'number' : 'text'}
             id={`${node.id}-${fieldKey}`}
-            value={currentValue}
+            value={currentValue} // Directly use currentValue, which can be '' for number initially
             placeholder={fieldSchema.placeholder}
-            onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
+            onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? e.target.value : e.target.value)} // Send string for number, parse in handleInputChange or backend
             className="mt-1"
           />
         );
@@ -175,17 +195,19 @@ export function NodeConfigPanel({
     };
   }, [node.config, node.aiExplanation]);
 
-  const currentRetryConfig: RetryConfig = node.config.retry || {};
+  const currentRetryConfig: Partial<RetryConfig> = node.config.retry || {};
 
-  const handleRetryConfigChange = (field: keyof RetryConfig, value: any) => {
-    let processedValue = value;
+  const handleRetryConfigChange = (field: keyof RetryConfig, value: string) => {
+    let processedValue: any = value;
     if (field === 'attempts' || field === 'delayMs' || field === 'backoffFactor') {
-      processedValue = value === '' ? undefined : parseInt(value, 10);
+      processedValue = value.trim() === '' ? undefined : parseInt(value, 10);
       if (isNaN(processedValue as number)) processedValue = undefined;
     } else if (field === 'retryOnStatusCodes') {
       processedValue = value.trim() === '' ? undefined : value.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n));
+      if (processedValue && processedValue.length === 0) processedValue = undefined;
     } else if (field === 'retryOnErrorKeywords') {
       processedValue = value.trim() === '' ? undefined : value.split(',').map((s: string) => s.trim()).filter(Boolean);
+      if (processedValue && processedValue.length === 0) processedValue = undefined;
     }
     handleInputChange(field, processedValue, true);
   };
@@ -272,11 +294,12 @@ export function NodeConfigPanel({
                     value={typeof node.config === 'string' ? node.config : JSON.stringify(node.config, null, 2)}
                     onChange={(e) => {
                         try {
-                            const newConfig = JSON.parse(e.target.value);
+                            const newConfig = JSON.parse(e.target.value); // Attempt to parse if user types JSON
                             onConfigChange(node.id, newConfig);
                         } catch (err) {
-                           onConfigChange(node.id, e.target.value);
-                           console.warn(`[NodeConfigPanel] Invalid raw JSON for node '${node.id}'. Storing as string. Error:`, err);
+                           // If parsing fails, it means user is typing non-JSON or incomplete JSON.
+                           // Store as string. The backend or AI prompt output structure will handle the final JSON.
+                           onConfigChange(node.id, e.target.value); 
                         }
                     }}
                     className="mt-1 font-mono text-xs min-h-[100px]"
@@ -292,7 +315,7 @@ export function NodeConfigPanel({
 
           {/* Retry Configuration Section */}
           {nodeType?.configSchema?.retry && (
-             <Accordion type="single" collapsible className="w-full mt-3">
+             <Accordion type="single" collapsible className="w-full mt-3" defaultValue={node.config.retry && Object.keys(node.config.retry).length > 0 ? "retry-config" : undefined}>
                 <AccordionItem value="retry-config">
                     <AccordionTrigger className="text-sm font-semibold hover:no-underline">
                         <div className="flex items-center gap-2">
@@ -364,7 +387,7 @@ export function NodeConfigPanel({
                  <Label className="font-semibold text-sm">On-Error Webhook (JSON)</Label>
                  <Textarea
                     value={node.config.onErrorWebhook ? JSON.stringify(node.config.onErrorWebhook, null, 2) : ''}
-                    onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)}
+                    onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)} // Value is string from textarea
                     placeholder={'{\n  "url": "...",\n  "method": "POST",\n  ...\n}'}
                     className="mt-1 font-mono text-xs min-h-[80px]"
                     rows={4}
