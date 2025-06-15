@@ -13,8 +13,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2 } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
+import { findPlaceholdersInObject } from '@/lib/workflow-utils';
+import React from 'react';
 
 
 interface NodeConfigPanelProps {
@@ -51,11 +53,8 @@ export function NodeConfigPanel({
             onConfigChange(node.id, newConfig);
             return;
         } catch (e) {
-            // If parsing fails but user is typing, we might want to update with raw string
-            // For simplicity, let's allow the raw string if parsing fails,
-            // but a better UX might show a validation error.
             const newConfig = produce(node.config, draftConfig => {
-              draftConfig[fieldKey] = value; // Store as string if JSON parse fails
+              draftConfig[fieldKey] = value; 
             });
             onConfigChange(node.id, newConfig);
             console.warn(`[NodeConfigPanel] Invalid JSON for field '${fieldKey}' in node '${node.id}'. Storing as string. Error:`, e);
@@ -71,7 +70,6 @@ export function NodeConfigPanel({
 
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     let currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
-    // For JSON type, always display as string in textarea, even if it's an object in config
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
@@ -94,7 +92,7 @@ export function NodeConfigPanel({
         return (
           <Textarea
             id={`${node.id}-${fieldKey}`}
-            value={String(currentValue)} // Ensure it's always a string for textarea
+            value={String(currentValue)} 
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
             className="mt-1 min-h-[80px] font-mono text-xs"
@@ -128,7 +126,7 @@ export function NodeConfigPanel({
               onCheckedChange={(checked) => handleInputChange(fieldKey, checked)}
             />
             <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer">
-              {schema.label} {currentValue ? "(Enabled)" : "(Disabled)"}
+              {fieldSchema.label} {currentValue ? "(Enabled)" : "(Disabled)"}
             </Label>
           </div>
         );
@@ -140,6 +138,32 @@ export function NodeConfigPanel({
   const suggestedNodeConfig = suggestedNextNodeInfo?.suggestion?.suggestedNode 
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNextNodeInfo.suggestion.suggestedNode) 
     : null;
+
+  const { envPlaceholders, secretPlaceholders } = React.useMemo(() => {
+    const configEnv = findPlaceholdersInObject(node.config, 'env');
+    const configSecret = findPlaceholdersInObject(node.config, 'secret');
+
+    const explanationEnv = new Set<string>();
+    const explanationSecret = new Set<string>();
+
+    if (node.aiExplanation) {
+        const envRegex = /{{\s*env\.([^}\s]+)\s*}}/g;
+        let match;
+        while ((match = envRegex.exec(node.aiExplanation)) !== null) {
+            explanationEnv.add(match[0]);
+        }
+        const secretRegex = /{{\s*secret\.([^}\s]+)\s*}}/g;
+        while ((match = secretRegex.exec(node.aiExplanation)) !== null) {
+            explanationSecret.add(match[0]);
+        }
+    }
+    
+    return {
+        envPlaceholders: Array.from(new Set([...configEnv, ...Array.from(explanationEnv)])),
+        secretPlaceholders: Array.from(new Set([...configSecret, ...Array.from(explanationSecret)])),
+    };
+  }, [node.config, node.aiExplanation]);
+
 
   return (
     <Card className="shadow-lg flex flex-col h-full">
@@ -204,13 +228,12 @@ export function NodeConfigPanel({
              <div className="mt-4">
                 <Label className="font-semibold text-sm">Raw Configuration (JSON)</Label>
                 <Textarea
-                    value={JSON.stringify(node.config, null, 2)}
+                    value={typeof node.config === 'string' ? node.config : JSON.stringify(node.config, null, 2)}
                     onChange={(e) => {
                         try {
                             const newConfig = JSON.parse(e.target.value);
                             onConfigChange(node.id, newConfig);
                         } catch (err) {
-                           // Allow storing malformed JSON as string for live editing
                            onConfigChange(node.id, e.target.value);
                            console.warn(`[NodeConfigPanel] Invalid raw JSON for node '${node.id}'. Storing as string. Error:`, err);
                         }
@@ -224,6 +247,39 @@ export function NodeConfigPanel({
           {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).length === 0) && Object.keys(node.config || {}).length === 0 && (
              <p className="text-sm text-muted-foreground mt-2">No specific configuration schema or raw config available for this node type.</p>
           )}
+
+          <Separator className="my-4" />
+          
+          <div>
+            <Label className="font-semibold text-muted-foreground flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-primary" />
+                Environment & Secret Placeholders
+            </Label>
+            {envPlaceholders.length === 0 && secretPlaceholders.length === 0 ? (
+                <p className="text-xs text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30 italic">
+                No <code className="font-mono text-xs">{`{{env...}}`}</code> or <code className="font-mono text-xs">{`{{secret...}}`}</code> placeholders detected for this node.
+                </p>
+            ) : (
+                <div className="mt-2 space-y-1">
+                {envPlaceholders.map(ph => (
+                    <div key={ph} className="text-xs p-1.5 border rounded-md bg-card shadow-sm">
+                    <code className="font-mono text-primary">{ph}</code>
+                    <span className="text-muted-foreground ml-2">(Environment Variable)</span>
+                    </div>
+                ))}
+                {secretPlaceholders.map(ph => (
+                    <div key={ph} className="text-xs p-1.5 border rounded-md bg-card shadow-sm">
+                    <code className="font-mono text-primary">{ph}</code>
+                    <span className="text-muted-foreground ml-2">(Secret - uses env var for local dev)</span>
+                    </div>
+                ))}
+                <p className="text-xs text-muted-foreground mt-2 pt-1">
+                    Ensure these are defined in your <code>.env</code> file (e.g., <code>VAR_NAME=your_value</code>). Secrets are typically managed by a vault in production.
+                </p>
+                </div>
+            )}
+         </div>
+
 
           <Separator className="my-4" />
 
