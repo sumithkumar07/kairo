@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
@@ -6,10 +7,11 @@ import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workf
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions'; 
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
+import { EXAMPLE_WORKFLOWS, type ExampleWorkflow } from '@/config/example-workflows';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2 } from 'lucide-react'; // Added Trash2
+import { Loader2, Trash2 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 
 import { NodeLibrary } from '@/components/node-library';
@@ -128,6 +130,19 @@ export default function FlowAIPage() {
       }
     }
   }, [toast]);
+
+  const calculateNextNodeId = (currentNodes: WorkflowNode[]): number => {
+    if (currentNodes.length === 0) return 1;
+    let maxIdNum = 0;
+    currentNodes.forEach(node => {
+      const parts = node.id.split('_');
+      const numPart = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(numPart) && numPart > maxIdNum) {
+        maxIdNum = numPart;
+      }
+    });
+    return maxIdNum + 1;
+  };
   
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
@@ -556,6 +571,19 @@ export default function FlowAIPage() {
     }
   }, [nodes, connections, toast]);
 
+  const handleLoadExampleWorkflow = useCallback((example: ExampleWorkflow) => {
+    setNodes(example.nodes);
+    setConnections(example.connections);
+    setSelectedNodeId(null);
+    setSelectedConnectionId(null);
+    setExecutionLogs([]);
+    setWorkflowExplanation(null);
+    setCanvasOffset({ x: 0, y: 0 });
+    setZoomLevel(1);
+    nextNodeIdRef.current = calculateNextNodeId(example.nodes);
+    toast({ title: 'Example Loaded', description: `${example.name} workflow is now on the canvas.` });
+  }, [toast]);
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       {(isLoadingAi || isExplainingWorkflow) && (
@@ -652,9 +680,9 @@ export default function FlowAIPage() {
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
                 onClearExplanation={() => setWorkflowExplanation(null)}
-                handleDeleteSelectedConnection={handleDeleteSelectedConnection}
-                setSelectedConnectionId={setSelectedConnectionId}
-                selectedConnectionId={selectedConnectionId}
+                selectedConnectionId={selectedConnectionId} 
+                exampleWorkflows={EXAMPLE_WORKFLOWS}
+                onLoadExampleWorkflow={handleLoadExampleWorkflow}
               />
             )}
             <div className="mt-auto border-t">
@@ -670,3 +698,4 @@ export default function FlowAIPage() {
     </div>
   );
 }
+

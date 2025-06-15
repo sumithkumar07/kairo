@@ -1,14 +1,16 @@
+
 'use client';
 
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-// import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node'; // Not directly used here
+import type { ExampleWorkflow } from '@/config/example-workflows'; // Import ExampleWorkflow
 import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Trash2 } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Zap } from 'lucide-react'; // Added Zap
 import { ScrollArea } from './ui/scroll-area';
+import { Separator } from './ui/separator';
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
@@ -16,10 +18,9 @@ interface AIWorkflowAssistantPanelProps {
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
-  // Props for connection selection (though the view is now in page.tsx)
   selectedConnectionId: string | null; 
-  handleDeleteSelectedConnection?: () => void;
-  setSelectedConnectionId?: (id: string | null) => void;
+  exampleWorkflows: ExampleWorkflow[];
+  onLoadExampleWorkflow: (example: ExampleWorkflow) => void;
 }
 
 const examplePrompts = [
@@ -35,12 +36,12 @@ export function AIWorkflowAssistantPanel({
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
-  selectedConnectionId, // Keep for conditional rendering logic if needed elsewhere
-  handleDeleteSelectedConnection, 
-  setSelectedConnectionId,
+  selectedConnectionId,
+  exampleWorkflows,
+  onLoadExampleWorkflow,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [isLoadingLocal, setIsLoadingLocal] = useState(false); // Local loading for prompt generation
+  const [isLoadingLocal, setIsLoadingLocal] = useState(false); 
   const { toast } = useToast();
 
   const handleSubmit = async () => {
@@ -54,7 +55,7 @@ export function AIWorkflowAssistantPanel({
     }
 
     setIsLoadingLocal(true);
-    setIsLoadingGlobal(true); // Also set global loading for AI generation
+    setIsLoadingGlobal(true); 
     try {
       const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
@@ -62,7 +63,7 @@ export function AIWorkflowAssistantPanel({
         title: 'Workflow Generated!',
         description: 'The AI has processed your prompt and generated a workflow.',
       });
-      // setPrompt(''); // Keep prompt for potential refinement
+      // setPrompt(''); 
     } catch (error: any) {
       console.error('AI generation error:', error);
       toast({
@@ -78,8 +79,13 @@ export function AIWorkflowAssistantPanel({
 
   const handleExamplePromptClick = (example: string) => {
     setPrompt(example);
-    if (workflowExplanation) onClearExplanation(); // Clear explanation if user picks an example
+    if (workflowExplanation) onClearExplanation(); 
   };
+
+  const handleExampleWorkflowClick = (example: ExampleWorkflow) => {
+    onLoadExampleWorkflow(example);
+    if (workflowExplanation) onClearExplanation();
+  }
 
   const currentIsLoading = isLoadingLocal || isExplainingWorkflow;
 
@@ -116,28 +122,6 @@ export function AIWorkflowAssistantPanel({
     );
   }
 
-
-  // The connection selected view is now primarily handled in page.tsx's aside structure.
-  // This panel will focus on prompting and displaying explanations.
-  // If selectedConnectionId and its handlers were needed here, this is where the logic would go.
-  // Example (though redundant with page.tsx's current structure):
-  // if (selectedConnectionId && handleDeleteSelectedConnection && setSelectedConnectionId) {
-  //   return (
-  //     <div className="p-6 text-center flex flex-col items-center justify-center h-full space-y-3">
-  //       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-primary mb-2"><path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z"></path><line x1="12" y1="13" x2="12" y2="17"></line><line x1="12" y1="8" x2="12" y2="10"></line></svg>
-  //       <p className="text-md font-semibold text-foreground">Connection Selected</p>
-  //       <div className="flex gap-2">
-  //         <Button variant="destructive" size="sm" onClick={handleDeleteSelectedConnection}>
-  //             <Trash2 className="mr-2 h-4 w-4" /> Delete
-  //         </Button>
-  //         <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
-  //             <XCircle className="mr-2 h-4 w-4" /> Deselect
-  //         </Button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   return (
     <>
       <div className="p-4 border-b">
@@ -145,32 +129,56 @@ export function AIWorkflowAssistantPanel({
           <Lightbulb className="h-5 w-5 text-primary" />
           AI Workflow Assistant
         </h2>
-        <p className="text-sm text-muted-foreground">Describe your automation in natural language</p>
+        <p className="text-sm text-muted-foreground">Describe your automation or load an example</p>
       </div>
       
-      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-        <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
-            Hi! I&apos;m your AI workflow assistant. Describe what you want to automate and I&apos;ll generate a complete workflow for you. I can even try to enhance your prompt first!
-        </div>
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-4">
+          <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
+              Hi! I&apos;m your AI workflow assistant. Describe what you want to automate and I&apos;ll generate a complete workflow for you. I can even try to enhance your prompt first!
+          </div>
 
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">Try these examples:</h3>
-          <div className="space-y-2">
-            {examplePrompts.map((ex, index) => (
-              <Button 
-                key={index} 
-                variant="outline" 
-                size="sm" 
-                className="w-full text-left justify-start h-auto py-1.5 text-xs"
-                onClick={() => handleExamplePromptClick(ex)}
-                disabled={currentIsLoading}
-              >
-                &quot;{ex}&quot;
-              </Button>
-            ))}
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Try these example prompts:</h3>
+            <div className="space-y-2">
+              {examplePrompts.map((ex, index) => (
+                <Button 
+                  key={`prompt-${index}`} 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-left justify-start h-auto py-1.5 text-xs"
+                  onClick={() => handleExamplePromptClick(ex)}
+                  disabled={currentIsLoading}
+                >
+                  &quot;{ex}&quot;
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Or load an example workflow:</h3>
+            <div className="space-y-2">
+              {exampleWorkflows.map((ex, index) => (
+                <Button 
+                  key={`workflow-${index}`}
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-left justify-start h-auto py-1.5 text-xs flex flex-col items-start"
+                  onClick={() => handleExampleWorkflowClick(ex)}
+                  disabled={currentIsLoading}
+                  title={ex.description}
+                >
+                  <span className="font-semibold flex items-center gap-1.5"><Zap className="h-3 w-3 text-primary" /> {ex.name}</span>
+                  <span className="text-muted-foreground/80 text-xs pl-[18px]">{ex.description}</span>
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </ScrollArea>
 
       <div className="p-4 border-t bg-background/50 mt-auto">
         <div className="flex gap-2 items-end">
@@ -188,7 +196,7 @@ export function AIWorkflowAssistantPanel({
             className="h-auto py-2.5 self-end"
             size="lg"
           >
-            {isLoadingLocal ? ( // Use local loading for this button specifically
+            {isLoadingLocal ? ( 
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
@@ -199,3 +207,4 @@ export function AIWorkflowAssistantPanel({
     </>
   );
 }
+
