@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Play, RotateCcw } from 'lucide-react'; 
 import { Separator } from './ui/separator';
+import { useEffect, useRef } from 'react';
 
 interface ExecutionLogPanelProps {
   logs: LogEntry[];
@@ -15,6 +16,14 @@ interface ExecutionLogPanelProps {
 }
 
 export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: ExecutionLogPanelProps) {
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [logs]);
+
   return (
     <Card className="shadow-lg flex-grow flex flex-col">
       <CardHeader>
@@ -32,30 +41,31 @@ export function ExecutionLogPanel({ logs, onRunWorkflow, isWorkflowRunning }: Ex
         </Button>
         <Separator />
         <p className="text-sm font-medium text-muted-foreground">Logs:</p>
-        <ScrollArea className="flex-1 h-48 border rounded-md p-2 bg-muted/20"> 
-          {logs.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No logs yet. Run the workflow to see output.</p>
-          ) : (
-            <div className="space-y-1">
-              {logs.map((log, index) => (
-                <div key={index} className="text-xs p-1 rounded bg-background/50 break-words">
-                  <span className="font-mono text-muted-foreground mr-2">[{log.timestamp}]</span>
-                  <span
-                    className={
-                      log.type === 'error' ? 'text-destructive' : 
-                      log.type === 'success' ? 'text-green-600 dark:text-green-400' : 
-                      'text-foreground'
-                    }
-                  >
-                    {log.message}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+        <ScrollArea className="flex-1 h-48 border rounded-md bg-muted/20"> 
+          <div ref={scrollAreaRef} className="p-2 h-full overflow-y-auto"> {/* Added ref here and ensured it's scrollable */}
+            {logs.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No logs yet. Run the workflow to see output.</p>
+            ) : (
+              <div className="space-y-1">
+                {logs.map((log, index) => (
+                  <div key={index} className="text-xs p-1 rounded bg-background/50 break-words">
+                    <span className="font-mono text-muted-foreground mr-2">[{log.timestamp}]</span>
+                    <span
+                      className={
+                        log.type === 'error' ? 'text-destructive' : 
+                        log.type === 'success' ? 'text-green-600 dark:text-green-400' : 
+                        'text-foreground'
+                      }
+                    >
+                      {log.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </ScrollArea>
       </CardContent>
     </Card>
   );
 }
-
