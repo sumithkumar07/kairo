@@ -4,13 +4,15 @@
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { ExampleWorkflow } from '@/config/example-workflows'; // Import ExampleWorkflow
+import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Zap } from 'lucide-react'; // Added Zap
+import { Lightbulb, Loader2, Send, XCircle, FileText, Zap, Wand2 } from 'lucide-react'; // Added Zap
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
+import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
@@ -18,9 +20,12 @@ interface AIWorkflowAssistantPanelProps {
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
-  selectedConnectionId: string | null; 
   exampleWorkflows: ExampleWorkflow[];
   onLoadExampleWorkflow: (example: ExampleWorkflow) => void;
+  initialCanvasSuggestion: SuggestNextNodeOutput | null;
+  isLoadingSuggestion: boolean;
+  onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
+  isCanvasEmpty: boolean;
 }
 
 const examplePrompts = [
@@ -36,9 +41,12 @@ export function AIWorkflowAssistantPanel({
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
-  selectedConnectionId,
   exampleWorkflows,
   onLoadExampleWorkflow,
+  initialCanvasSuggestion,
+  isLoadingSuggestion,
+  onAddSuggestedNode,
+  isCanvasEmpty,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [isLoadingLocal, setIsLoadingLocal] = useState(false); 
@@ -87,7 +95,11 @@ export function AIWorkflowAssistantPanel({
     if (workflowExplanation) onClearExplanation();
   }
 
-  const currentIsLoading = isLoadingLocal || isExplainingWorkflow;
+  const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion;
+
+  const suggestedNodeConfig = initialCanvasSuggestion?.suggestedNode
+    ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
+    : null;
 
   if (workflowExplanation || isExplainingWorkflow) {
     return (
@@ -134,12 +146,46 @@ export function AIWorkflowAssistantPanel({
       
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
+          {isCanvasEmpty && isLoadingSuggestion && (
+            <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>AI is thinking of a good starting point...</span>
+            </div>
+          )}
+
+          {isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
+            <div className="p-3 bg-primary/10 rounded-md text-sm text-primary-foreground/90 border border-primary/30 space-y-2">
+              <p className="font-semibold flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-primary" />
+                Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
+              </p>
+              <p className="text-xs text-primary-foreground/70 italic ml-6">{initialCanvasSuggestion.reason}</p>
+              <Button 
+                size="sm" 
+                onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
+                className="w-full bg-primary/80 hover:bg-primary text-primary-foreground"
+                disabled={currentIsLoading}
+              >
+                Add {suggestedNodeConfig.name} Node
+              </Button>
+            </div>
+          )}
+
+          {!isCanvasEmpty && !workflowExplanation && (
+            <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
               Hi! I&apos;m your AI workflow assistant. Describe what you want to automate and I&apos;ll generate a complete workflow for you. I can even try to enhance your prompt first!
-          </div>
+            </div>
+          )}
+          
+          {isCanvasEmpty && !initialCanvasSuggestion && !isLoadingSuggestion && (
+             <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80">
+              Your canvas is empty! Describe your desired workflow below, or try an example.
+            </div>
+          )}
+
 
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Try these example prompts:</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2 mt-3">Try these example prompts:</h3>
             <div className="space-y-2">
               {examplePrompts.map((ex, index) => (
                 <Button 

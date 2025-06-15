@@ -48,6 +48,7 @@ export default function FlowAIPage() {
   const [connectionPreviewPosition, setConnectionPreviewPosition] = useState<{ x: number; y: number } | null>(null);
 
   const [suggestedNextNodeInfo, setSuggestedNextNodeInfo] = useState<{ suggestion: SuggestNextNodeOutput; forNodeId: string } | null>(null);
+  const [initialCanvasSuggestion, setInitialCanvasSuggestion] = useState<SuggestNextNodeOutput | null>(null);
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
 
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
@@ -65,11 +66,12 @@ export default function FlowAIPage() {
   }, [nodes, selectedNodeId]);
 
   useEffect(() => {
-    if (selectedNode && selectedNodeId) {
-      setWorkflowExplanation(null); 
-      const fetchSuggestion = async () => {
-        setIsLoadingSuggestion(true);
-        setSuggestedNextNodeInfo(null); 
+    const fetchSuggestion = async () => {
+      setIsLoadingSuggestion(true);
+      setSuggestedNextNodeInfo(null);
+      setInitialCanvasSuggestion(null);
+
+      if (selectedNodeId && selectedNode) {
         try {
           let context = `Workflow in progress. Current node: "${selectedNode.name}" (Type: ${selectedNode.type}).`;
           if (selectedNode.aiExplanation) {
@@ -77,27 +79,43 @@ export default function FlowAIPage() {
           } else if (selectedNode.description) {
             context += ` Description: ${selectedNode.description.substring(0,150)}...`;
           }
-          
           const suggestionResult = await suggestNextWorkflowNode({
             currentNodeType: selectedNode.type,
             workflowContext: context,
           });
           setSuggestedNextNodeInfo({ suggestion: suggestionResult, forNodeId: selectedNodeId });
         } catch (error: any) {
-          console.warn("Failed to fetch next node suggestion:", error);
-        } finally {
-          setIsLoadingSuggestion(false);
+          console.warn("Failed to fetch next node suggestion for selected node:", error);
+          toast({ title: "Suggestion Error", description: "Could not fetch AI suggestion for the next node.", variant: "destructive" });
         }
-      };
-      fetchSuggestion();
-    } else {
-      setSuggestedNextNodeInfo(null); 
-      if (!selectedConnectionId && !workflowExplanation) { 
-         // No node is selected, and no global explanation is active
+      } else if (!selectedNodeId && nodes.length === 0) {
+        try {
+          const suggestionResult = await suggestNextWorkflowNode({
+            currentNodeType: undefined,
+            workflowContext: "User is starting a new empty workflow. Suggest a good first node type (e.g., a trigger or an initial action) to begin building an automation.",
+          });
+          setInitialCanvasSuggestion(suggestionResult);
+        } catch (error: any) {
+          console.warn("Failed to fetch initial canvas suggestion:", error);
+          toast({ title: "Suggestion Error", description: "Could not fetch AI suggestion for the first node.", variant: "destructive" });
+        }
       }
-    }
-  }, [selectedNodeId, selectedNode, selectedConnectionId, workflowExplanation]);
+      setIsLoadingSuggestion(false);
+    };
 
+    // Trigger conditions
+    if (selectedNodeId) { // A node is selected
+      setInitialCanvasSuggestion(null); // Clear initial suggestion if a node gets selected
+      fetchSuggestion();
+    } else if (nodes.length === 0 && !initialCanvasSuggestion && !isLoadingSuggestion && !selectedConnectionId && !workflowExplanation) { // Canvas is empty, no suggestion yet, not loading, no connection selected, no explanation active
+      fetchSuggestion();
+    } else if (nodes.length > 0 && !selectedNodeId) { // Canvas not empty, but no node selected
+      setSuggestedNextNodeInfo(null);
+      setInitialCanvasSuggestion(null);
+    }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation]); // Removed selectedNode from deps to avoid loop with setInitialCanvasSuggestion
 
   const handleSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -122,6 +140,8 @@ export default function FlowAIPage() {
         setSelectedConnectionId(null);
         setExecutionLogs([]);
         setWorkflowExplanation(null); 
+        setInitialCanvasSuggestion(null);
+        setSuggestedNextNodeInfo(null);
         if (showToast) {
           toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
         }
@@ -215,7 +235,7 @@ export default function FlowAIPage() {
     setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeIdToDelete));
     setConnections(prevConns => prevConns.filter(conn => conn.sourceNodeId !== nodeIdToDelete && conn.targetNodeId !== nodeIdToDelete));
     if (selectedNodeId === nodeIdToDelete) {
-      setSelectedNodeId(null);
+      setSelectedNodeId(null); // This will trigger suggestion fetching for empty canvas if applicable
     }
     toast({ title: 'Node Deleted', description: `Node ${nodeIdToDelete} and its connections removed.` });
   }, [selectedNodeId, toast]);
@@ -260,6 +280,7 @@ export default function FlowAIPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow, 
@@ -349,6 +370,8 @@ export default function FlowAIPage() {
     setSelectedConnectionId(null);
     setExecutionLogs([]);
     setWorkflowExplanation(null);
+    setInitialCanvasSuggestion(null);
+    setSuggestedNextNodeInfo(null);
     setCanvasOffset({ x: 0, y: 0 }); 
     setZoomLevel(1);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
@@ -375,22 +398,30 @@ export default function FlowAIPage() {
     setSelectedConnectionId(null);
     setIsAssistantVisible(true); 
     setWorkflowExplanation(null);
+    setInitialCanvasSuggestion(null); // Clear initial suggestion once a node is added
   }, []);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
-    if (!selectedNode) return;
-
     const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
     if (!nodeTypeToAdd) {
       toast({ title: "Error", description: `Cannot add suggested node: Type "${suggestedNodeTypeString}" not found.`, variant: "destructive" });
       return;
     }
-    const position = {
-      x: selectedNode.position.x + NODE_WIDTH + 60,
-      y: selectedNode.position.y,
-    };
+
+    let position: { x: number; y: number };
+    if (selectedNode) {
+      position = {
+        x: selectedNode.position.x + NODE_WIDTH + 60,
+        y: selectedNode.position.y,
+      };
+    } else { // For initial canvas suggestion
+      position = { x: 50, y: 50 };
+    }
+    
     addNodeToCanvas(nodeTypeToAdd, position);
     toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
+    setInitialCanvasSuggestion(null); // Clear the suggestion after adding
+    setSuggestedNextNodeInfo(null); // Also clear specific node suggestion
   }, [selectedNode, addNodeToCanvas, toast]);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
@@ -435,6 +466,7 @@ export default function FlowAIPage() {
     setIsAssistantVisible(true);
     if (isConnecting) handleCancelConnection();
     setWorkflowExplanation(null); 
+    setInitialCanvasSuggestion(null); // Clear initial suggestion when a node is focused
   };
 
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
@@ -445,6 +477,7 @@ export default function FlowAIPage() {
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
     setWorkflowExplanation(null);
+    setInitialCanvasSuggestion(null);
   }, []);
 
   const handleUpdateConnectionPreview = useCallback((mousePosition: { x: number; y: number }) => {
@@ -471,9 +504,9 @@ export default function FlowAIPage() {
       if (!sourceHandleIsOutput || !targetHandleIsInput) {
          let invalidReason = "Cannot connect an input to an input, or an output to an output.";
          if (sourceHandleIsOutput && !targetHandleIsInput) {
-            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle. Cannot connect an output to another output.`;
+            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle. Output handles can only connect to input handles.`;
          } else if (!sourceHandleIsOutput && targetHandleIsInput) {
-            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle. Cannot connect an input to another input.`;
+            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle. Input handles can only connect from output handles.`;
          }
          toast({ 
             title: 'Invalid Connection', 
@@ -521,10 +554,30 @@ export default function FlowAIPage() {
       setSelectedNodeId(null); 
       setSelectedConnectionId(null);
       // Do not clear workflowExplanation here, it's handled by node/connection selection logic or Escape key
+      // However, if canvas is empty, we might want to trigger initial suggestion fetching if it's not already there.
+      if (nodes.length === 0 && !initialCanvasSuggestion && !isLoadingSuggestion) {
+        // This logic is mostly handled in the useEffect, but ensuring it's clear
+        const fetchInitial = async () => {
+          setIsLoadingSuggestion(true);
+          try {
+            const suggestionResult = await suggestNextWorkflowNode({
+              currentNodeType: undefined,
+              workflowContext: "User is starting a new empty workflow. Suggest a good first node type (e.g., a trigger or an initial action) to begin building an automation.",
+            });
+            setInitialCanvasSuggestion(suggestionResult);
+          } catch (error: any) {
+            console.warn("Failed to fetch initial canvas suggestion on canvas click:", error);
+          } finally {
+            setIsLoadingSuggestion(false);
+          }
+        };
+        fetchInitial();
+      }
     }
-  }, [isConnecting, handleCancelConnection]);
+  }, [isConnecting, handleCancelConnection, nodes.length, initialCanvasSuggestion, isLoadingSuggestion]);
 
   const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
+    if (event.button !== 0) return; // Only pan with left-click
     handleCanvasClick(); 
     if (!isConnecting) {
       setIsPanning(true);
@@ -539,15 +592,17 @@ export default function FlowAIPage() {
     if (isConnecting) handleCancelConnection();
     setIsAssistantVisible(true); 
     setWorkflowExplanation(null); 
+    setInitialCanvasSuggestion(null);
   }, [isConnecting, handleCancelConnection]);
 
   const toggleAssistantPanel = () => {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
-      if (!newVisibility && (selectedNodeId || selectedConnectionId || workflowExplanation)) {
+      if (!newVisibility && (selectedNodeId || selectedConnectionId || workflowExplanation || initialCanvasSuggestion)) {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         // setWorkflowExplanation(null); // Keep explanation if panel is just hidden
+        // setInitialCanvasSuggestion(null); // Keep initial suggestion if panel is just hidden
       }
       return newVisibility;
     });
@@ -575,6 +630,7 @@ export default function FlowAIPage() {
     setWorkflowExplanation(null);
     setSelectedNodeId(null); 
     setSelectedConnectionId(null);
+    setInitialCanvasSuggestion(null);
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
@@ -594,6 +650,8 @@ export default function FlowAIPage() {
     setSelectedConnectionId(null);
     setExecutionLogs([]);
     setWorkflowExplanation(null);
+    setInitialCanvasSuggestion(null);
+    setSuggestedNextNodeInfo(null);
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
     nextNodeIdRef.current = calculateNextNodeId(example.nodes);
@@ -614,7 +672,9 @@ export default function FlowAIPage() {
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="ml-4 text-lg text-foreground">
-            {isLoadingAi ? 'AI is generating your workflow...' : 'AI is explaining the workflow...'}
+            {isLoadingAi ? 'AI is generating your workflow...' : 
+             isExplainingWorkflow ? 'AI is explaining the workflow...' : 
+             'Processing...'}
           </p>
         </div>
       )}
@@ -703,9 +763,27 @@ export default function FlowAIPage() {
                 setIsLoadingGlobal={setIsLoadingAi}
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
-                onClearExplanation={() => setWorkflowExplanation(null)}
+                onClearExplanation={() => {
+                    setWorkflowExplanation(null);
+                    // If canvas becomes empty, trigger initial suggestion fetch
+                    if (nodes.length === 0 && !initialCanvasSuggestion && !isLoadingSuggestion) {
+                        const fetchInitial = async () => {
+                          setIsLoadingSuggestion(true);
+                          try {
+                            const suggestionResult = await suggestNextWorkflowNode({ currentNodeType: undefined, workflowContext: "User is starting a new empty workflow. Suggest a good first node type." });
+                            setInitialCanvasSuggestion(suggestionResult);
+                          } catch (e) { console.warn("Error fetching initial suggestion after clearing explanation", e); }
+                          finally { setIsLoadingSuggestion(false); }
+                        };
+                        fetchInitial();
+                    }
+                }}
                 exampleWorkflows={EXAMPLE_WORKFLOWS}
                 onLoadExampleWorkflow={handleLoadExampleWorkflow}
+                initialCanvasSuggestion={initialCanvasSuggestion}
+                isLoadingSuggestion={isLoadingSuggestion}
+                onAddSuggestedNode={handleAddSuggestedNode}
+                isCanvasEmpty={nodes.length === 0}
               />
             )}
             <div className="mt-auto border-t">
