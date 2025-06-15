@@ -5,7 +5,7 @@ import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle } from 'lucide-react'; 
-import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon } from '@/config/nodes'; // Added getDataTransformIcon
+import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon } from '@/config/nodes';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -60,7 +60,7 @@ export function WorkflowNodeItem({
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
     
-    const y = node.position.y + (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
+    const y = node.position.y + (NODE_HEIGHT / (numHandles + 1)) * (index + 1);
     const x = isOutput ? node.position.x + NODE_WIDTH : node.position.x;
     return { x, y };
   };
@@ -81,9 +81,14 @@ export function WorkflowNodeItem({
         'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
         'flex flex-col overflow-hidden bg-card', 
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
-        isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-primary/30' : 'ring-1 ring-border',
-        hasWarning && !isSelected && 'ring-yellow-500/70 border-yellow-500/70', 
-        hasWarning && isSelected && 'ring-yellow-500 ring-offset-yellow-300/50' 
+        // Base border
+        'ring-1 ring-border',
+        // Warning state takes precedence for ring and border color
+        hasWarning && 'ring-2 ring-yellow-500 border-yellow-500/70',
+        // Selection state
+        isSelected && !hasWarning && 'ring-2 ring-primary shadow-primary/30',
+        isSelected && 'ring-offset-2 ring-offset-background', // Apply offset if selected, regardless of warning
+        isSelected && hasWarning && 'shadow-yellow-500/30' // Specific shadow for selected warning nodes
       )}
       style={{
         left: node.position.x,
@@ -94,7 +99,7 @@ export function WorkflowNodeItem({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-2 space-y-0",
-        isSelected ? "bg-primary/20" : "bg-card-foreground/5" 
+        isSelected && !hasWarning ? "bg-primary/20" : (hasWarning ? "bg-yellow-500/10" : "bg-card-foreground/5")
       )}>
         <IconComponent className="h-4 w-4 text-primary shrink-0" />
         <CardTitle className="text-xs font-medium truncate flex-grow text-foreground" title={node.name}>
@@ -143,7 +148,9 @@ export function WorkflowNodeItem({
                         onHandleClick(node.id, handleId, 'input', getHandleAbsolutePosition(handleId, false));
                       }
                     }}
-                  />
+                  >
+                    <span className="sr-only">Input handle {handleId}</span>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   <p>Input: {handleId}</p>
@@ -180,7 +187,9 @@ export function WorkflowNodeItem({
                         onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true));
                       }
                     }}
-                  />
+                  >
+                  <span className="sr-only">Output handle {handleId}</span>
+                  </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <p>Output: {handleId}</p>
