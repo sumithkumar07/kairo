@@ -336,7 +336,7 @@ export default function WorkflowPage() {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isInputField(event.target)) return;
+      if (isInputField(event.target) || showDeleteNodeConfirmDialog) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -379,7 +379,8 @@ export default function WorkflowPage() {
   }, [
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
-    handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo 
+    handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
+    showDeleteNodeConfirmDialog // Added to deps
   ]);
 
   useEffect(() => {
