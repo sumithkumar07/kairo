@@ -3,7 +3,7 @@
 
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
 import { WorkflowNodeItem } from './workflow-node-item';
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState } from 'react'; // Removed useEffect as it's not used
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AI_NODE_TYPE_MAPPING, AVAILABLE_NODES_CONFIG, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { cn } from '@/lib/utils';
@@ -101,7 +101,7 @@ export function WorkflowCanvas({
 
     if (draggedNodeData) { 
       const nodeType = JSON.parse(draggedNodeData) as AvailableNodeType;
-      const finalX = dropXContent - (NODE_WIDTH / 2); // Center the node on drop
+      const finalX = dropXContent - (NODE_WIDTH / 2); 
       const finalY = dropYContent - (NODE_HEIGHT / 2);
       onCanvasDrop(nodeType, { x: Math.max(0, finalX), y: Math.max(0, finalY) });
     } else if (draggedNodeId && draggingNodeOffset) { 
@@ -153,7 +153,13 @@ export function WorkflowCanvas({
         onCanvasPanStart(event); 
       }
     } else if (!targetIsCanvas && !clickedOnConnectionTarget) {
-        onCanvasClick(); 
+        // This ensures that clicking on an empty area within a transformed parent (like the scaled div)
+        // but NOT on a node or connection, still counts as a canvas click for deselection.
+        // It might require checking if the click target is a child of a node or specific interactive element.
+        const isNodeOrHandle = (event.target as HTMLElement).closest('.workflow-node-item, [data-handle-id]');
+        if (!isNodeOrHandle) {
+          onCanvasClick(); 
+        }
     }
   };
   
@@ -223,7 +229,6 @@ export function WorkflowCanvas({
               const strokeWidth = isSelected ? 2.5 : 1.5;
               const marker = isSelected ? "url(#arrow-selected)" : "url(#arrow)";
 
-              // Calculate control points for Bezier curve
               const c1x = sourcePos.x + Math.abs(targetPos.x - sourcePos.x) / 2;
               const c1y = sourcePos.y;
               const c2x = targetPos.x - Math.abs(targetPos.x - sourcePos.x) / 2;
@@ -237,10 +242,10 @@ export function WorkflowCanvas({
                     data-connection-click-target="true" 
                     d={pathD} 
                     stroke="transparent" 
-                    strokeWidth="10" /* Increased for easier clicking */
+                    strokeWidth="10" 
                     fill="none"
                     className="cursor-pointer pointer-events-stroke"
-                    onClick={(e) => { e.stopPropagation(); onConnectionClick(conn.id); }}
+                    onClick={(e) => { e.stopPropagation(); onConnectionClick(conn.id || ''); }}
                   />
                 </g>
               );
