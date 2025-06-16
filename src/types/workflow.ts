@@ -56,6 +56,13 @@ export interface Workflow {
   connections: WorkflowConnection[];
 }
 
+export interface ExampleWorkflow {
+  name: string;
+  description: string;
+  nodes: WorkflowNode[];
+  connections: WorkflowConnection[];
+}
+
 export interface ConfigFieldSchema {
   label: string;
   type: 'string' | 'number' | 'textarea' | 'select' | 'boolean' | 'json';
@@ -63,7 +70,8 @@ export interface ConfigFieldSchema {
   placeholder?: string;
   defaultValue?: any;
   helperText?: string;
-  required?: boolean; // Added
+  required?: boolean; 
+  relevantForTypes?: string[]; // For dataTransform node conditional fields
 }
 
 export interface BranchConfig {
@@ -89,7 +97,7 @@ export interface AvailableNodeType {
 }
 
 export interface LogEntry {
-  timestamp: string; // Will be ISO string from server, formatted to local time string on client
+  timestamp: string; 
   message: string;
   type: 'info' | 'error' | 'success';
 }
@@ -100,8 +108,3 @@ export interface ServerLogOutput {
   message: string;
   type: 'info' | 'error' | 'success';
 }
-
-// Moved ManagedCredential types to their own file if they become complex,
-// but keeping simple ones here if not too broad.
-// For now, creating a separate credentials.ts is better.
-

@@ -13,7 +13,7 @@ import { Lightbulb, Loader2, Send, XCircle, FileText, Zap, Wand2, ChevronRight, 
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
-import { Label } from '@/components/ui/label'; // Added missing import
+import { Label } from '@/components/ui/label'; 
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;

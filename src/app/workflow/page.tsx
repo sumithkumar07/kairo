@@ -2,16 +2,16 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, ExampleWorkflow } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
-import { EXAMPLE_WORKFLOWS, type ExampleWorkflow } from '@/config/example-workflows';
+import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2 } from 'lucide-react'; // Added Undo2, Redo2
+import { Loader2, Trash2, Undo2, Redo2 } from 'lucide-react'; 
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -380,7 +380,7 @@ export default function WorkflowPage() {
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog // Added to deps
+    showDeleteNodeConfirmDialog 
   ]);
 
   useEffect(() => {
@@ -514,14 +514,27 @@ export default function WorkflowPage() {
         y: selectedNode.position.y,
       };
     } else {
-      position = { x: 50, y: 50 };
+      // Find a clear spot on the canvas if no node is selected
+      // Simple heuristic: check positions based on existing nodes
+      let newX = 50;
+      let newY = 50;
+      if (nodes.length > 0) {
+        newX = Math.max(...nodes.map(n => n.position.x)) + NODE_WIDTH + 60;
+        if (newX > 1000) { // Arbitrary wrap threshold
+          newX = 50;
+          newY = Math.max(...nodes.map(n => n.position.y)) + NODE_HEIGHT + 40;
+        } else {
+          newY = nodes[nodes.length -1].position.y;
+        }
+      }
+      position = { x: newX, y: newY };
     }
 
     addNodeToCanvas(nodeTypeToAdd, position);
     toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-  }, [selectedNode, addNodeToCanvas, toast]);
+  }, [selectedNode, addNodeToCanvas, toast, nodes]);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     const updatedNodes = produce(nodes, draft => {

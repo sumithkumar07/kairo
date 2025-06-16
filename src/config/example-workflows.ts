@@ -1,13 +1,6 @@
 
-import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, ExampleWorkflow } from '@/types/workflow';
 import { NODE_HEIGHT, NODE_WIDTH } from './nodes';
-
-export interface ExampleWorkflow {
-  name: string;
-  description: string;
-  nodes: WorkflowNode[];
-  connections: WorkflowConnection[];
-}
 
 export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
   {
@@ -81,80 +74,80 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
   },
   {
     name: 'Conditional Email Sender',
-    description: 'Triggers via HTTP, checks a condition, then sends different emails.',
+    description: 'Triggers via (simulated) HTTP, checks a condition, then sends different emails.',
     nodes: [
       {
-        id: 'http_trigger_1',
-        type: 'httpRequest',
-        name: 'Webhook Trigger',
-        description: 'Acts as an HTTP trigger for the workflow.',
+        id: 'webhook_trigger_ex2',
+        type: 'webhookTrigger',
+        name: 'Order Webhook',
+        description: 'Simulates an incoming order webhook.',
         position: { x: 50, y: 50 },
         config: { 
-            url: '/api/webhook/conditional_email', // Conceptual URL
-            method: 'POST', 
-            simulatedResponse: '{"user_id": "user123", "order_value": 150}', // Simulates incoming payload
-            simulatedStatusCode: 200 
+            pathSuffix: 'example-order-hook',
+            simulatedRequestBody: '{"user_id": "user123", "order_value": 150}', 
+            simulatedRequestHeaders: '{}',
+            simulatedRequestQuery: '{}',
         },
-        inputHandles: [], // No input handles as it's a trigger
-        outputHandles: ['response', 'status_code'], // Outputs the request payload
+        inputHandles: [], 
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'], 
         category: 'trigger',
-        aiExplanation: 'This node simulates an HTTP POST request that triggers the workflow, providing simulated user and order data in its response handle.'
+        aiExplanation: 'This node simulates an HTTP POST request that triggers the workflow, providing simulated user and order data in its requestBody output handle.'
       },
       {
-        id: 'condition_1',
+        id: 'condition_ex2',
         type: 'conditionalLogic',
-        name: 'Check Order Value',
+        name: 'Check Order Value > 100',
         description: 'Checks if the order value is greater than 100.',
         position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
         config: {
-          condition: '{{http_trigger_1.response.order_value}} > 100',
+          condition: '{{webhook_trigger_ex2.requestBody.order_value}} > 100',
         },
         inputHandles: ['input'],
         outputHandles: ['result'],
         category: 'logic',
-        aiExplanation: 'Evaluates if the "order_value" from the http_trigger_1 response is greater than 100. Outputs a boolean result.'
+        aiExplanation: 'Evaluates if the "order_value" from the webhook_trigger_ex2.requestBody is greater than 100. Outputs a boolean result.'
       },
       {
-        id: 'email_high_value_1',
+        id: 'email_high_value_ex2',
         type: 'sendEmail',
         name: 'Send High Value Email',
         description: 'Sends an email for high value orders.',
         position: { x: 50 - NODE_WIDTH - 30, y: 50 + (NODE_HEIGHT + 40) * 2 },
         config: {
           to: '{{env.SALES_EMAIL_HIGH_VALUE}}',
-          subject: 'High Value Order! User: {{http_trigger_1.response.user_id}}',
-          body: 'A new order with value > 100 has been placed by {{http_trigger_1.response.user_id}}.',
-          _flow_run_condition: '{{condition_1.result}}', // Runs if condition_1.result is true
+          subject: 'High Value Order! User: {{webhook_trigger_ex2.requestBody.user_id}}',
+          body: 'A new order with value > 100 has been placed by {{webhook_trigger_ex2.requestBody.user_id}}.',
+          _flow_run_condition: '{{condition_ex2.result}}', 
           simulatedMessageId: 'sim-email-high-value'
         },
         inputHandles: ['input'],
         outputHandles: ['messageId', 'status', 'error_message'],
         category: 'action',
-        aiExplanation: 'Sends an email if condition_1.result is true. Uses environment variable for recipient. Includes user_id in subject/body.'
+        aiExplanation: 'Sends an email if condition_ex2.result is true. Uses environment variable {{env.SALES_EMAIL_HIGH_VALUE}} for recipient. Includes user_id in subject/body.'
       },
       {
-        id: 'email_standard_value_1',
+        id: 'email_standard_value_ex2',
         type: 'sendEmail',
         name: 'Send Standard Email',
         description: 'Sends an email for standard value orders.',
         position: { x: 50 + NODE_WIDTH + 30, y: 50 + (NODE_HEIGHT + 40) * 2 },
         config: {
           to: '{{env.SALES_EMAIL_STANDARD_VALUE}}',
-          subject: 'New Standard Order: User {{http_trigger_1.response.user_id}}',
-          body: 'A new order with value <= 100 has been placed by {{http_trigger_1.response.user_id}}.',
-          _flow_run_condition: '{{condition_1.result}} == false', // Runs if condition_1.result is false
+          subject: 'New Standard Order: User {{webhook_trigger_ex2.requestBody.user_id}}',
+          body: 'A new order with value <= 100 has been placed by {{webhook_trigger_ex2.requestBody.user_id}}.',
+          _flow_run_condition: '{{condition_ex2.result}} == false', 
           simulatedMessageId: 'sim-email-standard-value'
         },
         inputHandles: ['input'],
         outputHandles: ['messageId', 'status', 'error_message'],
         category: 'action',
-        aiExplanation: 'Sends an email if condition_1.result is false. Uses environment variable for recipient. Includes user_id in subject/body.'
+        aiExplanation: 'Sends an email if condition_ex2.result is false. Uses environment variable {{env.SALES_EMAIL_STANDARD_VALUE}} for recipient. Includes user_id in subject/body.'
       },
     ],
     connections: [
-      { id: 'conn_s2_1', sourceNodeId: 'http_trigger_1', sourceHandle: 'response', targetNodeId: 'condition_1', targetHandle: 'input' },
-      { id: 'conn_s2_2', sourceNodeId: 'condition_1', sourceHandle: 'result', targetNodeId: 'email_high_value_1', targetHandle: 'input' },
-      { id: 'conn_s2_3', sourceNodeId: 'condition_1', sourceHandle: 'result', targetNodeId: 'email_standard_value_1', targetHandle: 'input' },
+      { id: 'conn_ex2_1', sourceNodeId: 'webhook_trigger_ex2', sourceHandle: 'requestBody', targetNodeId: 'condition_ex2', targetHandle: 'input' },
+      { id: 'conn_ex2_2', sourceNodeId: 'condition_ex2', sourceHandle: 'result', targetNodeId: 'email_high_value_ex2', targetHandle: 'input' },
+      { id: 'conn_ex2_3', sourceNodeId: 'condition_ex2', sourceHandle: 'result', targetNodeId: 'email_standard_value_ex2', targetHandle: 'input' },
     ],
   },
 ];
