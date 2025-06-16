@@ -11,7 +11,7 @@ import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2 } from 'lucide-react'; 
+import { Loader2, Trash2, Undo2, Redo2, Sparkles, Bot, MessageSquareText } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -148,7 +148,7 @@ export default function WorkflowPage() {
          }
       }
     };
-    if (isAssistantVisible) { // Only fetch suggestions if assistant panel is conceptually active
+    if (isAssistantVisible) { 
         fetchSuggestion();
     } else {
         setSuggestedNextNodeInfo(null);
@@ -259,8 +259,8 @@ export default function WorkflowPage() {
     try {
       const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections }, isSimulationMode, {}); // Passed empty initialData for UI-triggered runs for now
       const newLogs: LogEntry[] = serverLogs.map(log => ({
-        ...log, 
-        timestamp: new Date(log.timestamp).toLocaleTimeString(), 
+        ...log,
+        timestamp: new Date(log.timestamp).toLocaleTimeString(),
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
       toast({
@@ -316,7 +316,7 @@ export default function WorkflowPage() {
       const newIndex = historyIndex - 1;
       setNodes(history[newIndex].nodes);
       setHistoryIndex(newIndex);
-      setSelectedNodeId(null); 
+      setSelectedNodeId(null);
       setSelectedConnectionId(null);
     }
   }, [history, historyIndex]);
@@ -349,14 +349,14 @@ export default function WorkflowPage() {
       if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'z') {
         event.preventDefault();
-        if (event.shiftKey) { 
+        if (event.shiftKey) {
           handleRedo();
-        } else { 
+        } else {
           handleUndo();
         }
         return;
       }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'y') { 
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'y') {
         event.preventDefault();
         handleRedo();
         return;
@@ -384,7 +384,7 @@ export default function WorkflowPage() {
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog 
+    showDeleteNodeConfirmDialog
   ]);
 
   useEffect(() => {
@@ -444,7 +444,7 @@ export default function WorkflowPage() {
     nextNodeIdRef.current = maxId + 1;
 
     const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
-      id: crypto.randomUUID(),
+      id: conn.id || crypto.randomUUID(),
       sourceNodeId: conn.sourceNodeId,
       targetNodeId: conn.targetNodeId,
       sourceHandle: conn.sourcePort,
@@ -499,7 +499,6 @@ export default function WorkflowPage() {
     resetHistory(updatedNodes);
     setSelectedNodeId(newNodeId);
     setSelectedConnectionId(null);
-    // setIsAssistantVisible(true); // Don't auto-show on manual add for "Upgrade" model
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
   }, [nodes, resetHistory]);
@@ -518,13 +517,11 @@ export default function WorkflowPage() {
         y: selectedNode.position.y,
       };
     } else {
-      // Find a clear spot on the canvas if no node is selected
-      // Simple heuristic: check positions based on existing nodes
       let newX = 50;
       let newY = 50;
       if (nodes.length > 0) {
         newX = Math.max(...nodes.map(n => n.position.x)) + NODE_WIDTH + 60;
-        if (newX > 1000) { // Arbitrary wrap threshold
+        if (newX > 1000) {
           newX = 50;
           newY = Math.max(...nodes.map(n => n.position.y)) + NODE_HEIGHT + 40;
         } else {
@@ -546,7 +543,7 @@ export default function WorkflowPage() {
       if (node) node.position = position;
     });
     setNodes(updatedNodes);
-    saveHistory(updatedNodes); 
+    saveHistory(updatedNodes);
   }, [nodes, saveHistory]);
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
@@ -579,7 +576,6 @@ export default function WorkflowPage() {
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setSelectedConnectionId(null);
-    // setIsAssistantVisible(true); // Don't auto-show on node click for "Upgrade" model
     if (isConnecting) handleCancelConnection();
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
@@ -692,7 +688,6 @@ export default function WorkflowPage() {
     setSelectedConnectionId(connectionId);
     setSelectedNodeId(null);
     if (isConnecting) handleCancelConnection();
-    // setIsAssistantVisible(true); // Don't auto-show for "Upgrade" model
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
   }, [isConnecting, handleCancelConnection]);
@@ -704,7 +699,7 @@ export default function WorkflowPage() {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setWorkflowExplanation(null);
-        setInitialCanvasSuggestion(null); 
+        setInitialCanvasSuggestion(null);
         setSuggestedNextNodeInfo(null);
       }
       return newVisibility;
@@ -737,7 +732,7 @@ export default function WorkflowPage() {
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
-      setIsAssistantVisible(true); // Show assistant when explanation is ready
+      setIsAssistantVisible(true);
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
       setWorkflowExplanation('Failed to get explanation.');
@@ -833,7 +828,6 @@ export default function WorkflowPage() {
           <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
             <div className="border-b">
               <ExecutionLogPanel
-                logs={executionLogs}
                 onRunWorkflow={handleRunWorkflow}
                 isWorkflowRunning={isWorkflowRunning}
                 isSimulationMode={isSimulationMode}
