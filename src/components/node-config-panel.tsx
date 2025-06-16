@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React from 'react';
@@ -98,7 +98,7 @@ export function NodeConfigPanel({
             value={currentValue}
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? e.target.value : e.target.value)}
-            className="mt-1"
+            className="mt-1 text-sm"
           />
         );
       case 'textarea':
@@ -109,8 +109,8 @@ export function NodeConfigPanel({
             value={String(currentValue)} 
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value)}
-            className="mt-1 min-h-[80px] font-mono text-xs"
-            rows={fieldSchema.type === 'json' ? 5 : 3}
+            className="mt-1 min-h-[70px] font-mono text-xs"
+            rows={fieldSchema.type === 'json' ? 4 : 3}
           />
         );
       case 'select':
@@ -119,28 +119,28 @@ export function NodeConfigPanel({
             value={String(currentValue)}
             onValueChange={(value) => handleInputChange(fieldKey, value)}
           >
-            <SelectTrigger id={`${node.id}-${fieldKey}`} className="mt-1">
+            <SelectTrigger id={`${node.id}-${fieldKey}`} className="mt-1 text-sm">
               <SelectValue placeholder={fieldSchema.placeholder || `Select ${fieldSchema.label}`} />
             </SelectTrigger>
             <SelectContent>
               {fieldSchema.options?.map((option, index) => {
                 const val = typeof option === 'string' ? option : option.value;
                 const lab = typeof option === 'string' ? option : option.label;
-                return <SelectItem key={`${val}-${index}`} value={val}>{lab}</SelectItem>
+                return <SelectItem key={`${val}-${index}`} value={val} className="text-sm">{lab}</SelectItem>
               })}
             </SelectContent>
           </Select>
         );
       case 'boolean':
         return (
-          <div className="flex items-center space-x-2 mt-2">
+          <div className="flex items-center space-x-2 mt-2 py-1">
             <Switch
               id={`${node.id}-${fieldKey}`}
               checked={!!currentValue}
               onCheckedChange={(checked) => handleInputChange(fieldKey, checked)}
             />
-            <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer">
-              {fieldSchema.label} {currentValue ? "(Enabled)" : "(Disabled)"}
+            <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer text-muted-foreground">
+              {fieldSchema.label} {currentValue ? <span className="text-primary/80">(Enabled)</span> : <span className="text-muted-foreground/70">(Disabled)</span>}
             </Label>
           </div>
         );
@@ -200,79 +200,80 @@ export function NodeConfigPanel({
         if (draft.retry) {
             delete draft.retry;
         } else {
-            draft.retry = { attempts: 3, delayMs: 1000 }; // Default retry
+            draft.retry = { attempts: 3, delayMs: 1000 }; 
         }
     });
     onConfigChange(node.id, newConfig);
   };
 
   return (
-    <Card className="shadow-lg flex flex-col h-full">
-      <CardHeader>
+    <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
+      <CardHeader className="px-4 pt-4 pb-3 border-b">
         <div className="flex justify-between items-center">
-            <CardTitle className="text-lg">Configure: {node.name || nodeType?.name}</CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => onDeleteNode(node.id)} title="Delete Node">
-                <Trash2 className="h-5 w-5 text-destructive" />
+            <CardTitle className="text-base font-semibold text-foreground">Configure: {node.name || nodeType?.name}</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => onDeleteNode(node.id)} title="Delete Node" className="h-7 w-7">
+                <Trash2 className="h-4 w-4 text-destructive hover:text-destructive/80" />
             </Button>
         </div>
-        <CardDescription>Node ID: {node.id} | Type: {node.type}</CardDescription>
+        <CardDescription className="text-xs">Node ID: {node.id} | Type: {node.type}</CardDescription>
       </CardHeader>
       <ScrollArea className="flex-grow">
-        <CardContent className="space-y-4 pb-6">
-          <div>
-            <Label htmlFor={`${node.id}-nodeName`} className="font-semibold">Node Name</Label>
+        <CardContent className="space-y-4 p-4">
+          <div className="space-y-1">
+            <Label htmlFor={`${node.id}-nodeName`} className="text-xs font-medium">Node Name</Label>
             <Input
               id={`${node.id}-nodeName`}
               value={node.name}
               onChange={(e) => onNodeNameChange(node.id, e.target.value)}
               placeholder="Enter node name"
-              className="mt-1"
+              className="mt-1 text-sm"
             />
           </div>
-          <div>
-            <Label htmlFor={`${node.id}-nodeDescription`} className="font-semibold">Node Description</Label>
+          <div className="space-y-1">
+            <Label htmlFor={`${node.id}-nodeDescription`} className="text-xs font-medium">Node Description</Label>
             <Textarea
               id={`${node.id}-nodeDescription`}
               value={node.description || ''}
               onChange={(e) => onNodeDescriptionChange(node.id, e.target.value)}
               placeholder="Enter a brief description for this node"
-              className="mt-1 min-h-[60px]"
+              className="mt-1 min-h-[50px] text-sm"
               rows={2}
             />
           </div>
 
           {node.aiExplanation && (
-            <div className="p-3 bg-accent/10 rounded-md border border-accent/30 shadow-sm">
-              <Label className="font-semibold text-accent-foreground/90 flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                AI Explanation
+            <div className="p-3 bg-accent/10 rounded-md border border-accent/20 shadow-sm space-y-1.5">
+              <Label className="text-xs font-medium text-accent-foreground/90 flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5" />
+                AI Explanation & Guidance
               </Label>
               <Textarea
                 value={node.aiExplanation}
                 readOnly
-                className="mt-1 text-xs text-muted-foreground bg-background/50 min-h-[100px] max-h-[200px] font-mono leading-relaxed"
-                rows={5}
+                className="mt-1 text-xs text-muted-foreground bg-background/30 min-h-[80px] max-h-[180px] font-mono leading-relaxed resize-none border-accent/10"
+                rows={4}
               />
-              <p className="text-xs text-muted-foreground mt-1">This is how the AI understands and configured this node.</p>
+              <p className="text-xs text-muted-foreground/80 italic">This is how the AI understands and configured this node. Check for any setup steps.</p>
             </div>
           )}
-
-          {/* Main Config Fields */}
+          
+          <Separator className="my-3" />
+          <Label className="text-sm font-semibold text-foreground">Parameters</Label>
           {nodeType?.configSchema && Object.keys(nodeType.configSchema)
             .filter(key => key !== 'retry' && key !== 'onErrorWebhook') 
             .length > 0 ? (
             Object.entries(nodeType.configSchema)
               .filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook')
               .map(([key, schema]) => (
-              <div key={key}>
-                 {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="font-semibold">{schema.label}</Label>}
+              <div key={key} className="space-y-1 mt-2">
+                 {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>}
                 {renderFormField(key, schema)}
-                {schema.helperText && <p className="text-xs text-muted-foreground mt-1">{schema.helperText}</p>}
+                {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
               </div>
             ))
           ) : (
-             <div className="mt-4">
-                <Label className="font-semibold text-sm">Raw Configuration (JSON)</Label>
+             <div className="mt-2">
+                <Label className="text-xs font-medium">Raw Configuration (JSON)</Label>
                 <Textarea
                     value={typeof node.config === 'string' ? node.config : JSON.stringify(node.config, null, 2)}
                     onChange={(e) => {
@@ -283,77 +284,76 @@ export function NodeConfigPanel({
                            onConfigChange(node.id, e.target.value); 
                         }
                     }}
-                    className="mt-1 font-mono text-xs min-h-[100px]"
-                    rows={5}
+                    className="mt-1 font-mono text-xs min-h-[80px]"
+                    rows={4}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Edit raw JSON for this node's config. Use with caution.</p>
+                <p className="text-xs text-muted-foreground/80 mt-0.5">Edit raw JSON for this node's config. Use with caution.</p>
              </div>
           )}
           {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).filter(key => key !== 'retry' && key !== 'onErrorWebhook').length === 0) && 
            Object.keys(node.config || {}).filter(key => key !== 'retry' && key !== 'onErrorWebhook').length === 0 && (
-             <p className="text-sm text-muted-foreground mt-2">No specific configuration schema or raw config available for this node type (excluding retry/webhook).</p>
+             <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted/30 rounded-sm italic">No specific configuration parameters defined for this node type (excluding retry/webhook).</p>
           )}
 
-          {/* Retry Configuration Section */}
           {nodeType?.configSchema?.retry && (
-             <Accordion type="single" collapsible className="w-full mt-3" defaultValue={node.config.retry && Object.keys(node.config.retry).length > 0 ? "retry-config" : undefined}>
-                <AccordionItem value="retry-config">
-                    <AccordionTrigger className="text-sm font-semibold hover:no-underline">
-                        <div className="flex items-center gap-2">
-                            <RotateCcwIcon className="h-4 w-4 text-primary" />
+             <Accordion type="single" collapsible className="w-full mt-3 border rounded-md shadow-sm" defaultValue={node.config.retry && Object.keys(node.config.retry).length > 0 ? "retry-config" : undefined}>
+                <AccordionItem value="retry-config" className="border-b-0">
+                    <AccordionTrigger className="text-xs font-medium hover:no-underline px-3 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-t-md [&[data-state=open]]:rounded-b-none">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <RotateCcwIcon className="h-3.5 w-3.5" />
                             Retry Configuration
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent className="pt-2 space-y-3">
-                        <div className="flex items-center justify-between">
+                    <AccordionContent className="pt-2 px-3 pb-3 space-y-2.5 bg-card">
+                        <div className="flex items-center justify-between pt-1">
                             <Label className="text-xs text-muted-foreground">
                                 {currentRetryConfig.attempts ? 'Customize retry behavior.' : 'Retries are currently disabled.'}
                             </Label>
-                            <Button variant="outline" size="sm" onClick={toggleRetryConfig} className="text-xs">
+                            <Button variant="outline" size="xs" onClick={toggleRetryConfig} className="text-xs h-7">
                                 {node.config.retry ? 'Disable Retries' : 'Enable Retries'}
                             </Button>
                         </div>
                         {node.config.retry && (
                             <>
-                                <div>
+                                <div className="space-y-0.5">
                                     <Label htmlFor={`${node.id}-retry-attempts`} className="text-xs">Attempts</Label>
                                     <Input type="number" id={`${node.id}-retry-attempts`}
                                            value={currentRetryConfig.attempts ?? ''}
                                            onChange={(e) => handleRetryConfigChange('attempts', e.target.value)}
-                                           placeholder="e.g., 3" className="mt-1 text-xs h-8" />
-                                    <p className="text-xs text-muted-foreground mt-0.5">Total execution attempts.</p>
+                                           placeholder="e.g., 3" className="mt-0.5 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground/80 mt-0.5">Total execution attempts.</p>
                                 </div>
-                                <div>
+                                <div className="space-y-0.5">
                                     <Label htmlFor={`${node.id}-retry-delayMs`} className="text-xs">Initial Delay (ms)</Label>
                                     <Input type="number" id={`${node.id}-retry-delayMs`}
                                            value={currentRetryConfig.delayMs ?? ''}
                                            onChange={(e) => handleRetryConfigChange('delayMs', e.target.value)}
-                                           placeholder="e.g., 1000" className="mt-1 text-xs h-8" />
-                                    <p className="text-xs text-muted-foreground mt-0.5">Delay before the first retry.</p>
+                                           placeholder="e.g., 1000" className="mt-0.5 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground/80 mt-0.5">Delay before the first retry.</p>
                                 </div>
-                                <div>
+                                <div className="space-y-0.5">
                                     <Label htmlFor={`${node.id}-retry-backoffFactor`} className="text-xs">Backoff Factor</Label>
                                     <Input type="number" id={`${node.id}-retry-backoffFactor`}
                                            value={currentRetryConfig.backoffFactor ?? ''}
                                            onChange={(e) => handleRetryConfigChange('backoffFactor', e.target.value)}
-                                           placeholder="e.g., 2 (for exponential)" className="mt-1 text-xs h-8" />
-                                     <p className="text-xs text-muted-foreground mt-0.5">Multiplier for subsequent delays.</p>
+                                           placeholder="e.g., 2 (for exponential)" className="mt-0.5 text-xs h-8" />
+                                     <p className="text-xs text-muted-foreground/80 mt-0.5">Multiplier for subsequent delays.</p>
                                 </div>
-                                <div>
+                                <div className="space-y-0.5">
                                     <Label htmlFor={`${node.id}-retry-statusCodes`} className="text-xs">Retry on Status Codes (HTTP only)</Label>
                                     <Input type="text" id={`${node.id}-retry-statusCodes`}
                                            value={(currentRetryConfig.retryOnStatusCodes || []).join(', ')}
                                            onChange={(e) => handleRetryConfigChange('retryOnStatusCodes', e.target.value)}
-                                           placeholder="e.g., 500, 503, 429 (comma-separated)" className="mt-1 text-xs h-8" />
-                                    <p className="text-xs text-muted-foreground mt-0.5">Comma-separated HTTP status codes.</p>
+                                           placeholder="500, 503, 429 (comma-separated)" className="mt-0.5 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground/80 mt-0.5">Comma-separated HTTP status codes.</p>
                                 </div>
-                                <div>
+                                <div className="space-y-0.5">
                                     <Label htmlFor={`${node.id}-retry-keywords`} className="text-xs">Retry on Error Keywords</Label>
                                     <Input type="text" id={`${node.id}-retry-keywords`}
                                            value={(currentRetryConfig.retryOnErrorKeywords || []).join(', ')}
                                            onChange={(e) => handleRetryConfigChange('retryOnErrorKeywords', e.target.value)}
-                                           placeholder="e.g., timeout, unavailable (comma-separated)" className="mt-1 text-xs h-8" />
-                                    <p className="text-xs text-muted-foreground mt-0.5">Case-insensitive keywords in error messages.</p>
+                                           placeholder="timeout, unavailable (comma-separated)" className="mt-0.5 text-xs h-8" />
+                                    <p className="text-xs text-muted-foreground/80 mt-0.5">Case-insensitive keywords in error messages.</p>
                                 </div>
                             </>
                         )}
@@ -363,84 +363,82 @@ export function NodeConfigPanel({
           )}
 
           {nodeType?.configSchema?.onErrorWebhook && (
-             <div className="mt-3 p-3 border rounded-md bg-muted/30">
-                 <Label className="font-semibold text-sm">On-Error Webhook (JSON)</Label>
+             <div className="mt-3 p-3 border rounded-md bg-muted/20 shadow-sm space-y-1">
+                 <Label className="text-xs font-medium">On-Error Webhook (JSON)</Label>
                  <Textarea
                     value={node.config.onErrorWebhook ? JSON.stringify(node.config.onErrorWebhook, null, 2) : ''}
                     onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)} 
                     placeholder={'{\n  "url": "...",\n  "method": "POST",\n  ...\n}'}
-                    className="mt-1 font-mono text-xs min-h-[80px]"
-                    rows={4}
+                    className="mt-0.5 font-mono text-xs min-h-[70px]"
+                    rows={3}
                  />
-                 <p className="text-xs text-muted-foreground mt-1">Configure webhook for notifications on final failure.</p>
+                 <p className="text-xs text-muted-foreground/80 mt-0.5">Configure webhook for notifications on final failure.</p>
              </div>
           )}
 
-
-          <Separator className="my-4" />
+          <Separator className="my-3" />
           
-          <div className="p-3 border rounded-md bg-card shadow-sm">
-            <Label className="font-semibold text-muted-foreground flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-primary" />
-                Required Environment & Secret Placeholders
+          <div className="p-3 border rounded-md bg-muted/20 shadow-sm space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <KeyRound className="h-3.5 w-3.5" />
+                Required Placeholders
             </Label>
             {envPlaceholders.length === 0 && secretPlaceholders.length === 0 ? (
-                <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted/30 rounded-sm italic">
-                  No <code className="font-mono text-xs bg-background/50 px-1 py-0.5 rounded">{`{{env...}}`}</code> or <code className="font-mono text-xs bg-background/50 px-1 py-0.5 rounded">{`{{secret...}}`}</code> placeholders detected for this node.
+                <p className="text-xs text-muted-foreground/80 p-1.5 bg-background/40 rounded-sm italic">
+                  No <code className="font-mono text-xs bg-muted/50 px-1 py-0.5 rounded">{`{{env...}}`}</code> or <code className="font-mono text-xs bg-muted/50 px-1 py-0.5 rounded">{`{{secret...}}`}</code> placeholders detected.
                 </p>
             ) : (
-                <div className="mt-2 space-y-1.5">
+                <div className="space-y-1.5">
                   {envPlaceholders.map(ph => (
-                      <div key={ph} className="text-xs p-1.5 border rounded-md bg-muted/30 flex items-center justify-between">
-                        <code className="font-mono text-primary bg-background/50 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
-                        <span className="text-muted-foreground ml-2 text-[11px]">(Environment Variable)</span>
+                      <div key={ph} className="text-xs p-1.5 border border-transparent rounded-md bg-background/40 flex items-center justify-between">
+                        <code className="font-mono text-primary/90 bg-primary/10 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
+                        <span className="text-muted-foreground/70 ml-2 text-[10px] tracking-wide">(ENV VAR)</span>
                       </div>
                   ))}
                   {secretPlaceholders.map(ph => (
-                      <div key={ph} className="text-xs p-1.5 border rounded-md bg-muted/30 flex items-center justify-between">
-                        <code className="font-mono text-primary bg-background/50 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
-                        <span className="text-muted-foreground ml-2 text-[11px]">(Secret)</span>
+                      <div key={ph} className="text-xs p-1.5 border border-transparent rounded-md bg-background/40 flex items-center justify-between">
+                        <code className="font-mono text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
+                        <span className="text-muted-foreground/70 ml-2 text-[10px] tracking-wide">(SECRET)</span>
                       </div>
                   ))}
-                  <p className="text-xs text-muted-foreground mt-2 pt-1">
-                      Define these in your <code>.env</code> file. Secrets are typically managed by a vault in production.
+                  <p className="text-xs text-muted-foreground/80 pt-1 italic">
+                      Define these in your <code>.env</code> file or server environment. Secrets are typically managed by a vault in production.
                   </p>
                 </div>
             )}
          </div>
 
+          <Separator className="my-3" />
 
-          <Separator className="my-4" />
-
-          <div>
-            <Label className="font-semibold text-primary flex items-center gap-2">
-                <Wand2 className="h-4 w-4" />
+          <div className="p-3 border rounded-md bg-primary/5 border-primary/20 shadow-sm space-y-1.5">
+            <Label className="text-xs font-medium text-primary flex items-center gap-1.5">
+                <Wand2 className="h-3.5 w-3.5" />
                 AI Node Suggestion
             </Label>
             {isLoadingSuggestion && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Fetching suggestions...</span>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1 p-2 border border-transparent rounded-md bg-muted/30">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span className="text-xs">AI is thinking...</span>
                 </div>
             )}
             {!isLoadingSuggestion && suggestedNextNodeInfo && suggestedNextNodeInfo.forNodeId === node.id && suggestedNodeConfig && (
-                <div className="mt-2 p-3 border rounded-md bg-primary/5 space-y-2 shadow-sm">
-                    <p className="text-sm">
-                        Consider adding: <span className="font-semibold text-primary">{suggestedNodeConfig.name}</span>
-                        <span className="text-xs text-muted-foreground ml-1">({suggestedNextNodeInfo.suggestion.suggestedNode})</span>
+                <div className="mt-1 space-y-1.5">
+                    <p className="text-xs">
+                        Next, consider adding: <span className="font-semibold text-primary">{suggestedNodeConfig.name}</span>
+                        <span className="text-muted-foreground/80 ml-1">({suggestedNextNodeInfo.suggestion.suggestedNode})</span>
                     </p>
-                    <p className="text-xs text-muted-foreground italic">Reason: {suggestedNextNodeInfo.suggestion.reason}</p>
+                    <p className="text-xs text-muted-foreground/90 italic leading-relaxed">Reason: {suggestedNextNodeInfo.suggestion.reason}</p>
                     <Button 
                         size="sm" 
                         onClick={() => onAddSuggestedNode(suggestedNextNodeInfo.suggestion.suggestedNode)}
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                        className="w-full bg-primary/90 hover:bg-primary text-primary-foreground h-8 text-xs mt-1"
                     >
-                       <Wand2 className="mr-2 h-4 w-4" /> Add Suggested Node <ChevronRight className="ml-1 h-4 w-4" />
+                       <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Add Suggested Node <ChevronRight className="ml-auto h-3.5 w-3.5" />
                     </Button>
                 </div>
             )}
             {!isLoadingSuggestion && (!suggestedNextNodeInfo || suggestedNextNodeInfo.forNodeId !== node.id || !suggestedNodeConfig) && (
-                 <p className="text-xs text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30 italic">No specific suggestion available right now, or suggestion type not found.</p>
+                 <p className="text-xs text-muted-foreground/80 mt-1 p-2 border border-transparent rounded-md bg-muted/30 italic">No specific suggestion available, or suggestion type not found.</p>
             )}
           </div>
 

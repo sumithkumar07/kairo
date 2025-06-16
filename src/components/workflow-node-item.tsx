@@ -60,16 +60,9 @@ export function WorkflowNodeItem({
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
     
-    // This calculates position relative to the node's top-left.
-    // For absolute canvas position, node.position would be added.
-    // However, the onHandleClick expects position *relative* to the node for its internal use,
-    // and the preview line logic in WorkflowCanvas will use the node.position + this.
     const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
     const xOnNode = isOutput ? NODE_WIDTH : 0;
     
-    // Return position that onHandleClick can use, usually relative to node for internal calc,
-    // but for preview, WorkflowCanvas adds node.position to it.
-    // For simplicity, let's pass the node's own position translated.
     return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };
   };
 
@@ -93,11 +86,11 @@ export function WorkflowNodeItem({
         // Base border
         'ring-1 ring-border',
         // Warning state takes precedence for ring and border color
-        hasWarning && 'ring-2 ring-yellow-500 border-yellow-500/70',
+        hasWarning && 'ring-2 ring-yellow-400 border-yellow-400/60 shadow-yellow-400/20',
         // Selection state
-        isSelected && !hasWarning && 'ring-4 ring-primary/70 shadow-lg shadow-primary/40', // Enhanced ring and shadow
-        isSelected && 'ring-offset-2 ring-offset-background', // Apply offset if selected, regardless of warning
-        isSelected && hasWarning && 'shadow-yellow-500/30' // Specific shadow for selected warning nodes
+        isSelected && !hasWarning && 'ring-2 ring-primary/80 shadow-lg shadow-primary/30', // Enhanced ring and shadow
+        isSelected && 'ring-offset-2 ring-offset-background', 
+        isSelected && hasWarning && 'ring-yellow-400 shadow-yellow-400/40' // Specific shadow for selected warning nodes
       )}
       style={{
         left: node.position.x,
@@ -108,9 +101,9 @@ export function WorkflowNodeItem({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-2 space-y-0",
-        isSelected && !hasWarning ? "bg-primary/30" : (hasWarning ? "bg-yellow-500/10" : "bg-card-foreground/5") // Slightly darker selected header
+        isSelected && !hasWarning ? "bg-primary/10" : (hasWarning ? "bg-yellow-400/10" : "bg-muted/50") 
       )}>
-        <IconComponent className="h-4 w-4 text-primary shrink-0" />
+        <IconComponent className={cn("h-4 w-4 shrink-0", isSelected && !hasWarning ? "text-primary" : (hasWarning ? "text-yellow-500" : "text-muted-foreground"))} />
         <CardTitle className="text-xs font-medium truncate flex-grow text-foreground" title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
@@ -118,17 +111,17 @@ export function WorkflowNodeItem({
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
               </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{warningMessage}</p>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="text-xs">{warningMessage}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
       </CardHeader>
-      <CardContent className="p-2 text-xs text-muted-foreground flex-grow overflow-hidden relative">
-        <p className="truncate" title={node.type}>Type: {node.type}</p>
+      <CardContent className="p-2.5 text-xs text-muted-foreground flex-grow overflow-hidden relative">
+        <p className="truncate text-ellipsis" title={node.type}>Type: {node.type}</p>
         
         {nodeType?.inputHandles?.map((handleId, index) => {
           const numHandles = nodeType.inputHandles?.length || 1;
@@ -144,11 +137,11 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="input"
                     className={cn(
-                      "absolute -left-2 w-4 h-4 rounded-full border-2 bg-green-500 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -left-2.5 w-5 h-5 rounded-full border-2 bg-green-500 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                        isPotentialTarget 
-                        ? "border-background bg-green-400 hover:bg-green-300 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-300" 
-                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-50 cursor-not-allowed" : "border-background bg-primary cursor-default"),
-                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-50 cursor-not-allowed" 
+                        ? "border-green-300 bg-green-400 hover:bg-green-300 scale-110 hover:scale-125 cursor-pointer ring-2 ring-green-300/50" 
+                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : "border-card bg-primary cursor-default"),
+                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-40 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -162,7 +155,7 @@ export function WorkflowNodeItem({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p>Input: {handleId}</p>
+                  <p className="text-xs">Input: {handleId}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -182,12 +175,12 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="output"
                     className={cn(
-                      "absolute -right-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -right-2.5 w-5 h-5 rounded-full border-2 border-card shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                       isActiveSource 
-                        ? "bg-orange-500 scale-125 cursor-grabbing ring-2 ring-orange-400" 
+                        ? "bg-orange-500 scale-110 cursor-grabbing ring-2 ring-orange-400/50" 
                         : "bg-accent", 
-                      !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-accent/70" : "cursor-default",
-                      isOtherNodeOutputDuringConnect && "opacity-50 cursor-not-allowed" 
+                      !isConnecting ? "cursor-pointer hover:scale-110 hover:bg-accent/80" : "cursor-default",
+                      isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -201,7 +194,7 @@ export function WorkflowNodeItem({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  <p>Output: {handleId}</p>
+                  <p className="text-xs">Output: {handleId}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -211,4 +204,3 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
-

@@ -112,14 +112,29 @@
 /* Dot Grid Background */
 .dot-grid-background {
   background-color: hsl(var(--background));
-  background-image: radial-gradient(hsl(var(--muted) / 0.3) 1px, transparent 1px); /* Softer dots for dark */
-  background-size: 20px 20px; /* Slightly larger grid */
+  background-image: radial-gradient(hsl(var(--muted) / 0.2) 0.8px, transparent 0.8px); /* Softer dots */
+  background-size: 18px 18px; /* Slightly smaller grid */
 }
 
-/* Ensure .dark class explicitly applies for the dot grid if :root isn't enough, though it should be with var() */
 .dark .dot-grid-background {
   background-color: hsl(var(--background));
-  background-image: radial-gradient(hsl(var(--muted) / 0.3) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image: radial-gradient(hsl(var(--muted) / 0.15) 0.8px, transparent 0.8px); /* Even softer for dark */
+  background-size: 18px 18px;
 }
 
+/* Custom scrollbar styles for a cleaner look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.5);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.5);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.7);
+}

@@ -5,7 +5,7 @@ import { Zap, Bot, Radio, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, Messag
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
-import { Separator } from '@/components/ui/separator'; // Import Separator
+import { Separator } from '@/components/ui/separator'; 
 
 interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
@@ -76,34 +76,34 @@ export function AIWorkflowBuilderPanel({
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
-      <div className="p-4 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-md">
+      <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-foreground">FlowAI Builder</h1>
-          <p className="text-sm text-muted-foreground">Automate with AI-driven workflows</p>
+          <h1 className="text-xl font-semibold text-foreground">FlowAI Studio</h1>
+          <p className="text-xs text-muted-foreground">Build, simulate, and deploy AI-driven automations.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Zoom Controls */}
-          <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out">
+          <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
             <Minus className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground w-12 text-center">{(zoomLevel * 100).toFixed(0)}%</span>
-          <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In">
+          <span className="text-xs text-muted-foreground w-10 text-center select-none">{(zoomLevel * 100).toFixed(0)}%</span>
+          <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
             <Plus className="h-4 w-4" />
           </Button>
           
-          <Separator orientation="vertical" className="h-6 mx-1" />
+          <Separator orientation="vertical" className="h-6 mx-1.5" />
 
           {/* File Operations */}
           <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow (Ctrl+O)">
-            <FolderOpen className="h-4 w-4 mr-2" />
+            <FolderOpen className="h-4 w-4 mr-1.5" />
             Load
           </Button>
           <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow (Ctrl+S)">
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="h-4 w-4 mr-1.5" />
             Save
           </Button>
 
-          <Separator orientation="vertical" className="h-6 mx-1" />
+          <Separator orientation="vertical" className="h-6 mx-1.5" />
           
           {/* AI & Assistant Controls */}
           <Button 
@@ -113,17 +113,17 @@ export function AIWorkflowBuilderPanel({
             disabled={!hasWorkflow || isExplainingWorkflow}
             title="Let AI Explain this workflow"
           >
-            <MessageSquareText className="h-4 w-4 mr-2" />
+            <MessageSquareText className="h-4 w-4 mr-1.5" />
             Explain
           </Button>
           <Button 
             variant="outline" 
             size="sm" 
-            className="text-accent-foreground bg-accent hover:bg-accent/90 border-accent"
+            className="text-accent-foreground bg-accent/10 hover:bg-accent/20 border-accent/30"
             title="Indicates if workflow is ready for AI execution (simulated or live)"
           >
-            <Radio className="h-4 w-4 mr-2" />
-            AI Ready
+            <Radio className="h-4 w-4 mr-1.5 text-accent" />
+            Ready
           </Button>
           <Button
             variant={isAssistantVisible ? "default" : "outline"}
@@ -132,7 +132,7 @@ export function AIWorkflowBuilderPanel({
             aria-pressed={isAssistantVisible}
             title={isAssistantVisible ? "Hide AI Assistant Panel" : "Show AI Assistant Panel"}
           >
-            <Bot className="h-4 w-4 mr-2" />
+            <Bot className="h-4 w-4 mr-1.5" />
             {isAssistantVisible ? "Hide Assistant" : "Show Assistant"}
           </Button>
         </div>
@@ -163,24 +163,24 @@ export function AIWorkflowBuilderPanel({
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-          <div className="p-6 bg-primary/10 rounded-full mb-6 shadow-lg">
-            <Zap className="h-16 w-16 text-primary" />
+          <div className="p-5 bg-primary/10 rounded-full mb-5 shadow-lg">
+            <Zap className="h-12 w-12 text-primary" />
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
-          <p className="text-muted-foreground mb-6 max-w-md">
-            Describe what you want to automate using our AI Assistant, drag nodes from the library, or load a saved workflow.
+          <p className="text-muted-foreground mb-6 max-w-md text-sm">
+            Use the AI Assistant to generate a workflow from your description, drag nodes from the library on the left, or load a previously saved workflow.
           </p>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 bg-primary rounded-full"></span>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse"></span>
               AI-Powered
             </span>
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 bg-accent rounded-full"></span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 bg-accent rounded-full"></span>
               Drag & Drop
             </span>
-             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 bg-secondary rounded-full"></span>
+             <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 bg-secondary rounded-full"></span>
               Save & Load
             </span>
           </div>
@@ -189,4 +189,3 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
-
