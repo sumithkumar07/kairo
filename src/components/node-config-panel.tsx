@@ -209,6 +209,8 @@ export function NodeConfigPanel({
   const nodeSupportsRetry = nodeType?.configSchema?.hasOwnProperty('retry');
   const nodeSupportsOnErrorWebhook = nodeType?.configSchema?.hasOwnProperty('onErrorWebhook');
 
+  const currentDataTransformType = node.type === 'dataTransform' ? node.config.transformType : null;
+
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
       <CardHeader className="px-4 pt-4 pb-3 border-b">
@@ -266,7 +268,13 @@ export function NodeConfigPanel({
             .filter(key => key !== 'retry' && key !== 'onErrorWebhook') 
             .length > 0 ? (
             Object.entries(nodeType.configSchema)
-              .filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook')
+              .filter(([key, schema]) => {
+                if (key === 'retry' || key === 'onErrorWebhook') return false;
+                if (node.type === 'dataTransform' && schema.relevantForTypes && currentDataTransformType) {
+                  return schema.relevantForTypes.includes(currentDataTransformType);
+                }
+                return true; // Always show if not dataTransform or no relevantForTypes specified
+              })
               .map(([key, schema]) => (
               <div key={key} className="space-y-1 mt-2">
                  {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>}
@@ -467,4 +475,3 @@ export function NodeConfigPanel({
     </Card>
   );
 }
-

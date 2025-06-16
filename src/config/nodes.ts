@@ -36,6 +36,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     configSchema: {
       event: { label: 'Event Type', type: 'string', defaultValue: 'manualStart', placeholder: 'e.g., manual, webhook', required: true },
     },
+    inputHandles: [],
     outputHandles: ['output'],
   },
   {
@@ -62,6 +63,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
+    inputHandles: [],
     outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
   },
   {
@@ -88,6 +90,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
+    inputHandles: [],
     outputHandles: ['fileEvent', 'status', 'error_message'],
   },
   {
@@ -135,6 +138,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     configSchema: {
       cron: { label: 'Cron Expression', type: 'string', defaultValue: '0 * * * *', placeholder: 'e.g., 0 9 * * MON', required: true },
     },
+    inputHandles: [],
     outputHandles: ['triggered_at'],
   },
   {
@@ -296,15 +300,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
           required: true,
           helperText: "Select the desired data transformation. Specific parameters below will apply based on this selection."
         },
-        inputString: { label: 'Input String', type: 'textarea', placeholder: '{{input.text}}', helperText: "Used by: toUpperCase, toLowerCase, stringSplit, parseNumber. Also one of the elements for concatenateStrings." },
-        inputObject: { label: 'Input Object (JSON)', type: 'json', placeholder: '{{input.data_object}}', helperText: "Used by: extractFields, getObjectProperty." },
-        inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{input.list_data}} or {{string_split_node.output_data.array}}', helperText: "Used by: arrayLength, getItemAtIndex, reduceArray. This should be a placeholder resolving to an array." },
-        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings)', type: 'json', placeholder: '["name", "email"]', helperText: "Used by: extractFields. Defines which top-level keys to pick from Input Object." },
-        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]', helperText: "Used by: concatenateStrings. An array of strings or placeholders that resolve to strings." },
-        separator: { label: 'Separator', type: 'string', placeholder: '(empty for direct join)', helperText: "Used by: concatenateStrings, reduceArray (with 'join' reducer)." },
-        delimiter: { label: 'Delimiter', type: 'string', placeholder: ',', helperText: "Used by: stringSplit." },
-        index: { label: 'Index (0-based)', type: 'number', placeholder: '0', helperText: "Used by: getItemAtIndex." },
-        propertyName: { label: 'Property Name', type: 'string', placeholder: 'user.address.city', helperText: "Used by: getObjectProperty." },
+        inputString: { label: 'Input String', type: 'textarea', placeholder: '{{input.text}}', helperText: "Used by: toUpperCase, toLowerCase, stringSplit, parseNumber.", relevantForTypes: ['toUpperCase', 'toLowerCase', 'stringSplit', 'parseNumber'] },
+        inputObject: { label: 'Input Object (JSON)', type: 'json', placeholder: '{{input.data_object}}', helperText: "Used by: extractFields, getObjectProperty.", relevantForTypes: ['extractFields', 'getObjectProperty'] },
+        inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{input.list_data}} or {{string_split_node.output_data.array}}', helperText: "Used by: arrayLength, getItemAtIndex, reduceArray. This should be a placeholder resolving to an array.", relevantForTypes: ['arrayLength', 'getItemAtIndex', 'reduceArray'] },
+        fieldsToExtract: { label: 'Fields to Extract (JSON array of strings)', type: 'json', placeholder: '["name", "email"]', helperText: "Used by: extractFields. Defines which top-level keys to pick from Input Object.", relevantForTypes: ['extractFields'] },
+        stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]', helperText: "Used by: concatenateStrings. An array of strings or placeholders that resolve to strings.", relevantForTypes: ['concatenateStrings'] },
+        separator: { label: 'Separator', type: 'string', placeholder: '(empty for direct join)', helperText: "Used by: concatenateStrings, reduceArray (with 'join' reducer).", relevantForTypes: ['concatenateStrings', 'reduceArray'] },
+        delimiter: { label: 'Delimiter', type: 'string', placeholder: ',', helperText: "Used by: stringSplit.", relevantForTypes: ['stringSplit'] },
+        index: { label: 'Index (0-based)', type: 'number', placeholder: '0', helperText: "Used by: getItemAtIndex.", relevantForTypes: ['getItemAtIndex'] },
+        propertyName: { label: 'Property Name', type: 'string', placeholder: 'user.address.city', helperText: "Used by: getObjectProperty.", relevantForTypes: ['getObjectProperty'] },
         reducerFunction: {
           label: 'Reducer Function',
           type: 'select',
@@ -316,10 +320,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
           ],
           defaultValue: 'sum',
           helperText: "Used by: reduceArray. Defines the reduction operation.",
+          relevantForTypes: ['reduceArray'],
         },
-        initialValue: { label: 'Initial Value (Optional)', type: 'string', placeholder: 'e.g., 0 for sum, "" for join', helperText: 'Used by: reduceArray. Starting value for reduction. Type should match array elements or expected output (e.g., "0" for sum, "{}" for count). Can be a placeholder.' },
-        inputDateString: { label: 'Input Date String/ISO', type: 'string', placeholder: '{{api_node.response.createdAt}} or 2023-10-26T10:30:00Z', helperText: "Used by: formatDate. The date value to format." },
-        outputFormatString: { label: 'Output Date Format', type: 'string', defaultValue: 'yyyy-MM-dd HH:mm:ss', placeholder: 'yyyy-MM-dd HH:mm:ss', helperText: "Used by: formatDate. Desired date output format (date-fns)." },
+        initialValue: { label: 'Initial Value (Optional)', type: 'string', placeholder: 'e.g., 0 for sum, "" for join', helperText: 'Used by: reduceArray. Starting value for reduction. Type should match array elements or expected output (e.g., "0" for sum, "{}" for count). Can be a placeholder.', relevantForTypes: ['reduceArray'] },
+        inputDateString: { label: 'Input Date String/ISO', type: 'string', placeholder: '{{api_node.response.createdAt}} or 2023-10-26T10:30:00Z', helperText: "Used by: formatDate. The date value to format.", relevantForTypes: ['formatDate'] },
+        outputFormatString: { label: 'Output Date Format', type: 'string', defaultValue: 'yyyy-MM-dd HH:mm:ss', placeholder: 'yyyy-MM-dd HH:mm:ss', helperText: "Used by: formatDate. Desired date output format (date-fns).", relevantForTypes: ['formatDate'] },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
         ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -495,7 +500,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       delayMs: { label: 'Delay (milliseconds)', type: 'number', defaultValue: 1000, required: true, placeholder: 'e.g., 5000 for 5 seconds', helperText: 'The duration for which the workflow will pause.' },
     },
     inputHandles: ['input'],
-    outputHandles: ['output'],
+    outputHandles: ['output', 'status', 'error_message'],
   },
   {
     type: 'youtubeFetchTrending',
@@ -831,6 +836,3 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
-
-
-
