@@ -3,17 +3,17 @@
 
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import type { ExampleWorkflow } from '@/config/example-workflows'; 
+// import type { ExampleWorkflow } from '@/config/example-workflows'; // Removed
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Zap, Wand2, ChevronRight, Sparkles } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles } from 'lucide-react'; // Removed Zap
 import { ScrollArea } from './ui/scroll-area';
-import { Separator } from './ui/separator';
+// import { Separator } from './ui/separator'; // Removed
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
-import { Label } from '@/components/ui/label'; 
+import { Label } from '@/components/ui/label';
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
@@ -21,8 +21,8 @@ interface AIWorkflowAssistantPanelProps {
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
-  exampleWorkflows: ExampleWorkflow[];
-  onLoadExampleWorkflow: (example: ExampleWorkflow) => void;
+  // exampleWorkflows: ExampleWorkflow[]; // Removed
+  // onLoadExampleWorkflow: (example: ExampleWorkflow) => void; // Removed
   initialCanvasSuggestion: SuggestNextNodeOutput | null;
   isLoadingSuggestion: boolean;
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
@@ -35,8 +35,8 @@ export function AIWorkflowAssistantPanel({
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
-  exampleWorkflows,
-  onLoadExampleWorkflow,
+  // exampleWorkflows, // Removed
+  // onLoadExampleWorkflow, // Removed
   initialCanvasSuggestion,
   isLoadingSuggestion,
   onAddSuggestedNode,
@@ -79,12 +79,12 @@ export function AIWorkflowAssistantPanel({
     }
   };
 
-  const handleExampleWorkflowClick = (example: ExampleWorkflow) => {
-    onLoadExampleWorkflow(example);
-    if (workflowExplanation) { 
-        onClearExplanation(); 
-    }
-  }
+  // const handleExampleWorkflowClick = (example: ExampleWorkflow) => { // Removed
+  //   onLoadExampleWorkflow(example); // Removed
+  //   if (workflowExplanation) { // Removed
+  //       onClearExplanation(); // Removed
+  //   } // Removed
+  // } // Removed
 
   const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion;
 
@@ -132,7 +132,7 @@ export function AIWorkflowAssistantPanel({
           <Lightbulb className="h-4 w-4 text-primary" />
           AI Workflow Assistant
         </h2>
-        <p className="text-xs text-muted-foreground">Describe your automation or load an example.</p>
+        <p className="text-xs text-muted-foreground">Describe your automation needs to the AI.</p>
       </div>
 
       <ScrollArea className="flex-1">
@@ -165,35 +165,17 @@ export function AIWorkflowAssistantPanel({
 
           {!isCanvasEmpty && !workflowExplanation && (
             <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80 border border-primary/10">
-              Hi! I&apos;m your AI assistant. Describe what you want to automate, or pick an example.
+              Hi! I&apos;m your AI assistant. Describe what you want to automate.
             </div>
           )}
 
           {isCanvasEmpty && !initialCanvasSuggestion && !isLoadingSuggestion && (
              <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80 border border-primary/10">
-              Your canvas is empty! Describe your desired workflow below, or try an example.
+              Your canvas is empty! Describe your desired workflow to the AI below.
             </div>
           )}
           
-          <div className="p-3 border rounded-md bg-card shadow-sm space-y-1.5">
-            <h3 className="text-xs font-medium text-muted-foreground px-1 mb-1.5">Load an example workflow:</h3>
-            <div className="space-y-1.5">
-              {exampleWorkflows.map((ex, index) => (
-                <Button
-                  key={`workflow-${index}`}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-left justify-start h-auto py-1.5 px-2 text-xs flex flex-col items-start hover:border-primary/40 hover:bg-primary/5 focus-visible:border-primary/50 focus-visible:bg-primary/10"
-                  onClick={() => handleExampleWorkflowClick(ex)}
-                  disabled={currentIsLoading}
-                  title={ex.description}
-                >
-                  <span className="font-semibold flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-primary" /> {ex.name}</span>
-                  <span className="text-muted-foreground/80 text-xs pl-[21px] leading-snug line-clamp-2">{ex.description}</span>
-                </Button>
-              ))}
-            </div>
-          </div>
+          {/* Removed Example Workflows Section */}
         </div>
       </ScrollArea>
 
@@ -214,7 +196,7 @@ export function AIWorkflowAssistantPanel({
           <Button
             onClick={handleSubmit}
             disabled={currentIsLoading || !prompt.trim()}
-            className="h-auto py-2 self-end min-h-[40px]" 
+            className="h-auto py-2 self-end min-h-[40px]"
             size="default"
             title="Generate workflow with AI (Ctrl+Enter)"
           >

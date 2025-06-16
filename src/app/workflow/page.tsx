@@ -2,16 +2,16 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, ExampleWorkflow } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow'; // Removed ExampleWorkflow
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
-import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
+// import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows'; // Removed
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2, Sparkles, Bot, MessageSquareText } from 'lucide-react';
+import { Loader2, Trash2, Undo2, Redo2 } from 'lucide-react'; // Removed Sparkles, Bot, MessageSquareText
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -46,7 +46,7 @@ export default function WorkflowPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
-  const [isAssistantVisible, setIsAssistantVisible] = useState(false); // Default to hidden
+  const [isAssistantVisible, setIsAssistantVisible] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
@@ -148,7 +148,7 @@ export default function WorkflowPage() {
          }
       }
     };
-    if (isAssistantVisible) { 
+    if (isAssistantVisible) {
         fetchSuggestion();
     } else {
         setSuggestedNextNodeInfo(null);
@@ -201,18 +201,18 @@ export default function WorkflowPage() {
     }
   }, [toast]);
 
-  const calculateNextNodeId = (currentNodes: WorkflowNode[]): number => {
-    if (currentNodes.length === 0) return 1;
-    let maxIdNum = 0;
-    currentNodes.forEach(node => {
-      const parts = node.id.split('_');
-      const numPart = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(numPart) && numPart > maxIdNum) {
-        maxIdNum = numPart;
-      }
-    });
-    return maxIdNum + 1;
-  };
+  // const calculateNextNodeId = (currentNodes: WorkflowNode[]): number => { // Removed
+  //   if (currentNodes.length === 0) return 1; // Removed
+  //   let maxIdNum = 0; // Removed
+  //   currentNodes.forEach(node => { // Removed
+  //     const parts = node.id.split('_'); // Removed
+  //     const numPart = parseInt(parts[parts.length - 1], 10); // Removed
+  //     if (!isNaN(numPart) && numPart > maxIdNum) { // Removed
+  //       maxIdNum = numPart; // Removed
+  //     } // Removed
+  //   }); // Removed
+  //   return maxIdNum + 1; // Removed
+  // }; // Removed
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
@@ -696,11 +696,11 @@ export default function WorkflowPage() {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
       if (!newVisibility && (selectedNodeId || selectedConnectionId || workflowExplanation || initialCanvasSuggestion)) {
-        setSelectedNodeId(null);
+        // setSelectedNodeId(null); // Keep selected node when closing panel
         setSelectedConnectionId(null);
-        setWorkflowExplanation(null);
-        setInitialCanvasSuggestion(null);
-        setSuggestedNextNodeInfo(null);
+        // setWorkflowExplanation(null); // Allow explanation to persist if panel is reopened
+        // setInitialCanvasSuggestion(null); // Allow initial suggestion to persist
+        // setSuggestedNextNodeInfo(null); // Allow suggestion to persist
       }
       return newVisibility;
     });
@@ -741,22 +741,22 @@ export default function WorkflowPage() {
     }
   }, [nodes, connections, toast]);
 
-  const handleLoadExampleWorkflow = useCallback((example: ExampleWorkflow) => {
-    const exampleNodes = example.nodes;
-    setNodes(exampleNodes);
-    setConnections(example.connections);
-    setSelectedNodeId(null);
-    setSelectedConnectionId(null);
-    setExecutionLogs([]);
-    setWorkflowExplanation(null);
-    setInitialCanvasSuggestion(null);
-    setSuggestedNextNodeInfo(null);
-    setCanvasOffset({ x: 0, y: 0 });
-    setZoomLevel(1);
-    nextNodeIdRef.current = calculateNextNodeId(exampleNodes);
-    resetHistory(exampleNodes);
-    toast({ title: 'Example Loaded', description: `${example.name} workflow is now on the canvas.` });
-  }, [toast, resetHistory]);
+  // const handleLoadExampleWorkflow = useCallback((example: ExampleWorkflow) => { // Removed
+  //   const exampleNodes = example.nodes; // Removed
+  //   setNodes(exampleNodes); // Removed
+  //   setConnections(example.connections); // Removed
+  //   setSelectedNodeId(null); // Removed
+  //   setSelectedConnectionId(null); // Removed
+  //   setExecutionLogs([]); // Removed
+  //   setWorkflowExplanation(null); // Removed
+  //   setInitialCanvasSuggestion(null); // Removed
+  //   setSuggestedNextNodeInfo(null); // Removed
+  //   setCanvasOffset({ x: 0, y: 0 }); // Removed
+  //   setZoomLevel(1); // Removed
+  //   nextNodeIdRef.current = calculateNextNodeId(exampleNodes); // Removed
+  //   resetHistory(exampleNodes); // Removed
+  //   toast({ title: 'Example Loaded', description: `${example.name} workflow is now on the canvas.` }); // Removed
+  // }, [toast, resetHistory]); // Removed
 
   const handleToggleSimulationMode = useCallback((newMode: boolean) => {
     setIsSimulationMode(newMode);
@@ -883,8 +883,8 @@ export default function WorkflowPage() {
                   onClearExplanation={() => {
                       setWorkflowExplanation(null);
                   }}
-                  exampleWorkflows={EXAMPLE_WORKFLOWS}
-                  onLoadExampleWorkflow={handleLoadExampleWorkflow}
+                  // exampleWorkflows={EXAMPLE_WORKFLOWS} // Removed
+                  // onLoadExampleWorkflow={handleLoadExampleWorkflow} // Removed
                   initialCanvasSuggestion={initialCanvasSuggestion}
                   isLoadingSuggestion={isLoadingSuggestion}
                   onAddSuggestedNode={handleAddSuggestedNode}
