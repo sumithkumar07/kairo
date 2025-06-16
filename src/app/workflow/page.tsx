@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ExampleWorkflow } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions';
@@ -34,10 +34,18 @@ import { produce } from 'immer';
 import { MousePointer2 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'flowAIWorkflow';
+const ASSISTANT_PANEL_VISIBLE_KEY = 'flowAIAssistantPanelVisible';
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
 const MAX_HISTORY_STEPS = 30;
+
+interface HistoryEntry {
+  nodes: WorkflowNode[];
+  connections: WorkflowConnection[];
+  selectedNodeId: string | null;
+  selectedConnectionId: string | null;
+}
 
 export default function WorkflowPage() {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
@@ -73,8 +81,7 @@ export default function WorkflowPage() {
   const [showDeleteNodeConfirmDialog, setShowDeleteNodeConfirmDialog] = useState(false);
   const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
 
-  // Undo/Redo state
-  const [history, setHistory] = useState<{ nodes: WorkflowNode[]; connections: WorkflowConnection[] }[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
 
@@ -82,23 +89,27 @@ export default function WorkflowPage() {
     return nodes.find(node => node.id === selectedNodeId) || null;
   }, [nodes, selectedNodeId]);
 
-  // Function to save current nodes state to history
-  const saveHistory = useCallback((currentNodes: WorkflowNode[], currentConnections: WorkflowConnection[]) => {
+  const saveHistory = useCallback(() => {
     setHistory(prevHistory => {
       const newHistory = prevHistory.slice(0, historyIndex + 1);
-      const limitedHistory = [...newHistory, { nodes: currentNodes, connections: currentConnections }].slice(-MAX_HISTORY_STEPS);
+      const currentEntry: HistoryEntry = {
+        nodes: nodes,
+        connections: connections,
+        selectedNodeId: selectedNodeId,
+        selectedConnectionId: selectedConnectionId
+      };
+      const limitedHistory = [...newHistory, currentEntry].slice(-MAX_HISTORY_STEPS);
       setHistoryIndex(limitedHistory.length - 1);
       return limitedHistory;
     });
-  }, [historyIndex]);
+  }, [historyIndex, nodes, connections, selectedNodeId, selectedConnectionId]);
 
-  // Initialize history when nodes are first set or loaded
   useEffect(() => {
     if (nodes.length > 0 && history.length === 0 && historyIndex === -1) {
-      setHistory([{ nodes, connections }]);
+      setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId }]);
       setHistoryIndex(0);
     }
-  }, [nodes, connections, history, historyIndex]);
+  }, [nodes, connections, history, historyIndex, selectedNodeId, selectedConnectionId]);
 
 
   useEffect(() => {
@@ -161,8 +172,14 @@ export default function WorkflowPage() {
     }
   }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode]);
 
-  const resetHistory = (initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
-    setHistory([{ nodes: initialNodes, connections: initialConnections }]);
+  const resetHistoryForNewWorkflow = (initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
+    const initialEntry: HistoryEntry = {
+      nodes: initialNodes,
+      connections: initialConnections,
+      selectedNodeId: null,
+      selectedConnectionId: null
+    };
+    setHistory([initialEntry]);
     setHistoryIndex(0);
   };
 
@@ -171,7 +188,7 @@ export default function WorkflowPage() {
       const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedWorkflowJson) {
         const savedWorkflow = JSON.parse(savedWorkflowJson);
-        const loadedNodes = savedWorkflow.nodes || [];
+        const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' }));
         const loadedConnections = savedWorkflow.connections || [];
         setNodes(loadedNodes);
         setConnections(loadedConnections);
@@ -185,7 +202,7 @@ export default function WorkflowPage() {
         setWorkflowExplanation(null);
         setInitialCanvasSuggestion(null);
         setSuggestedNextNodeInfo(null);
-        resetHistory(loadedNodes, loadedConnections);
+        resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
         if (showToast) {
           toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
         }
@@ -242,25 +259,23 @@ export default function WorkflowPage() {
     setExecutionLogs(prevLogs => [{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
     
     try {
-      const result: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {}); 
-      const newLogs: LogEntry[] = result.serverLogs.map(log => ({
+      const { serverLogs: newServerLogs, finalWorkflowData }: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {}); 
+      const newLogs: LogEntry[] = newServerLogs.map(log => ({
         ...log,
         timestamp: new Date(log.timestamp).toLocaleTimeString(),
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
 
-      // Update nodes with final execution status
       setNodes(prevNodes => 
         prevNodes.map(existingNode => {
-          const executedNodeData = result.finalWorkflowData[existingNode.id];
+          const executedNodeData = finalWorkflowData[existingNode.id];
           if (executedNodeData && executedNodeData.lastExecutionStatus) {
             return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
           }
-          return existingNode; 
+          return { ...existingNode, lastExecutionStatus: 'skipped' }; 
         })
       );
-      saveHistory(nodes.map(n => ({ ...n, lastExecutionStatus: result.finalWorkflowData[n.id]?.lastExecutionStatus || n.lastExecutionStatus })), connections);
-
+      saveHistory();
 
       toast({
         title: 'Workflow Execution Attempted',
@@ -272,8 +287,8 @@ export default function WorkflowPage() {
         ...prevLogs,
         { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
       ]);
-      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' }))); // Mark all as error on critical failure
-      saveHistory(nodes.map(n => ({ ...n, lastExecutionStatus: 'error' })), connections);
+      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' }))); 
+      saveHistory();
       toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsWorkflowRunning(false);
@@ -287,19 +302,18 @@ export default function WorkflowPage() {
 
   const confirmDeleteNode = useCallback(() => {
     if (!nodeToDeleteId) return;
-    const updatedNodes = nodes.filter(node => node.id !== nodeToDeleteId);
-    const updatedConnections = connections.filter(conn => conn.sourceNodeId !== nodeToDeleteId && conn.targetNodeId !== nodeToDeleteId);
-    setNodes(updatedNodes);
-    setConnections(updatedConnections);
+    
+    setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeToDeleteId));
+    setConnections(prevConnections => prevConnections.filter(conn => conn.sourceNodeId !== nodeToDeleteId && conn.targetNodeId !== nodeToDeleteId));
 
     if (selectedNodeId === nodeToDeleteId) {
       setSelectedNodeId(null);
     }
-    resetHistory(updatedNodes, updatedConnections);
+    saveHistory(); 
     toast({ title: 'Node Deleted', description: `Node ${nodeToDeleteId} and its connections removed.` });
     setNodeToDeleteId(null);
     setShowDeleteNodeConfirmDialog(false);
-  }, [nodeToDeleteId, selectedNodeId, toast, nodes, connections, resetHistory]);
+  }, [nodeToDeleteId, selectedNodeId, toast, saveHistory]);
 
   const cancelDeleteNode = useCallback(() => {
     setNodeToDeleteId(null);
@@ -308,39 +322,46 @@ export default function WorkflowPage() {
 
   const handleDeleteSelectedConnection = useCallback(() => {
     if (selectedConnectionId) {
-      const updatedConnections = connections.filter(conn => conn.id !== selectedConnectionId)
-      setConnections(updatedConnections);
+      setConnections(prevConnections => prevConnections.filter(conn => conn.id !== selectedConnectionId));
       setSelectedConnectionId(null);
-      resetHistory(nodes, updatedConnections);
+      saveHistory();
       toast({ title: "Connection Deleted", description: "The selected connection has been removed." });
     }
-  }, [selectedConnectionId, toast, connections, nodes, resetHistory]);
+  }, [selectedConnectionId, toast, saveHistory]);
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
-      setNodes(history[newIndex].nodes);
-      setConnections(history[newIndex].connections);
+      const prevState = history[newIndex];
+      setNodes(prevState.nodes);
+      setConnections(prevState.connections);
+      setSelectedNodeId(prevState.selectedNodeId);
+      setSelectedConnectionId(prevState.selectedConnectionId);
       setHistoryIndex(newIndex);
-      setSelectedNodeId(null);
-      setSelectedConnectionId(null);
     }
   }, [history, historyIndex]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
-      setNodes(history[newIndex].nodes);
-      setConnections(history[newIndex].connections);
+      const nextState = history[newIndex];
+      setNodes(nextState.nodes);
+      setConnections(nextState.connections);
+      setSelectedNodeId(nextState.selectedNodeId);
+      setSelectedConnectionId(nextState.selectedConnectionId);
       setHistoryIndex(newIndex);
-      setSelectedNodeId(null);
-      setSelectedConnectionId(null);
     }
   }, [history, historyIndex]);
 
-
   useEffect(() => {
     handleLoadWorkflow(false);
+    const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
+    if (savedAssistantVisibility !== null) {
+      setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
+    } else {
+      setIsAssistantVisible(false); // Default to false if not set
+    }
+
 
     const isInputField = (target: EventTarget | null): boolean => {
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
@@ -407,6 +428,7 @@ export default function WorkflowPage() {
       if (isPanning) {
         setIsPanning(false);
         document.body.style.cursor = 'default';
+        saveHistory(); 
       }
     };
 
@@ -422,7 +444,7 @@ export default function WorkflowPage() {
         document.body.style.cursor = 'default';
       }
     };
-  }, [isPanning, zoomLevel]);
+  }, [isPanning, zoomLevel, saveHistory]);
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
     let maxIdNum = nextNodeIdRef.current;
@@ -488,9 +510,9 @@ export default function WorkflowPage() {
     setSuggestedNextNodeInfo(null);
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
-    resetHistory(newNodes, newConnections);
+    resetHistoryForNewWorkflow(newNodes, newConnections);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
-  }, [mapAiWorkflowToInternal, toast, resetHistory]);
+  }, [mapAiWorkflowToInternal, toast]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
     const newNodeId = `${nodeType.type}_${nextNodeIdRef.current++}`;
@@ -507,16 +529,16 @@ export default function WorkflowPage() {
       category: nodeType.category,
       lastExecutionStatus: 'pending',
     };
-    const updatedNodes = produce(nodes, draft => {
+    setNodes(prevNodes => produce(prevNodes, draft => {
       draft.push(newNode);
-    });
-    setNodes(updatedNodes);
-    resetHistory(updatedNodes, connections);
+    }));
+    
     setSelectedNodeId(newNodeId);
     setSelectedConnectionId(null);
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
-  }, [nodes, connections, resetHistory]);
+    saveHistory();
+  }, [saveHistory]);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
     const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
@@ -553,40 +575,36 @@ export default function WorkflowPage() {
   }, [selectedNode, addNodeToCanvas, toast, nodes]);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
-    const updatedNodes = produce(nodes, draft => {
+    setNodes(prevNodes => produce(prevNodes, draft => {
       const node = draft.find(n => n.id === nodeId);
       if (node) node.position = position;
-    });
-    setNodes(updatedNodes);
-    saveHistory(updatedNodes, connections);
-  }, [nodes, connections, saveHistory]);
+    }));
+    saveHistory();
+  }, [saveHistory]);
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
-    const updatedNodes = produce(nodes, draft => {
+    setNodes(prevNodes => produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
         if (node) node.config = newConfig;
-      });
-    setNodes(updatedNodes);
-    saveHistory(updatedNodes, connections);
-  }, [nodes, connections, saveHistory]);
+      }));
+    saveHistory();
+  }, [saveHistory]);
 
   const handleNodeNameChange = useCallback((nodeId: string, newName: string) => {
-     const updatedNodes = produce(nodes, draft => {
+     setNodes(prevNodes => produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
         if (node) node.name = newName;
-      });
-    setNodes(updatedNodes);
-    saveHistory(updatedNodes, connections);
-  }, [nodes, connections, saveHistory]);
+      }));
+    saveHistory();
+  }, [saveHistory]);
 
   const handleNodeDescriptionChange = useCallback((nodeId: string, newDescription: string) => {
-    const updatedNodes = produce(nodes, draft => {
+    setNodes(prevNodes => produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
         if (node) node.description = newDescription;
-      });
-    setNodes(updatedNodes);
-    saveHistory(updatedNodes, connections);
-  }, [nodes, connections, saveHistory]);
+      }));
+    saveHistory();
+  }, [saveHistory]);
 
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -594,7 +612,6 @@ export default function WorkflowPage() {
     if (isConnecting) handleCancelConnection();
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
-    if (!isAssistantVisible) setIsAssistantVisible(true);
   };
 
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
@@ -652,7 +669,7 @@ export default function WorkflowPage() {
         targetNodeId: endNodeId,
         targetHandle: endHandleId,
       };
-      const updatedConnections = produce(connections, draft => {
+      setConnections(prevConnections => produce(prevConnections, draft => {
         const exists = draft.find(c =>
             c.sourceNodeId === newConnection.sourceNodeId && c.sourceHandle === newConnection.sourceHandle &&
             c.targetNodeId === newConnection.targetNodeId && c.targetHandle === newConnection.targetHandle
@@ -663,12 +680,11 @@ export default function WorkflowPage() {
         } else {
             toast({ title: 'Connection Exists', description: 'This connection already exists.', variant: 'default'});
         }
-      });
-      setConnections(updatedConnections);
-      resetHistory(nodes, updatedConnections);
+      }));
+      saveHistory();
     }
     handleCancelConnection();
-  }, [isConnecting, connectionStartNodeId, connectionStartHandleId, nodes, connections, toast, resetHistory]);
+  }, [isConnecting, connectionStartNodeId, connectionStartHandleId, nodes, toast, saveHistory, handleCancelConnection]);
 
   const handleCancelConnection = useCallback(() => {
     setIsConnecting(false);
@@ -679,9 +695,8 @@ export default function WorkflowPage() {
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     const target = event.target as HTMLElement;
-    // Check if click was on a connection delete button or the connection path itself
     if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
-        return; // Don't deselect if clicking on these connection elements
+        return; 
     }
 
     setSelectedNodeId(null);
@@ -718,17 +733,12 @@ export default function WorkflowPage() {
     if (isConnecting) handleCancelConnection();
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
-    if (!isAssistantVisible) setIsAssistantVisible(true);
-  }, [isConnecting, handleCancelConnection, isAssistantVisible]);
+  }, [isConnecting, handleCancelConnection]);
 
   const toggleAssistantPanel = () => {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
-      if (!newVisibility) {
-        // setSelectedNodeId(null); // Keep selected node when hiding
-        // setSelectedConnectionId(null); // Keep selected connection when hiding
-        // setWorkflowExplanation(null); // Clear explanation when hiding
-      }
+      localStorage.setItem(ASSISTANT_PANEL_VISIBLE_KEY, JSON.stringify(newVisibility));
       return newVisibility;
     });
   };
@@ -740,11 +750,13 @@ export default function WorkflowPage() {
 
   const handleZoomIn = useCallback(() => {
     setZoomLevel(prev => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
-  }, []);
+    saveHistory();
+  }, [saveHistory]);
 
   const handleZoomOut = useCallback(() => {
     setZoomLevel(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
-  }, []);
+    saveHistory();
+  }, [saveHistory]);
 
   const handleGetWorkflowExplanation = useCallback(async () => {
     if (nodes.length === 0) {
@@ -760,6 +772,7 @@ export default function WorkflowPage() {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
       setIsAssistantVisible(true); 
+      localStorage.setItem(ASSISTANT_PANEL_VISIBLE_KEY, JSON.stringify(true));
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
       setWorkflowExplanation('Failed to get explanation.');
@@ -781,7 +794,8 @@ export default function WorkflowPage() {
     setExecutionLogs([]);
     setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' })));
     toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared and node statuses reset.' });
-  }, [toast]);
+    saveHistory();
+  }, [toast, saveHistory]);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1 && historyIndex !== -1;
@@ -933,4 +947,3 @@ export default function WorkflowPage() {
     </div>
   );
 }
-

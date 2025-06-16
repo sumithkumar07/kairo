@@ -1,7 +1,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-// import { executeWorkflow } from '@/app/actions'; // TODO: Uncomment when workflow persistence is ready
-// import type { Workflow } from '@/types/workflow'; // TODO: Uncomment when workflow persistence is ready
+import { executeWorkflow } from '@/app/actions';
+import type { Workflow, WorkflowNode } from '@/types/workflow';
+import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows'; // Import example workflows
 
 export async function POST(
   request: NextRequest,
@@ -17,7 +18,6 @@ export async function POST(
         requestBody = await request.json();
       } catch (e) {
         console.warn('[API Webhook] Could not parse JSON body:', e);
-        // Keep requestBody as null or an empty object, or handle as an error depending on requirements
       }
     } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
         const formData = await request.formData();
@@ -25,7 +25,6 @@ export async function POST(
     } else if (contentType && contentType.startsWith('text/')) {
         requestBody = await request.text();
     }
-    // Add more content type handlers if needed
 
 
     const requestHeaders: Record<string, string> = {};
@@ -52,55 +51,80 @@ export async function POST(
     console.log('[API Webhook] Query Params:', JSON.stringify(requestQuery, null, 2));
     console.log('[API Webhook] Parsed Body:', JSON.stringify(requestBody, null, 2));
 
-    // TODO: Step 1: Workflow Lookup
-    // const workflowToExecute: Workflow | null = await findWorkflowByPathSuffix(pathSuffix); // Implement this function
-    // if (!workflowToExecute) {
-    //   console.error(`[API Webhook] No workflow found for pathSuffix: ${pathSuffix}`);
-    //   return NextResponse.json({ message: 'Webhook path not configured for any workflow' }, { status: 404 });
-    // }
-    console.log(`[API Webhook] TODO: Find workflow by pathSuffix '${pathSuffix}'.`);
+    let workflowToExecute: Workflow | null = null;
 
+    // Simple hardcoded lookup for a specific example
+    if (pathSuffix === 'run-simple-api-example') {
+      const example = EXAMPLE_WORKFLOWS.find(ex => ex.name === 'Simple API Fetch & Log');
+      if (example) {
+        workflowToExecute = { nodes: example.nodes, connections: example.connections };
+        console.log(`[API Webhook] Found 'Simple API Fetch & Log' example workflow for path: ${pathSuffix}`);
+      }
+    }
+    // Add more `else if` blocks here for other hardcoded webhook paths and their corresponding workflows
 
-    // TODO: Step 2: Find the Webhook Trigger Node ID within the workflow
-    // This might require a convention, e.g., the first node is the trigger, or the node.config.pathSuffix matches.
-    // For now, let's assume we'd find a `webhookTriggerNodeId` from `workflowToExecute.nodes`.
-    // const webhookTriggerNodeId = workflowToExecute.nodes.find(n => n.type === 'webhookTrigger' && n.config.pathSuffix === pathSuffix)?.id;
-    // if (!webhookTriggerNodeId) {
-    //    console.error(`[API Webhook] Workflow for ${pathSuffix} does not have a matching webhookTrigger node.`);
-    //    return NextResponse.json({ message: 'Workflow configuration error for webhook trigger' }, { status: 500 });
-    // }
-    const conceptualWebhookTriggerNodeId = "node_trigger_1"; // Placeholder
-    console.log(`[API Webhook] TODO: Identify webhookTrigger node ID within the workflow (e.g., '${conceptualWebhookTriggerNodeId}').`);
+    if (!workflowToExecute) {
+      console.error(`[API Webhook] No workflow configured for pathSuffix: ${pathSuffix}`);
+      return NextResponse.json({ message: 'Webhook path not configured for any workflow' }, { status: 404 });
+    }
 
+    // Find the webhookTrigger node within this workflow
+    const webhookTriggerNode = workflowToExecute.nodes.find(
+      (n: WorkflowNode) => n.type === 'webhookTrigger' && (n.config?.pathSuffix === pathSuffix || !n.config?.pathSuffix) // Fallback if pathSuffix not in config for some reason
+    );
+    
+    let webhookTriggerNodeId = webhookTriggerNode?.id;
 
-    // Prepare initialData for workflow execution
+    if (!webhookTriggerNodeId) {
+      // Fallback: if no node has pathSuffix, assume the first webhookTrigger node is the one.
+      const firstTrigger = workflowToExecute.nodes.find((n: WorkflowNode) => n.type === 'webhookTrigger');
+      if (firstTrigger) {
+        webhookTriggerNodeId = firstTrigger.id;
+        console.warn(`[API Webhook] No webhookTrigger node with matching pathSuffix '${pathSuffix}'. Using first webhookTrigger node ID: '${webhookTriggerNodeId}'.`);
+      } else {
+        console.error(`[API Webhook] Workflow for ${pathSuffix} does not have a webhookTrigger node.`);
+        return NextResponse.json({ message: 'Workflow configuration error: No webhookTrigger node found.' }, { status: 500 });
+      }
+    }
+    
     const initialDataForWorkflow = {
-      [conceptualWebhookTriggerNodeId]: { // Use the actual ID of the webhookTrigger node from the workflow
+      [webhookTriggerNodeId]: { 
         requestBody: requestBody,
         requestHeaders: requestHeaders,
         requestQuery: requestQuery,
-        status: 'success' // Default status for received trigger data
+        status: 'success' 
       }
     };
-    console.log('[API Webhook] Prepared initialData (conceptual):', JSON.stringify(initialDataForWorkflow, null, 2));
+    console.log(`[API Webhook] Prepared initialData for node ${webhookTriggerNodeId}:`, JSON.stringify(initialDataForWorkflow, null, 2));
 
-    // TODO: Step 3: Execute the workflow
-    // try {
-    //   console.log(`[API Webhook] Triggering workflow ID: ${workflowToExecute.id} (conceptual) for pathSuffix: ${pathSuffix}`);
-    //   await executeWorkflow(workflowToExecute, false, initialDataForWorkflow); // isSimulationMode = false
-    //   console.log(`[API Webhook] Workflow for pathSuffix ${pathSuffix} triggered successfully.`);
-    // } catch (execError: any) {
-    //   console.error(`[API Webhook] Error executing workflow for ${pathSuffix}:`, execError);
-    //   // Depending on requirements, you might want to return a 500 error here
-    //   // or still return a 200 if the webhook was received but execution failed later.
-    // }
-    console.log(`[API Webhook] TODO: Call executeWorkflow with the found workflow and prepared initialData.`);
+    try {
+      console.log(`[API Webhook] Triggering workflow for pathSuffix: ${pathSuffix} in LIVE mode.`);
+      // Note: Workflow ID isn't a concept here yet as we load from examples.
+      const executionResult = await executeWorkflow(workflowToExecute, false, initialDataForWorkflow); // isSimulationMode = false
+      console.log(`[API Webhook] Workflow for pathSuffix ${pathSuffix} executed. Final Data (sample):`, JSON.stringify(executionResult.finalWorkflowData, null, 2).substring(0, 200));
+      
+      // Determine overall success or failure from executionResult to send appropriate response
+      const hasErrors = Object.values(executionResult.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+      if (hasErrors) {
+         return NextResponse.json(
+          { message: 'Webhook received. Workflow executed with errors.', path: pathSuffix, executionDetails: { logs: executionResult.serverLogs.slice(-5) } }, // Send last 5 logs
+          { status: 207 } // Multi-Status, indicating partial success or some failures
+        );
+      }
 
+      return NextResponse.json(
+        { message: 'Webhook received and workflow executed successfully.', path: pathSuffix },
+        { status: 200 }
+      );
 
-    return NextResponse.json(
-      { message: 'Webhook received. Workflow execution pending full implementation.', path: pathSuffix, receivedData: { body: requestBody, headers: requestHeaders, query: requestQuery } },
-      { status: 202 } // 202 Accepted: request accepted, processing will occur (conceptually)
-    );
+    } catch (execError: any) {
+      console.error(`[API Webhook] Error executing workflow for ${pathSuffix}:`, execError);
+      return NextResponse.json(
+        { message: 'Webhook received, but workflow execution failed.', path: pathSuffix, error: execError.message },
+        { status: 500 }
+      );
+    }
+
   } catch (error) {
     console.error('[API Webhook] Error processing webhook:', error);
     return NextResponse.json(
