@@ -5,10 +5,7 @@ import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge'; 
 import { useMemo } from 'react';
-
-interface NodeLibraryProps {
-  availableNodes: AvailableNodeType[];
-}
+import { cn } from '@/lib/utils'; // Import cn
 
 // Helper function to capitalize first letter
 const capitalizeFirstLetter = (string: string) => {
@@ -21,25 +18,25 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
     event.dataTransfer.effectAllowed = 'move';
   };
 
-  const getCategoryBadgeVariant = (category: AvailableNodeType['category']) => {
+  const getCategoryColorClasses = (category: AvailableNodeType['category']) => {
     switch (category) {
       case 'trigger':
-        return 'default'; 
+        return 'border-blue-500/50 text-blue-700 dark:text-blue-400';
       case 'action':
-        return 'secondary'; 
+        return 'border-green-500/50 text-green-700 dark:text-green-400';
       case 'io':
-        return 'outline'; 
+        return 'border-purple-500/50 text-purple-700 dark:text-purple-400';
       case 'logic':
-        return 'destructive';
+        return 'border-orange-500/50 text-orange-700 dark:text-orange-400';
       case 'ai':
-        return 'default'; 
+        return 'border-sky-500/50 text-sky-700 dark:text-sky-400';
       case 'group':
       case 'iteration':
       case 'control':
       case 'interaction':
-          return 'outline'
+          return 'border-slate-500/50 text-slate-700 dark:text-slate-400';
       default:
-        return 'outline';
+        return 'border-gray-400/50 text-gray-600 dark:text-gray-400';
     }
   };
 
@@ -64,15 +61,19 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
         <p className="text-sm text-muted-foreground">Drag nodes to build your workflow</p>
       </div>
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-3">
+        <div className="p-3 space-y-4">
           {categoryOrder.map(categoryKey => {
             const nodesInCategory = groupedNodes[categoryKey];
             if (!nodesInCategory || nodesInCategory.length === 0) {
               return null;
             }
+            const categoryColor = getCategoryColorClasses(categoryKey);
             return (
               <div key={categoryKey} className="space-y-2">
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider px-1 pt-2">
+                <h3 className={cn(
+                  "text-xs font-semibold uppercase tracking-wider px-1 pt-2",
+                  categoryColor.split(' ')[1] // Use text color part for heading
+                )}>
                   {capitalizeFirstLetter(categoryKey)}
                 </h3>
                 {nodesInCategory.map((nodeType) => (
@@ -80,21 +81,18 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
                     key={nodeType.type}
                     draggable
                     onDragStart={(e) => handleDragStart(e, nodeType)}
-                    className="p-3 border rounded-lg hover:shadow-lg cursor-grab bg-background hover:bg-muted/50 transition-all flex flex-col gap-1.5"
+                    className={cn(
+                      "p-3 border rounded-lg cursor-grab bg-background transition-all flex flex-col gap-1.5",
+                      "hover:shadow-lg hover:border-primary/60 hover:ring-1 hover:ring-primary/60", // Enhanced hover
+                       categoryColor.split(' ')[0] // Use border color part
+                    )}
                     title={nodeType.description || nodeType.name}
                   >
                     <div className="flex items-center gap-2">
-                      <nodeType.icon className="h-5 w-5 text-primary shrink-0" />
+                      <nodeType.icon className={cn("h-5 w-5 shrink-0", categoryColor.split(' ')[1])} />
                       <span className="text-sm font-semibold text-foreground">{nodeType.name}</span>
                     </div>
                     <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{nodeType.description}</p>
-                    {/* Badge can be removed if category is already clear from heading, or kept for consistency */}
-                    {/* <Badge 
-                      variant={getCategoryBadgeVariant(nodeType.category)} 
-                      className="mt-1 capitalize text-xs self-start px-2 py-0.5"
-                    >
-                      {nodeType.category}
-                    </Badge> */}
                   </div>
                 ))}
               </div>

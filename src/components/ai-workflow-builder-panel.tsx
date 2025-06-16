@@ -5,6 +5,7 @@ import { Zap, Bot, Radio, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, Messag
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
+import { Separator } from '@/components/ui/separator'; // Import Separator
 
 interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
@@ -81,6 +82,7 @@ export function AIWorkflowBuilderPanel({
           <p className="text-sm text-muted-foreground">Automate with AI-driven workflows</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Zoom Controls */}
           <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out">
             <Minus className="h-4 w-4" />
           </Button>
@@ -88,21 +90,28 @@ export function AIWorkflowBuilderPanel({
           <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In">
             <Plus className="h-4 w-4" />
           </Button>
+          
+          <Separator orientation="vertical" className="h-6 mx-1" />
 
-          <Button variant="outline" size="sm" onClick={onLoadWorkflow}>
+          {/* File Operations */}
+          <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow (Ctrl+O)">
             <FolderOpen className="h-4 w-4 mr-2" />
             Load
           </Button>
-          <Button variant="outline" size="sm" onClick={onSaveWorkflow}>
+          <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow (Ctrl+S)">
             <Save className="h-4 w-4 mr-2" />
             Save
           </Button>
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+          
+          {/* AI & Assistant Controls */}
           <Button 
             variant="outline" 
             size="sm" 
             onClick={onExplainWorkflow} 
             disabled={!hasWorkflow || isExplainingWorkflow}
-            title="Explain this workflow"
+            title="Let AI Explain this workflow"
           >
             <MessageSquareText className="h-4 w-4 mr-2" />
             Explain
@@ -111,6 +120,7 @@ export function AIWorkflowBuilderPanel({
             variant="outline" 
             size="sm" 
             className="text-accent-foreground bg-accent hover:bg-accent/90 border-accent"
+            title="Indicates if workflow is ready for AI execution (simulated or live)"
           >
             <Radio className="h-4 w-4 mr-2" />
             AI Ready
@@ -120,6 +130,7 @@ export function AIWorkflowBuilderPanel({
             size="sm"
             onClick={onToggleAssistant}
             aria-pressed={isAssistantVisible}
+            title={isAssistantVisible ? "Hide AI Assistant Panel" : "Show AI Assistant Panel"}
           >
             <Bot className="h-4 w-4 mr-2" />
             {isAssistantVisible ? "Hide Assistant" : "Show Assistant"}

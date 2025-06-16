@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React from 'react';
@@ -45,32 +45,23 @@ export function NodeConfigPanel({
 }: NodeConfigPanelProps) {
   
   const handleInputChange = (fieldKey: string, value: any, isRetryField = false) => {
-    // const updatePath = isRetryField ? ['config', 'retry', fieldKey] : ['config', fieldKey]; // Not used directly with immer
-    
     let valueToSet = value;
     const schema = isRetryField ? null : nodeType?.configSchema?.[fieldKey];
 
     if (schema?.type === 'json') {
-        // For JSON fields, we expect the value to be a string from the textarea
-        // The actual parsing (if needed by the backend) or validation happens elsewhere.
-        // We store it as a string as entered by the user, unless it's explicitly an object already (e.g. from AI)
-        // If it's already an object (e.g. from AI generation), keep it as an object.
-        // If it's a string (from user input), keep it as a string.
-        // No automatic parsing to JSON object here, to avoid premature errors for invalid user JSON input.
+        // Stored as string from textarea.
     }
     
     const newConfig = produce(node.config, draftConfig => {
       if (isRetryField) {
         if (!draftConfig.retry) draftConfig.retry = {};
         (draftConfig.retry as Record<string, any>)[fieldKey] = valueToSet;
-        // Clean up empty retry fields
         if (valueToSet === undefined || valueToSet === null || (typeof valueToSet === 'string' && valueToSet.trim() === '') || (Array.isArray(valueToSet) && valueToSet.length === 0) ) {
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
         }
         if (Object.keys(draftConfig.retry).length === 0) {
           delete draftConfig.retry;
         }
-
       } else {
         draftConfig[fieldKey] = valueToSet;
       }
@@ -86,20 +77,12 @@ export function NodeConfigPanel({
     } else if (fieldSchema.defaultValue !== undefined) {
         currentValue = fieldSchema.defaultValue;
     } else {
-        // Fallback if no value and no schema default
-        if (fieldSchema.type === 'json') {
-            currentValue = '{}'; // Default to empty object string for JSON
-        } else if (fieldSchema.type === 'number') {
-            currentValue = ''; // Allow empty string for number input, it will coerce to 0 on change if needed by backend
-        } else if (fieldSchema.type === 'boolean') {
-            currentValue = false; 
-        }
-        else {
-            currentValue = '';
-        }
+        if (fieldSchema.type === 'json') currentValue = '{}'; 
+        else if (fieldSchema.type === 'number') currentValue = ''; 
+        else if (fieldSchema.type === 'boolean') currentValue = false; 
+        else currentValue = '';
     }
 
-    // Ensure JSON is stringified for textarea if it's an object
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
@@ -112,9 +95,9 @@ export function NodeConfigPanel({
           <Input
             type={fieldSchema.type === 'number' ? 'number' : 'text'}
             id={`${node.id}-${fieldKey}`}
-            value={currentValue} // Directly use currentValue, which can be '' for number initially
+            value={currentValue}
             placeholder={fieldSchema.placeholder}
-            onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? e.target.value : e.target.value)} // Send string for number, parse in handleInputChange or backend
+            onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? e.target.value : e.target.value)}
             className="mt-1"
           />
         );
@@ -259,7 +242,7 @@ export function NodeConfigPanel({
           </div>
 
           {node.aiExplanation && (
-            <div className="p-3 bg-accent/10 rounded-md border border-accent/30">
+            <div className="p-3 bg-accent/10 rounded-md border border-accent/30 shadow-sm">
               <Label className="font-semibold text-accent-foreground/90 flex items-center gap-2">
                 <Info className="h-4 w-4" />
                 AI Explanation
@@ -276,7 +259,7 @@ export function NodeConfigPanel({
 
           {/* Main Config Fields */}
           {nodeType?.configSchema && Object.keys(nodeType.configSchema)
-            .filter(key => key !== 'retry' && key !== 'onErrorWebhook') // Filter out retry/webhook as they are handled separately
+            .filter(key => key !== 'retry' && key !== 'onErrorWebhook') 
             .length > 0 ? (
             Object.entries(nodeType.configSchema)
               .filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook')
@@ -294,11 +277,9 @@ export function NodeConfigPanel({
                     value={typeof node.config === 'string' ? node.config : JSON.stringify(node.config, null, 2)}
                     onChange={(e) => {
                         try {
-                            const newConfig = JSON.parse(e.target.value); // Attempt to parse if user types JSON
+                            const newConfig = JSON.parse(e.target.value); 
                             onConfigChange(node.id, newConfig);
                         } catch (err) {
-                           // If parsing fails, it means user is typing non-JSON or incomplete JSON.
-                           // Store as string. The backend or AI prompt output structure will handle the final JSON.
                            onConfigChange(node.id, e.target.value); 
                         }
                     }}
@@ -381,13 +362,12 @@ export function NodeConfigPanel({
              </Accordion>
           )}
 
-          {/* Placeholder for OnErrorWebhook - can be implemented similarly to Retry if needed */}
           {nodeType?.configSchema?.onErrorWebhook && (
              <div className="mt-3 p-3 border rounded-md bg-muted/30">
                  <Label className="font-semibold text-sm">On-Error Webhook (JSON)</Label>
                  <Textarea
                     value={node.config.onErrorWebhook ? JSON.stringify(node.config.onErrorWebhook, null, 2) : ''}
-                    onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)} // Value is string from textarea
+                    onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)} 
                     placeholder={'{\n  "url": "...",\n  "method": "POST",\n  ...\n}'}
                     className="mt-1 font-mono text-xs min-h-[80px]"
                     rows={4}
@@ -399,32 +379,32 @@ export function NodeConfigPanel({
 
           <Separator className="my-4" />
           
-          <div>
+          <div className="p-3 border rounded-md bg-card shadow-sm">
             <Label className="font-semibold text-muted-foreground flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-primary" />
-                Environment & Secret Placeholders
+                Required Environment & Secret Placeholders
             </Label>
             {envPlaceholders.length === 0 && secretPlaceholders.length === 0 ? (
-                <p className="text-xs text-muted-foreground mt-2 p-3 border rounded-md bg-muted/30 italic">
-                No <code className="font-mono text-xs">{`{{env...}}`}</code> or <code className="font-mono text-xs">{`{{secret...}}`}</code> placeholders detected for this node.
+                <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted/30 rounded-sm italic">
+                  No <code className="font-mono text-xs bg-background/50 px-1 py-0.5 rounded">{`{{env...}}`}</code> or <code className="font-mono text-xs bg-background/50 px-1 py-0.5 rounded">{`{{secret...}}`}</code> placeholders detected for this node.
                 </p>
             ) : (
-                <div className="mt-2 space-y-1">
-                {envPlaceholders.map(ph => (
-                    <div key={ph} className="text-xs p-1.5 border rounded-md bg-card shadow-sm">
-                    <code className="font-mono text-primary">{ph}</code>
-                    <span className="text-muted-foreground ml-2">(Environment Variable)</span>
-                    </div>
-                ))}
-                {secretPlaceholders.map(ph => (
-                    <div key={ph} className="text-xs p-1.5 border rounded-md bg-card shadow-sm">
-                    <code className="font-mono text-primary">{ph}</code>
-                    <span className="text-muted-foreground ml-2">(Secret - uses env var for local dev)</span>
-                    </div>
-                ))}
-                <p className="text-xs text-muted-foreground mt-2 pt-1">
-                    Ensure these are defined in your <code>.env</code> file (e.g., <code>VAR_NAME=your_value</code>). Secrets are typically managed by a vault in production.
-                </p>
+                <div className="mt-2 space-y-1.5">
+                  {envPlaceholders.map(ph => (
+                      <div key={ph} className="text-xs p-1.5 border rounded-md bg-muted/30 flex items-center justify-between">
+                        <code className="font-mono text-primary bg-background/50 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
+                        <span className="text-muted-foreground ml-2 text-[11px]">(Environment Variable)</span>
+                      </div>
+                  ))}
+                  {secretPlaceholders.map(ph => (
+                      <div key={ph} className="text-xs p-1.5 border rounded-md bg-muted/30 flex items-center justify-between">
+                        <code className="font-mono text-primary bg-background/50 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
+                        <span className="text-muted-foreground ml-2 text-[11px]">(Secret)</span>
+                      </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground mt-2 pt-1">
+                      Define these in your <code>.env</code> file. Secrets are typically managed by a vault in production.
+                  </p>
                 </div>
             )}
          </div>
@@ -444,7 +424,7 @@ export function NodeConfigPanel({
                 </div>
             )}
             {!isLoadingSuggestion && suggestedNextNodeInfo && suggestedNextNodeInfo.forNodeId === node.id && suggestedNodeConfig && (
-                <div className="mt-2 p-3 border rounded-md bg-primary/5 space-y-2">
+                <div className="mt-2 p-3 border rounded-md bg-primary/5 space-y-2 shadow-sm">
                     <p className="text-sm">
                         Consider adding: <span className="font-semibold text-primary">{suggestedNodeConfig.name}</span>
                         <span className="text-xs text-muted-foreground ml-1">({suggestedNextNodeInfo.suggestion.suggestedNode})</span>
@@ -453,9 +433,9 @@ export function NodeConfigPanel({
                     <Button 
                         size="sm" 
                         onClick={() => onAddSuggestedNode(suggestedNextNodeInfo.suggestion.suggestedNode)}
-                        className="w-full"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
-                       <Wand2 className="mr-2 h-4 w-4" /> Add Suggested Node
+                       <Wand2 className="mr-2 h-4 w-4" /> Add Suggested Node <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                 </div>
             )}

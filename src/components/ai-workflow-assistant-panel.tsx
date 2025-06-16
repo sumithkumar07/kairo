@@ -9,7 +9,7 @@ import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Zap, Wand2 } from 'lucide-react'; // Added Zap
+import { Lightbulb, Loader2, Send, XCircle, FileText, Zap, Wand2, ChevronRight } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
@@ -122,7 +122,7 @@ export function AIWorkflowAssistantPanel({
               <p className="ml-3 text-muted-foreground">AI is analyzing...</p>
             </div>
           ) : workflowExplanation ? (
-            <div className="p-3 bg-accent/10 rounded-md text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed">
+            <div className="p-3 bg-accent/10 rounded-md text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border border-accent/20 shadow-sm">
               {workflowExplanation}
             </div>
           ) : (
@@ -149,7 +149,7 @@ export function AIWorkflowAssistantPanel({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-6">
           {isCanvasEmpty && isLoadingSuggestion && (
             <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -158,19 +158,20 @@ export function AIWorkflowAssistantPanel({
           )}
 
           {isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
-            <div className="p-3 bg-primary/10 rounded-md text-sm text-primary-foreground/90 border border-primary/30 space-y-2">
-              <p className="font-semibold flex items-center gap-2">
-                <Wand2 className="h-4 w-4 text-primary" />
+            <div className="p-4 bg-primary/10 rounded-lg text-sm text-primary-foreground/90 border border-primary/30 space-y-3 shadow-md">
+              <p className="font-semibold flex items-center gap-2 text-base">
+                <Wand2 className="h-5 w-5 text-primary" />
                 Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
               </p>
-              <p className="text-xs text-primary-foreground/70 italic ml-6">{initialCanvasSuggestion.reason}</p>
+              <p className="text-xs text-primary-foreground/80 italic ml-7">{initialCanvasSuggestion.reason}</p>
               <Button
                 size="sm"
                 onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
-                className="w-full bg-primary/80 hover:bg-primary text-primary-foreground"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
                 disabled={currentIsLoading}
               >
                 Add {suggestedNodeConfig.name} Node
+                <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
           )}
@@ -187,28 +188,25 @@ export function AIWorkflowAssistantPanel({
             </div>
           )}
 
-
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-2 mt-3">Try these example prompts:</h3>
-            <div className="space-y-2">
+          <div className="p-3 border rounded-md bg-card shadow-sm">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Try these example prompts:</h3>
+            <div className="space-y-1.5">
               {examplePrompts.map((ex, index) => (
                 <Button
                   key={`prompt-${index}`}
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="w-full text-left justify-start h-auto py-1.5 text-xs"
+                  className="w-full text-left justify-start h-auto py-1.5 text-xs hover:bg-muted/50"
                   onClick={() => handleExamplePromptClick(ex)}
                   disabled={currentIsLoading}
                 >
-                  &quot;{ex}&quot;
+                  <ChevronRight className="mr-1 h-3 w-3 text-primary/70" /> &quot;{ex}&quot;
                 </Button>
               ))}
             </div>
           </div>
-
-          <Separator />
-
-          <div>
+          
+          <div className="p-3 border rounded-md bg-card shadow-sm">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Or load an example workflow:</h3>
             <div className="space-y-2">
               {exampleWorkflows.map((ex, index) => (
@@ -216,13 +214,13 @@ export function AIWorkflowAssistantPanel({
                   key={`workflow-${index}`}
                   variant="outline"
                   size="sm"
-                  className="w-full text-left justify-start h-auto py-1.5 text-xs flex flex-col items-start"
+                  className="w-full text-left justify-start h-auto py-2 text-xs flex flex-col items-start hover:border-primary/50 hover:bg-primary/5"
                   onClick={() => handleExampleWorkflowClick(ex)}
                   disabled={currentIsLoading}
                   title={ex.description}
                 >
-                  <span className="font-semibold flex items-center gap-1.5"><Zap className="h-3 w-3 text-primary" /> {ex.name}</span>
-                  <span className="text-muted-foreground/80 text-xs pl-[18px]">{ex.description}</span>
+                  <span className="font-semibold flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-primary" /> {ex.name}</span>
+                  <span className="text-muted-foreground/80 text-xs pl-[22px]">{ex.description}</span>
                 </Button>
               ))}
             </div>
@@ -245,6 +243,7 @@ export function AIWorkflowAssistantPanel({
             disabled={currentIsLoading || !prompt.trim()}
             className="h-auto py-2.5 self-end"
             size="lg"
+            title="Generate workflow with AI (Ctrl+Enter)"
           >
             {isLoadingLocal ? (
               <Loader2 className="h-5 w-5 animate-spin" />
