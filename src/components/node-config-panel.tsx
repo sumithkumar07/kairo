@@ -168,7 +168,10 @@ export function NodeConfigPanel({
 
   const { envPlaceholders, secretPlaceholders } = React.useMemo(() => {
     const configEnv = findPlaceholdersInObject(node.config, 'env');
-    const configSecret = findPlaceholdersInObject(node.config, 'secret');
+    const configSecret = findPlaceholdersInObject(node.config, 'secret'); // Changed 'secret' to 'credential' if that's the prefix
+    // If you use {{credential.MyName}} then the second type should be 'credential'
+    // const configSecret = findPlaceholdersInObject(node.config, 'credential');
+
 
     const explanationEnv = new Set<string>();
     const explanationSecret = new Set<string>();
@@ -179,7 +182,8 @@ export function NodeConfigPanel({
         while ((match = envRegex.exec(node.aiExplanation)) !== null) {
             explanationEnv.add(match[0]);
         }
-        const secretRegex = /{{\s*secret\.([^}\s]+)\s*}}/g; // Corrected regex for secrets
+        // Adjust regex if your secret placeholders are different, e.g., {{credential.Name}}
+        const secretRegex = /{{\s*(?:secret|credential)\.([^}\s]+)\s*}}/g; 
         while ((match = secretRegex.exec(node.aiExplanation)) !== null) {
             explanationSecret.add(match[0]);
         }
@@ -335,7 +339,7 @@ export function NodeConfigPanel({
                            // Handle invalid JSON if needed
                         }
                     }}
-                    className="mt-1 font-mono text-xs min-h-[80px]"
+                    className="mt-1 font-mono text-xs min-h-[80px] max-h-[200px]"
                     rows={4}
                     placeholder='Enter valid JSON or leave empty. Example: {"key": "value"}'
                 />
@@ -454,24 +458,24 @@ export function NodeConfigPanel({
             </Label>
             {envPlaceholders.length === 0 && secretPlaceholders.length === 0 ? (
                 <p className="text-xs text-muted-foreground/80 p-1.5 bg-background/40 rounded-sm italic">
-                  No <code className="font-mono text-xs bg-muted/50 px-1 py-0.5 rounded">{`{{env...}}`}</code> or <code className="font-mono text-xs bg-muted/50 px-1 py-0.5 rounded">{`{{secret...}}`}</code> placeholders detected.
+                  No <code className="font-mono text-xs bg-muted/50 px-1 py-0.5 rounded break-words">{`{{env...}}`}</code> or <code className="font-mono text-xs bg-muted/50 px-1 py-0.5 rounded break-words">{`{{credential...}}`}</code> placeholders detected.
                 </p>
             ) : (
                 <div className="space-y-1.5">
                   {envPlaceholders.map(ph => (
                       <div key={ph} className="text-xs p-1.5 border border-transparent rounded-md bg-background/40 flex items-center justify-between">
-                        <code className="font-mono text-primary/90 bg-primary/10 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
+                        <code className="font-mono text-primary/90 bg-primary/10 px-1.5 py-0.5 rounded shadow-sm break-words">{ph}</code>
                         <span className="text-muted-foreground/70 ml-2 text-[10px] tracking-wide">(ENV VAR)</span>
                       </div>
                   ))}
                   {secretPlaceholders.map(ph => (
                       <div key={ph} className="text-xs p-1.5 border border-transparent rounded-md bg-background/40 flex items-center justify-between">
-                        <code className="font-mono text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded shadow-sm">{ph}</code>
-                        <span className="text-muted-foreground/70 ml-2 text-[10px] tracking-wide">(SECRET)</span>
+                        <code className="font-mono text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded shadow-sm break-words">{ph}</code>
+                        <span className="text-muted-foreground/70 ml-2 text-[10px] tracking-wide">(SECRET/CREDENTIAL)</span>
                       </div>
                   ))}
                   <p className="text-xs text-muted-foreground/80 pt-1 italic">
-                      Define these in your <code>.env</code> file or server environment. Secrets are typically managed by a vault in production.
+                      Define these in your <code>.env</code> file or server environment. Secrets/Credentials are typically managed by a vault or Credential Manager in production.
                   </p>
                 </div>
             )}
@@ -516,4 +520,3 @@ export function NodeConfigPanel({
     </Card>
   );
 }
-
