@@ -69,6 +69,7 @@ function resolveValue(
   const placeholderRegex = /{{\s*([^{}\s]+)\s*}}/g;
   let resolvedValue = value;
   let match;
+  console.log(`[RESOLVE_VALUE] Attempting to resolve value: "${value}"`);
 
   while ((match = placeholderRegex.exec(value)) !== null) {
     const placeholder = match[0]; 
@@ -117,6 +118,7 @@ function resolveValue(
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
         if (placeholder === value) resolvedValue = envVarValue; 
         dataFound = true; 
+        console.log(`[RESOLVE_VALUE] Resolved '{{env.${envVarName}}}' to: "${envVarValue}"`);
         serverLogs.push({ message: `[ENGINE] Resolved '{{env.${envVarName}}}' from environment.`, type: 'info' });
       } else {
         const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
@@ -138,6 +140,7 @@ function resolveValue(
             resolvedValue = resolvedValue.replace(placeholder, envVarValue);
             if (placeholder === value) resolvedValue = envVarValue;
             dataFound = true;
+            console.log(`[RESOLVE_VALUE] Resolved '{{credential.${credentialName}}}' via env fallback to (value may be sensitive, not logged).`);
             serverLogs.push({ message: `[ENGINE] For development, '{{credential.${credentialName}}}' was resolved using a fallback environment variable ('${credentialName}' or variations).`, type: 'info' });
         } else {
             const warningMsg = `[ENGINE] Credential '{{credential.${credentialName}}}' not found via Credential Manager (not implemented) or as an environment variable fallback. Placeholder remains unresolved.`;
@@ -178,6 +181,8 @@ function resolveValue(
     }
     
     if (dataFound) {
+      const resolvedValueType = typeof dataAtPath;
+      console.log(`[RESOLVE_VALUE] Placeholder "${placeholder}" resolved to type: ${resolvedValueType}, value (first 100 chars/if simple): ${String(dataAtPath).substring(0,100)}`);
       if (placeholder === value && (typeof dataAtPath !== 'string' && typeof dataAtPath !== 'number' && typeof dataAtPath !== 'boolean' && dataAtPath !== null)) { 
         resolvedValue = dataAtPath; 
       } else { 
@@ -188,6 +193,7 @@ function resolveValue(
       }
     }
   }
+  console.log(`[RESOLVE_VALUE] Final resolved value for "${value}": "${String(resolvedValue).substring(0, 200)}${String(resolvedValue).length > 200 ? "..." : ""}"`);
   return resolvedValue;
 }
 
@@ -199,6 +205,7 @@ function resolveNodeConfig(
   additionalContexts?: Record<string, any>
 ): Record<string, any> {
   const resolvedConfig: Record<string, any> = {};
+  console.log(`[RESOLVE_CONFIG] Resolving config for keys: ${Object.keys(nodeConfig).join(', ')}`);
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
@@ -207,14 +214,17 @@ function resolveNodeConfig(
           key === 'loopNodes' || key === 'loopConnections' ||
           key === 'branches' || key === 'inputFieldsSchema') { 
         resolvedConfig[key] = value; 
+        console.log(`[RESOLVE_CONFIG] Kept raw config for key '${key}' (sub-flow/schema definition).`);
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = value; // Resolve retry sub-fields later or assume they are direct values/placeholders. For now, keep as is.
+        resolvedConfig[key] = value; 
+        console.log(`[RESOLVE_CONFIG] Kept raw config for key 'retry'.`);
         continue;
       }
       if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
-         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); // Resolve webhook sub-fields
+         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
+         console.log(`[RESOLVE_CONFIG] Recursively resolved config for key 'onErrorWebhook'.`);
         continue;
       }
       if (typeof value === 'string') {
@@ -230,6 +240,7 @@ function resolveNodeConfig(
       }
     }
   }
+  console.log(`[RESOLVE_CONFIG] Final resolved config (top-level keys): ${Object.keys(resolvedConfig).join(', ')}`);
   return resolvedConfig;
 }
 
@@ -237,10 +248,11 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
   if (typeof conditionString !== 'string' || conditionString.trim() === '') {
       const errMsg = `Node ${nodeIdentifier}: Condition string is missing, empty, or resolved to non-string. Cannot evaluate.`;
       serverLogs.push({ message: `[CONDITION EVAL] ${errMsg}`, type: 'error' });
-      console.error(`[CONDITION EVAL] ${errMsg}`);
+      console.error(`[CONDITION EVAL - SERVER] ${errMsg}`);
       return false; 
   }
   serverLogs.push({ message: `[CONDITION EVAL] Node ${nodeIdentifier}: Evaluating condition string: "${conditionString}"`, type: 'info' });
+  console.log(`[CONDITION EVAL - SERVER] Node ${nodeIdentifier}: Evaluating condition: "${conditionString}"`);
   
   let evaluationResult = false;
   try {
@@ -275,6 +287,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
           let val2 = parseOperand(parts[1]);
           
           serverLogs.push({ message: `[CONDITION EVAL] Parsed operands: val1=${JSON.stringify(val1)} (type: ${typeof val1}), op=${operatorFound}, val2=${JSON.stringify(val2)} (type: ${typeof val2})`, type: 'info' });
+          console.log(`[CONDITION EVAL - SERVER] Parsed operands: val1=${JSON.stringify(val1)} (type: ${typeof val1}), op=${operatorFound}, val2=${JSON.stringify(val2)} (type: ${typeof val2})`);
 
           switch(operatorFound) {
               case '===': evaluationResult = val1 === val2; break;
@@ -291,14 +304,16 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
           const singleValue = parseOperand(conditionString);
           evaluationResult = !!singleValue;
           serverLogs.push({ message: `[CONDITION EVAL] No operator. Evaluated truthiness of '${singleValue}' to ${evaluationResult}`, type: 'info' });
+          console.log(`[CONDITION EVAL - SERVER] No operator found. Truthiness of '${singleValue}' is ${evaluationResult}`);
       }
   } catch (e: any) {
       const errMsg = `Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`;
       serverLogs.push({ message: `[CONDITION EVAL] ${errMsg}`, type: 'error' });
-      console.error(`[CONDITION EVAL] ${errMsg}`, e);
+      console.error(`[CONDITION EVAL - SERVER] ${errMsg}`, e);
       evaluationResult = false; 
   }
   serverLogs.push({ message: `[CONDITION EVAL] Node ${nodeIdentifier}: Condition "${conditionString}" evaluated to ${evaluationResult}.`, type: 'success' });
+  console.log(`[CONDITION EVAL - SERVER] Node ${nodeIdentifier}: Condition "${conditionString}" FINAL RESULT: ${evaluationResult}.`);
   return evaluationResult;
 }
 
@@ -310,7 +325,9 @@ async function handleOnErrorWebhook(
     serverLogs: ServerLogOutput[]
 ) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
+    const serverLogMessage = `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Attempting to send on-error webhook to ${webhookConfig.url}`;
     serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: Error occurred. Attempting to send on-error webhook to ${webhookConfig.url}`, type: 'info' });
+    console.log(serverLogMessage);
 
     const errorContext = {
         'failed_node_id': node.id,
@@ -335,6 +352,9 @@ async function handleOnErrorWebhook(
         if (webhookConfig.bodyTemplate) {
             const resolvedBodyTemplate = resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext);
             bodyToSend = JSON.stringify(resolvedBodyTemplate);
+            console.log(`[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Sending body (first 200 chars): ${bodyToSend.substring(0,200)}`);
+        } else {
+            console.log(`[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: No bodyTemplate provided. Sending empty body.`);
         }
 
         const webhookResponse = await fetch(webhookConfig.url, {
@@ -344,13 +364,19 @@ async function handleOnErrorWebhook(
         });
 
         if (webhookResponse.ok) {
-            serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: On-error webhook sent successfully to ${webhookConfig.url}. Status: ${webhookResponse.status}`, type: 'success' });
+            const successMsg = `[ENGINE] Node ${nodeIdentifier}: On-error webhook sent successfully to ${webhookConfig.url}. Status: ${webhookResponse.status}`;
+            serverLogs.push({ message: successMsg, type: 'success' });
+            console.log(`[ON_ERROR_WEBHOOK] ${successMsg}`);
         } else {
             const webhookErrorText = await webhookResponse.text();
-            serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: Failed to send on-error webhook to ${webhookConfig.url}. Status: ${webhookResponse.status}. Response: ${webhookErrorText.substring(0, 200)}`, type: 'error' });
+            const failMsg = `[ENGINE] Node ${nodeIdentifier}: Failed to send on-error webhook to ${webhookConfig.url}. Status: ${webhookResponse.status}. Response: ${webhookErrorText.substring(0, 200)}`;
+            serverLogs.push({ message: failMsg, type: 'error' });
+            console.error(`[ON_ERROR_WEBHOOK] ${failMsg}`);
         }
     } catch (err: any) {
-        serverLogs.push({ message: `[ENGINE] Node ${nodeIdentifier}: Exception while sending on-error webhook to ${webhookConfig.url}. Error: ${err.message}`, type: 'error' });
+        const exceptionMsg = `[ENGINE] Node ${nodeIdentifier}: Exception while sending on-error webhook to ${webhookConfig.url}. Error: ${err.message}`;
+        serverLogs.push({ message: exceptionMsg, type: 'error' });
+        console.error(`[ON_ERROR_WEBHOOK] ${exceptionMsg}`, err);
     }
 }
 
@@ -383,9 +409,10 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): 
   try {
     console.log("[SERVER ACTION] Generating workflow with prompt:", JSON.stringify(input.prompt, null, 2));
     const result = await genkitGenerateWorkflowFromPrompt(input);
-    console.log("[SERVER ACTION] Workflow generated:", JSON.stringify(result, null, 2));
+    console.log("[SERVER ACTION] Workflow generated (first 500 chars of result):", JSON.stringify(result, null, 2).substring(0,500));
     
     if (!result || !Array.isArray(result.nodes) || !Array.isArray(result.connections)) {
+      console.error("[SERVER ACTION] AI returned an invalid workflow structure. Result:", result);
       throw new Error("AI returned an invalid workflow structure.");
     }
     
@@ -414,8 +441,9 @@ export async function suggestNextWorkflowNode(
       ...clientInput,
       availableNodeTypes: availableNodeTypesForAI,
     };
-
+    console.log("[SERVER ACTION] Requesting next node suggestion with input:", JSON.stringify(inputForGenkit, null, 2));
     const result = await genkitSuggestNextNode(inputForGenkit);
+     console.log("[SERVER ACTION] Next node suggestion received:", JSON.stringify(result, null, 2));
     if (!result || !result.suggestedNode) {
       throw new Error("AI failed to suggest a next node.");
     }
@@ -433,12 +461,13 @@ export async function getWorkflowExplanation(
   workflowData: ExplainWorkflowInput
 ): Promise<string> {
   try {
-    console.log("[SERVER ACTION] Requesting workflow explanation for:", JSON.stringify(workflowData.nodes.map(n=>n.id), null, 2));
+    console.log("[SERVER ACTION] Requesting workflow explanation for node IDs:", JSON.stringify(workflowData.nodes.map(n=>n.id), null, 2));
     const result = await genkitExplainWorkflow(workflowData);
     if (!result || !result.explanation) {
+      console.error("[SERVER ACTION] AI failed to provide workflow explanation. Result:", result);
       throw new Error("AI failed to provide an explanation for the workflow.");
     }
-    console.log("[SERVER ACTION] Workflow explanation received.");
+    console.log("[SERVER ACTION] Workflow explanation received (first 200 chars):", result.explanation.substring(0,200));
     return result.explanation;
   } catch (error) {
     console.error("[SERVER ACTION] Error in getWorkflowExplanation:", error);
@@ -465,7 +494,7 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
         adj[conn.sourceNodeId].push(conn.targetNodeId);
         inDegree[conn.targetNodeId]++;
     } else {
-        console.warn(`[ENGINE] Invalid connection: ${conn.sourceNodeId} -> ${conn.targetNodeId}. One or both nodes not found during graph build.`);
+        console.warn(`[ENGINE - SERVER] Invalid connection during graph build: ${conn.sourceNodeId} -> ${conn.targetNodeId}. One or both nodes not found.`);
     }
   }
 
@@ -497,11 +526,11 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
     const cycleHint = unvisitedNodes.length > 0 
         ? `Possible cycle involving or leading to unvisited nodes: ${unvisitedNodes.slice(0,3).join(', ')}${unvisitedNodes.length > 3 ? '...' : ''}. Check connections to/from these nodes.` 
         : 'Or, some nodes might be disconnected from the main flow. Ensure all nodes intended to run are connected.';
-    const errorMessage = `[ENGINE] Workflow has a cycle or disconnected components. ${nodes.length} nodes total, ${executionOrder.length} ordered. ${cycleHint}`;
+    const errorMessage = `[ENGINE - SERVER] Workflow has a cycle or disconnected components. ${nodes.length} nodes total, ${executionOrder.length} ordered. ${cycleHint}`;
     console.error(errorMessage);
     return { executionOrder: [], error: errorMessage };
   }
-
+  console.log(`[ENGINE - SERVER] Determined execution order for ${flowLabel}: ${executionOrder.map(n => n.id).join(' -> ')}`);
   return { executionOrder };
 }
 
@@ -520,30 +549,38 @@ async function executeFlowInternal(
   let lastNodeOutput: any = null;
 
   if (sortError) {
+    const sortErrorMsg = `[ENGINE/${flowLabel} - SERVER] Graph error: ${sortError}`;
+    console.error(sortErrorMsg);
     serverLogs.push({ message: `[ENGINE/${flowLabel}] Graph error: ${sortError}`, type: 'error' });
     return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
   }
   
+  const startMsg = `[ENGINE/${flowLabel} - SERVER] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode. Order: ${executionOrder.map(n=>n.id).join(' -> ')}`;
+  console.log(startMsg);
   serverLogs.push({ message: `[ENGINE/${flowLabel}] Starting execution. Order: ${executionOrder.map(n=>n.id).join(' -> ')}`, type: 'info' });
 
   for (const node of executionOrder) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
-    console.log(`[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`);
+    console.log(`[ENGINE/${flowLabel} - SERVER] Preparing to process node: ${nodeIdentifier}`);
     serverLogs.push({ message: `[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`, type: 'info' });
 
     const dataForResolution = parentWorkflowData ? { ...parentWorkflowData, ...currentWorkflowData } : currentWorkflowData;
     const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, additionalContexts);
-    console.log(`[ENGINE/${flowLabel}] Node ${node.id} resolved config:`, JSON.stringify(resolvedConfig, null, 2));
+    console.log(`[ENGINE/${flowLabel} - SERVER] Node ${node.id} resolved config (top-level keys): ${Object.keys(resolvedConfig).join(', ')}. Full config (first 500 chars): ${JSON.stringify(resolvedConfig, null, 2).substring(0,500)}`);
 
     if (resolvedConfig.hasOwnProperty('_flow_run_condition')) {
       const conditionValue = resolvedConfig._flow_run_condition; 
       if (conditionValue === false || (typeof conditionValue === 'string' && conditionValue.toLowerCase() === 'false')) {
-        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+        const skipMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SKIPPED due to _flow_run_condition evaluating to falsy (Resolved Value: '${String(conditionValue)}').`;
+        console.log(`[ENGINE/${flowLabel} - SERVER] ${skipMsg}`);
+        serverLogs.push({ message: skipMsg, type: 'info' });
         currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy: ${String(conditionValue)}` };
         lastNodeOutput = currentWorkflowData[node.id];
         continue; 
       }
-      serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} proceeding: _flow_run_condition evaluated to truthy (Resolved Value: '${String(conditionValue)}').`, type: 'info' });
+      const proceedMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} proceeding: _flow_run_condition evaluated to truthy (Resolved Value: '${String(conditionValue)}').`;
+      console.log(`[ENGINE/${flowLabel} - SERVER] ${proceedMsg}`);
+      serverLogs.push({ message: proceedMsg, type: 'info' });
     }
 
     let finalNodeOutput: any = { status: 'pending' }; 
@@ -560,9 +597,13 @@ async function executeFlowInternal(
       try {
         let currentAttemptOutput: any = { status: 'success' }; 
         if (maxAttempts > 1 && attempt > 1) {
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retry attempt ${attempt-1}/${maxAttempts-1} starting...`, type: 'info' });
+          const retryStartMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retry attempt ${attempt-1}/${maxAttempts-1} starting...`;
+          console.log(`[ENGINE/${flowLabel} - SERVER] ${retryStartMsg}`);
+          serverLogs.push({ message: retryStartMsg, type: 'info' });
         } else if (maxAttempts > 1 && attempt === 1) {
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Initial attempt (1/${maxAttempts}) starting...`, type: 'info' });
+          const initialAttemptMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Initial attempt (1/${maxAttempts}) starting...`;
+          console.log(`[ENGINE/${flowLabel} - SERVER] ${initialAttemptMsg}`);
+          serverLogs.push({ message: initialAttemptMsg, type: 'info' });
         }
 
 
@@ -618,7 +659,7 @@ async function executeFlowInternal(
 
           case 'logMessage':
             const messageToLog = resolvedConfig?.message || `Default log message from ${nodeIdentifier}`;
-            console.log(`[WORKFLOW LOG] ${nodeIdentifier}: ${messageToLog}`); 
+            console.log(`[WORKFLOW LOG - SERVER] ${nodeIdentifier}: ${messageToLog}`); 
             serverLogs.push({ message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${messageToLog}`, type: 'info' });
             currentAttemptOutput = { ...currentAttemptOutput, output: messageToLog };
             break;
@@ -654,6 +695,7 @@ async function executeFlowInternal(
               const { url, method = 'GET', headers: headersString = '{}', body } = resolvedConfig;
               if (!url) throw new Error(`Node ${nodeIdentifier}: URL is not configured or resolved.`);
               serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Attempting ${method} request to ${url}`, type: 'info' });
+              console.log(`[NODE HTTPREQUEST - SERVER] ${nodeIdentifier}: Live request to ${url} with method ${method}. Headers (keys): ${Object.keys(JSON.parse(headersString || '{}')).join(', ')}`);
               
               let parsedHeaders: Record<string, string> = {};
               try {
@@ -675,6 +717,7 @@ async function executeFlowInternal(
                 throw httpError;
               }
               serverLogs.push({ message: `[NODE HTTPREQUEST] ${nodeIdentifier}: Request to ${url} SUCCEEDED with status ${response.status}. Response (first 200 chars): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`, type: 'success' });
+              console.log(`[NODE HTTPREQUEST - SERVER] ${nodeIdentifier}: Live request to ${url} SUCCEEDED with status ${response.status}.`);
               
               let parsedHttpResponse: any;
               try { parsedHttpResponse = JSON.parse(responseText); } catch (e) { parsedHttpResponse = responseText; }
@@ -691,11 +734,13 @@ async function executeFlowInternal(
               if (!aiPrompt) throw new Error(`Node ${nodeIdentifier}: AI Prompt is not configured or resolved.`);
               const modelToUse = aiModelFromConfig || 'googleai/gemini-1.5-flash-latest'; 
               serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Sending prompt to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0, 100)}${String(aiPrompt).length > 100 ? '...' : ''}"`, type: 'info' });
+              console.log(`[NODE AITASK - SERVER] ${nodeIdentifier}: Live AI task to model ${modelToUse}. Prompt (first 100 chars): "${String(aiPrompt).substring(0,100)}..."`);
               
               const genkitResponse = await ai.generate({ prompt: String(aiPrompt), model: modelToUse as any });
               const aiResponseTextContent = genkitResponse.text; 
               
               serverLogs.push({ message: `[NODE AITASK] ${nodeIdentifier}: Received response from AI. Response (first 200 chars): ${aiResponseTextContent.substring(0, 200)}${aiResponseTextContent.length > 200 ? '...' : ''}`, type: 'success' });
+              console.log(`[NODE AITASK - SERVER] ${nodeIdentifier}: Live AI task got response (first 200 chars): ${aiResponseTextContent.substring(0,200)}...`);
               currentAttemptOutput = { ...currentAttemptOutput, output: aiResponseTextContent }; 
             }
             break;
@@ -747,6 +792,7 @@ async function executeFlowInternal(
               const { transformType, inputString, inputObject, inputArrayPath, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName, reducerFunction, initialValue, inputDateString, outputFormatString } = resolvedConfig;
               let transformedData: any = null; 
               serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
+              console.log(`[NODE DATATRANSFORM - SERVER] ${nodeIdentifier}: Attempting transform: ${transformType} with inputString (first 50): ${String(inputString).substring(0,50)}, inputObject (keys): ${inputObject ? Object.keys(inputObject) : 'N/A'}, inputArrayPath: ${inputArrayPath}`);
               
               const ensureString = (val: any, fieldName: string, transform: string): string => {
                 if (typeof val !== 'string') throw new Error(`dataTransform '${transform}' for node ${nodeIdentifier}: '${fieldName}' must be a string. Received: ${typeof val}`);
@@ -878,6 +924,7 @@ async function executeFlowInternal(
                 default: throw new Error(`Unsupported dataTransform type: ${transformType}`);
               }
               serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });
+              console.log(`[NODE DATATRANSFORM - SERVER] ${nodeIdentifier}: Transform '${transformType}' output (first 200 chars): ${JSON.stringify(transformedData).substring(0,200)}`);
               currentAttemptOutput = { ...currentAttemptOutput, output_data: transformedData }; 
               break;
 
@@ -892,8 +939,10 @@ async function executeFlowInternal(
                 const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
                 const mailOptions = { from: process.env.EMAIL_FROM, to: to, subject: subject, html: emailBody };
                 serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Attempting to send email to ${to} with subject "${subject}"`, type: 'info' });
+                console.log(`[NODE SENDEMAIL - SERVER] ${nodeIdentifier}: Live email to: ${to}, Subject: ${subject}`);
                 const info = await transporter.sendMail(mailOptions);
                 serverLogs.push({ message: `[NODE SENDEMAIL] ${nodeIdentifier}: Email sent successfully. Message ID: ${info.messageId}`, type: 'success' });
+                console.log(`[NODE SENDEMAIL - SERVER] ${nodeIdentifier}: Live email sent. Message ID: ${info.messageId}`);
                 currentAttemptOutput = { ...currentAttemptOutput, messageId: info.messageId };
               }
               break;
@@ -927,9 +976,11 @@ async function executeFlowInternal(
                 
                 const client = await currentPool.connect();
                 serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Executing query: ${queryText} with params: ${JSON.stringify(queryParams)}`, type: 'info' });
+                console.log(`[NODE DATABASEQUERY - SERVER] ${nodeIdentifier}: Live query: ${queryText.substring(0,100)}..., Params: ${JSON.stringify(queryParams)}`);
                 try { 
                     const queryResult = await client.query(queryText, Array.isArray(queryParams) ? queryParams : []); 
                     serverLogs.push({ message: `[NODE DATABASEQUERY] ${nodeIdentifier}: Query executed successfully. Row count: ${queryResult.rowCount}`, type: 'success' }); 
+                    console.log(`[NODE DATABASEQUERY - SERVER] ${nodeIdentifier}: Live query success. Row count: ${queryResult.rowCount}`);
                     currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
                 } finally { 
                     client.release(); 
@@ -981,6 +1032,7 @@ async function executeFlowInternal(
                   }
               }
               serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Starting sub-flow. Mapped inputs (first 200 chars): ${JSON.stringify(subWorkflowInitialData).substring(0,200)}`, type: 'info' });
+              console.log(`[NODE EXECUTEFLOWGROUP - SERVER] ${nodeIdentifier}: Starting sub-flow with ${groupNodes.length} nodes. Mapped input keys: ${Object.keys(subWorkflowInitialData).join(', ')}.`);
               
               const subExecutionResult = await executeFlowInternal(
                   `group ${node.id}`, 
@@ -1007,9 +1059,11 @@ async function executeFlowInternal(
                 groupFinalOutput.status = 'error';
                 groupFinalOutput.error_message = subErrorMessage;
                 serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution FAILED. Error: ${subErrorMessage}`, type: 'error'});
+                console.error(`[NODE EXECUTEFLOWGROUP - SERVER] ${nodeIdentifier}: Sub-flow FAILED. Error: ${subErrorMessage}`);
                 throw new Error(subErrorMessage); 
               } else {
                  serverLogs.push({ message: `[NODE EXECUTEFLOWGROUP] ${nodeIdentifier}: Sub-flow execution completed successfully. Mapped outputs (first 200 chars): ${JSON.stringify(groupFinalOutput).substring(0,200)}`, type: 'success'});
+                 console.log(`[NODE EXECUTEFLOWGROUP - SERVER] ${nodeIdentifier}: Sub-flow SUCCESS. Output keys: ${Object.keys(groupFinalOutput).join(', ')}.`);
               }
               currentAttemptOutput = groupFinalOutput;
               break;
@@ -1029,11 +1083,13 @@ async function executeFlowInternal(
             let allIterationsFailed = resolvedArray.length > 0; 
 
             serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Starting iteration over ${resolvedArray.length} items. Continue on error: ${continueOnError}.`, type: 'info' });
+            console.log(`[NODE FOREACH - SERVER] ${nodeIdentifier}: Iterating over ${resolvedArray.length} items. ContinueOnError: ${continueOnError}.`);
 
             for (let i = 0; i < resolvedArray.length; i++) {
               const currentItem = resolvedArray[i];
               const itemContext = { 'item': currentItem, ...(additionalContexts || {}) }; 
               serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i + 1}/${resolvedArray.length}. Item (first 100 chars): ${JSON.stringify(currentItem).substring(0,100)}`, type: 'info' });
+              console.log(`[NODE FOREACH - SERVER] ${nodeIdentifier}: Iteration ${i + 1}/${resolvedArray.length}.`);
               
               try {
                 const iterInitialData: Record<string, any> = {}; 
@@ -1062,10 +1118,12 @@ async function executeFlowInternal(
                 }
                 iterationResultsCollected.push({ status: 'fulfilled', value: resultForItem, item: currentItem });
                 serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} completed successfully. Result (first 100 chars): ${JSON.stringify(resultForItem).substring(0,100)}`, type: 'success'});
+                console.log(`[NODE FOREACH - SERVER] ${nodeIdentifier}: Iteration ${i+1} SUCCEEDED.`);
                 allIterationsFailed = false; 
               } catch (iterError: any) {
                 anyIterationFailed = true;
                 serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: Iteration ${i+1} FAILED. Error: ${iterError.message}`, type: 'error' });
+                console.error(`[NODE FOREACH - SERVER] ${nodeIdentifier}: Iteration ${i+1} FAILED. Error: ${iterError.message}`);
                 iterationResultsCollected.push({ status: 'rejected', reason: iterError.message, item: currentItem });
                 if (!continueOnError) {
                   currentAttemptOutput = { status: 'error', error_message: `Error in forEach iteration ${i+1}: ${iterError.message}`, results: iterationResultsCollected };
@@ -1085,6 +1143,7 @@ async function executeFlowInternal(
             else if (forEachOverallStatus === 'partial_success') currentAttemptOutput.error_message = 'Some iterations failed.';
             
             serverLogs.push({ message: `[NODE FOREACH] ${nodeIdentifier}: All iterations processed. Overall status: ${forEachOverallStatus}. Total results: ${iterationResultsCollected.length}.`, type: 'info' });
+            console.log(`[NODE FOREACH - SERVER] ${nodeIdentifier}: Loop completed. Overall status: ${forEachOverallStatus}.`);
             if (forEachOverallStatus === 'error' && attempt < maxAttempts && resolvedArray.length > 0) { 
                 throw new Error(currentAttemptOutput.error_message);
             }
@@ -1100,6 +1159,7 @@ async function executeFlowInternal(
 
             let iterationsCompleted = 0;
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Starting while loop. Max iterations: ${maxIterations}.`, type: 'info' });
+            console.log(`[NODE WHILELOOP - SERVER] ${nodeIdentifier}: Starting loop. Max iterations: ${maxIterations}. Condition: "${whileConditionStr}"`);
             
             let loopMutableWorkflowData = { ...currentWorkflowData }; 
 
@@ -1109,10 +1169,12 @@ async function executeFlowInternal(
 
                 if (!conditionIsTrue) {
                     serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Condition resolved to "${resolvedWhileCondition}", evaluated to false. Exiting loop after ${iterationsCompleted} iterations.`, type: 'info' });
+                    console.log(`[NODE WHILELOOP - SERVER] ${nodeIdentifier}: Condition FALSE after ${iterationsCompleted} iterations. Exiting.`);
                     break;
                 }
                 
                 serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1}/${maxIterations}. Condition is true. Executing sub-flow.`, type: 'info' });
+                console.log(`[NODE WHILELOOP - SERVER] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1}. Condition TRUE.`);
                 
                 const loopIterationResult = await executeFlowInternal(
                     `whileLoop ${node.id} iter ${iterationsCompleted + 1}`,
@@ -1133,6 +1195,7 @@ async function executeFlowInternal(
                     const iterError = iterErrorNodeId ? loopMutableWorkflowData[iterErrorNodeId] : null;
                     const iterErrorMessage = (iterError as any)?.error_message || `Error in whileLoop iteration ${iterationsCompleted + 1}.`;
                     serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1} FAILED. Error: ${iterErrorMessage}`, type: 'error' });
+                    console.error(`[NODE WHILELOOP - SERVER] ${nodeIdentifier}: Iteration ${iterationsCompleted + 1} FAILED. Error: ${iterErrorMessage}`);
                     currentAttemptOutput = { status: 'error', error_message: iterErrorMessage, iterations_completed: iterationsCompleted };
                     throw new Error(iterErrorMessage); 
                 }
@@ -1143,6 +1206,7 @@ async function executeFlowInternal(
 
             if (iterationsCompleted >= maxIterations) {
                  serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Reached max iterations (${maxIterations}). Exiting loop.`, type: 'info' });
+                 console.log(`[NODE WHILELOOP - SERVER] ${nodeIdentifier}: Reached max iterations (${maxIterations}).`);
                  const finalResolvedCondition = resolveValue(whileConditionStr, currentWorkflowData, serverLogs, additionalContexts);
                  if (evaluateCondition(String(finalResolvedCondition), `${nodeIdentifier} max_iter_check`, serverLogs)) {
                     currentAttemptOutput = { status: 'error', error_message: `Loop reached max iterations (${maxIterations}) and condition was still true.`, iterations_completed: iterationsCompleted };
@@ -1151,6 +1215,7 @@ async function executeFlowInternal(
             }
             currentAttemptOutput = { ...currentAttemptOutput, status: 'success', iterations_completed: iterationsCompleted };
             serverLogs.push({ message: `[NODE WHILELOOP] ${nodeIdentifier}: Loop finished. Total iterations: ${iterationsCompleted}.`, type: 'success' });
+            console.log(`[NODE WHILELOOP - SERVER] ${nodeIdentifier}: Loop finished. Iterations: ${iterationsCompleted}.`);
             break;
 
           case 'parallel':
@@ -1164,6 +1229,7 @@ async function executeFlowInternal(
             } catch (e:any) { throw new Error(`Node ${nodeIdentifier}: Invalid JSON or structure for branches configuration: ${e.message}`); }
 
             serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Starting execution of ${parsedBranches.length} branches. Concurrency limit: ${concurrencyLimit > 0 ? concurrencyLimit : 'Unlimited'}.`, type: 'info' });
+            console.log(`[NODE PARALLEL - SERVER] ${nodeIdentifier}: Executing ${parsedBranches.length} branches. Concurrency: ${concurrencyLimit > 0 ? concurrencyLimit : 'Unlimited'}.`);
 
             const branchExecutionThunks: (() => Promise<{id: string, status: string, value?: any, reason?: any, branchData?: Record<string,any>}>)[] = [];
 
@@ -1171,6 +1237,7 @@ async function executeFlowInternal(
               branchExecutionThunks.push(async () => {
                     const branchLabel = `parallel ${node.id} branch ${branch.id}`;
                     serverLogs.push({ message: `[ENGINE/${branchLabel}] Starting branch.`, type: 'info' });
+                    console.log(`[NODE PARALLEL - SERVER BRANCH] ${branchLabel}: Starting.`);
                     
                     const branchInitialData: Record<string, any> = {};
                     if (branch.inputMapping && typeof branch.inputMapping === 'object') {
@@ -1203,13 +1270,16 @@ async function executeFlowInternal(
                           const branchError = Object.values(branchExecutionResult.finalWorkflowData).find(out => out && (out as any).status === 'error');
                           const branchErrorMessage = (branchError as any)?.error_message || "Error in parallel branch execution.";
                           serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED. Error: ${branchErrorMessage}`, type: 'error'});
+                          console.error(`[NODE PARALLEL - SERVER BRANCH] ${branchLabel}: FAILED. Error: ${branchErrorMessage}`);
                           return { id: branch.id, status: 'rejected', reason: branchErrorMessage, value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
                         }
 
                         serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution SUCCEEDED. Output (first 100 chars): ${JSON.stringify(branchOutputValue).substring(0,100)}`, type: 'success'});
+                        console.log(`[NODE PARALLEL - SERVER BRANCH] ${branchLabel}: SUCCEEDED.`);
                         return { id: branch.id, status: 'fulfilled', value: branchOutputValue, branchData: branchExecutionResult.finalWorkflowData };
                     } catch (branchError: any) {
                         serverLogs.push({ message: `[ENGINE/${branchLabel}] Branch execution FAILED with unhandled exception: ${branchError.message}`, type: 'error'});
+                        console.error(`[NODE PARALLEL - SERVER BRANCH] ${branchLabel}: FAILED (unhandled). Error: ${branchError.message}`);
                         return { id: branch.id, status: 'rejected', reason: branchError.message, branchData: {} };
                     }
                 });
@@ -1288,12 +1358,15 @@ async function executeFlowInternal(
                  currentAttemptOutput.error_message = `One or more parallel branches failed. First error: ${firstError?.reason || 'Unknown parallel branch error.'}`;
                  if (parallelExecutionStatus === 'error' && attempt < maxAttempts) { 
                     serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches failed or critical branches failed. Error: ${currentAttemptOutput.error_message}`, type: 'error' });
+                    console.error(`[NODE PARALLEL - SERVER] ${nodeIdentifier}: All branches failed. Error: ${currentAttemptOutput.error_message}`);
                      throw new Error(currentAttemptOutput.error_message);
                  } else {
                     serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: Some branches failed. Status: ${parallelExecutionStatus}. Details: ${currentAttemptOutput.error_message}`, type: 'info' });
+                    console.warn(`[NODE PARALLEL - SERVER] ${nodeIdentifier}: Some branches failed. Status: ${parallelExecutionStatus}.`);
                  }
             } else {
                 serverLogs.push({ message: `[NODE PARALLEL] ${nodeIdentifier}: All branches completed successfully.`, type: 'success' });
+                console.log(`[NODE PARALLEL - SERVER] ${nodeIdentifier}: All branches SUCCEEDED.`);
             }
             break;
 
@@ -1374,8 +1447,10 @@ async function executeFlowInternal(
               throw new Error(`Node ${nodeIdentifier}: Invalid or missing 'delayMs' configuration. Must be a non-negative number.`);
             }
             serverLogs.push({ message: `[NODE DELAY] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`, type: 'info' });
+            console.log(`[NODE DELAY - SERVER] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`);
             await new Promise(resolve => setTimeout(resolve, delayMs));
             serverLogs.push({ message: `[NODE DELAY] ${nodeIdentifier}: Delay finished after ${delayMs}ms.`, type: 'success' });
+            console.log(`[NODE DELAY - SERVER] ${nodeIdentifier}: Delay finished.`);
             currentAttemptOutput = { ...currentAttemptOutput, output: { delayedFor: delayMs } };
             break;
 
@@ -1386,24 +1461,27 @@ async function executeFlowInternal(
           case 'workflowNode': 
             if (isSimulationMode || resolvedConfig.simulated_config) { 
                  const simMsg = `[NODE ${node.type.toUpperCase()}] SIMULATION: Node ${nodeIdentifier}: Intended action with config: ${JSON.stringify(resolvedConfig, null, 2)}`;
-                 console.log(simMsg); serverLogs.push({ message: simMsg, type: 'info' });
+                 console.log(`[NODE ${node.type.toUpperCase()} - SERVER] SIMULATION: Node ${nodeIdentifier}`); serverLogs.push({ message: simMsg, type: 'info' });
                  currentAttemptOutput = { ...currentAttemptOutput, output: resolvedConfig.simulated_config || {message: "Simulated output for " + node.type}, status: 'success'};
             } else {
                 const realExecMsg = `[NODE ${node.type.toUpperCase()}] Node ${nodeIdentifier}: Real execution for this node type is not fully implemented. Config: ${JSON.stringify(resolvedConfig, null, 2)}`;
-                console.warn(realExecMsg); serverLogs.push({ message: realExecMsg, type: 'info' });
+                console.warn(`[NODE ${node.type.toUpperCase()} - SERVER] ${realExecMsg}`); serverLogs.push({ message: realExecMsg, type: 'info' });
                 currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig, status: 'success' }; 
             }
             break;
             
           default:
             serverLogs.push({ message: `[ENGINE/${flowLabel}] Node type '${node.type}' for node ${nodeIdentifier} execution is not yet implemented or recognized.`, type: 'info' });
+            console.warn(`[ENGINE/${flowLabel} - SERVER] Unrecognized node type '${node.type}' for node ${nodeIdentifier}.`);
             currentAttemptOutput = { ...currentAttemptOutput, output: `Execution not implemented for type: ${node.type}`, simulated_config: resolvedConfig };
             break;
         }
         
         finalNodeOutput = currentAttemptOutput;
         if (attempt > 1 && finalNodeOutput.status === 'success') { 
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SUCCEEDED on retry attempt ${attempt-1}/${maxAttempts-1}.`, type: 'success' });
+          const retrySuccessMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} SUCCEEDED on retry attempt ${attempt-1}/${maxAttempts-1}.`;
+          console.log(`[ENGINE/${flowLabel} - SERVER] ${retrySuccessMsg}`);
+          serverLogs.push({ message: retrySuccessMsg, type: 'success' });
         }
         break; 
       
@@ -1419,7 +1497,7 @@ async function executeFlowInternal(
             }
         }
 
-        console.error(`[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, error.stack);
+        console.error(`[ENGINE/${flowLabel} - SERVER] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, error.stack);
         serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED on attempt ${attempt}/${maxAttempts}. Error: ${errorDetails}`, type: 'info' });
 
         if (attempt >= maxAttempts) {
@@ -1428,7 +1506,9 @@ async function executeFlowInternal(
              if(node.type === 'whileLoop') (finalNodeOutput as any).iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
              if(node.type === 'parallel' || node.type === 'forEach') (finalNodeOutput as any).results = (currentAttemptOutput as any)?.results || {};
           }
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`, type: 'error' });
+          const permFailureMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY after ${maxAttempts} attempts. Final error: ${errorDetails}`;
+          console.error(`[ENGINE/${flowLabel} - SERVER] ${permFailureMsg}`);
+          serverLogs.push({ message: permFailureMsg, type: 'error' });
           
           if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
             await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
@@ -1439,16 +1519,22 @@ async function executeFlowInternal(
         let shouldRetryThisError = true;
         if (statusCode && retryOnStatusCodes && retryOnStatusCodes.length > 0 && !retryOnStatusCodes.includes(statusCode)) {
           shouldRetryThisError = false;
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`, type: 'info' });
+          const noRetryStatusMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error status code ${statusCode} not in retryOnStatusCodes [${retryOnStatusCodes.join(', ')}]. No further retries for this error.`;
+          console.log(`[ENGINE/${flowLabel} - SERVER] ${noRetryStatusMsg}`);
+          serverLogs.push({ message: noRetryStatusMsg, type: 'info' });
         }
         
         if (shouldRetryThisError && retryOnErrorKeywords && retryOnErrorKeywords.length > 0) {
           const lowerErrorDetails = String(errorDetails).toLowerCase(); // Ensure errorDetails is a string
           if (!retryOnErrorKeywords.some(keyword => lowerErrorDetails.includes(keyword))) {
             shouldRetryThisError = false;
-            serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`, type: 'info' });
+            const noRetryKeywordMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message does not contain any specified retry keywords [${retryOnErrorKeywords.join(', ')}]. No further retries for this error.`;
+            console.log(`[ENGINE/${flowLabel} - SERVER] ${noRetryKeywordMsg}`);
+            serverLogs.push({ message: noRetryKeywordMsg, type: 'info' });
           } else {
-            serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message matched retry keyword. Will retry.`, type: 'info' });
+            const retryKeywordMatchMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Error message matched retry keyword. Will retry.`;
+            console.log(`[ENGINE/${flowLabel} - SERVER] ${retryKeywordMatchMsg}`);
+            serverLogs.push({ message: retryKeywordMatchMsg, type: 'info' });
           }
         }
 
@@ -1459,7 +1545,9 @@ async function executeFlowInternal(
              if(node.type === 'whileLoop') (finalNodeOutput as any).iterations_completed = (currentAttemptOutput as any)?.iterations_completed || 0;
              if(node.type === 'parallel' || node.type === 'forEach') (finalNodeOutput as any).results = (currentAttemptOutput as any)?.results || {};
           }
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`, type: 'error' });
+          const permFailureNoRetryMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`;
+          console.error(`[ENGINE/${flowLabel} - SERVER] ${permFailureNoRetryMsg}`);
+          serverLogs.push({ message: permFailureNoRetryMsg, type: 'error' });
            if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
              await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
            }
@@ -1473,26 +1561,37 @@ async function executeFlowInternal(
         }
 
         if (delay > 0) {
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
+          const retryDelayMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying in ${delay}ms... (Next attempt: ${attempt + 1}/${maxAttempts})`;
+          console.log(`[ENGINE/${flowLabel} - SERVER] ${retryDelayMsg}`);
+          serverLogs.push({ message: retryDelayMsg, type: 'info' });
           await new Promise(resolve => setTimeout(resolve, delay));
         } else if (attempt < maxAttempts) { 
-          serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying immediately... (Next attempt: ${attempt + 1}/${maxAttempts})`, type: 'info' });
+          const retryImmediateMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier}: Retrying immediately... (Next attempt: ${attempt + 1}/${maxAttempts})`;
+          console.log(`[ENGINE/${flowLabel} - SERVER] ${retryImmediateMsg}`);
+          serverLogs.push({ message: retryImmediateMsg, type: 'info' });
         }
       }
     } 
 
     currentWorkflowData[node.id] = finalNodeOutput;
     lastNodeOutput = finalNodeOutput; 
-    console.log(`[ENGINE/${flowLabel}] Node ${node.id} final output stored:`, JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 500));
+    console.log(`[ENGINE/${flowLabel} - SERVER] Node ${node.id} final output stored (status: ${finalNodeOutput.status}). Output (first 200 chars): ${JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 200)}`);
 
     if (finalNodeOutput.status === 'success') {
-        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} processed successfully overall.`, type: 'success' });
+        const successOverallMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} processed successfully overall.`;
+        console.log(`[ENGINE/${flowLabel} - SERVER] ${successOverallMsg}`);
+        serverLogs.push({ message: successOverallMsg, type: 'success' });
     } else if (finalNodeOutput.status === 'error') {
-        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`, type: 'info' });
+        const errorOverallMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues.`;
+        console.warn(`[ENGINE/${flowLabel} - SERVER] ${errorOverallMsg}`);
+        serverLogs.push({ message: errorOverallMsg, type: 'info' });
     } else if (finalNodeOutput.status === 'partial_success' && (node.type === 'parallel' || node.type === 'forEach')) {
-        serverLogs.push({ message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} (${node.type}) completed with partial success. Some branches/iterations failed. Check 'results' for details. Workflow continues.`, type: 'info' });
+        const partialSuccessMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} (${node.type}) completed with partial success. Some branches/iterations failed. Check 'results' for details. Workflow continues.`;
+        console.warn(`[ENGINE/${flowLabel} - SERVER] ${partialSuccessMsg}`);
+        serverLogs.push({ message: partialSuccessMsg, type: 'info' });
     }
   }
+  console.log(`[ENGINE/${flowLabel} - SERVER] Finished execution for flow label: ${flowLabel}.`);
   return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
 }
 
@@ -1501,19 +1600,20 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
   const serverLogs: ServerLogOutput[] = [];
   const initialWorkflowData: Record<string, any> = {}; 
 
-  const modeMessage = isSimulationMode ? "[ENGINE] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE] Starting MAIN workflow execution for";
+  const modeMessage = isSimulationMode ? "[ENGINE - SERVER] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE - SERVER] Starting MAIN workflow execution for";
   console.log(`${modeMessage} ${workflow.nodes.length} nodes.`);
-  serverLogs.push({ message: `${modeMessage} ${workflow.nodes.length} nodes.`, type: 'info' });
+  serverLogs.push({ message: `[ENGINE] Starting MAIN workflow execution in ${isSimulationMode ? 'Simulation Mode' : 'Live Mode'} for ${workflow.nodes.length} nodes.`, type: 'info' });
   
 
   const result = await executeFlowInternal("main", workflow.nodes, workflow.connections, initialWorkflowData, serverLogs, isSimulationMode);
   
-  console.log("[ENGINE] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
+  console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   result.serverLogs.push({ message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
   return result.serverLogs;
 }
 
     
+
 
 
 
