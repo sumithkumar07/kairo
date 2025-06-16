@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Radio, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2 } from 'lucide-react'; // Added Undo2, Redo2
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2 } from 'lucide-react'; // Removed Radio
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -40,10 +40,10 @@ interface AIWorkflowBuilderPanelProps {
   onZoomOut: () => void;
   onExplainWorkflow: () => void;
   isExplainingWorkflow: boolean;
-  onUndo: () => void; // Added
-  canUndo: boolean; // Added
-  onRedo: () => void; // Added
-  canRedo: boolean; // Added
+  onUndo: () => void; 
+  canUndo: boolean; 
+  onRedo: () => void; 
+  canRedo: boolean; 
 }
 
 export function AIWorkflowBuilderPanel({
@@ -134,15 +134,7 @@ export function AIWorkflowBuilderPanel({
             <MessageSquareText className="h-4 w-4 mr-1.5" />
             Explain
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-accent-foreground bg-accent/10 hover:bg-accent/20 border-accent/30"
-            title="Indicates if workflow is ready for AI execution (simulated or live)"
-          >
-            <Radio className="h-4 w-4 mr-1.5 text-accent" />
-            Ready
-          </Button>
+          {/* Removed "Ready" button */}
           <Button
             variant={isAssistantVisible ? "default" : "outline"}
             size="sm"
