@@ -13,11 +13,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
 
 
 interface NodeConfigPanelProps {
@@ -99,6 +100,9 @@ export function NodeConfigPanel({
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
+    
+    const isRequiredAndEmpty = fieldSchema.required && 
+      (currentValue === undefined || currentValue === null || (typeof currentValue === 'string' && currentValue.trim() === ''));
 
 
     switch (fieldSchema.type) {
@@ -111,7 +115,7 @@ export function NodeConfigPanel({
             value={currentValue}
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? e.target.value : e.target.value, false, isOnErrorWebhook)}
-            className="mt-1 text-sm"
+            className={cn("mt-1 text-sm", isRequiredAndEmpty && "border-destructive focus-visible:ring-destructive")}
           />
         );
       case 'textarea':
@@ -122,7 +126,7 @@ export function NodeConfigPanel({
             value={String(currentValue)} 
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
-            className="mt-1 min-h-[70px] font-mono text-xs max-h-[200px]"
+            className={cn("mt-1 min-h-[70px] font-mono text-xs max-h-[200px]", isRequiredAndEmpty && "border-destructive focus-visible:ring-destructive")}
             rows={fieldSchema.type === 'json' ? 4 : 3}
           />
         );
@@ -132,7 +136,7 @@ export function NodeConfigPanel({
             value={String(currentValue)}
             onValueChange={(value) => handleInputChange(fieldKey, value, false, isOnErrorWebhook)}
           >
-            <SelectTrigger id={`${node.id}-${fieldKey}`} className="mt-1 text-sm">
+            <SelectTrigger id={`${node.id}-${fieldKey}`} className={cn("mt-1 text-sm", isRequiredAndEmpty && "border-destructive focus-visible:ring-destructive")}>
               <SelectValue placeholder={fieldSchema.placeholder || `Select ${fieldSchema.label}`} />
             </SelectTrigger>
             <SelectContent>
@@ -151,6 +155,7 @@ export function NodeConfigPanel({
               id={`${node.id}-${fieldKey}`}
               checked={!!currentValue}
               onCheckedChange={(checked) => handleInputChange(fieldKey, checked, false, isOnErrorWebhook)}
+              className={cn(isRequiredAndEmpty && "ring-2 ring-destructive focus:ring-destructive")}
             />
             <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer text-muted-foreground">
               {fieldSchema.label} {currentValue ? <span className="text-primary/80">(Enabled)</span> : <span className="text-muted-foreground/70">(Disabled)</span>}
@@ -306,13 +311,21 @@ export function NodeConfigPanel({
                 }
                 return true; 
               })
-              .map(([key, schema]) => (
-              <div key={key} className="space-y-1 mt-2">
-                 {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>}
-                {renderFormField(key, schema)}
-                {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
-              </div>
-            ))
+              .map(([key, schema]) => {
+                const isRequiredAndEmpty = schema.required && 
+                  (node.config[key] === undefined || node.config[key] === null || (typeof node.config[key] === 'string' && String(node.config[key]).trim() === ''));
+                return (
+                <div key={key} className="space-y-1 mt-2">
+                   {schema.type !== 'boolean' && 
+                    <Label htmlFor={`${node.id}-${key}`} className={cn("text-xs font-medium", isRequiredAndEmpty && "text-destructive")}>
+                        {schema.label}
+                        {schema.required && <span className="text-destructive ml-1">*</span>}
+                    </Label>}
+                  {renderFormField(key, schema)}
+                  {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
+                  {isRequiredAndEmpty && schema.type !== 'boolean' && <p className="text-xs text-destructive mt-0.5">This field is required.</p>}
+                </div>
+              )})
           ) : (
              <div className="mt-2">
                 <Label className="text-xs font-medium">Raw Configuration (JSON)</Label>
@@ -515,3 +528,4 @@ export function NodeConfigPanel({
     </Card>
   );
 }
+

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -178,7 +178,7 @@ export function AIWorkflowBuilderPanel({
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
           <p className="text-muted-foreground mb-6 max-w-md text-sm">
-            Drag nodes from the library on the left, or click the AI Assistant button <Bot className="inline h-4 w-4 align-text-bottom"/> in the bottom right to generate a workflow.
+            Drag nodes from the library on the left, or click the AI Assistant button <Bot className="inline h-4 w-4 align-text-bottom"/> (bottom-right) to generate a workflow.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -198,7 +198,7 @@ export function AIWorkflowBuilderPanel({
       )}
 
       {/* Floating Action Buttons for AI */}
-      <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
+      <div className="absolute bottom-8 right-8 flex flex-col gap-3 z-10">
          <Button
           variant="default"
           size="icon"
@@ -222,3 +222,4 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
+
