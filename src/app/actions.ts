@@ -572,6 +572,28 @@ async function executeFlowInternal(
             currentAttemptOutput = { ...currentAttemptOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
             break;
           
+          case 'webhookTrigger':
+            serverLogs.push({ message: `[NODE WEBHOOKTRIGGER] SIMULATION: Node ${nodeIdentifier}: Activated. Path Suffix: '${resolvedConfig.pathSuffix}'. Token: ${resolvedConfig.securityToken ? 'Configured' : 'Not Configured'}.`, type: 'info' });
+            if (isSimulationMode) {
+              let simBody = {}; let simHeaders = {}; let simQuery = {};
+              try { simBody = typeof resolvedConfig.simulatedRequestBody === 'string' ? JSON.parse(resolvedConfig.simulatedRequestBody) : resolvedConfig.simulatedRequestBody || {}; } catch (e) { serverLogs.push({message: `Error parsing simulatedRequestBody for ${nodeIdentifier}: ${(e as Error).message}`, type: 'info'}); }
+              try { simHeaders = typeof resolvedConfig.simulatedRequestHeaders === 'string' ? JSON.parse(resolvedConfig.simulatedRequestHeaders) : resolvedConfig.simulatedRequestHeaders || {}; } catch (e) { serverLogs.push({message: `Error parsing simulatedRequestHeaders for ${nodeIdentifier}: ${(e as Error).message}`, type: 'info'}); }
+              try { simQuery = typeof resolvedConfig.simulatedRequestQuery === 'string' ? JSON.parse(resolvedConfig.simulatedRequestQuery) : resolvedConfig.simulatedRequestQuery || {}; } catch (e) { serverLogs.push({message: `Error parsing simulatedRequestQuery for ${nodeIdentifier}: ${(e as Error).message}`, type: 'info'}); }
+              
+              currentAttemptOutput = { ...currentAttemptOutput, requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery };
+              serverLogs.push({ message: `[NODE WEBHOOKTRIGGER] SIMULATION: Node ${nodeIdentifier}: Using simulated data for outputs.`, type: 'info' });
+            } else {
+              // In a live scenario, this data would be injected by the API route calling executeWorkflow
+              // For now, if run "live" via UI (which shouldn't be the primary mode for this trigger), it might fall back or error
+              serverLogs.push({ message: `[NODE WEBHOOKTRIGGER] Node ${nodeIdentifier}: Live execution for this trigger type is handled by the API route. Simulating for UI-initiated run.`, type: 'info' });
+              let simBody = {}; let simHeaders = {}; let simQuery = {};
+              try { simBody = typeof resolvedConfig.simulatedRequestBody === 'string' ? JSON.parse(resolvedConfig.simulatedRequestBody) : resolvedConfig.simulatedRequestBody || {}; } catch (e) { /* ignore */ }
+              try { simHeaders = typeof resolvedConfig.simulatedRequestHeaders === 'string' ? JSON.parse(resolvedConfig.simulatedRequestHeaders) : resolvedConfig.simulatedRequestHeaders || {}; } catch (e) { /* ignore */ }
+              try { simQuery = typeof resolvedConfig.simulatedRequestQuery === 'string' ? JSON.parse(resolvedConfig.simulatedRequestQuery) : resolvedConfig.simulatedRequestQuery || {}; } catch (e) { /* ignore */ }
+              currentAttemptOutput = { ...currentAttemptOutput, requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery };
+            }
+            break;
+
           case 'fileSystemTrigger':
             serverLogs.push({ message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Conceptually monitoring directory: '${resolvedConfig.directoryPath}', Events: ${resolvedConfig.eventTypes}, Pattern: '${resolvedConfig.fileNamePattern || '*'}'`, type: 'info' });
             if (isSimulationMode || resolvedConfig.simulatedFileEvent) {

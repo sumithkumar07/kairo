@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook } from 'lucide-react';
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 90; 
@@ -37,6 +37,28 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       event: { label: 'Event Type', type: 'string', defaultValue: 'manualStart', placeholder: 'e.g., manual, webhook', required: true },
     },
     outputHandles: ['output'],
+  },
+  {
+    type: 'webhookTrigger',
+    name: 'Webhook Trigger',
+    icon: Webhook,
+    description: 'Triggers workflow via HTTP POST to a unique URL. Outputs request data. Base URL: /api/workflow-webhooks/',
+    category: 'trigger',
+    defaultConfig: { 
+      pathSuffix: 'my-hook', 
+      securityToken: '',
+      simulatedRequestBody: '{"message": "Hello from simulated webhook!"}',
+      simulatedRequestHeaders: '{"Content-Type": "application/json", "X-Custom-Header": "SimValue"}',
+      simulatedRequestQuery: '{"param1": "test", "param2": "true"}'
+    },
+    configSchema: {
+      pathSuffix: { label: 'Path Suffix', type: 'string', placeholder: 'e.g., customer-updates-hook', helperText: "Unique path for this webhook. Full URL: /api/workflow-webhooks/YOUR_SUFFIX", required: true },
+      securityToken: { label: 'Security Token (Optional)', type: 'string', placeholder: '{{env.MY_WEBHOOK_TOKEN}}', helperText: "If set, incoming request must have 'X-Webhook-Token' header with this value." },
+      simulatedRequestBody: { label: 'Simulated Request Body (JSON for Simulation)', type: 'json', defaultValue: '{"message": "Hello!"}', helperText: "JSON data for the requestBody output during simulation." },
+      simulatedRequestHeaders: { label: 'Simulated Request Headers (JSON for Simulation)', type: 'json', defaultValue: '{}', helperText: "JSON data for the requestHeaders output during simulation." },
+      simulatedRequestQuery: { label: 'Simulated Request Query Params (JSON for Simulation)', type: 'json', defaultValue: '{}', helperText: "JSON data for the requestQuery output during simulation." },
+    },
+    outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
   },
   {
     type: 'fileSystemTrigger',
@@ -165,7 +187,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
-    inputHandles: ['input'], // For future use e.g., calendarId
+    inputHandles: ['input'], 
     outputHandles: ['events', 'status', 'error_message'],
   },
   {
@@ -578,8 +600,12 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'trigger': 'trigger',
   'manual trigger': 'trigger',
   'start': 'trigger',
-  'webhook': 'httpRequest', 
-  'http trigger': 'httpRequest',
+  'webhooktrigger': 'webhookTrigger',
+  'webhook trigger': 'webhookTrigger',
+  'http webhook': 'webhookTrigger',
+  'incoming webhook': 'webhookTrigger',
+  'webhook': 'httpRequest', // Existing mapping for httpRequest as an action, webhookTrigger is now preferred for triggers
+  'http trigger': 'httpRequest', // Retaining for httpRequest as a trigger if AI still uses it.
   'schedule': 'schedule',
   'cron': 'schedule',
   'cron job': 'schedule',
@@ -784,7 +810,7 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
     case 'concatenateStrings':
       return Combine;
     case 'reduceArray':
-    case 'parseNumber': // Added parseNumber to use Sigma icon
+    case 'parseNumber': 
       return Sigma;
     default:
       return FunctionSquare;
