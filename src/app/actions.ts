@@ -26,6 +26,7 @@ import { ai } from '@/ai/genkit';
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes'; 
+import { format, parseISO } from 'date-fns';
 
 // Initialize the PostgreSQL connection pool at the module level
 let pool: Pool | undefined;
@@ -743,7 +744,7 @@ async function executeFlowInternal(
               break;
           
           case 'dataTransform':
-              const { transformType, inputString, inputObject, inputArrayPath, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName, reducerFunction, initialValue } = resolvedConfig;
+              const { transformType, inputString, inputObject, inputArrayPath, fieldsToExtract, stringsToConcatenate, separator, delimiter, index, propertyName, reducerFunction, initialValue, inputDateString, outputFormatString } = resolvedConfig;
               let transformedData: any = null; 
               serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Attempting transform: ${transformType}`, type: 'info' });
               
@@ -857,6 +858,22 @@ async function executeFlowInternal(
                         throw new Error(`dataTransform 'parseNumber' for node ${nodeIdentifier}: Input string "${strToParse}" is not a valid number.`);
                     }
                     transformedData = { numberValue: num };
+                    break;
+                case 'formatDate':
+                    const dateStr = ensureString(inputDateString, 'inputDateString', 'formatDate');
+                    const formatStr = ensureString(outputFormatString, 'outputFormatString', 'formatDate');
+                    if (!dateStr.trim() || !formatStr.trim()) {
+                        throw new Error(`dataTransform 'formatDate' for node ${nodeIdentifier}: Both 'inputDateString' and 'outputFormatString' must be provided and non-empty.`);
+                    }
+                    try {
+                        const dateObj = parseISO(dateStr);
+                        if (isNaN(dateObj.getTime())) {
+                           throw new Error(`Input date string "${dateStr}" is not a valid ISO date.`);
+                        }
+                        transformedData = { formattedDate: format(dateObj, formatStr) };
+                    } catch (e: any) {
+                        throw new Error(`dataTransform 'formatDate' for node ${nodeIdentifier}: Error formatting date. Input: "${dateStr}", Format: "${formatStr}". Error: ${e.message}`);
+                    }
                     break;
                 default: throw new Error(`Unsupported dataTransform type: ${transformType}`);
               }
@@ -1497,4 +1514,5 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 }
 
     
+
 

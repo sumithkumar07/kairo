@@ -53,7 +53,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     configSchema: {
       pathSuffix: { label: 'Path Suffix', type: 'string', placeholder: 'e.g., customer-updates-hook', helperText: "Unique path for this webhook. Full URL: /api/workflow-webhooks/YOUR_SUFFIX", required: true },
-      securityToken: { label: 'Security Token (Optional)', type: 'string', placeholder: '{{env.MY_WEBHOOK_TOKEN}}', helperText: "If set, incoming request must have 'X-Webhook-Token' header with this value." },
+      securityToken: { label: 'Security Token (Optional)', type: 'string', placeholder: '{{credential.MyWebhookToken}} or {{env.MY_WEBHOOK_TOKEN}}', helperText: "If set, incoming request must have 'X-Webhook-Token' header with this value." },
       simulatedRequestBody: { label: 'Simulated Request Body (JSON for Simulation)', type: 'json', defaultValue: '{"message": "Hello!"}', helperText: "JSON data for the requestBody output during simulation." },
       simulatedRequestHeaders: { label: 'Simulated Request Headers (JSON for Simulation)', type: 'json', defaultValue: '{}', helperText: "JSON data for the requestHeaders output during simulation." },
       simulatedRequestQuery: { label: 'Simulated Request Query Params (JSON for Simulation)', type: 'json', defaultValue: '{}', helperText: "JSON data for the requestQuery output during simulation." },
@@ -95,7 +95,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     defaultConfig: { 
         url: '', 
         method: 'GET', 
-        headers: '{\n  "Authorization": "{{env.MY_API_TOKEN}}"\n}', 
+        headers: '{\n  "Authorization": "{{credential.MyApiToken}}"\n}', 
         body: '', 
         retry: {}, 
         onErrorWebhook: undefined, 
@@ -111,7 +111,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         defaultValue: 'GET',
         required: true,
       },
-      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{env.MY_API_TOKEN}}"\n}', helperText: "Use {{env.VAR_NAME}} for secrets." },
+      headers: { label: 'Headers (JSON)', type: 'textarea', placeholder: '{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer {{credential.MyApiToken}}"\n}', helperText: "Use {{credential.CRED_NAME}} for secrets." },
       body: { label: 'Body (JSON/Text)', type: 'textarea', placeholder: '{\n  "key": "value"\n}' },
       simulatedResponse: { label: 'Simulated Response Body (JSON/Text for Simulation Mode)', type: 'json', placeholder: '{"data": "mock_value"}', helperText: 'Response body content returned by this node when in simulation mode.'},
       simulatedStatusCode: { label: 'Simulated Status Code (Number for Simulation)', type: 'number', defaultValue: 200, placeholder: '200', helperText: 'Definitive HTTP status code to simulate (e.g., 200, 404, 500). Used to test error handling and retries.' },
@@ -155,7 +155,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'databaseQuery',
     name: 'Database Query',
     icon: Database,
-    description: 'Executes a SQL query. Supports retries, on-error webhook, and simulation. Configure DB_CONNECTION_STRING env var.',
+    description: 'Executes a SQL query. Supports retries, on-error webhook, and simulation. Use {{credential.DB_CONNECTION_STRING}} or set DB_CONNECTION_STRING env var.',
     category: 'io',
     defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {}, onErrorWebhook: undefined, simulatedResults: '[]', simulatedRowCount: 0 },
     configSchema: {
@@ -266,6 +266,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       propertyName: '',
       reducerFunction: 'sum', 
       initialValue: undefined, 
+      inputDateString: '',
+      outputFormatString: 'yyyy-MM-dd HH:mm:ss',
       retry: {},
       onErrorWebhook: undefined,
     },
@@ -284,6 +286,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
             {value: 'getObjectProperty', label: 'Get Property From Object'},
             {value: 'reduceArray', label: 'Reduce Array (Sum, Avg, Join, Count)'},
             {value: 'parseNumber', label: 'Parse Number from String'},
+            {value: 'formatDate', label: 'Format Date'},
           ],
           defaultValue: 'toUpperCase',
           required: true,
@@ -311,6 +314,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
           helperText: "Used by: reduceArray. Defines the reduction operation.",
         },
         initialValue: { label: 'Initial Value (Optional)', type: 'string', placeholder: 'e.g., 0 for sum, "" for join', helperText: 'Used by: reduceArray. Starting value for reduction. Type should match array elements or expected output (e.g., "0" for sum, "{}" for count). Can be a placeholder.' },
+        inputDateString: { label: 'Input Date String/ISO', type: 'string', placeholder: '{{api_node.response.createdAt}} or 2023-10-26T10:30:00Z', helperText: "Used by: formatDate. The date value to format." },
+        outputFormatString: { label: 'Output Date Format', type: 'string', defaultValue: 'yyyy-MM-dd HH:mm:ss', placeholder: 'yyyy-MM-dd HH:mm:ss', helperText: "Used by: formatDate. Desired date output format (date-fns)." },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
         ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -494,11 +499,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: TrendingUp,
     description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries and on-error webhook.',
     category: 'action', 
-    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{env.YOUTUBE_API_KEY}}', retry: {}, onErrorWebhook: undefined, simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{credential.YouTubeApiKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.', required: true },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos', required: true },
-      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{env.YOUTUBE_API_KEY}}', helperText:"Set YOUTUBE_API_KEY in environment.", required: true},
+      apiKey: { label: 'YouTube API Key', type: 'string', placeholder: '{{credential.YouTubeApiKey}}', helperText:"Use {{credential.YouTubeApiKey}} or {{env.YOUTUBE_API_KEY}}.", required: true},
       simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"videos": [{"id":"vid1", "title":"Mock Video"}]}', helperText: 'Data returned by this node when in simulation mode.', required: true},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
@@ -545,16 +550,16 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'youtubeUploadShort',
     name: 'YouTube: Upload Short',
     icon: UploadCloud,
-    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YOUTUBE_OAUTH_TOKEN env var. Supports retries and on-error webhook.',
+    description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YouTube OAuth credentials. Supports retries and on-error webhook.',
     category: 'action',
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{secret.YOUTUBE_OAUTH_TOKEN}}', retry: {}, onErrorWebhook: undefined, simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{credential.YouTubeOAuth}}', retry: {}, onErrorWebhook: undefined, simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}', required: true },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short', required: true },
       description: { label: 'Description', type: 'textarea' },
       tags: { label: 'Tags (comma-separated)', type: 'string', placeholder: 'short, funny, tech' },
       privacy: { label: 'Privacy', type: 'select', options: ['public', 'private', 'unlisted'], defaultValue: 'public', required: true},
-      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{secret.YOUTUBE_OAUTH_TOKEN}}', helperText: "Use {{secret.YOUTUBE_OAUTH_TOKEN}} or {{env.YOUTUBE_OAUTH_TOKEN}}.", required: true},
+      credentials: { label: 'YouTube Credentials/Token', type: 'string', placeholder: '{{credential.YouTubeOAuth}}', helperText: "Use {{credential.YouTubeOAuth}} for managed OAuth.", required: true},
       simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"uploadStatus": "success", "videoId": "sim_yt_id"}', helperText: 'Data returned by this node when in simulation mode.', required: true},
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
@@ -694,6 +699,10 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'parse number': 'dataTransform',
   'string to number': 'dataTransform',
   'convert to number': 'dataTransform',
+  'formatdate': 'dataTransform',
+  'format date': 'dataTransform',
+  'date format': 'dataTransform',
+  'convert date': 'dataTransform',
 
   // AI
   'aitask': 'aiTask',
@@ -812,7 +821,10 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
     case 'reduceArray':
     case 'parseNumber': 
       return Sigma;
+    case 'formatDate':
+      return CalendarDays;
     default:
       return FunctionSquare;
   }
 }
+
