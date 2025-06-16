@@ -27,19 +27,6 @@ const GENERIC_ON_ERROR_WEBHOOK_SCHEMA = {
 
 export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   {
-    type: 'trigger',
-    name: 'Manual Trigger',
-    icon: Play,
-    description: 'Manually starts the workflow.',
-    category: 'trigger',
-    defaultConfig: { event: 'manualStart' },
-    configSchema: {
-      event: { label: 'Event Type', type: 'string', defaultValue: 'manualStart', placeholder: 'e.g., manual, webhook', required: true },
-    },
-    inputHandles: [],
-    outputHandles: ['output'],
-  },
-  {
     type: 'webhookTrigger',
     name: 'Webhook Trigger',
     icon: Webhook,
@@ -611,9 +598,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
 
 export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   // General & Triggers
-  'trigger': 'trigger',
-  'manual trigger': 'trigger',
-  'start': 'trigger',
   'webhooktrigger': 'webhookTrigger',
   'webhook trigger': 'webhookTrigger',
   'http webhook': 'webhookTrigger',
@@ -836,3 +820,4 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+

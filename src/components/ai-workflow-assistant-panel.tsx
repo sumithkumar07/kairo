@@ -29,13 +29,6 @@ interface AIWorkflowAssistantPanelProps {
   isCanvasEmpty: boolean;
 }
 
-const examplePrompts = [
-  "When someone fills out a contact form, send an email and save to database",
-  "Every day at 9 AM, fetch weather data and send a summary email",
-  "When a new order is placed, update inventory and notify shipping team",
-  "Process uploaded CSV files and generate reports"
-];
-
 export function AIWorkflowAssistantPanel({
   onWorkflowGenerated,
   setIsLoadingGlobal,
@@ -83,13 +76,6 @@ export function AIWorkflowAssistantPanel({
     } finally {
       setIsLoadingLocal(false);
       setIsLoadingGlobal(false);
-    }
-  };
-
-  const handleExamplePromptClick = (example: string) => {
-    setPrompt(example);
-    if (workflowExplanation) { 
-        onClearExplanation();    
     }
   };
 
@@ -188,27 +174,9 @@ export function AIWorkflowAssistantPanel({
               Your canvas is empty! Describe your desired workflow below, or try an example.
             </div>
           )}
-
-          <div className="p-3 border rounded-md bg-card shadow-sm space-y-1.5">
-            <h3 className="text-xs font-medium text-muted-foreground px-1 mb-1">Try these example prompts:</h3>
-            <div className="space-y-1">
-              {examplePrompts.map((ex, index) => (
-                <Button
-                  key={`prompt-${index}`}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-left justify-start h-auto py-1.5 px-2 text-xs hover:bg-muted/50 focus-visible:bg-muted/60"
-                  onClick={() => handleExamplePromptClick(ex)}
-                  disabled={currentIsLoading}
-                >
-                  <ChevronRight className="mr-1.5 h-3 w-3 text-primary/70 shrink-0" /> <span className="truncate">&quot;{ex}&quot;</span>
-                </Button>
-              ))}
-            </div>
-          </div>
           
           <div className="p-3 border rounded-md bg-card shadow-sm space-y-1.5">
-            <h3 className="text-xs font-medium text-muted-foreground px-1 mb-1.5">Or load an example workflow:</h3>
+            <h3 className="text-xs font-medium text-muted-foreground px-1 mb-1.5">Load an example workflow:</h3>
             <div className="space-y-1.5">
               {exampleWorkflows.map((ex, index) => (
                 <Button

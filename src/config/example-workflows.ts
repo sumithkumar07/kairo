@@ -5,19 +5,24 @@ import { NODE_HEIGHT, NODE_WIDTH } from './nodes';
 export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
   {
     name: 'Simple API Fetch & Log',
-    description: 'Fetches data from a public API, parses the JSON, and logs the first item.',
+    description: 'Fetches data from a public API, parses the JSON, and logs the first item. Triggered by a simulated webhook.',
     nodes: [
       {
-        id: 'trigger_1',
-        type: 'trigger',
-        name: 'Manual Start',
-        description: 'Manually starts the workflow.',
+        id: 'webhook_trigger_1',
+        type: 'webhookTrigger',
+        name: 'Simulated Webhook Trigger',
+        description: 'Simulates an HTTP call to start the workflow.',
         position: { x: 50, y: 50 },
-        config: { event: 'manualStart' },
+        config: { 
+          pathSuffix: 'simple-api-trigger', 
+          simulatedRequestBody: '{"start_signal": true}',
+          simulatedRequestHeaders: '{}',
+          simulatedRequestQuery: '{}',
+        },
         inputHandles: [],
-        outputHandles: ['output'],
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
         category: 'trigger',
-        aiExplanation: 'This node manually triggers the workflow execution.'
+        aiExplanation: 'This node simulates an incoming webhook request that triggers the workflow. Its outputs (like requestBody) can be used by subsequent nodes.'
       },
       {
         id: 'http_1',
@@ -67,7 +72,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
       },
     ],
     connections: [
-      { id: 'conn_1', sourceNodeId: 'trigger_1', sourceHandle: 'output', targetNodeId: 'http_1', targetHandle: 'input' },
+      { id: 'conn_1', sourceNodeId: 'webhook_trigger_1', sourceHandle: 'requestBody', targetNodeId: 'http_1', targetHandle: 'input' },
       { id: 'conn_2', sourceNodeId: 'http_1', sourceHandle: 'response', targetNodeId: 'parse_1', targetHandle: 'input' },
       { id: 'conn_3', sourceNodeId: 'parse_1', sourceHandle: 'output', targetNodeId: 'log_1', targetHandle: 'input' },
     ],
@@ -151,3 +156,4 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
     ],
   },
 ];
+
