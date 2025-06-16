@@ -105,7 +105,7 @@ export function AIWorkflowBuilderPanel({
           <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
             <Minus className="h-4 w-4" />
           </Button>
-          <span className="text-xs text-muted-foreground w-10 text-center select-none">{(zoomLevel * 100).toFixed(0)}%</span>
+          <span className="text-xs text-muted-foreground w-10 text-center select-none" title="Current Zoom Level">{(zoomLevel * 100).toFixed(0)}%</span>
           <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
             <Plus className="h-4 w-4" />
           </Button>
@@ -138,7 +138,7 @@ export function AIWorkflowBuilderPanel({
             variant="outline"
             size="sm"
             onClick={handleUpgradeClick}
-            title="Upgrade to unlock AI features"
+            title="Upgrade to unlock more AI features"
             className="bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 hover:shadow-lg"
           >
             <Sparkles className="h-4 w-4 mr-1.5 text-primary" />
@@ -178,7 +178,7 @@ export function AIWorkflowBuilderPanel({
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
           <p className="text-muted-foreground mb-6 max-w-md text-sm">
-            Drag nodes from the library on the left, or click the AI Assistant button in the bottom right to generate a workflow.
+            Drag nodes from the library on the left, or click the AI Assistant button <Bot className="inline h-4 w-4 align-text-bottom"/> in the bottom right to generate a workflow.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -199,12 +199,12 @@ export function AIWorkflowBuilderPanel({
 
       {/* Floating Action Buttons for AI */}
       <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
-        <Button
+         <Button
           variant="default"
           size="icon"
           className="rounded-full shadow-lg w-12 h-12 bg-primary hover:bg-primary/90"
           onClick={onToggleAssistant}
-          title="Open AI Assistant Panel"
+          title="Toggle AI Assistant Panel"
         >
           <Bot className="h-6 w-6" />
         </Button>
@@ -216,7 +216,7 @@ export function AIWorkflowBuilderPanel({
           disabled={!hasWorkflow || isExplainingWorkflow}
           title="Let AI Explain this workflow"
         >
-          <MessageSquareText className="h-5 w-5" />
+          {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> : <MessageSquareText className="h-5 w-5" />}
         </Button>
       </div>
     </main>

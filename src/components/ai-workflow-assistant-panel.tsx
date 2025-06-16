@@ -1,18 +1,21 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import type { LogEntry } from '@/types/workflow';
+import { cn } from '@/lib/utils';
 
 
 interface AIWorkflowAssistantPanelProps {
@@ -25,6 +28,9 @@ interface AIWorkflowAssistantPanelProps {
   isLoadingSuggestion: boolean;
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
   isCanvasEmpty: boolean;
+  executionLogs: LogEntry[];
+  onClearLogs: () => void;
+  isWorkflowRunning: boolean;
 }
 
 export function AIWorkflowAssistantPanel({
@@ -37,10 +43,20 @@ export function AIWorkflowAssistantPanel({
   isLoadingSuggestion,
   onAddSuggestedNode,
   isCanvasEmpty,
+  executionLogs,
+  onClearLogs,
+  isWorkflowRunning,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [isLoadingLocal, setIsLoadingLocal] = useState(false);
   const { toast } = useToast();
+  const logsScrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logsScrollAreaRef.current) {
+      logsScrollAreaRef.current.scrollTop = logsScrollAreaRef.current.scrollHeight;
+    }
+  }, [executionLogs]);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -76,7 +92,7 @@ export function AIWorkflowAssistantPanel({
   };
 
 
-  const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion;
+  const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
 
   const suggestedNodeConfig = initialCanvasSuggestion?.suggestedNode
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
@@ -125,7 +141,7 @@ export function AIWorkflowAssistantPanel({
         <p className="text-xs text-muted-foreground">Describe your automation needs to the AI.</p>
       </div>
 
-      <ScrollArea className="flex-shrink-0"> {/* Changed: No flex-1, added flex-shrink-0 */}
+      <ScrollArea className="flex-shrink-0"> 
         <div className="p-4 space-y-5">
           {isCanvasEmpty && isLoadingSuggestion && (
             <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm">
@@ -154,7 +170,7 @@ export function AIWorkflowAssistantPanel({
           )}
 
           {!isCanvasEmpty && !workflowExplanation && (
-             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md"> {/* Used div instead of Card for less padding */}
+             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md"> 
               Hi! I&apos;m your AI assistant. Describe what you want to automate.
             </div>
           )}
@@ -166,27 +182,24 @@ export function AIWorkflowAssistantPanel({
           )}
         </div>
       </ScrollArea>
-
-      {/* Changed: This section now uses flex-1 to fill remaining space */}
-      <div className="p-3 border-t bg-background/60 space-y-2 flex flex-col flex-1">
+      
+      <div className="p-3 border-t bg-background/60 space-y-2 flex flex-col flex-1 mt-auto">
         <Label htmlFor="ai-prompt-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
           <Sparkles className="h-3.5 w-3.5 text-primary" /> Describe your workflow to the AI
         </Label>
-        {/* Changed: Inner div now also flex-1 and items-stretch */}
+        
         <div className="flex gap-2 flex-1 items-stretch">
           <Textarea
             id="ai-prompt-textarea"
             placeholder="e.g., 'When a new file is uploaded to a folder, read its content, summarize it with AI, and then send the summary to a Slack channel...'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            // Changed: Added flex-1 and resize-none, removed rows={3}
             className="flex-grow min-h-[60px] text-sm flex-1 resize-none"
             disabled={currentIsLoading}
           />
           <Button
             onClick={handleSubmit}
             disabled={currentIsLoading || !prompt.trim()}
-            // Changed: Added self-end
             className="h-auto py-2 self-end min-h-[40px]"
             size="default"
             title="Generate workflow with AI (Ctrl+Enter)"
@@ -199,7 +212,44 @@ export function AIWorkflowAssistantPanel({
           </Button>
         </div>
       </div>
+      
+      <Accordion type="single" collapsible className="w-full border-t">
+        <AccordionItem value="logs" className="border-b-0">
+          <AccordionTrigger className="px-4 py-2.5 text-xs font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4" />
+              Execution Logs {isWorkflowRunning && <Loader2 className="h-3 w-3 animate-spin" />}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="bg-muted/20">
+            <div className="flex justify-between items-center px-4 pt-2 pb-1">
+              <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
+              <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
+                <Trash2 className="mr-1.5 h-3 w-3" /> Clear Logs
+              </Button>
+            </div>
+            <ScrollArea className="h-40 px-4 pb-2" viewportRef={logsScrollAreaRef}>
+              {executionLogs.length === 0 ? (
+                <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
+              ) : (
+                <div className="space-y-1.5 text-xs font-mono">
+                  {executionLogs.map((log, index) => (
+                    <div key={index} className={cn(
+                      "p-1.5 rounded-sm text-opacity-90 break-words",
+                      log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
+                      log.type === 'success' && 'bg-green-500/10 text-green-700 dark:text-green-300',
+                      log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
+                    )}>
+                      <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
+                      <span>{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
-
