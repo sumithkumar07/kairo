@@ -1,4 +1,3 @@
-
 'use server';
 
 import { 
@@ -541,6 +540,7 @@ async function executeFlowInternal(
   currentWorkflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
   isSimulationMode: boolean,
+  initialData?: Record<string, any>, // Added initialData for triggers
   parentWorkflowData?: Record<string, any>, 
   additionalContexts?: Record<string, any> 
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any }> {
@@ -609,51 +609,75 @@ async function executeFlowInternal(
 
         switch (node.type) {
           case 'trigger': 
+            serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE TRIGGER] ${nodeIdentifier}: Manual trigger activated.`, type: 'info' });
+            if (!isSimulationMode && initialData && initialData[node.id]) {
+                currentAttemptOutput = { ...currentAttemptOutput, ...initialData[node.id] };
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE TRIGGER] ${nodeIdentifier}: Using provided initialData for live run.`, type: 'info' });
+            } else {
+                currentAttemptOutput = { ...currentAttemptOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
+                if (!isSimulationMode) {
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE TRIGGER] ${nodeIdentifier}: No specific initialData for this trigger in live run, using default simulated output.`, type: 'info' });
+                }
+            }
+            break;
           case 'schedule': 
-            serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${node.type.toUpperCase()}] ${nodeIdentifier}: Trigger activated with config: ${JSON.stringify(resolvedConfig, null, 2)}`, type: 'info' });
-            currentAttemptOutput = { ...currentAttemptOutput, details: resolvedConfig, triggeredAt: new Date().toISOString() };
+            serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SCHEDULE] ${nodeIdentifier}: Schedule trigger activated with cron: ${resolvedConfig.cron}`, type: 'info' });
+            currentAttemptOutput = { ...currentAttemptOutput, details: resolvedConfig, triggered_at: new Date().toISOString() };
             break;
           
           case 'webhookTrigger':
-            serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Node ${nodeIdentifier}: Activated. Path Suffix: '${resolvedConfig.pathSuffix}'. Token: ${resolvedConfig.securityToken ? 'Configured' : 'Not Configured'}.`, type: 'info' });
-            if (isSimulationMode) {
+            const liveTriggerData = (!isSimulationMode && initialData && initialData[node.id]) ? initialData[node.id] : null;
+            if (liveTriggerData) {
+              serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] ${nodeIdentifier}: LIVE TRIGGER. Using data from API route. Path Suffix: '${resolvedConfig.pathSuffix}'.`, type: 'info' });
+              console.log(`[NODE WEBHOOKTRIGGER - SERVER] ${nodeIdentifier}: LIVE TRIGGER data received. Body (first 100 chars): ${JSON.stringify(liveTriggerData.requestBody).substring(0,100)}`);
+              currentAttemptOutput = { 
+                ...currentAttemptOutput, 
+                requestBody: liveTriggerData.requestBody, 
+                requestHeaders: liveTriggerData.requestHeaders, 
+                requestQuery: liveTriggerData.requestQuery 
+              };
+            } else {
+              if (!isSimulationMode) {
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] ${nodeIdentifier}: LIVE MODE but no initialData provided for this trigger. FALLING BACK TO SIMULATION DATA. Path Suffix: '${resolvedConfig.pathSuffix}'.`, type: 'info' });
+                console.warn(`[NODE WEBHOOKTRIGGER - SERVER] ${nodeIdentifier}: LIVE MODE but no initialData, FALLING BACK TO SIMULATION for this trigger.`);
+              } else {
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Node ${nodeIdentifier}: Activated. Path Suffix: '${resolvedConfig.pathSuffix}'. Token: ${resolvedConfig.securityToken ? 'Configured' : 'Not Configured'}.`, type: 'info' });
+              }
               let simBody = {}; let simHeaders = {}; let simQuery = {};
               try { simBody = typeof resolvedConfig.simulatedRequestBody === 'string' ? JSON.parse(resolvedConfig.simulatedRequestBody) : resolvedConfig.simulatedRequestBody || {}; } catch (e) { serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulatedRequestBody for ${nodeIdentifier}: ${(e as Error).message}`, type: 'info'}); }
               try { simHeaders = typeof resolvedConfig.simulatedRequestHeaders === 'string' ? JSON.parse(resolvedConfig.simulatedRequestHeaders) : resolvedConfig.simulatedRequestHeaders || {}; } catch (e) { serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulatedRequestHeaders for ${nodeIdentifier}: ${(e as Error).message}`, type: 'info'}); }
               try { simQuery = typeof resolvedConfig.simulatedRequestQuery === 'string' ? JSON.parse(resolvedConfig.simulatedRequestQuery) : resolvedConfig.simulatedRequestQuery || {}; } catch (e) { serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulatedRequestQuery for ${nodeIdentifier}: ${(e as Error).message}`, type: 'info'}); }
               
               currentAttemptOutput = { ...currentAttemptOutput, requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery };
-              serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Node ${nodeIdentifier}: Using simulated data for outputs.`, type: 'info' });
-            } else {
-              // In a live scenario, this data would be injected by the API route calling executeWorkflow
-              // For now, if run "live" via UI (which shouldn't be the primary mode for this trigger), it might fall back or error
-              serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] Node ${nodeIdentifier}: Live execution for this trigger type is handled by the API route. Simulating for UI-initiated run.`, type: 'info' });
-              let simBody = {}; let simHeaders = {}; let simQuery = {};
-              try { simBody = typeof resolvedConfig.simulatedRequestBody === 'string' ? JSON.parse(resolvedConfig.simulatedRequestBody) : resolvedConfig.simulatedRequestBody || {}; } catch (e) { /* ignore */ }
-              try { simHeaders = typeof resolvedConfig.simulatedRequestHeaders === 'string' ? JSON.parse(resolvedConfig.simulatedRequestHeaders) : resolvedConfig.simulatedRequestHeaders || {}; } catch (e) { /* ignore */ }
-              try { simQuery = typeof resolvedConfig.simulatedRequestQuery === 'string' ? JSON.parse(resolvedConfig.simulatedRequestQuery) : resolvedConfig.simulatedRequestQuery || {}; } catch (e) { /* ignore */ }
-              currentAttemptOutput = { ...currentAttemptOutput, requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery };
+              if (isSimulationMode) {
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Node ${nodeIdentifier}: Using simulated data for outputs.`, type: 'info' });
+              }
             }
             break;
 
           case 'fileSystemTrigger':
-            serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Conceptually monitoring directory: '${resolvedConfig.directoryPath}', Events: ${resolvedConfig.eventTypes}, Pattern: '${resolvedConfig.fileNamePattern || '*'}'`, type: 'info' });
-            if (isSimulationMode || resolvedConfig.simulatedFileEvent) {
-              let simEventData: any = { eventType: 'create', filePath: '/simulated/default_file.txt', fileName: 'default_file.txt', triggeredAt: new Date().toISOString() };
-              if (resolvedConfig.simulatedFileEvent) {
-                try {
-                  simEventData = typeof resolvedConfig.simulatedFileEvent === 'string' 
-                                    ? JSON.parse(resolvedConfig.simulatedFileEvent) 
-                                    : resolvedConfig.simulatedFileEvent;
-                } catch (e: any) {
-                  serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedFileEvent JSON. Error: ${e.message}. Using default simulation.`, type: 'info' });
-                }
-              }
-              currentAttemptOutput = { ...currentAttemptOutput, fileEvent: simEventData };
+            const liveFsTriggerData = (!isSimulationMode && initialData && initialData[node.id]) ? initialData[node.id] : null;
+            if (liveFsTriggerData) {
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] ${nodeIdentifier}: LIVE TRIGGER. Using data provided for file event.`, type: 'info' });
+                currentAttemptOutput = { ...currentAttemptOutput, fileEvent: liveFsTriggerData.fileEvent };
             } else {
-              const noSimError = `Node ${nodeIdentifier}: fileSystemTrigger requires 'simulatedFileEvent' in config for execution in this environment.`;
-              serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] ${noSimError}`, type: 'error' });
-              throw new Error(noSimError);
+                if (!isSimulationMode) {
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] ${nodeIdentifier}: LIVE MODE but no initialData provided for this trigger. FALLING BACK TO SIMULATION DATA.`, type: 'info' });
+                    console.warn(`[NODE FILESYSTEMTRIGGER - SERVER] ${nodeIdentifier}: LIVE MODE but no initialData, FALLING BACK TO SIMULATION for this trigger.`);
+                } else {
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Conceptually monitoring directory: '${resolvedConfig.directoryPath}', Events: ${resolvedConfig.eventTypes}, Pattern: '${resolvedConfig.fileNamePattern || '*'}'`, type: 'info' });
+                }
+                let simEventData: any = { eventType: 'create', filePath: '/simulated/default_file.txt', fileName: 'default_file.txt', triggeredAt: new Date().toISOString() };
+                if (resolvedConfig.simulatedFileEvent) {
+                    try {
+                        simEventData = typeof resolvedConfig.simulatedFileEvent === 'string' 
+                                        ? JSON.parse(resolvedConfig.simulatedFileEvent) 
+                                        : resolvedConfig.simulatedFileEvent;
+                    } catch (e: any) {
+                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] SIMULATION: Node ${nodeIdentifier}: Could not parse simulatedFileEvent JSON. Error: ${e.message}. Using default simulation.`, type: 'info' });
+                    }
+                }
+                currentAttemptOutput = { ...currentAttemptOutput, fileEvent: simEventData };
             }
             break;
 
@@ -1041,6 +1065,7 @@ async function executeFlowInternal(
                   subWorkflowInitialData, 
                   serverLogs, 
                   isSimulationMode,
+                  initialData, // Pass parent's initialData through
                   currentWorkflowData, 
                   additionalContexts   
               );
@@ -1100,6 +1125,7 @@ async function executeFlowInternal(
                   iterInitialData, 
                   serverLogs, 
                   isSimulationMode,
+                  initialData, // Pass parent's initialData through
                   currentWorkflowData, 
                   itemContext         
                 );
@@ -1183,6 +1209,7 @@ async function executeFlowInternal(
                     loopMutableWorkflowData, 
                     serverLogs,
                     isSimulationMode,
+                    initialData, // Pass parent's initialData through
                     parentWorkflowData, 
                     additionalContexts  
                 );
@@ -1254,6 +1281,7 @@ async function executeFlowInternal(
                             branchInitialData, 
                             serverLogs,
                             isSimulationMode,
+                            initialData, // Pass parent's initialData through
                             currentWorkflowData, 
                             additionalContexts 
                         );
@@ -1598,16 +1626,33 @@ async function executeFlowInternal(
 }
 
 
-export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean = false): Promise<ServerLogOutput[]> {
+export async function executeWorkflow(
+  workflow: Workflow, 
+  isSimulationMode: boolean = false,
+  initialData?: Record<string, any> // Added initialData
+): Promise<ServerLogOutput[]> {
   const serverLogs: ServerLogOutput[] = [];
-  const initialWorkflowData: Record<string, any> = {}; 
+  let workflowInitialData = initialData || {}; 
 
   const modeMessage = isSimulationMode ? "[ENGINE - SERVER] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE - SERVER] Starting MAIN workflow execution for";
   console.log(`${modeMessage} ${workflow.nodes.length} nodes.`);
   serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Starting MAIN workflow execution in ${isSimulationMode ? 'Simulation Mode' : 'Live Mode'} for ${workflow.nodes.length} nodes.`, type: 'info' });
   
+  if (!isSimulationMode && initialData) {
+      console.log(`[ENGINE - SERVER] MAIN workflow received initialData for live run: ${Object.keys(initialData).join(', ')}`);
+      serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] MAIN workflow received initialData for live run: ${Object.keys(initialData).join(', ')}`, type: 'info' });
+  }
+  
 
-  const result = await executeFlowInternal("main", workflow.nodes, workflow.connections, initialWorkflowData, serverLogs, isSimulationMode);
+  const result = await executeFlowInternal(
+    "main", 
+    workflow.nodes, 
+    workflow.connections, 
+    {}, // Start with empty currentWorkflowData for the main flow
+    serverLogs, 
+    isSimulationMode,
+    workflowInitialData // Pass the initialData for triggers
+  );
   
   console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   result.serverLogs.push({ timestamp: new Date().toISOString(), message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
@@ -1615,9 +1660,3 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 }
 
     
-
-
-
-
-
-
