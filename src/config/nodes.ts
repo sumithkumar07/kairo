@@ -20,7 +20,7 @@ const GENERIC_ON_ERROR_WEBHOOK_SCHEMA = {
     label: 'On-Error Webhook (JSON, Optional)',
     type: 'json',
     placeholder: '{\n  "url": "https://my-error-logger.com/log",\n  "method": "POST",\n  "headers": {"X-API-Key": "{{env.ERROR_API_KEY}}"},\n  "bodyTemplate": {\n    "nodeId": "{{failed_node_id}}",\n    "nodeName": "{{failed_node_name}}",\n    "errorMessage": "{{error_message}}",\n    "timestamp": "{{timestamp}}",\n    "workflowSnapshot": "{{workflow_data_snapshot_json}}"\n  }\n}',
-    helperText: 'If node fails after all retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR}}. This is a fire-and-forget notification. It can be used for simple alerts or to send error details to an endpoint that acts as a Dead-Letter Queue (DLQ) processor or triggers a dedicated error-handling workflow. The `workflow_data_snapshot_json` payload is crucial for DLQ scenarios as it provides the complete context for later analysis or reprocessing.',
+    helperText: 'If node fails after all retries, send details to this webhook. Placeholders for body/headers: {{failed_node_id}}, {{failed_node_name}}, {{error_message}}, {{timestamp}}, {{workflow_data_snapshot_json}} (full workflow data as JSON string), and {{env.VAR_NAME}}. This is a fire-and-forget notification. It can be used for simple alerts or to send error details to an endpoint that acts as a Dead-Letter Queue (DLQ) processor or triggers a dedicated error-handling workflow. The `workflow_data_snapshot_json` payload is crucial for DLQ scenarios as it provides the complete context for later analysis or reprocessing.',
     defaultValue: undefined as (OnErrorWebhookConfig | undefined)
   }
 };
@@ -49,7 +49,9 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       securityToken: '',
       simulatedRequestBody: '{"message": "Hello from simulated webhook!"}',
       simulatedRequestHeaders: '{"Content-Type": "application/json", "X-Custom-Header": "SimValue"}',
-      simulatedRequestQuery: '{"param1": "test", "param2": "true"}'
+      simulatedRequestQuery: '{"param1": "test", "param2": "true"}',
+      retry: {},
+      onErrorWebhook: undefined,
     },
     configSchema: {
       pathSuffix: { label: 'Path Suffix', type: 'string', placeholder: 'e.g., customer-updates-hook', helperText: "Unique path for this webhook. Full URL: /api/workflow-webhooks/YOUR_SUFFIX", required: true },
@@ -57,6 +59,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       simulatedRequestBody: { label: 'Simulated Request Body (JSON for Simulation)', type: 'json', defaultValue: '{"message": "Hello!"}', helperText: "JSON data for the requestBody output during simulation." },
       simulatedRequestHeaders: { label: 'Simulated Request Headers (JSON for Simulation)', type: 'json', defaultValue: '{}', helperText: "JSON data for the requestHeaders output during simulation." },
       simulatedRequestQuery: { label: 'Simulated Request Query Params (JSON for Simulation)', type: 'json', defaultValue: '{}', helperText: "JSON data for the requestQuery output during simulation." },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
   },
@@ -827,4 +831,5 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
