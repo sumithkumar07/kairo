@@ -26,11 +26,11 @@ export function ExecutionLogPanel({
   isSimulationMode,
   onToggleSimulationMode,
 }: ExecutionLogPanelProps) {
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    if (scrollAreaViewportRef.current) {
+      scrollAreaViewportRef.current.scrollTop = scrollAreaViewportRef.current.scrollHeight;
     }
   }, [logs]);
 
@@ -70,10 +70,10 @@ export function ExecutionLogPanel({
         <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
             <Terminal className="h-3.5 w-3.5" /> Logs:
         </Label>
-        <ScrollArea className="flex-1 h-36 border rounded-md bg-muted/20 p-0.5"> 
-          <div ref={scrollAreaRef} className="p-1.5 h-full overflow-y-auto">
+        <ScrollArea className="flex-1 h-36 border rounded-md bg-muted/20 p-2" viewportRef={scrollAreaViewportRef}> 
+          {/* Removed direct child div with its own padding, ScrollArea now handles padding with p-2 */}
             {logs.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic px-1 py-0.5">No logs yet. Run the workflow to see output.</p>
+              <p className="text-xs text-muted-foreground italic break-words">No logs yet. Run the workflow to see output.</p>
             ) : (
               <div className="space-y-1 font-mono">
                 {logs.map((log, index) => (
@@ -92,10 +92,8 @@ export function ExecutionLogPanel({
                 ))}
               </div>
             )}
-          </div>
         </ScrollArea>
       </CardContent>
     </Card>
   );
 }
-
