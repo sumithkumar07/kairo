@@ -60,10 +60,19 @@ export function WorkflowNodeItem({
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
     
-    const y = node.position.y + (NODE_HEIGHT / (numHandles + 1)) * (index + 1);
-    const x = isOutput ? node.position.x + NODE_WIDTH : node.position.x;
-    return { x, y };
+    // This calculates position relative to the node's top-left.
+    // For absolute canvas position, node.position would be added.
+    // However, the onHandleClick expects position *relative* to the node for its internal use,
+    // and the preview line logic in WorkflowCanvas will use the node.position + this.
+    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
+    const xOnNode = isOutput ? NODE_WIDTH : 0;
+    
+    // Return position that onHandleClick can use, usually relative to node for internal calc,
+    // but for preview, WorkflowCanvas adds node.position to it.
+    // For simplicity, let's pass the node's own position translated.
+    return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };
   };
+
 
   return (
     <Card
@@ -137,7 +146,7 @@ export function WorkflowNodeItem({
                     className={cn(
                       "absolute -left-2 w-4 h-4 rounded-full border-2 bg-green-500 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                        isPotentialTarget 
-                        ? "border-background hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer" 
+                        ? "border-background bg-green-400 hover:bg-green-300 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-300" 
                         : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-50 cursor-not-allowed" : "border-background bg-primary cursor-default"),
                       isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-50 cursor-not-allowed" 
                     )}
@@ -175,7 +184,7 @@ export function WorkflowNodeItem({
                     className={cn(
                       "absolute -right-2 w-4 h-4 rounded-full border-2 border-background shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                       isActiveSource 
-                        ? "bg-orange-500 scale-110 cursor-grabbing" 
+                        ? "bg-orange-500 scale-125 cursor-grabbing ring-2 ring-orange-400" 
                         : "bg-accent", 
                       !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-accent/70" : "cursor-default",
                       isOtherNodeOutputDuringConnect && "opacity-50 cursor-not-allowed" 
