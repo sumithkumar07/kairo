@@ -61,7 +61,7 @@ export function AIWorkflowAssistantPanel({
         title: 'Workflow Generated!',
         description: 'The AI has processed your prompt and generated a workflow.',
       });
-      // setPrompt('');
+      // setPrompt(''); // Keep prompt for refinement
     } catch (error: any) {
       console.error('AI generation error:', error);
       toast({
@@ -92,7 +92,7 @@ export function AIWorkflowAssistantPanel({
           </h2>
           <p className="text-xs text-muted-foreground">AI-generated summary of the current workflow.</p>
         </div>
-        <ScrollArea className="p-4 flex-1">
+        <ScrollArea className="p-4 flex-shrink-0"> {/* Changed: No flex-1, added flex-shrink-0 */}
           {isExplainingWorkflow ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -106,7 +106,7 @@ export function AIWorkflowAssistantPanel({
              <p className="text-muted-foreground text-center p-4 text-sm">No explanation available.</p>
           )}
         </ScrollArea>
-        <div className="p-3 border-t bg-background/50 mt-auto">
+        <div className="p-3 border-t bg-background/50 mt-auto"> {/* mt-auto keeps it at bottom if ScrollArea above is small */}
           <Button variant="outline" onClick={onClearExplanation} className="w-full h-9 text-sm">
             <XCircle className="mr-2 h-4 w-4" /> Back to AI Prompt
           </Button>
@@ -125,7 +125,7 @@ export function AIWorkflowAssistantPanel({
         <p className="text-xs text-muted-foreground">Describe your automation needs to the AI.</p>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-shrink-0"> {/* Changed: No flex-1, added flex-shrink-0 */}
         <div className="p-4 space-y-5">
           {isCanvasEmpty && isLoadingSuggestion && (
             <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm">
@@ -154,37 +154,39 @@ export function AIWorkflowAssistantPanel({
           )}
 
           {!isCanvasEmpty && !workflowExplanation && (
-            <Card className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10">
+             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md"> {/* Used div instead of Card for less padding */}
               Hi! I&apos;m your AI assistant. Describe what you want to automate.
-            </Card>
+            </div>
           )}
 
           {isCanvasEmpty && !initialCanvasSuggestion && !isLoadingSuggestion && (
-             <Card className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10">
+             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md">
               Your canvas is empty! Describe your desired workflow to the AI below.
-            </Card>
+            </div>
           )}
-          
         </div>
       </ScrollArea>
 
-      <div className="p-3 border-t bg-background/60 mt-auto space-y-2">
+      {/* Changed: This section now uses flex-1 to fill remaining space */}
+      <div className="p-3 border-t bg-background/60 space-y-2 flex flex-col flex-1">
         <Label htmlFor="ai-prompt-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
           <Sparkles className="h-3.5 w-3.5 text-primary" /> Describe your workflow to the AI
         </Label>
-        <div className="flex gap-2 items-end">
+        {/* Changed: Inner div now also flex-1 and items-stretch */}
+        <div className="flex gap-2 flex-1 items-stretch">
           <Textarea
             id="ai-prompt-textarea"
             placeholder="e.g., 'When a new file is uploaded to a folder, read its content, summarize it with AI, and then send the summary to a Slack channel...'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="flex-grow min-h-[60px] resize-none text-sm"
-            rows={3}
+            // Changed: Added flex-1 and resize-none, removed rows={3}
+            className="flex-grow min-h-[60px] text-sm flex-1 resize-none"
             disabled={currentIsLoading}
           />
           <Button
             onClick={handleSubmit}
             disabled={currentIsLoading || !prompt.trim()}
+            // Changed: Added self-end
             className="h-auto py-2 self-end min-h-[40px]"
             size="default"
             title="Generate workflow with AI (Ctrl+Enter)"
@@ -200,3 +202,4 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
+
