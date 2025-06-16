@@ -59,8 +59,8 @@ export function NodeConfigPanel({
         if (valueToSet === undefined || valueToSet === null || (typeof valueToSet === 'string' && valueToSet.trim() === '') || (Array.isArray(valueToSet) && valueToSet.length === 0) ) {
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
         }
-        if (Object.keys(draftConfig.retry).length === 0) {
-          delete draftConfig.retry;
+        if (draftConfig.retry && Object.keys(draftConfig.retry).length === 0 && fieldKey !== 'attempts' && fieldKey !== 'delayMs') { // Keep attempts/delayMs even if only ones
+            // Only delete the entire retry object if no meaningful fields are left AND we are not just clearing a list
         }
       } else {
         draftConfig[fieldKey] = valueToSet;
@@ -187,10 +187,10 @@ export function NodeConfigPanel({
       if (isNaN(processedValue as number)) processedValue = undefined;
     } else if (field === 'retryOnStatusCodes') {
       processedValue = value.trim() === '' ? undefined : value.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n));
-      if (processedValue && processedValue.length === 0) processedValue = undefined;
+      if (Array.isArray(processedValue) && processedValue.length === 0) processedValue = undefined;
     } else if (field === 'retryOnErrorKeywords') {
       processedValue = value.trim() === '' ? undefined : value.split(',').map((s: string) => s.trim()).filter(Boolean);
-      if (processedValue && processedValue.length === 0) processedValue = undefined;
+      if (Array.isArray(processedValue) && processedValue.length === 0) processedValue = undefined;
     }
     handleInputChange(field, processedValue, true);
   };
@@ -205,6 +205,9 @@ export function NodeConfigPanel({
     });
     onConfigChange(node.id, newConfig);
   };
+
+  const nodeSupportsRetry = nodeType?.configSchema?.hasOwnProperty('retry');
+  const nodeSupportsOnErrorWebhook = nodeType?.configSchema?.hasOwnProperty('onErrorWebhook');
 
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
@@ -278,16 +281,28 @@ export function NodeConfigPanel({
                     value={typeof node.config === 'string' ? node.config : JSON.stringify(node.config, null, 2)}
                     onChange={(e) => {
                         try {
-                            const newConfig = JSON.parse(e.target.value); 
-                            onConfigChange(node.id, newConfig);
+                            // Attempt to parse only if it's not an empty string, otherwise keep as string
+                            const val = e.target.value.trim();
+                            if (val === "") {
+                                onConfigChange(node.id, {}); // Or handle as appropriate, maybe clear the config?
+                            } else {
+                                const newConfig = JSON.parse(val); 
+                                onConfigChange(node.id, newConfig);
+                            }
                         } catch (err) {
-                           onConfigChange(node.id, e.target.value); 
+                           // If JSON parsing fails, treat it as a string or handle error
+                           // For simplicity, we might just keep the invalid JSON string
+                           // onConfigChange(node.id, e.target.value); 
+                           // Or, better, show an error and don't update?
+                           // For now, we'll let the AI guide the JSON structure. If user edits, they should ensure it's valid.
+                           // This behavior might need refinement.
                         }
                     }}
                     className="mt-1 font-mono text-xs min-h-[80px]"
                     rows={4}
+                    placeholder='Enter valid JSON or leave empty. Example: {"key": "value"}'
                 />
-                <p className="text-xs text-muted-foreground/80 mt-0.5">Edit raw JSON for this node's config. Use with caution.</p>
+                <p className="text-xs text-muted-foreground/80 mt-0.5">Edit raw JSON for this node's config. Use with caution. This is shown if no specific parameters are defined in the node type's schema (excluding retry/webhook).</p>
              </div>
           )}
           {(!nodeType?.configSchema || Object.keys(nodeType.configSchema).filter(key => key !== 'retry' && key !== 'onErrorWebhook').length === 0) && 
@@ -295,7 +310,7 @@ export function NodeConfigPanel({
              <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted/30 rounded-sm italic">No specific configuration parameters defined for this node type (excluding retry/webhook).</p>
           )}
 
-          {nodeType?.configSchema?.retry && (
+          {nodeSupportsRetry && (
              <Accordion type="single" collapsible className="w-full mt-3 border rounded-md shadow-sm" defaultValue={node.config.retry && Object.keys(node.config.retry).length > 0 ? "retry-config" : undefined}>
                 <AccordionItem value="retry-config" className="border-b-0">
                     <AccordionTrigger className="text-xs font-medium hover:no-underline px-3 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-t-md [&[data-state=open]]:rounded-b-none">
@@ -361,20 +376,25 @@ export function NodeConfigPanel({
                 </AccordionItem>
              </Accordion>
           )}
-
-          {nodeType?.configSchema?.onErrorWebhook && (
-             <div className="mt-3 p-3 border rounded-md bg-muted/20 shadow-sm space-y-1">
-                 <Label className="text-xs font-medium">On-Error Webhook (JSON)</Label>
-                 <Textarea
-                    value={node.config.onErrorWebhook ? JSON.stringify(node.config.onErrorWebhook, null, 2) : ''}
-                    onChange={(e) => handleInputChange('onErrorWebhook', e.target.value)} 
-                    placeholder={'{\n  "url": "...",\n  "method": "POST",\n  ...\n}'}
-                    className="mt-0.5 font-mono text-xs min-h-[70px]"
-                    rows={3}
-                 />
-                 <p className="text-xs text-muted-foreground/80 mt-0.5">Configure webhook for notifications on final failure.</p>
-             </div>
+          
+          {nodeSupportsOnErrorWebhook && nodeType?.configSchema?.onErrorWebhook && (
+             <Accordion type="single" collapsible className="w-full mt-3 border rounded-md shadow-sm" defaultValue={node.config.onErrorWebhook && Object.keys(node.config.onErrorWebhook).length > 0 ? "webhook-config" : undefined}>
+                <AccordionItem value="webhook-config" className="border-b-0">
+                    <AccordionTrigger className="text-xs font-medium hover:no-underline px-3 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-t-md [&[data-state=open]]:rounded-b-none">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            On-Error Webhook
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-2 px-3 pb-3 space-y-1 bg-card">
+                        <Label htmlFor={`${node.id}-onErrorWebhook`} className="text-xs">Webhook Configuration (JSON)</Label>
+                        {renderFormField('onErrorWebhook', nodeType.configSchema.onErrorWebhook)}
+                        {nodeType.configSchema.onErrorWebhook.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{nodeType.configSchema.onErrorWebhook.helperText}</p>}
+                    </AccordionContent>
+                </AccordionItem>
+             </Accordion>
           )}
+
 
           <Separator className="my-3" />
           
@@ -447,3 +467,4 @@ export function NodeConfigPanel({
     </Card>
   );
 }
+
