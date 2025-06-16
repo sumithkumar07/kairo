@@ -224,24 +224,24 @@ export default function WorkflowPage() {
     nodes.forEach(node => {
       const nodeTypeConfig = AVAILABLE_NODES_CONFIG.find(nt => nt.type === node.type);
       if (!isConfigComplete(node, nodeTypeConfig)) {
-        validationErrors.push(\`Node "\${node.name || node.id}" (Type: \${node.type}) has incomplete configuration.\`);
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has incomplete configuration.`);
       }
       if (nodeTypeConfig?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeTypeConfig)) {
-        validationErrors.push(\`Node "\${node.name || node.id}" (Type: \${node.type}) is disconnected or missing inputs.\`);
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) is disconnected or missing inputs.`);
       }
       if (nodeTypeConfig?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeTypeConfig)) {
-        validationErrors.push(\`Node "\${node.name || node.id}" (Type: \${node.type}) has unconnected input handles.\`);
+        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has unconnected input handles.`);
       }
     });
 
     if (validationErrors.length > 0) {
-      const errorSummary = validationErrors.slice(0, 3).join('\\n');
+      const errorSummary = validationErrors.slice(0, 3).join('\n');
       const fullErrorMessage = validationErrors.length > 3
-        ? \`\${errorSummary}\\n...and \${validationErrors.length - 3} more issues.\`
+        ? `${errorSummary}\n...and ${validationErrors.length - 3} more issues.`
         : errorSummary;
       toast({
         title: 'Workflow Validation Failed',
-        description: \`Please fix the following issues before running:\\n\${fullErrorMessage}\`,
+        description: `Please fix the following issues before running:\n${fullErrorMessage}`,
         variant: 'destructive',
         duration: 7000,
       });
@@ -251,12 +251,12 @@ export default function WorkflowPage() {
 
     setIsWorkflowRunning(true);
     const runModeMessage = isSimulationMode ? 'Simulation Mode' : 'Live Mode';
-    setExecutionLogs([{ timestamp: new Date().toISOString(), message: \`Workflow execution started in \${runModeMessage}...\`, type: 'info' }]);
+    setExecutionLogs([{ timestamp: new Date().toISOString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
     try {
-      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections }, isSimulationMode);
+      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections }, isSimulationMode, {}); // Passed empty initialData for UI-triggered runs for now
       const newLogs: LogEntry[] = serverLogs.map(log => ({
-        ...log, // log now includes server-generated ISO timestamp
-        timestamp: new Date(log.timestamp).toLocaleTimeString(), // Format for display
+        ...log, 
+        timestamp: new Date(log.timestamp).toLocaleTimeString(), 
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
       toast({
@@ -267,7 +267,7 @@ export default function WorkflowPage() {
       const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
       setExecutionLogs(prevLogs => [
         ...prevLogs,
-        { timestamp: new Date().toISOString(), message: \`Execution Error: \${errorMessage}\`, type: 'error' },
+        { timestamp: new Date().toISOString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
       ]);
       toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
     } finally {
@@ -288,10 +288,8 @@ export default function WorkflowPage() {
     if (selectedNodeId === nodeToDeleteId) {
       setSelectedNodeId(null);
     }
-    // Note: For a full undo/redo system, deleting a node should also be a history event.
-    // For now, it clears history similar to loading a new workflow.
     resetHistory(updatedNodes);
-    toast({ title: 'Node Deleted', description: \`Node \${nodeToDeleteId} and its connections removed.\` });
+    toast({ title: 'Node Deleted', description: `Node ${nodeToDeleteId} and its connections removed.` });
     setNodeToDeleteId(null);
     setShowDeleteNodeConfirmDialog(false);
   }, [nodeToDeleteId, selectedNodeId, toast, nodes, resetHistory]);
@@ -305,8 +303,6 @@ export default function WorkflowPage() {
     if (selectedConnectionId) {
       setConnections(prev => prev.filter(conn => conn.id !== selectedConnectionId));
       setSelectedConnectionId(null);
-      // Note: For a full undo/redo system, connection changes should also be history events.
-      // For now, this action does not create a new history state for node positions.
       toast({ title: "Connection Deleted", description: "The selected connection has been removed." });
     }
   }, [selectedConnectionId, toast]);
@@ -316,7 +312,7 @@ export default function WorkflowPage() {
       const newIndex = historyIndex - 1;
       setNodes(history[newIndex].nodes);
       setHistoryIndex(newIndex);
-      setSelectedNodeId(null); // Deselect node on undo/redo for simplicity
+      setSelectedNodeId(null); 
       setSelectedConnectionId(null);
     }
   }, [history, historyIndex]);
@@ -349,14 +345,14 @@ export default function WorkflowPage() {
       if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'z') {
         event.preventDefault();
-        if (event.shiftKey) { // Cmd/Ctrl + Shift + Z for Redo
+        if (event.shiftKey) { 
           handleRedo();
-        } else { // Cmd/Ctrl + Z for Undo
+        } else { 
           handleUndo();
         }
         return;
       }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'y') { // Cmd/Ctrl + Y for Redo (common alternative)
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'y') { 
         event.preventDefault();
         handleRedo();
         return;
@@ -383,7 +379,7 @@ export default function WorkflowPage() {
   }, [
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
-    handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo // Added handleUndo, handleRedo
+    handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo 
   ]);
 
   useEffect(() => {
@@ -428,15 +424,15 @@ export default function WorkflowPage() {
                             AVAILABLE_NODES_CONFIG.find(n => n.type === 'unknown')!;
 
       return {
-        id: aiNode.id || \`\${nodeConfigDef.type}_\${nextNodeIdRef.current++}\`,
+        id: aiNode.id || `${nodeConfigDef.type}_${nextNodeIdRef.current++}`,
         type: nodeConfigDef.type,
-        name: aiNode.name || nodeConfigDef.name || \`Node \${aiNode.id}\`,
+        name: aiNode.name || nodeConfigDef.name || `Node ${aiNode.id}`,
         description: aiNode.description || '',
         position: aiNode.position || { x: (index % 5) * (NODE_WIDTH + 60) + 30, y: Math.floor(index / 5) * (NODE_HEIGHT + 40) + 30 },
         config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
         inputHandles: nodeConfigDef.inputHandles,
         outputHandles: nodeConfigDef.outputHandles,
-        aiExplanation: aiNode.aiExplanation || \`AI generated node: \${aiNode.name || nodeConfigDef.name}. Type: \${aiNode.type}. Check configuration.\`,
+        aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
         category: nodeConfigDef.category,
       };
     });
@@ -478,7 +474,7 @@ export default function WorkflowPage() {
   }, [mapAiWorkflowToInternal, toast, resetHistory]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
-    const newNodeId = \`\${nodeType.type}_\${nextNodeIdRef.current++}\`;
+    const newNodeId = `${nodeType.type}_${nextNodeIdRef.current++}`;
     const newNode: WorkflowNode = {
       id: newNodeId,
       type: nodeType.type,
@@ -488,15 +484,13 @@ export default function WorkflowPage() {
       config: { ...nodeType.defaultConfig },
       inputHandles: nodeType.inputHandles,
       outputHandles: nodeType.outputHandles,
-      aiExplanation: \`Manually added \${nodeType.name} node.\`,
+      aiExplanation: `Manually added ${nodeType.name} node.`,
       category: nodeType.category,
     };
     const updatedNodes = produce(nodes, draft => {
       draft.push(newNode);
     });
     setNodes(updatedNodes);
-    // Note: Adding a node should ideally be a history event for undo/redo.
-    // For this simplified implementation, it clears history like loading a new workflow.
     resetHistory(updatedNodes);
     setSelectedNodeId(newNodeId);
     setSelectedConnectionId(null);
@@ -508,7 +502,7 @@ export default function WorkflowPage() {
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
     const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
     if (!nodeTypeToAdd) {
-      toast({ title: "Error", description: \`Cannot add suggested node: Type "\${suggestedNodeTypeString}" not found.\`, variant: "destructive" });
+      toast({ title: "Error", description: `Cannot add suggested node: Type "${suggestedNodeTypeString}" not found.`, variant: "destructive" });
       return;
     }
 
@@ -523,7 +517,7 @@ export default function WorkflowPage() {
     }
 
     addNodeToCanvas(nodeTypeToAdd, position);
-    toast({ title: "Node Added", description: \`Added suggested node: \${nodeTypeToAdd.name}\`});
+    toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
   }, [selectedNode, addNodeToCanvas, toast]);
@@ -534,7 +528,7 @@ export default function WorkflowPage() {
       if (node) node.position = position;
     });
     setNodes(updatedNodes);
-    saveHistory(updatedNodes); // Save this change to history
+    saveHistory(updatedNodes); 
   }, [nodes, saveHistory]);
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
@@ -542,7 +536,6 @@ export default function WorkflowPage() {
       produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
         if (node) node.config = newConfig;
-        // Note: Config changes are not yet part of undo/redo
       })
     );
   }, []);
@@ -552,7 +545,6 @@ export default function WorkflowPage() {
       produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
         if (node) node.name = newName;
-        // Note: Name changes are not yet part of undo/redo
       })
     );
   }, []);
@@ -562,7 +554,6 @@ export default function WorkflowPage() {
       produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
         if (node) node.description = newDescription;
-        // Note: Description changes are not yet part of undo/redo
       })
     );
   }, []);
@@ -611,9 +602,9 @@ export default function WorkflowPage() {
       if (!sourceHandleIsOutput || !targetHandleIsInput) {
          let invalidReason = "Cannot connect an input to an input, or an output to an output.";
          if (sourceHandleIsOutput && !targetHandleIsInput) {
-            invalidReason = \`Target handle "\${endHandleId}" on node "\${targetNode.name}" is not a valid input handle. Output handles can only connect to input handles.\`;
+            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle. Output handles can only connect to input handles.`;
          } else if (!sourceHandleIsOutput && targetHandleIsInput) {
-            invalidReason = \`Source handle "\${connectionStartHandleId}" on node "\${sourceNode.name}" is not a valid output handle. Input handles can only connect from output handles.\`;
+            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle. Input handles can only connect from output handles.`;
          }
          toast({
             title: 'Invalid Connection',
@@ -638,12 +629,11 @@ export default function WorkflowPage() {
         );
         if (!exists) {
             draft.push(newConnection);
-            toast({ title: 'Connection Created', description: \`Connected \${sourceNode.name} to \${targetNode.name}.\` });
+            toast({ title: 'Connection Created', description: `Connected ${sourceNode.name} to ${targetNode.name}.` });
         } else {
             toast({ title: 'Connection Exists', description: 'This connection already exists.', variant: 'default'});
         }
       }));
-      // Note: Connection changes are not yet part of undo/redo
     }
     handleCancelConnection();
   }, [isConnecting, connectionStartNodeId, connectionStartHandleId, nodes, toast]);
@@ -750,14 +740,14 @@ export default function WorkflowPage() {
     setZoomLevel(1);
     nextNodeIdRef.current = calculateNextNodeId(exampleNodes);
     resetHistory(exampleNodes);
-    toast({ title: 'Example Loaded', description: \`\${example.name} workflow is now on the canvas.\` });
+    toast({ title: 'Example Loaded', description: `${example.name} workflow is now on the canvas.` });
   }, [toast, resetHistory]);
 
   const handleToggleSimulationMode = useCallback((newMode: boolean) => {
     setIsSimulationMode(newMode);
     toast({
-      title: \`Execution Mode Changed\`,
-      description: \`Workflow will now run in \${newMode ? 'Simulation Mode' : 'Live Mode'}.\`,
+      title: `Execution Mode Changed`,
+      description: `Workflow will now run in ${newMode ? 'Simulation Mode' : 'Live Mode'}.`,
     });
   }, [toast]);
 
