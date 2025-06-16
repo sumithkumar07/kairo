@@ -1052,9 +1052,9 @@ async function executeFlowInternal(
                   }
               }
 
-              const subFlowErrored = Object.values(subExecutionResult.finalWorkflowData).some(out => out && out.status === 'error');
+              const subFlowErrored = Object.values(subExecutionResult.finalWorkflowData).some(out => out && (out as any).status === 'error');
               if (subFlowErrored) {
-                const subError = Object.values(subExecutionResult.finalWorkflowData).find(out => out && out.status === 'error');
+                const subError = Object.values(subExecutionResult.finalWorkflowData).find(out => out && (out as any).status === 'error');
                 const subErrorMessage = (subError as any)?.error_message || "Error in sub-flow execution.";
                 groupFinalOutput.status = 'error';
                 groupFinalOutput.error_message = subErrorMessage;
@@ -1451,7 +1451,9 @@ async function executeFlowInternal(
             await new Promise(resolve => setTimeout(resolve, delayMs));
             serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Delay finished after ${delayMs}ms.`, type: 'success' });
             console.log(`[NODE DELAY - SERVER] ${nodeIdentifier}: Delay finished.`);
-            currentAttemptOutput = { ...currentAttemptOutput, output: { delayedFor: delayMs } };
+            // Pass through any input data to the output handle for 'delay' node
+            const delayInputData = resolveValue(`{{${node.id}.input}}`, currentWorkflowData, serverLogs, additionalContexts);
+            currentAttemptOutput = { ...currentAttemptOutput, output: delayInputData };
             break;
 
           case 'youtubeFetchTrending':
@@ -1613,6 +1615,7 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 }
 
     
+
 
 
 

@@ -123,7 +123,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['response', 'status_code', 'error_message', 'status'],
+    outputHandles: ['response', 'status_code', 'status', 'error_message'],
   },
   {
     type: 'schedule',
@@ -831,5 +831,6 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
       return FunctionSquare;
   }
 }
+
 
 
