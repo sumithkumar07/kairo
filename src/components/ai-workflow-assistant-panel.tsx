@@ -3,17 +3,17 @@
 
 import { useState } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-// import type { ExampleWorkflow } from '@/config/example-workflows'; // Removed
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles } from 'lucide-react'; // Removed Zap
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
-// import { Separator } from './ui/separator'; // Removed
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
@@ -21,8 +21,6 @@ interface AIWorkflowAssistantPanelProps {
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
-  // exampleWorkflows: ExampleWorkflow[]; // Removed
-  // onLoadExampleWorkflow: (example: ExampleWorkflow) => void; // Removed
   initialCanvasSuggestion: SuggestNextNodeOutput | null;
   isLoadingSuggestion: boolean;
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
@@ -35,8 +33,6 @@ export function AIWorkflowAssistantPanel({
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
-  // exampleWorkflows, // Removed
-  // onLoadExampleWorkflow, // Removed
   initialCanvasSuggestion,
   isLoadingSuggestion,
   onAddSuggestedNode,
@@ -79,12 +75,6 @@ export function AIWorkflowAssistantPanel({
     }
   };
 
-  // const handleExampleWorkflowClick = (example: ExampleWorkflow) => { // Removed
-  //   onLoadExampleWorkflow(example); // Removed
-  //   if (workflowExplanation) { // Removed
-  //       onClearExplanation(); // Removed
-  //   } // Removed
-  // } // Removed
 
   const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion;
 
@@ -109,9 +99,9 @@ export function AIWorkflowAssistantPanel({
               <p className="ml-2.5 text-sm text-muted-foreground">AI is analyzing...</p>
             </div>
           ) : workflowExplanation ? (
-            <div className="p-3 bg-accent/10 rounded-md text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border border-accent/20 shadow-sm break-words">
+            <Card className="p-3 bg-accent/10 text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border-accent/20 shadow-sm break-words">
               {workflowExplanation}
-            </div>
+            </Card>
           ) : (
              <p className="text-muted-foreground text-center p-4 text-sm">No explanation available.</p>
           )}
@@ -138,19 +128,19 @@ export function AIWorkflowAssistantPanel({
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-5">
           {isCanvasEmpty && isLoadingSuggestion && (
-            <div className="p-3 bg-muted/40 rounded-md text-sm text-muted-foreground flex items-center justify-center gap-2 border border-border shadow-sm">
+            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>AI is thinking of a good starting point...</span>
-            </div>
+            </Card>
           )}
 
           {isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
-            <div className="p-3.5 bg-primary/10 rounded-lg text-sm text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md">
+            <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md">
               <p className="font-semibold flex items-center gap-2 text-sm">
                 <Wand2 className="h-4 w-4 text-primary" />
                 Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
               </p>
-              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed">{initialCanvasSuggestion.reason}</p>
+              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
               <Button
                 size="sm"
                 onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
@@ -160,22 +150,21 @@ export function AIWorkflowAssistantPanel({
                 Add {suggestedNodeConfig.name} Node
                 <ChevronRight className="ml-auto h-4 w-4" />
               </Button>
-            </div>
+            </Card>
           )}
 
           {!isCanvasEmpty && !workflowExplanation && (
-            <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80 border border-primary/10">
+            <Card className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10">
               Hi! I&apos;m your AI assistant. Describe what you want to automate.
-            </div>
+            </Card>
           )}
 
           {isCanvasEmpty && !initialCanvasSuggestion && !isLoadingSuggestion && (
-             <div className="p-3 bg-primary/5 rounded-md text-sm text-primary-foreground/80 border border-primary/10">
+             <Card className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10">
               Your canvas is empty! Describe your desired workflow to the AI below.
-            </div>
+            </Card>
           )}
           
-          {/* Removed Example Workflows Section */}
         </div>
       </ScrollArea>
 

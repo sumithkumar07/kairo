@@ -45,6 +45,7 @@ interface AIWorkflowBuilderPanelProps {
   onRedo: () => void; 
   canRedo: boolean; 
   toast: ReturnType<typeof useToast>['toast'];
+  onDeleteSelectedConnection: () => void;
 }
 
 export function AIWorkflowBuilderPanel({
@@ -80,6 +81,7 @@ export function AIWorkflowBuilderPanel({
   onRedo,
   canRedo,
   toast,
+  onDeleteSelectedConnection,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
 
@@ -167,6 +169,7 @@ export function AIWorkflowBuilderPanel({
           connectionStartNodeId={connectionStartNodeId}
           connectionStartHandleId={connectionStartHandleId}
           zoomLevel={zoomLevel}
+          onDeleteSelectedConnection={onDeleteSelectedConnection}
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -175,7 +178,7 @@ export function AIWorkflowBuilderPanel({
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
           <p className="text-muted-foreground mb-6 max-w-md text-sm">
-            Drag nodes from the library on the left, or click the AI Assistant button in the bottom right to generate a workflow or load examples.
+            Drag nodes from the library on the left, or click the AI Assistant button in the bottom right to generate a workflow.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">

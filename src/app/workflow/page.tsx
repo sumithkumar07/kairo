@@ -2,16 +2,15 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow'; // Removed ExampleWorkflow
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
-// import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows'; // Removed
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2 } from 'lucide-react'; // Removed Sparkles, Bot, MessageSquareText
+import { Loader2, Trash2, Undo2, Redo2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -104,10 +103,12 @@ export default function WorkflowPage() {
 
   useEffect(() => {
     const fetchSuggestion = async () => {
+      if (!isAssistantVisible) return;
+
       if (selectedNodeId && selectedNode) {
         setIsLoadingSuggestion(true);
         setInitialCanvasSuggestion(null);
-        setWorkflowExplanation(null);
+        // setWorkflowExplanation(null); // Keep explanation if switching between nodes
         try {
           let context = `Workflow in progress. Current node: "${selectedNode.name}" (Type: ${selectedNode.type}).`;
           if (selectedNode.aiExplanation) {
@@ -148,12 +149,7 @@ export default function WorkflowPage() {
          }
       }
     };
-    if (isAssistantVisible) {
-        fetchSuggestion();
-    } else {
-        setSuggestedNextNodeInfo(null);
-        setInitialCanvasSuggestion(null);
-    }
+    fetchSuggestion();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible]);
 
@@ -201,18 +197,6 @@ export default function WorkflowPage() {
     }
   }, [toast]);
 
-  // const calculateNextNodeId = (currentNodes: WorkflowNode[]): number => { // Removed
-  //   if (currentNodes.length === 0) return 1; // Removed
-  //   let maxIdNum = 0; // Removed
-  //   currentNodes.forEach(node => { // Removed
-  //     const parts = node.id.split('_'); // Removed
-  //     const numPart = parseInt(parts[parts.length - 1], 10); // Removed
-  //     if (!isNaN(numPart) && numPart > maxIdNum) { // Removed
-  //       maxIdNum = numPart; // Removed
-  //     } // Removed
-  //   }); // Removed
-  //   return maxIdNum + 1; // Removed
-  // }; // Removed
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
@@ -521,11 +505,11 @@ export default function WorkflowPage() {
       let newY = 50;
       if (nodes.length > 0) {
         newX = Math.max(...nodes.map(n => n.position.x)) + NODE_WIDTH + 60;
-        if (newX > 1000) {
+        if (newX > 1000) { // Simple line break logic
           newX = 50;
           newY = Math.max(...nodes.map(n => n.position.y)) + NODE_HEIGHT + 40;
         } else {
-          newY = nodes[nodes.length -1].position.y;
+          newY = nodes[nodes.length -1].position.y; // Align with last node if on same "row"
         }
       }
       position = { x: newX, y: newY };
@@ -669,10 +653,11 @@ export default function WorkflowPage() {
   }, [isConnecting, handleCancelConnection]);
 
   const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0) return; // Only pan with left click
 
     const targetElement = event.target as HTMLElement;
-    if (targetElement.closest('.workflow-node-item') || targetElement.closest('[data-handle-id]')) {
+    // Check if click is on node, handle, or connection delete button
+    if (targetElement.closest('.workflow-node-item') || targetElement.closest('[data-handle-id]') || targetElement.closest('[data-delete-connection-button="true"]')) {
         return;
     }
 
@@ -695,12 +680,14 @@ export default function WorkflowPage() {
   const toggleAssistantPanel = () => {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
-      if (!newVisibility && (selectedNodeId || selectedConnectionId || workflowExplanation || initialCanvasSuggestion)) {
-        // setSelectedNodeId(null); // Keep selected node when closing panel
-        setSelectedConnectionId(null);
-        // setWorkflowExplanation(null); // Allow explanation to persist if panel is reopened
-        // setInitialCanvasSuggestion(null); // Allow initial suggestion to persist
-        // setSuggestedNextNodeInfo(null); // Allow suggestion to persist
+      if (newVisibility) {
+        // Logic to fetch suggestions when panel opens could go here if desired,
+        // instead of relying solely on selectedNodeId useEffect
+      } else {
+        // Optionally clear some state if panel is closed
+        // setSuggestedNextNodeInfo(null);
+        // setInitialCanvasSuggestion(null);
+        // setWorkflowExplanation(null); // Consider if this should persist
       }
       return newVisibility;
     });
@@ -732,7 +719,7 @@ export default function WorkflowPage() {
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
-      setIsAssistantVisible(true);
+      setIsAssistantVisible(true); // Show assistant panel when explanation is ready
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
       setWorkflowExplanation('Failed to get explanation.');
@@ -741,22 +728,6 @@ export default function WorkflowPage() {
     }
   }, [nodes, connections, toast]);
 
-  // const handleLoadExampleWorkflow = useCallback((example: ExampleWorkflow) => { // Removed
-  //   const exampleNodes = example.nodes; // Removed
-  //   setNodes(exampleNodes); // Removed
-  //   setConnections(example.connections); // Removed
-  //   setSelectedNodeId(null); // Removed
-  //   setSelectedConnectionId(null); // Removed
-  //   setExecutionLogs([]); // Removed
-  //   setWorkflowExplanation(null); // Removed
-  //   setInitialCanvasSuggestion(null); // Removed
-  //   setSuggestedNextNodeInfo(null); // Removed
-  //   setCanvasOffset({ x: 0, y: 0 }); // Removed
-  //   setZoomLevel(1); // Removed
-  //   nextNodeIdRef.current = calculateNextNodeId(exampleNodes); // Removed
-  //   resetHistory(exampleNodes); // Removed
-  //   toast({ title: 'Example Loaded', description: `${example.name} workflow is now on the canvas.` }); // Removed
-  // }, [toast, resetHistory]); // Removed
 
   const handleToggleSimulationMode = useCallback((newMode: boolean) => {
     setIsSimulationMode(newMode);
@@ -822,6 +793,7 @@ export default function WorkflowPage() {
           onRedo={handleRedo}
           canRedo={canRedo}
           toast={toast}
+          onDeleteSelectedConnection={handleDeleteSelectedConnection}
         />
 
         {isAssistantVisible && (
@@ -883,8 +855,6 @@ export default function WorkflowPage() {
                   onClearExplanation={() => {
                       setWorkflowExplanation(null);
                   }}
-                  // exampleWorkflows={EXAMPLE_WORKFLOWS} // Removed
-                  // onLoadExampleWorkflow={handleLoadExampleWorkflow} // Removed
                   initialCanvasSuggestion={initialCanvasSuggestion}
                   isLoadingSuggestion={isLoadingSuggestion}
                   onAddSuggestedNode={handleAddSuggestedNode}

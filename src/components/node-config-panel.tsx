@@ -122,7 +122,7 @@ export function NodeConfigPanel({
             value={String(currentValue)} 
             placeholder={fieldSchema.placeholder}
             onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
-            className="mt-1 min-h-[70px] font-mono text-xs"
+            className="mt-1 min-h-[70px] font-mono text-xs max-h-[200px]"
             rows={fieldSchema.type === 'json' ? 4 : 3}
           />
         );
@@ -168,9 +168,7 @@ export function NodeConfigPanel({
 
   const { envPlaceholders, secretPlaceholders } = React.useMemo(() => {
     const configEnv = findPlaceholdersInObject(node.config, 'env');
-    const configSecret = findPlaceholdersInObject(node.config, 'secret'); // Changed 'secret' to 'credential' if that's the prefix
-    // If you use {{credential.MyName}} then the second type should be 'credential'
-    // const configSecret = findPlaceholdersInObject(node.config, 'credential');
+    const configSecret = findPlaceholdersInObject(node.config, 'credential');
 
 
     const explanationEnv = new Set<string>();
@@ -182,7 +180,6 @@ export function NodeConfigPanel({
         while ((match = envRegex.exec(node.aiExplanation)) !== null) {
             explanationEnv.add(match[0]);
         }
-        // Adjust regex if your secret placeholders are different, e.g., {{credential.Name}}
         const secretRegex = /{{\s*(?:secret|credential)\.([^}\s]+)\s*}}/g; 
         while ((match = secretRegex.exec(node.aiExplanation)) !== null) {
             explanationSecret.add(match[0]);
@@ -276,10 +273,10 @@ export function NodeConfigPanel({
               rows={2}
             />
           </div>
+          <Separator className="my-3" />
 
           {node.aiExplanation && (
             <>
-              <Separator className="my-3" />
               <div className="p-3 bg-accent/10 rounded-md border border-accent/20 shadow-sm space-y-1.5">
                 <Label className="text-xs font-medium text-accent-foreground/90 flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5" />
@@ -293,10 +290,10 @@ export function NodeConfigPanel({
                 />
                 <p className="text-xs text-muted-foreground/80 italic">This is how the AI understands and configured this node. Check for any setup steps.</p>
               </div>
+              <Separator className="my-3" />
             </>
           )}
           
-          <Separator className="my-3" />
           <Label className="text-sm font-semibold text-foreground">Parameters</Label>
           {nodeType?.configSchema && Object.keys(nodeType.configSchema)
             .filter(key => key !== 'retry' && key !== 'onErrorWebhook') 
@@ -350,6 +347,7 @@ export function NodeConfigPanel({
            Object.keys(node.config || {}).filter(key => key !== 'retry' && key !== 'onErrorWebhook').length === 0 && (
              <p className="text-xs text-muted-foreground mt-2 p-2 bg-muted/30 rounded-sm italic">No specific configuration parameters defined for this node type (excluding retry/webhook).</p>
           )}
+          <Separator className="my-3" />
 
           {nodeSupportsRetry && (
              <Accordion type="single" collapsible className="w-full mt-3 border rounded-md shadow-sm" defaultValue={node.config.retry && Object.keys(node.config.retry).length > 0 ? "retry-config" : undefined}>
@@ -447,8 +445,6 @@ export function NodeConfigPanel({
                 </AccordionItem>
              </Accordion>
           )}
-
-
           <Separator className="my-3" />
           
           <div className="p-3 border rounded-md bg-muted/20 shadow-sm space-y-2">
@@ -480,7 +476,6 @@ export function NodeConfigPanel({
                 </div>
             )}
          </div>
-
           <Separator className="my-3" />
 
           <div className="p-3 border rounded-md bg-primary/5 border-primary/20 shadow-sm space-y-1.5">
@@ -500,7 +495,7 @@ export function NodeConfigPanel({
                         Next, consider adding: <span className="font-semibold text-primary">{suggestedNodeConfig.name}</span>
                         <span className="text-muted-foreground/80 ml-1">({suggestedNextNodeInfo.suggestion.suggestedNode})</span>
                     </p>
-                    <p className="text-xs text-muted-foreground/90 italic leading-relaxed">Reason: {suggestedNextNodeInfo.suggestion.reason}</p>
+                    <p className="text-xs text-muted-foreground/90 italic leading-relaxed break-words">{suggestedNextNodeInfo.suggestion.reason}</p>
                     <Button 
                         size="sm" 
                         onClick={() => onAddSuggestedNode(suggestedNextNodeInfo.suggestion.suggestedNode)}

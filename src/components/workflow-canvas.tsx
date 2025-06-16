@@ -3,10 +3,12 @@
 
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
 import { WorkflowNodeItem } from './workflow-node-item';
-import React, { useRef, useCallback, useState } from 'react'; // Removed useEffect as it's not used
+import React, { useRef, useCallback, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AI_NODE_TYPE_MAPPING, AVAILABLE_NODES_CONFIG, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
 
 interface WorkflowCanvasProps {
   nodes: WorkflowNode[];
@@ -33,6 +35,7 @@ interface WorkflowCanvasProps {
   connectionStartNodeId: string | null; 
   connectionStartHandleId: string | null; 
   zoomLevel: number;
+  onDeleteSelectedConnection: () => void;
 }
 
 export function WorkflowCanvas({
@@ -56,6 +59,7 @@ export function WorkflowCanvas({
   connectionStartNodeId,
   connectionStartHandleId,
   zoomLevel,
+  onDeleteSelectedConnection,
 }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingNodeOffset, setDraggingNodeOffset] = useState<{ x: number, y: number } | null>(null);
@@ -145,7 +149,8 @@ export function WorkflowCanvas({
                            (event.target as HTMLElement).classList.contains('pannable-content-wrapper') ||
                            (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg'); 
 
-    const clickedOnConnectionTarget = (event.target as HTMLElement).dataset?.connectionClickTarget === 'true';
+    const clickedOnConnectionTarget = (event.target as HTMLElement).closest('[data-connection-click-target="true"], [data-delete-connection-button="true"]');
+
 
     if (targetIsCanvas && !clickedOnConnectionTarget) {
       if (event.button === 0) { 
@@ -153,9 +158,6 @@ export function WorkflowCanvas({
         onCanvasPanStart(event); 
       }
     } else if (!targetIsCanvas && !clickedOnConnectionTarget) {
-        // This ensures that clicking on an empty area within a transformed parent (like the scaled div)
-        // but NOT on a node or connection, still counts as a canvas click for deselection.
-        // It might require checking if the click target is a child of a node or specific interactive element.
         const isNodeOrHandle = (event.target as HTMLElement).closest('.workflow-node-item, [data-handle-id]');
         if (!isNodeOrHandle) {
           onCanvasClick(); 
@@ -259,6 +261,43 @@ export function WorkflowCanvas({
               />
             )}
           </svg>
+
+          {/* Render delete button for selected connection */}
+          {selectedConnectionId && connections.find(c => c.id === selectedConnectionId) && (() => {
+            const conn = connections.find(c => c.id === selectedConnectionId)!;
+            const sourceNode = nodes.find(n => n.id === conn.sourceNodeId);
+            const targetNode = nodes.find(n => n.id === conn.targetNodeId);
+            if (!sourceNode || !targetNode) return null;
+
+            const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
+            const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
+            
+            const midX = (sourcePos.x + targetPos.x) / 2;
+            const midY = (sourcePos.y + targetPos.y) / 2;
+
+            return (
+              <Button
+                data-delete-connection-button="true"
+                variant="destructive"
+                size="icon"
+                className="absolute w-6 h-6 rounded-full shadow-md z-10 pointer-events-auto"
+                style={{
+                  left: `${midX - 12}px`, // Adjust for button size
+                  top: `${midY - 12}px`,  // Adjust for button size
+                  transform: `scale(${1 / zoomLevel})`, // Counter-scale the button
+                  transformOrigin: 'center center',
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteSelectedConnection();
+                }}
+                title="Delete Connection"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            );
+          })()}
+
 
           {nodes.map((node) => (
             <WorkflowNodeItem
