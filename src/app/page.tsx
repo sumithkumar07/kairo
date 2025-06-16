@@ -255,8 +255,8 @@ export default function FlowAIPage() {
     try {
       const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections }, isSimulationMode);
       const newLogs: LogEntry[] = serverLogs.map(log => ({
-        ...log,
-        timestamp: new Date().toLocaleTimeString(),
+        ...log, // log now includes server-generated ISO timestamp
+        timestamp: new Date(log.timestamp).toLocaleTimeString(), // Format for display
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
       toast({

@@ -89,15 +89,19 @@ export interface AvailableNodeType {
 }
 
 export interface LogEntry {
-  timestamp: string;
+  timestamp: string; // Will be ISO string from server, formatted to local time string on client
   message: string;
   type: 'info' | 'error' | 'success';
 }
 
-export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
+// ServerLogOutput now includes a server-generated timestamp (ISO string)
+export interface ServerLogOutput {
+  timestamp: string; // ISO string
+  message: string;
+  type: 'info' | 'error' | 'success';
+}
 
 // Moved ManagedCredential types to their own file if they become complex,
 // but keeping simple ones here if not too broad.
 // For now, creating a separate credentials.ts is better.
-
 
