@@ -828,6 +828,14 @@ async function executeFlowInternal(
                       throw new Error(`Unsupported reducerFunction: ${reducerFunction}`);
                   }
                   break;
+                case 'parseNumber':
+                    const strToParse = ensureString(inputString, 'inputString', 'parseNumber');
+                    const num = parseFloat(strToParse);
+                    if (isNaN(num)) {
+                        throw new Error(`dataTransform 'parseNumber' for node ${nodeIdentifier}: Input string "${strToParse}" is not a valid number.`);
+                    }
+                    transformedData = { numberValue: num };
+                    break;
                 default: throw new Error(`Unsupported dataTransform type: ${transformType}`);
               }
               serverLogs.push({ message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Transform '${transformType}' successful. Output: ${JSON.stringify(transformedData).substring(0,200)}`, type: 'success' });

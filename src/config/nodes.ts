@@ -261,12 +261,13 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
             {value: 'getItemAtIndex', label: 'Get Item From Array at Index'},
             {value: 'getObjectProperty', label: 'Get Property From Object'},
             {value: 'reduceArray', label: 'Reduce Array (Sum, Avg, Join, Count)'},
+            {value: 'parseNumber', label: 'Parse Number from String'},
           ],
           defaultValue: 'toUpperCase',
           required: true,
           helperText: "Select the desired data transformation. Specific parameters below will apply based on this selection."
         },
-        inputString: { label: 'Input String', type: 'textarea', placeholder: '{{input.text}}', helperText: "Used by: toUpperCase, toLowerCase, stringSplit. Also one of the elements for concatenateStrings." },
+        inputString: { label: 'Input String', type: 'textarea', placeholder: '{{input.text}}', helperText: "Used by: toUpperCase, toLowerCase, stringSplit, parseNumber. Also one of the elements for concatenateStrings." },
         inputObject: { label: 'Input Object (JSON)', type: 'json', placeholder: '{{input.data_object}}', helperText: "Used by: extractFields, getObjectProperty." },
         inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{input.list_data}} or {{string_split_node.output_data.array}}', helperText: "Used by: arrayLength, getItemAtIndex, reduceArray. This should be a placeholder resolving to an array." },
         fieldsToExtract: { label: 'Fields to Extract (JSON array of strings)', type: 'json', placeholder: '["name", "email"]', helperText: "Used by: extractFields. Defines which top-level keys to pick from Input Object." },
@@ -663,6 +664,10 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'average array': 'dataTransform',
   'join list': 'dataTransform',
   'count items': 'dataTransform',
+  'parsenumber': 'dataTransform',
+  'parse number': 'dataTransform',
+  'string to number': 'dataTransform',
+  'convert to number': 'dataTransform',
 
   // AI
   'aitask': 'aiTask',
@@ -779,9 +784,9 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
     case 'concatenateStrings':
       return Combine;
     case 'reduceArray':
+    case 'parseNumber': // Added parseNumber to use Sigma icon
       return Sigma;
     default:
       return FunctionSquare;
   }
 }
-
