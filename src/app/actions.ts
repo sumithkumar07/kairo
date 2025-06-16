@@ -117,35 +117,35 @@ function resolveValue(
         if (placeholder === value) resolvedValue = envVarValue; 
         dataFound = true; 
         serverLogs.push({ message: `[ENGINE] Resolved '{{env.${envVarName}}}' from environment.`, type: 'info' });
-        // Continue to next match in the string, not next placeholder type
       } else {
         const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
         console.warn(warningMsg); serverLogs.push({ message: warningMsg, type: 'info' });
       }
-      // Even if found or not, continue to check other parts of the string for more placeholders
       continue; 
     }
     
     
-    if (!dataFound && firstPart === 'secret' && pathParts.length >= 2) {
-        const secretName = pathParts.slice(1).join('.');
-        const infoMsg = `[ENGINE] Placeholder '{{secret.${secretName}}}' encountered. In production, this would be resolved from a secure secrets vault.`;
-        console.info(infoMsg); 
-        serverLogs.push({ message: infoMsg, type: 'info'});
-        
-        const envVarValue = process.env[secretName];
+    if (!dataFound && firstPart === 'credential' && pathParts.length >= 2) {
+        const credentialName = pathParts.slice(1).join('.');
+        const infoMsg = `[ENGINE] Placeholder '{{credential.${credentialName}}}' encountered. Credential Manager system not yet implemented.`;
+        console.info(infoMsg);
+        serverLogs.push({ message: infoMsg, type: 'info' });
+
+        // Attempt fallback to environment variable
+        const envVarValue = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`];
         if (envVarValue !== undefined) {
             resolvedValue = resolvedValue.replace(placeholder, envVarValue);
             if (placeholder === value) resolvedValue = envVarValue;
             dataFound = true;
-            serverLogs.push({ message: `[ENGINE] For development/testing, '{{secret.${secretName}}}' was resolved using the environment variable '${secretName}'.`, type: 'info' });
+            serverLogs.push({ message: `[ENGINE] For development, '{{credential.${credentialName}}}' was resolved using a fallback environment variable ('${credentialName}' or variations).`, type: 'info' });
         } else {
-            const warningMsg = `[ENGINE] Secret '{{secret.${secretName}}}' not found as an environment variable fallback ('${secretName}'). Placeholder remains unresolved.`;
+            const warningMsg = `[ENGINE] Credential '{{credential.${credentialName}}}' not found via Credential Manager (not implemented) or as an environment variable fallback. Placeholder remains unresolved.`;
             console.warn(warningMsg);
             serverLogs.push({ message: warningMsg, type: 'info' });
         }
-        continue; 
+        continue;
     }
+
 
     
     if (!dataFound) {
@@ -1497,3 +1497,4 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 }
 
     
+

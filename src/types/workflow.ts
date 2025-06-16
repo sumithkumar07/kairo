@@ -96,3 +96,7 @@ export interface LogEntry {
 
 export type ServerLogOutput = Omit<LogEntry, 'timestamp'>;
 
+// Moved ManagedCredential types to their own file if they become complex,
+// but keeping simple ones here if not too broad.
+// For now, creating a separate credentials.ts is better.
+
