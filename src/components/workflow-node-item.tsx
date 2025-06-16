@@ -5,7 +5,7 @@ import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle } from 'lucide-react'; 
-import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon } from '@/config/nodes';
+import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon, getCanvasNodeStyling } from '@/config/nodes';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -66,6 +66,7 @@ export function WorkflowNodeItem({
     return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };
   };
 
+  const categoryStyling = getCanvasNodeStyling(node.category);
 
   return (
     <Card
@@ -84,13 +85,13 @@ export function WorkflowNodeItem({
         'flex flex-col overflow-hidden bg-card', 
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         // Base border
-        'ring-1 ring-border',
+        'border',
         // Warning state takes precedence for ring and border color
-        hasWarning && 'ring-2 ring-yellow-400 border-yellow-400/60 shadow-yellow-400/20',
+        hasWarning ? 'ring-2 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/20' : categoryStyling.nodeBorder,
         // Selection state
-        isSelected && !hasWarning && 'ring-2 ring-primary/80 shadow-lg shadow-primary/30', // Enhanced ring and shadow
+        isSelected && !hasWarning && 'ring-2 ring-primary shadow-lg shadow-primary/30', 
         isSelected && 'ring-offset-2 ring-offset-background', 
-        isSelected && hasWarning && 'ring-yellow-400 shadow-yellow-400/40' // Specific shadow for selected warning nodes
+        isSelected && hasWarning && 'ring-yellow-400 shadow-yellow-400/40' 
       )}
       style={{
         left: node.position.x,
@@ -101,17 +102,17 @@ export function WorkflowNodeItem({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-2 space-y-0",
-        isSelected && !hasWarning ? "bg-primary/10" : (hasWarning ? "bg-yellow-400/10" : "bg-muted/50") 
+        categoryStyling.headerBg,
       )}>
-        <IconComponent className={cn("h-4 w-4 shrink-0", isSelected && !hasWarning ? "text-primary" : (hasWarning ? "text-yellow-500" : "text-muted-foreground"))} />
-        <CardTitle className="text-xs font-medium truncate flex-grow text-foreground" title={node.name}>
+        <IconComponent className={cn("h-4 w-4 shrink-0", categoryStyling.headerIconColor)} />
+        <CardTitle className={cn("text-xs font-medium truncate flex-grow", categoryStyling.headerTextColor)} title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
         {hasWarning && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs">
                 <p className="text-xs">{warningMessage}</p>
@@ -120,7 +121,7 @@ export function WorkflowNodeItem({
           </TooltipProvider>
         )}
       </CardHeader>
-      <CardContent className="p-2.5 text-xs text-muted-foreground flex-grow overflow-hidden relative">
+      <CardContent className="p-2.5 text-xs text-muted-foreground flex-grow overflow-hidden relative bg-card/80 backdrop-blur-sm">
         <p className="truncate text-ellipsis" title={node.type}>Type: {node.type}</p>
         
         {nodeType?.inputHandles?.map((handleId, index) => {
@@ -137,10 +138,12 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="input"
                     className={cn(
-                      "absolute -left-2.5 w-5 h-5 rounded-full border-2 bg-green-500 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -left-2.5 w-5 h-5 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      categoryStyling.inputHandleColor, 
+                      categoryStyling.inputHandleBorder,
                        isPotentialTarget 
-                        ? "border-green-300 bg-green-400 hover:bg-green-300 scale-110 hover:scale-125 cursor-pointer ring-2 ring-green-300/50" 
-                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : "border-card bg-primary cursor-default"),
+                        ? "border-green-400 bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer ring-2 ring-green-400/50" 
+                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : "cursor-default"),
                       isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-40 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
@@ -175,11 +178,13 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="output"
                     className={cn(
-                      "absolute -right-2.5 w-5 h-5 rounded-full border-2 border-card shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -right-2.5 w-5 h-5 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      categoryStyling.outputHandleColor,
+                      categoryStyling.outputHandleBorder,
                       isActiveSource 
                         ? "bg-orange-500 scale-110 cursor-grabbing ring-2 ring-orange-400/50" 
-                        : "bg-accent", 
-                      !isConnecting ? "cursor-pointer hover:scale-110 hover:bg-accent/80" : "cursor-default",
+                        : "", 
+                      !isConnecting ? "cursor-pointer hover:scale-110" : "cursor-default",
                       isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
