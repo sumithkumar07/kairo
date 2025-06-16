@@ -86,7 +86,7 @@ export function WorkflowNodeItem({
         // Warning state takes precedence for ring and border color
         hasWarning && 'ring-2 ring-yellow-500 border-yellow-500/70',
         // Selection state
-        isSelected && !hasWarning && 'ring-2 ring-primary shadow-primary/30',
+        isSelected && !hasWarning && 'ring-4 ring-primary/70 shadow-lg shadow-primary/40', // Enhanced ring and shadow
         isSelected && 'ring-offset-2 ring-offset-background', // Apply offset if selected, regardless of warning
         isSelected && hasWarning && 'shadow-yellow-500/30' // Specific shadow for selected warning nodes
       )}
@@ -99,7 +99,7 @@ export function WorkflowNodeItem({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-2 space-y-0",
-        isSelected && !hasWarning ? "bg-primary/20" : (hasWarning ? "bg-yellow-500/10" : "bg-card-foreground/5")
+        isSelected && !hasWarning ? "bg-primary/30" : (hasWarning ? "bg-yellow-500/10" : "bg-card-foreground/5") // Slightly darker selected header
       )}>
         <IconComponent className="h-4 w-4 text-primary shrink-0" />
         <CardTitle className="text-xs font-medium truncate flex-grow text-foreground" title={node.name}>

@@ -5,8 +5,8 @@
 
 @layer base {
   :root {
-    /* Default Light Theme (will be overridden by .dark) */
-    --background: 240 10% 97%; 
+    /* Light Theme based on PRD */
+    --background: 220 25% 95%; /* Light Grey #F0F2F5 from PRD */
     --foreground: 240 10% 10%;
 
     --card: 0 0% 100%;
@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
 
-    --primary: 197 77% 53%; /* Vibrant Blue from PRD */
+    --primary: 197 77% 53%; /* Vibrant Blue #29ABE2 from PRD */
     --primary-foreground: 0 0% 100%; 
 
     --secondary: 220 15% 90%; 
@@ -24,7 +24,7 @@
     --muted: 220 15% 94%; 
     --muted-foreground: 240 5% 45%;
 
-    --accent: 88 52% 59%; /* Muted Green from PRD */
+    --accent: 88 52% 59%; /* Muted Green #8BC34A from PRD */
     --accent-foreground: 240 10% 10%; /* Dark text on green accent for light mode */
 
     --destructive: 0 84.2% 60.2%;
@@ -42,13 +42,13 @@
     --radius: 0.5rem;
 
     /* Sidebar variables for light theme */
-    --sidebar-background: 240 10% 98%; 
+    --sidebar-background: 220 25% 95%; /* Consistent with main light grey background */
     --sidebar-foreground: 240 10% 15%;
-    --sidebar-primary: 197 77% 53%; 
+    --sidebar-primary: 197 77% 53%; /* Vibrant Blue from PRD */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 197 80% 95%; 
-    --sidebar-accent-foreground: 197 77% 40%; 
-    --sidebar-border: 240 10% 90%;
+    --sidebar-accent: 88 50% 90%; /* Lighter shade of PRD green */
+    --sidebar-accent-foreground: 88 50% 30%; /* Darker green for text on light green */
+    --sidebar-border: 220 10% 90%;
     --sidebar-ring: 197 77% 58%;
   }
 
@@ -62,7 +62,7 @@
     --popover: 220 15% 10%; 
     --popover-foreground: 0 0% 98%;
 
-    --primary: 197 77% 53%; /* Vibrant Blue from PRD */
+    --primary: 197 77% 53%; /* Vibrant Blue #29ABE2 from PRD */
     --primary-foreground: 0 0% 100%; 
 
     --secondary: 220 15% 20%; /* Darker grey for secondary */
@@ -71,7 +71,7 @@
     --muted: 220 15% 25%; 
     --muted-foreground: 0 0% 65%; 
 
-    --accent: 88 52% 59%; /* Muted Green from PRD */
+    --accent: 88 52% 59%; /* Muted Green #8BC34A from PRD */
     --accent-foreground: 0 0% 98%; /* White text on green accent for dark mode */
 
     --destructive: 0 70% 55%;
@@ -90,10 +90,10 @@
     /* Dark Sidebar variables */
     --sidebar-background: 220 15% 8%; 
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 197 77% 53%;
+    --sidebar-primary: 197 77% 53%; /* Vibrant Blue from PRD */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 22%; 
-    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-accent: 88 40% 30%; /* Darker shade of PRD green */
+    --sidebar-accent-foreground: 88 50% 80%; /* Lighter green for text on dark green */
     --sidebar-border: 220 15% 28%;
     --sidebar-ring: 197 70% 60%;
   }
