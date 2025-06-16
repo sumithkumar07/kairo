@@ -84,7 +84,7 @@ export function AIWorkflowAssistantPanel({
 
   if (workflowExplanation || isExplainingWorkflow) {
     return (
-      <>
+      <div className="flex flex-col h-full">
         <div className="p-4 border-b">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
@@ -111,12 +111,12 @@ export function AIWorkflowAssistantPanel({
             <XCircle className="mr-2 h-4 w-4" /> Back to AI Prompt
           </Button>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <div className="p-4 border-b">
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
           <Lightbulb className="h-4 w-4 text-primary" />
@@ -197,6 +197,6 @@ export function AIWorkflowAssistantPanel({
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
