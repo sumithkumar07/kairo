@@ -4,8 +4,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'FlowAI',
-  description: 'AI-powered workflow generation',
+  title: 'FlowAI Studio',
+  description: 'AI-powered workflow automation and design.',
 };
 
 export default function RootLayout({
@@ -27,4 +27,3 @@ export default function RootLayout({
     </html>
   );
 }
-
