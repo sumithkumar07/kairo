@@ -2,8 +2,8 @@
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
 import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook } from 'lucide-react';
 
-export const NODE_WIDTH = 180;
-export const NODE_HEIGHT = 90; 
+export const NODE_WIDTH = 200; // Increased width
+export const NODE_HEIGHT = 100; // Increased height
 
 const GENERIC_RETRY_CONFIG_SCHEMA = {
   retry: { 
@@ -602,8 +602,8 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'webhook trigger': 'webhookTrigger',
   'http webhook': 'webhookTrigger',
   'incoming webhook': 'webhookTrigger',
-  'webhook': 'httpRequest', // Existing mapping for httpRequest as an action, webhookTrigger is now preferred for triggers
-  'http trigger': 'httpRequest', // Retaining for httpRequest as a trigger if AI still uses it.
+  'webhook': 'httpRequest', 
+  'http trigger': 'httpRequest', 
   'schedule': 'schedule',
   'cron': 'schedule',
   'cron job': 'schedule',
@@ -825,84 +825,83 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
   switch (category) {
     case 'trigger':
       return {
-        headerBg: 'bg-blue-500/80 dark:bg-blue-600/70',
+        headerBg: 'bg-blue-500/90 dark:bg-blue-600/80',
         headerIconColor: 'text-blue-50 dark:text-blue-100',
         headerTextColor: 'text-white dark:text-blue-50',
         nodeBorder: 'border-blue-500/70 dark:border-blue-600/60',
-        inputHandleColor: 'bg-blue-400 dark:bg-blue-500',
-        inputHandleBorder: 'border-blue-600 dark:border-blue-400',
-        outputHandleColor: 'bg-blue-400 dark:bg-blue-500',
-        outputHandleBorder: 'border-blue-600 dark:border-blue-400',
+        inputHandleColor: 'bg-blue-300 dark:bg-blue-500',
+        inputHandleBorder: 'border-blue-500 dark:border-blue-300',
+        outputHandleColor: 'bg-blue-300 dark:bg-blue-500',
+        outputHandleBorder: 'border-blue-500 dark:border-blue-300',
       };
     case 'action':
       return {
-        headerBg: 'bg-green-500/80 dark:bg-green-600/70',
+        headerBg: 'bg-green-500/90 dark:bg-green-600/80',
         headerIconColor: 'text-green-50 dark:text-green-100',
         headerTextColor: 'text-white dark:text-green-50',
         nodeBorder: 'border-green-500/70 dark:border-green-600/60',
-        inputHandleColor: 'bg-green-400 dark:bg-green-500',
-        inputHandleBorder: 'border-green-600 dark:border-green-400',
-        outputHandleColor: 'bg-green-400 dark:bg-green-500',
-        outputHandleBorder: 'border-green-600 dark:border-green-400',
+        inputHandleColor: 'bg-green-300 dark:bg-green-500',
+        inputHandleBorder: 'border-green-500 dark:border-green-300',
+        outputHandleColor: 'bg-green-300 dark:bg-green-500',
+        outputHandleBorder: 'border-green-500 dark:border-green-300',
       };
-    case 'io':
+    case 'io': // Input/Output
       return {
-        headerBg: 'bg-purple-500/80 dark:bg-purple-600/70',
+        headerBg: 'bg-purple-500/90 dark:bg-purple-600/80',
         headerIconColor: 'text-purple-50 dark:text-purple-100',
         headerTextColor: 'text-white dark:text-purple-50',
         nodeBorder: 'border-purple-500/70 dark:border-purple-600/60',
-        inputHandleColor: 'bg-purple-400 dark:bg-purple-500',
-        inputHandleBorder: 'border-purple-600 dark:border-purple-400',
-        outputHandleColor: 'bg-purple-400 dark:bg-purple-500',
-        outputHandleBorder: 'border-purple-600 dark:border-purple-400',
+        inputHandleColor: 'bg-purple-300 dark:bg-purple-500',
+        inputHandleBorder: 'border-purple-500 dark:border-purple-300',
+        outputHandleColor: 'bg-purple-300 dark:bg-purple-500',
+        outputHandleBorder: 'border-purple-500 dark:border-purple-300',
       };
     case 'logic':
       return {
-        headerBg: 'bg-orange-500/80 dark:bg-orange-600/70',
+        headerBg: 'bg-orange-500/90 dark:bg-orange-600/80',
         headerIconColor: 'text-orange-50 dark:text-orange-100',
         headerTextColor: 'text-white dark:text-orange-50',
         nodeBorder: 'border-orange-500/70 dark:border-orange-600/60',
-        inputHandleColor: 'bg-orange-400 dark:bg-orange-500',
-        inputHandleBorder: 'border-orange-600 dark:border-orange-400',
-        outputHandleColor: 'bg-orange-400 dark:bg-orange-500',
-        outputHandleBorder: 'border-orange-600 dark:border-orange-400',
+        inputHandleColor: 'bg-orange-300 dark:bg-orange-500',
+        inputHandleBorder: 'border-orange-500 dark:border-orange-300',
+        outputHandleColor: 'bg-orange-300 dark:bg-orange-500',
+        outputHandleBorder: 'border-orange-500 dark:border-orange-300',
       };
     case 'ai':
       return {
-        headerBg: 'bg-sky-500/80 dark:bg-sky-600/70',
+        headerBg: 'bg-sky-500/90 dark:bg-sky-600/80',
         headerIconColor: 'text-sky-50 dark:text-sky-100',
         headerTextColor: 'text-white dark:text-sky-50',
         nodeBorder: 'border-sky-500/70 dark:border-sky-600/60',
-        inputHandleColor: 'bg-sky-400 dark:bg-sky-500',
-        inputHandleBorder: 'border-sky-600 dark:border-sky-400',
-        outputHandleColor: 'bg-sky-400 dark:bg-sky-500',
-        outputHandleBorder: 'border-sky-600 dark:border-sky-400',
+        inputHandleColor: 'bg-sky-300 dark:bg-sky-500',
+        inputHandleBorder: 'border-sky-500 dark:border-sky-300',
+        outputHandleColor: 'bg-sky-300 dark:bg-sky-500',
+        outputHandleBorder: 'border-sky-500 dark:border-sky-300',
       };
     case 'group':
     case 'iteration':
     case 'control':
     case 'interaction':
         return {
-          headerBg: 'bg-slate-500/80 dark:bg-slate-600/70',
+          headerBg: 'bg-slate-500/90 dark:bg-slate-600/80',
           headerIconColor: 'text-slate-50 dark:text-slate-100',
           headerTextColor: 'text-white dark:text-slate-50',
           nodeBorder: 'border-slate-500/70 dark:border-slate-600/60',
-          inputHandleColor: 'bg-slate-400 dark:bg-slate-500',
-          inputHandleBorder: 'border-slate-600 dark:border-slate-400',
-          outputHandleColor: 'bg-slate-400 dark:bg-slate-500',
-          outputHandleBorder: 'border-slate-600 dark:border-slate-400',
+          inputHandleColor: 'bg-slate-300 dark:bg-slate-500',
+          inputHandleBorder: 'border-slate-500 dark:border-slate-300',
+          outputHandleColor: 'bg-slate-300 dark:bg-slate-500',
+          outputHandleBorder: 'border-slate-500 dark:border-slate-300',
         };
     default: // unknown and any other
       return {
-        headerBg: 'bg-gray-400/80 dark:bg-gray-500/70',
+        headerBg: 'bg-gray-400/90 dark:bg-gray-500/80',
         headerIconColor: 'text-gray-50 dark:text-gray-100',
         headerTextColor: 'text-white dark:text-gray-50',
         nodeBorder: 'border-gray-400/70 dark:border-gray-500/60',
-        inputHandleColor: 'bg-gray-300 dark:bg-gray-400',
-        inputHandleBorder: 'border-gray-500 dark:border-gray-300',
-        outputHandleColor: 'bg-gray-300 dark:bg-gray-400',
-        outputHandleBorder: 'border-gray-500 dark:border-gray-300',
+        inputHandleColor: 'bg-gray-200 dark:bg-gray-400',
+        inputHandleBorder: 'border-gray-400 dark:border-gray-200',
+        outputHandleColor: 'bg-gray-200 dark:bg-gray-400',
+        outputHandleBorder: 'border-gray-400 dark:border-gray-200',
       };
   }
 };
-

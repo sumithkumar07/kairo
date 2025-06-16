@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions';
@@ -10,7 +10,7 @@ import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/li
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2, X } from 'lucide-react';
+import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -45,7 +45,7 @@ export default function WorkflowPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
-  const [isAssistantVisible, setIsAssistantVisible] = useState(false); // Default to false
+  const [isAssistantVisible, setIsAssistantVisible] = useState(false); 
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
@@ -148,7 +148,7 @@ export default function WorkflowPage() {
          }
       }
     };
-    fetchSuggestion();
+    if(isAssistantVisible) fetchSuggestion();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible]);
 
@@ -237,15 +237,31 @@ export default function WorkflowPage() {
     }
 
     setIsWorkflowRunning(true);
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' })));
     const runModeMessage = isSimulationMode ? 'Simulation Mode' : 'Live Mode';
-    setExecutionLogs(prevLogs => [...prevLogs, { timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
+    setExecutionLogs(prevLogs => [{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
+    
     try {
-      const serverLogs: ServerLogOutput[] = await executeWorkflow({ nodes, connections }, isSimulationMode, {}); 
-      const newLogs: LogEntry[] = serverLogs.map(log => ({
+      const result: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {}); 
+      const newLogs: LogEntry[] = result.serverLogs.map(log => ({
         ...log,
         timestamp: new Date(log.timestamp).toLocaleTimeString(),
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
+
+      // Update nodes with final execution status
+      setNodes(prevNodes => 
+        prevNodes.map(existingNode => {
+          const executedNodeData = result.finalWorkflowData[existingNode.id];
+          if (executedNodeData && executedNodeData.lastExecutionStatus) {
+            return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
+          }
+          return existingNode; 
+        })
+      );
+      saveHistory(nodes.map(n => ({ ...n, lastExecutionStatus: result.finalWorkflowData[n.id]?.lastExecutionStatus || n.lastExecutionStatus })), connections);
+
+
       toast({
         title: 'Workflow Execution Attempted',
         description: 'Check logs for details.',
@@ -256,11 +272,13 @@ export default function WorkflowPage() {
         ...prevLogs,
         { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
       ]);
+      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' }))); // Mark all as error on critical failure
+      saveHistory(nodes.map(n => ({ ...n, lastExecutionStatus: 'error' })), connections);
       toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, toast, isSimulationMode]);
+  }, [nodes, connections, toast, isSimulationMode, saveHistory]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
@@ -434,6 +452,7 @@ export default function WorkflowPage() {
         outputHandles: nodeConfigDef.outputHandles,
         aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
         category: nodeConfigDef.category,
+        lastExecutionStatus: 'pending',
       };
     });
     nextNodeIdRef.current = maxIdNum;
@@ -486,6 +505,7 @@ export default function WorkflowPage() {
       outputHandles: nodeType.outputHandles,
       aiExplanation: `Manually added ${nodeType.name} node.`,
       category: nodeType.category,
+      lastExecutionStatus: 'pending',
     };
     const updatedNodes = produce(nodes, draft => {
       draft.push(newNode);
@@ -496,7 +516,6 @@ export default function WorkflowPage() {
     setSelectedConnectionId(null);
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
-    // setIsAssistantVisible(true); // Open assistant when node is added
   }, [nodes, connections, resetHistory]);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
@@ -517,11 +536,11 @@ export default function WorkflowPage() {
       let newY = 50;
       if (nodes.length > 0) {
         newX = Math.max(...nodes.map(n => n.position.x)) + NODE_WIDTH + 60;
-        if (newX > 1000) { // Simple line break logic
+        if (newX > 1000) { 
           newX = 50;
           newY = Math.max(...nodes.map(n => n.position.y)) + NODE_HEIGHT + 40;
         } else {
-          newY = nodes[nodes.length -1].position.y; // Align with last node if on same "row"
+          newY = nodes[nodes.length -1].position.y; 
         }
       }
       position = { x: newX, y: newY };
@@ -658,7 +677,13 @@ export default function WorkflowPage() {
     setConnectionPreviewPosition(null);
   }, []);
 
-  const handleCanvasClick = useCallback(() => {
+  const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const target = event.target as HTMLElement;
+    // Check if click was on a connection delete button or the connection path itself
+    if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
+        return; // Don't deselect if clicking on these connection elements
+    }
+
     setSelectedNodeId(null);
     setSelectedConnectionId(null);
     setWorkflowExplanation(null);
@@ -673,11 +698,13 @@ export default function WorkflowPage() {
     const targetElement = event.target as HTMLElement;
     if (targetElement.closest('.workflow-node-item') || 
         targetElement.closest('[data-handle-id]') || 
-        targetElement.closest('[data-delete-connection-button="true"]')) {
+        targetElement.closest('[data-delete-connection-button="true"]') ||
+        targetElement.closest('[data-connection-click-target="true"]')
+        ) {
         return;
     }
 
-    handleCanvasClick();
+    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>);
     if (!isConnecting) {
       setIsPanning(true);
       panStartRef.current = { x: event.clientX, y: event.clientY };
@@ -698,9 +725,9 @@ export default function WorkflowPage() {
     setIsAssistantVisible(prev => {
       const newVisibility = !prev;
       if (!newVisibility) {
-        setSelectedNodeId(null);
-        setSelectedConnectionId(null);
-        setWorkflowExplanation(null);
+        // setSelectedNodeId(null); // Keep selected node when hiding
+        // setSelectedConnectionId(null); // Keep selected connection when hiding
+        // setWorkflowExplanation(null); // Clear explanation when hiding
       }
       return newVisibility;
     });
@@ -752,7 +779,8 @@ export default function WorkflowPage() {
 
   const handleClearLogs = useCallback(() => {
     setExecutionLogs([]);
-    toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared.' });
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' })));
+    toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared and node statuses reset.' });
   }, [toast]);
 
   const canUndo = historyIndex > 0;
@@ -905,3 +933,4 @@ export default function WorkflowPage() {
     </div>
   );
 }
+

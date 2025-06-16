@@ -4,7 +4,7 @@
 import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/types/workflow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { GripVertical, AlertTriangle } from 'lucide-react'; 
+import { GripVertical, AlertTriangle, CheckCircle2, XCircle, Loader2, SkipForward, AlertCircleIcon } from 'lucide-react'; 
 import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon, getCanvasNodeStyling } from '@/config/nodes';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -68,6 +68,26 @@ export function WorkflowNodeItem({
 
   const categoryStyling = getCanvasNodeStyling(node.category);
 
+  const getStatusIndicator = () => {
+    if (!node.lastExecutionStatus || node.lastExecutionStatus === 'pending') {
+      return null; 
+    }
+    switch (node.lastExecutionStatus) {
+      case 'success':
+        return <CheckCircle2 className="h-3.5 w-3.5 text-green-500" title="Success" />;
+      case 'error':
+        return <XCircle className="h-3.5 w-3.5 text-destructive" title="Error" />;
+      case 'running':
+        return <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" title="Running" />;
+      case 'skipped':
+        return <SkipForward className="h-3.5 w-3.5 text-gray-400" title="Skipped" />;
+      case 'partial_success':
+        return <AlertCircleIcon className="h-3.5 w-3.5 text-yellow-500" title="Partial Success" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Card
       id={`node-${node.id}`}
@@ -84,14 +104,14 @@ export function WorkflowNodeItem({
         'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
         'flex flex-col overflow-hidden bg-card', 
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
-        // Base border
         'border',
-        // Warning state takes precedence for ring and border color
-        hasWarning ? 'ring-2 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/20' : categoryStyling.nodeBorder,
-        // Selection state
-        isSelected && !hasWarning && 'ring-2 ring-primary shadow-lg shadow-primary/30', 
+        hasWarning && node.lastExecutionStatus !== 'error' ? 'ring-2 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/20' : 
+        node.lastExecutionStatus === 'error' ? 'ring-2 ring-destructive border-destructive/80 shadow-destructive/20' : 
+        node.lastExecutionStatus === 'success' ? 'ring-1 ring-green-500 border-green-500/70 shadow-green-500/10' : categoryStyling.nodeBorder,
+        isSelected && !hasWarning && node.lastExecutionStatus !== 'error' && 'ring-2 ring-primary shadow-lg shadow-primary/30', 
         isSelected && 'ring-offset-2 ring-offset-background', 
-        isSelected && hasWarning && 'ring-yellow-400 shadow-yellow-400/40' 
+        isSelected && hasWarning && node.lastExecutionStatus !== 'error' && 'ring-yellow-400 shadow-yellow-400/40',
+        isSelected && node.lastExecutionStatus === 'error' && 'ring-destructive shadow-destructive/40'
       )}
       style={{
         left: node.position.x,
@@ -101,28 +121,38 @@ export function WorkflowNodeItem({
       }}
     >
       <CardHeader className={cn(
-        "p-2 border-b flex-row items-center gap-2 space-y-0",
+        "p-2 border-b flex-row items-center gap-1.5 space-y-0",
         categoryStyling.headerBg,
       )}>
-        <IconComponent className={cn("h-4 w-4 shrink-0", categoryStyling.headerIconColor)} />
+        <IconComponent className={cn("h-3.5 w-3.5 shrink-0", categoryStyling.headerIconColor)} />
         <CardTitle className={cn("text-xs font-medium truncate flex-grow", categoryStyling.headerTextColor)} title={node.name}>
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
-        {hasWarning && (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <p className="text-xs">{warningMessage}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {getStatusIndicator()}
+          {hasWarning && node.lastExecutionStatus !== 'error' && ( 
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{warningMessage}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="p-2.5 text-xs text-muted-foreground flex-grow overflow-hidden relative bg-card/80 backdrop-blur-sm">
-        <p className="truncate text-ellipsis" title={node.type}>Type: {node.type}</p>
+      <CardContent className="px-2 py-1.5 text-[11px] text-muted-foreground flex-grow overflow-hidden relative bg-card/80 backdrop-blur-sm">
+        <p className="truncate" title={node.type}>
+          Type: <span className="font-medium text-foreground/80">{node.type}</span>
+        </p>
+        {node.description && (
+          <p className="truncate text-[10px] opacity-80" title={node.description}>
+            {node.description}
+          </p>
+        )}
         
         {nodeType?.inputHandles?.map((handleId, index) => {
           const numHandles = nodeType.inputHandles?.length || 1;
@@ -138,7 +168,7 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="input"
                     className={cn(
-                      "absolute -left-2.5 w-5 h-5 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -left-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                       categoryStyling.inputHandleColor, 
                       categoryStyling.inputHandleBorder,
                        isPotentialTarget 
@@ -178,7 +208,7 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="output"
                     className={cn(
-                      "absolute -right-2.5 w-5 h-5 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -right-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
                       categoryStyling.outputHandleColor,
                       categoryStyling.outputHandleBorder,
                       isActiveSource 
@@ -209,3 +239,4 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+

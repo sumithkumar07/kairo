@@ -41,6 +41,7 @@ export interface WorkflowNode {
   outputHandles?: string[];
   aiExplanation?: string; 
   category: AvailableNodeType['category'];
+  lastExecutionStatus?: 'success' | 'error' | 'skipped' | 'pending' | 'running' | 'partial_success';
 }
 
 export interface WorkflowConnection {
@@ -107,4 +108,9 @@ export interface ServerLogOutput {
   timestamp: string; // ISO string
   message: string;
   type: 'info' | 'error' | 'success';
+}
+
+export interface WorkflowExecutionResult {
+  serverLogs: ServerLogOutput[];
+  finalWorkflowData: Record<string, any>; // Contains node outputs and their lastExecutionStatus
 }
