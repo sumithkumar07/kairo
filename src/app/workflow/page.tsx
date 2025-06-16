@@ -46,7 +46,7 @@ export default function WorkflowPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
-  const [isAssistantVisible, setIsAssistantVisible] = useState(true);
+  const [isAssistantVisible, setIsAssistantVisible] = useState(false); // Default to hidden
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
@@ -148,10 +148,14 @@ export default function WorkflowPage() {
          }
       }
     };
-
-    fetchSuggestion();
+    if (isAssistantVisible) { // Only fetch suggestions if assistant panel is conceptually active
+        fetchSuggestion();
+    } else {
+        setSuggestedNextNodeInfo(null);
+        setInitialCanvasSuggestion(null);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation]);
+  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible]);
 
 
   const handleSaveWorkflow = useCallback(() => {
@@ -495,7 +499,7 @@ export default function WorkflowPage() {
     resetHistory(updatedNodes);
     setSelectedNodeId(newNodeId);
     setSelectedConnectionId(null);
-    setIsAssistantVisible(true);
+    // setIsAssistantVisible(true); // Don't auto-show on manual add for "Upgrade" model
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
   }, [nodes, resetHistory]);
@@ -575,7 +579,7 @@ export default function WorkflowPage() {
   const handleNodeClick = (nodeId: string) => {
     setSelectedNodeId(nodeId);
     setSelectedConnectionId(null);
-    setIsAssistantVisible(true);
+    // setIsAssistantVisible(true); // Don't auto-show on node click for "Upgrade" model
     if (isConnecting) handleCancelConnection();
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
@@ -688,7 +692,7 @@ export default function WorkflowPage() {
     setSelectedConnectionId(connectionId);
     setSelectedNodeId(null);
     if (isConnecting) handleCancelConnection();
-    setIsAssistantVisible(true);
+    // setIsAssistantVisible(true); // Don't auto-show for "Upgrade" model
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
   }, [isConnecting, handleCancelConnection]);
@@ -700,6 +704,8 @@ export default function WorkflowPage() {
         setSelectedNodeId(null);
         setSelectedConnectionId(null);
         setWorkflowExplanation(null);
+        setInitialCanvasSuggestion(null); 
+        setSuggestedNextNodeInfo(null);
       }
       return newVisibility;
     });
@@ -731,7 +737,7 @@ export default function WorkflowPage() {
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
-      setIsAssistantVisible(true);
+      setIsAssistantVisible(true); // Show assistant when explanation is ready
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
       setWorkflowExplanation('Failed to get explanation.');
@@ -770,7 +776,7 @@ export default function WorkflowPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {(isLoadingAi || isExplainingWorkflow || (isLoadingSuggestion && nodes.length === 0 && !initialCanvasSuggestion)) && (
+      {(isLoadingAi || isExplainingWorkflow || (isLoadingSuggestion && nodes.length === 0 && !initialCanvasSuggestion && isAssistantVisible)) && (
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="ml-4 text-lg text-foreground">
@@ -794,7 +800,6 @@ export default function WorkflowPage() {
           onNodeDragStop={updateNodePosition}
           onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
-          isAssistantVisible={isAssistantVisible}
           onSaveWorkflow={handleSaveWorkflow}
           onLoadWorkflow={() => handleLoadWorkflow(true)}
           isConnecting={isConnecting}
@@ -821,6 +826,7 @@ export default function WorkflowPage() {
           canUndo={canUndo}
           onRedo={handleRedo}
           canRedo={canRedo}
+          toast={toast}
         />
 
         {isAssistantVisible && (

@@ -1,11 +1,12 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2 } from 'lucide-react'; // Removed Radio
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
 import { Separator } from '@/components/ui/separator';
+import type { useToast } from '@/hooks/use-toast';
 
 interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
@@ -17,7 +18,6 @@ interface AIWorkflowBuilderPanelProps {
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
-  isAssistantVisible: boolean;
   onSaveWorkflow: () => void;
   onLoadWorkflow: () => void;
   isConnecting: boolean;
@@ -44,6 +44,7 @@ interface AIWorkflowBuilderPanelProps {
   canUndo: boolean; 
   onRedo: () => void; 
   canRedo: boolean; 
+  toast: ReturnType<typeof useToast>['toast'];
 }
 
 export function AIWorkflowBuilderPanel({
@@ -56,7 +57,6 @@ export function AIWorkflowBuilderPanel({
   onNodeDragStop,
   onCanvasDrop,
   onToggleAssistant,
-  isAssistantVisible,
   onSaveWorkflow,
   onLoadWorkflow,
   isConnecting,
@@ -79,8 +79,17 @@ export function AIWorkflowBuilderPanel({
   canUndo,
   onRedo,
   canRedo,
+  toast,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
+
+  const handleUpgradeClick = () => {
+    toast({
+      title: 'Upgrade Your Plan',
+      description: 'Unlock powerful AI features like advanced generation, in-depth explanations, and smart suggestions by upgrading your plan!',
+      duration: 5000,
+    });
+  };
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
@@ -122,28 +131,16 @@ export function AIWorkflowBuilderPanel({
           </Button>
 
           <Separator orientation="vertical" className="h-6 mx-1.5" />
-
-          {/* AI & Assistant Controls */}
+          
           <Button
             variant="outline"
             size="sm"
-            onClick={onExplainWorkflow}
-            disabled={!hasWorkflow || isExplainingWorkflow}
-            title="Let AI Explain this workflow"
+            onClick={handleUpgradeClick}
+            title="Upgrade to unlock AI features"
+            className="bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 hover:shadow-lg"
           >
-            <MessageSquareText className="h-4 w-4 mr-1.5" />
-            Explain
-          </Button>
-          {/* Removed "Ready" button */}
-          <Button
-            variant={isAssistantVisible ? "default" : "outline"}
-            size="sm"
-            onClick={onToggleAssistant}
-            aria-pressed={isAssistantVisible}
-            title={isAssistantVisible ? "Hide AI Assistant Panel" : "Show AI Assistant Panel"}
-          >
-            <Bot className="h-4 w-4 mr-1.5" />
-            {isAssistantVisible ? "Hide Assistant" : "Show Assistant"}
+            <Sparkles className="h-4 w-4 mr-1.5 text-primary" />
+            Upgrade Plan
           </Button>
         </div>
       </div>
@@ -178,7 +175,7 @@ export function AIWorkflowBuilderPanel({
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
           <p className="text-muted-foreground mb-6 max-w-md text-sm">
-            Use the AI Assistant to generate a workflow from your description, drag nodes from the library on the left, or load a previously saved workflow.
+            Drag nodes from the library on the left, or click the AI Assistant button in the bottom right to generate a workflow or load examples.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -196,6 +193,29 @@ export function AIWorkflowBuilderPanel({
           </div>
         </div>
       )}
+
+      {/* Floating Action Buttons for AI */}
+      <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
+        <Button
+          variant="default"
+          size="icon"
+          className="rounded-full shadow-lg w-12 h-12 bg-primary hover:bg-primary/90"
+          onClick={onToggleAssistant}
+          title="Open AI Assistant Panel"
+        >
+          <Bot className="h-6 w-6" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full shadow-lg w-12 h-12 bg-card hover:bg-accent"
+          onClick={onExplainWorkflow}
+          disabled={!hasWorkflow || isExplainingWorkflow}
+          title="Let AI Explain this workflow"
+        >
+          <MessageSquareText className="h-5 w-5" />
+        </Button>
+      </div>
     </main>
   );
 }
