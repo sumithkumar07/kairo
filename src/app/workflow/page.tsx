@@ -363,7 +363,7 @@ export default function WorkflowPage() {
       setHistoryIndex(newIndex);
     }
   }, [history, historyIndex]);
-
+  
   const handleCancelConnection = useCallback(() => {
     setIsConnecting(false);
     setConnectionStartNodeId(null);
@@ -925,9 +925,16 @@ export default function WorkflowPage() {
                 executionLogs={executionLogs}
                 onClearLogs={handleClearLogs}
                 isWorkflowRunning={isWorkflowRunning}
+                selectedNodeId={selectedNodeId}
+                selectedConnectionId={selectedConnectionId}
+                onDeleteSelectedConnection={handleDeleteSelectedConnection}
+                onDeselectConnection={() => setSelectedConnectionId(null)}
+                isConnecting={isConnecting}
+                onCancelConnection={handleCancelConnection}
               />
+            {/* This div below used to show NodeConfigPanel, but now it's handled by AIWorkflowAssistantPanel or the if-block above it */}
             <div className="flex-1 overflow-y-auto">
-              {selectedNode && selectedNodeType ? (
+              {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
                 <NodeConfigPanel
                   node={selectedNode}
                   nodeType={selectedNodeType}
@@ -939,33 +946,6 @@ export default function WorkflowPage() {
                   isLoadingSuggestion={isLoadingSuggestion}
                   onAddSuggestedNode={handleAddSuggestedNode}
                 />
-              ) : selectedConnectionId ? (
-                  <div className="p-6 text-center flex flex-col items-center justify-center h-full space-y-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 mx-auto text-primary mb-2"><path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z"></path><line x1="12" y1="13" x2="12" y2="17"></line><line x1="12" y1="8" x2="12" y2="10"></line></svg>
-                      <p className="text-md font-semibold text-foreground">Connection Selected</p>
-                      <p className="text-sm text-muted-foreground">
-                          Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to deselect.
-                      </p>
-                      <div className="flex gap-2">
-                          <Button variant="destructive" size="sm" onClick={handleDeleteSelectedConnection}>
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Connection
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedConnectionId(null)}>
-                              <X className="mr-2 h-4 w-4" /> Deselect
-                          </Button>
-                      </div>
-                  </div>
-              ) : isConnecting ? (
-                  <div className="p-6 text-center flex flex-col items-center justify-center h-full">
-                      <MousePointer2 className="h-10 w-10 mx-auto text-primary mb-3" />
-                      <p className="text-md font-semibold text-foreground mb-1">Creating Connection</p>
-                      <p className="text-sm text-muted-foreground mb-4">
-                          Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to cancel.
-                      </p>
-                      <Button variant="outline" size="sm" onClick={handleCancelConnection}>
-                          <X className="mr-2 h-4 w-4" /> Cancel
-                      </Button>
-                  </div>
               ) : (
                null 
               )}
@@ -1008,3 +988,4 @@ export default function WorkflowPage() {
     </div>
   );
 }
+

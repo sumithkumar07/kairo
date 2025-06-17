@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound } from 'lucide-react';
 
 export const NODE_WIDTH = 200; // Increased width
 export const NODE_HEIGHT = 100; // Increased height
@@ -79,6 +79,20 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: [],
     outputHandles: ['fileEvent', 'status', 'error_message'],
+  },
+  {
+    type: 'getEnvironmentVariable',
+    name: 'Get Environment Variable',
+    icon: KeyRound,
+    description: 'Retrieves the value of a specified environment variable.',
+    category: 'io',
+    defaultConfig: { variableName: '', failIfNotSet: false },
+    configSchema: {
+      variableName: { label: 'Variable Name', type: 'string', placeholder: 'e.g., MY_API_KEY', required: true, helperText: 'The name of the environment variable to retrieve.' },
+      failIfNotSet: { label: 'Fail if Not Set', type: 'boolean', defaultValue: false, helperText: 'If true, the node will error if the environment variable is not found.' },
+    },
+    inputHandles: [],
+    outputHandles: ['value', 'status', 'error_message'],
   },
   {
     type: 'httpRequest',
@@ -641,6 +655,11 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'print to console': 'logMessage',
   'debug log': 'logMessage',
   'output message': 'logMessage',
+  'getenvvar': 'getEnvironmentVariable',
+  'get env var': 'getEnvironmentVariable',
+  'get environment variable': 'getEnvironmentVariable',
+  'read environment variable': 'getEnvironmentVariable',
+  'env var': 'getEnvironmentVariable',
 
   // Logic & Data
   'parsejson': 'parseJson',
@@ -905,3 +924,4 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
+

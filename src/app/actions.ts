@@ -733,6 +733,27 @@ async function executeFlowInternal(
                   currentAttemptOutput = { ...currentAttemptOutput, fileEvent: simEventData };
               }
               break;
+            
+            case 'getEnvironmentVariable':
+              const { variableName, failIfNotSet = false } = resolvedConfig;
+              if (!variableName || typeof variableName !== 'string') {
+                const errorMsg = `Node ${nodeIdentifier}: 'variableName' is missing or not a string.`;
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GETENVVAR] ${errorMsg}`, type: 'error' });
+                throw new Error(errorMsg);
+              }
+              const envValue = process.env[variableName];
+              if (envValue !== undefined) {
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GETENVVAR] ${nodeIdentifier}: Successfully retrieved environment variable '${variableName}'.`, type: 'success' });
+                currentAttemptOutput = { ...currentAttemptOutput, value: envValue, status: 'success' };
+              } else {
+                const notFoundMsg = `[NODE GETENVVAR] ${nodeIdentifier}: Environment variable '${variableName}' not found.`;
+                serverLogs.push({ timestamp: new Date().toISOString(), message: notFoundMsg, type: failIfNotSet ? 'error' : 'info' });
+                if (failIfNotSet) {
+                  throw new Error(notFoundMsg);
+                }
+                currentAttemptOutput = { ...currentAttemptOutput, value: null, status: 'success' }; // Or 'error' if prefer to indicate missing but not fail
+              }
+              break;
 
             case 'logMessage':
               const messageToLog = resolvedConfig?.message || `Default log message from ${nodeIdentifier}`;
@@ -1763,3 +1784,4 @@ export async function executeWorkflow(
   console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
+

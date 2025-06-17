@@ -8,7 +8,7 @@ import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2 } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -31,6 +31,12 @@ interface AIWorkflowAssistantPanelProps {
   executionLogs: LogEntry[];
   onClearLogs: () => void;
   isWorkflowRunning: boolean;
+  selectedNodeId: string | null;
+  selectedConnectionId: string | null;
+  onDeleteSelectedConnection: () => void;
+  onDeselectConnection: () => void;
+  isConnecting: boolean;
+  onCancelConnection: () => void;
 }
 
 export function AIWorkflowAssistantPanel({
@@ -46,6 +52,12 @@ export function AIWorkflowAssistantPanel({
   executionLogs,
   onClearLogs,
   isWorkflowRunning,
+  selectedNodeId,
+  selectedConnectionId,
+  onDeleteSelectedConnection,
+  onDeselectConnection,
+  isConnecting,
+  onCancelConnection,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [isLoadingLocal, setIsLoadingLocal] = useState(false);
@@ -98,6 +110,7 @@ export function AIWorkflowAssistantPanel({
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
     : null;
 
+  // If explaining workflow, show only explanation and clear button
   if (workflowExplanation || isExplainingWorkflow) {
     return (
       <div className="flex flex-col h-full">
@@ -108,7 +121,7 @@ export function AIWorkflowAssistantPanel({
           </h2>
           <p className="text-xs text-muted-foreground">AI-generated summary of the current workflow.</p>
         </div>
-        <ScrollArea className="p-4 flex-shrink-0"> {/* Changed: No flex-1, added flex-shrink-0 */}
+        <ScrollArea className="p-4 flex-1">
           {isExplainingWorkflow ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -122,7 +135,7 @@ export function AIWorkflowAssistantPanel({
              <p className="text-muted-foreground text-center p-4 text-sm">No explanation available.</p>
           )}
         </ScrollArea>
-        <div className="p-3 border-t bg-background/50 mt-auto"> {/* mt-auto keeps it at bottom if ScrollArea above is small */}
+        <div className="p-3 border-t bg-background/50 mt-auto">
           <Button variant="outline" onClick={onClearExplanation} className="w-full h-9 text-sm">
             <XCircle className="mr-2 h-4 w-4" /> Back to AI Prompt
           </Button>
@@ -131,6 +144,135 @@ export function AIWorkflowAssistantPanel({
     );
   }
 
+  // If a connection is selected, show connection management UI
+  if (selectedConnectionId && !selectedNodeId) {
+     return (
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <MousePointer2 className="h-4 w-4 text-primary" />
+            Connection Selected
+          </h2>
+           <p className="text-xs text-muted-foreground">Manage the selected connection.</p>
+        </div>
+        <div className="p-6 text-center flex flex-col items-center justify-center flex-1 space-y-3">
+            <p className="text-sm text-muted-foreground">
+                Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to deselect.
+            </p>
+            <div className="flex gap-2">
+                <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete Connection
+                </Button>
+                <Button variant="outline" size="sm" onClick={onDeselectConnection}>
+                    <XCircle className="mr-2 h-4 w-4" /> Deselect
+                </Button>
+            </div>
+        </div>
+        <Accordion type="single" collapsible className="w-full border-t mt-auto">
+          <AccordionItem value="logs" className="border-b-0">
+            <AccordionTrigger className="px-4 py-2.5 text-xs font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4" />
+                Execution Logs {isWorkflowRunning && <Loader2 className="h-3 w-3 animate-spin" />}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="bg-muted/20">
+               {/* Log content remains same as below */}
+              <div className="flex justify-between items-center px-4 pt-2 pb-1">
+                <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
+                <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
+                  <Trash2 className="mr-1.5 h-3 w-3" /> Clear Logs
+                </Button>
+              </div>
+              <ScrollArea className="h-40 px-4 pb-2" viewportRef={logsScrollAreaRef}>
+                {executionLogs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
+                ) : (
+                  <div className="space-y-1.5 text-xs font-mono">
+                    {executionLogs.map((log, index) => (
+                      <div key={index} className={cn(
+                        "p-1.5 rounded-sm text-opacity-90 break-words",
+                        log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
+                        log.type === 'success' && 'bg-green-500/10 text-green-700 dark:text-green-300',
+                        log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
+                      )}>
+                        <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
+                        <span>{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+    );
+  }
+  
+  // If currently making a connection
+  if (isConnecting) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <MousePointer2 className="h-4 w-4 text-primary" />
+            Creating Connection
+          </h2>
+           <p className="text-xs text-muted-foreground">Connect nodes on the canvas.</p>
+        </div>
+        <div className="p-6 text-center flex flex-col items-center justify-center flex-1">
+            <p className="text-sm text-muted-foreground mb-4">
+                Click an input handle on a target node to complete the connection. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to cancel.
+            </p>
+            <Button variant="outline" size="sm" onClick={onCancelConnection}>
+                <XCircle className="mr-2 h-4 w-4" /> Cancel Connection
+            </Button>
+        </div>
+         <Accordion type="single" collapsible className="w-full border-t mt-auto">
+          <AccordionItem value="logs" className="border-b-0">
+            <AccordionTrigger className="px-4 py-2.5 text-xs font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4" />
+                Execution Logs {isWorkflowRunning && <Loader2 className="h-3 w-3 animate-spin" />}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="bg-muted/20">
+               {/* Log content remains same as below */}
+              <div className="flex justify-between items-center px-4 pt-2 pb-1">
+                <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
+                <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
+                  <Trash2 className="mr-1.5 h-3 w-3" /> Clear Logs
+                </Button>
+              </div>
+              <ScrollArea className="h-40 px-4 pb-2" viewportRef={logsScrollAreaRef}>
+                {executionLogs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
+                ) : (
+                  <div className="space-y-1.5 text-xs font-mono">
+                    {executionLogs.map((log, index) => (
+                      <div key={index} className={cn(
+                        "p-1.5 rounded-sm text-opacity-90 break-words",
+                        log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
+                        log.type === 'success' && 'bg-green-500/10 text-green-700 dark:text-green-300',
+                        log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
+                      )}>
+                        <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
+                        <span>{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+    );
+  }
+
+
+  // Default view: AI prompt and initial suggestions
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
@@ -169,9 +311,9 @@ export function AIWorkflowAssistantPanel({
             </Card>
           )}
 
-          {!isCanvasEmpty && !workflowExplanation && (
+          {!isCanvasEmpty && !workflowExplanation && !selectedNodeId && !selectedConnectionId && !isConnecting && (
              <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md"> 
-              Hi! I&apos;m your AI assistant. Describe what you want to automate.
+              Hi! I&apos;m your AI assistant. Describe what you want to automate, or select a node/connection for more options.
             </div>
           )}
 
@@ -194,7 +336,7 @@ export function AIWorkflowAssistantPanel({
             placeholder="e.g., 'When a new file is uploaded to a folder, read its content, summarize it with AI, and then send the summary to a Slack channel...'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="flex-grow min-h-[60px] text-sm flex-1 resize-none"
+            className="flex-1 text-sm resize-none min-h-[60px]"
             disabled={currentIsLoading}
           />
           <Button
@@ -253,3 +395,4 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
+

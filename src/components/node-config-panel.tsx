@@ -16,7 +16,7 @@ import { produce } from 'immer';
 import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
-import React from 'react';
+import React, { useState } from 'react'; // Import useState
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 
@@ -45,12 +45,42 @@ export function NodeConfigPanel({
   onAddSuggestedNode
 }: NodeConfigPanelProps) {
   
+  const [jsonValidationErrors, setJsonValidationErrors] = useState<Record<string, string | null>>({});
+  const [numberValidationErrors, setNumberValidationErrors] = useState<Record<string, string | null>>({});
+
   const handleInputChange = (fieldKey: string, value: any, isRetryField = false, isOnErrorWebhookField = false) => {
     let valueToSet = value;
     const schema = isRetryField || isOnErrorWebhookField ? null : nodeType?.configSchema?.[fieldKey];
 
+    // Validation for JSON fields
     if (schema?.type === 'json') {
-        // Stored as string from textarea.
+      try {
+        if (String(valueToSet).trim() === '') { // Allow empty string for optional JSON
+            if (schema.required && !schema.allowEmptyJson) {
+                 setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'This JSON field is required and cannot be empty.' }));
+            } else {
+                 setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null }));
+            }
+        } else {
+            JSON.parse(String(valueToSet)); // Attempt to parse
+            setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null })); // Clear error if valid
+        }
+      } catch (e) {
+        setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'Invalid JSON format.' }));
+        // Do not set valueToSet if it's invalid JSON, keep the string as is for user to correct
+      }
+    }
+
+    // Validation for Number fields
+    if (schema?.type === 'number') {
+      const numValue = parseFloat(String(valueToSet));
+      if (String(valueToSet).trim() !== '' && isNaN(numValue)) {
+        setNumberValidationErrors(prev => ({ ...prev, [fieldKey]: 'Must be a valid number.' }));
+      } else {
+        setNumberValidationErrors(prev => ({ ...prev, [fieldKey]: null }));
+        if (String(valueToSet).trim() === '') valueToSet = undefined; // Store as undefined if empty string for number
+        else valueToSet = numValue;
+      }
     }
     
     const newConfig = produce(node.config, draftConfig => {
@@ -61,16 +91,14 @@ export function NodeConfigPanel({
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
         }
       } else if (isOnErrorWebhookField) {
-        // Assuming onErrorWebhook is directly a JSON blob for now, so fieldKey would be 'onErrorWebhook' itself.
-        // If it were to have sub-fields like retry, this would need adjustment.
         if (fieldKey === 'onErrorWebhook') {
             try {
                 const parsedValue = JSON.parse(String(valueToSet));
                 draftConfig.onErrorWebhook = parsedValue;
+                 setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null }));
             } catch (e) {
-                // Keep as string if not valid JSON, or clear, or show error.
-                // For now, let's keep it as is, assuming AI or manual input handles format.
                 draftConfig.onErrorWebhook = valueToSet; 
+                setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'Invalid JSON for Webhook Config.' }));
             }
         }
       } else {
@@ -91,44 +119,55 @@ export function NodeConfigPanel({
     } else if (fieldSchema.defaultValue !== undefined) {
         currentValue = fieldSchema.defaultValue;
     } else {
-        if (fieldSchema.type === 'json') currentValue = '{}'; 
+        if (fieldSchema.type === 'json') currentValue = (fieldSchema.allowEmptyJson && fieldSchema.required) ? '{}' : ''; 
         else if (fieldSchema.type === 'number') currentValue = ''; 
         else if (fieldSchema.type === 'boolean') currentValue = false; 
         else currentValue = '';
     }
 
+    // Ensure JSON is stringified for textarea, unless it's already a string (e.g. from user input)
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
     
     const isRequiredAndEmpty = fieldSchema.required && 
-      (currentValue === undefined || currentValue === null || (typeof currentValue === 'string' && currentValue.trim() === ''));
+      (currentValue === undefined || currentValue === null || (typeof currentValue === 'string' && currentValue.trim() === '') ||
+       (fieldSchema.type === 'json' && !fieldSchema.allowEmptyJson && (currentValue.trim() === '{}' || currentValue.trim() === '[]')));
+
+    const jsonError = jsonValidationErrors[fieldKey];
+    const numberError = numberValidationErrors[fieldKey];
 
 
     switch (fieldSchema.type) {
       case 'string':
       case 'number':
         return (
-          <Input
-            type={fieldSchema.type === 'number' ? 'number' : 'text'}
-            id={`${node.id}-${fieldKey}`}
-            value={currentValue}
-            placeholder={fieldSchema.placeholder}
-            onChange={(e) => handleInputChange(fieldKey, fieldSchema.type === 'number' ? e.target.value : e.target.value, false, isOnErrorWebhook)}
-            className={cn("mt-1 text-sm", isRequiredAndEmpty && "border-destructive focus-visible:ring-destructive")}
-          />
+          <>
+            <Input
+              type={fieldSchema.type === 'number' ? 'text' : 'text'} // Use text for number to allow intermediate invalid states
+              id={`${node.id}-${fieldKey}`}
+              value={currentValue}
+              placeholder={fieldSchema.placeholder}
+              onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
+              className={cn("mt-1 text-sm", (isRequiredAndEmpty || numberError) && "border-destructive focus-visible:ring-destructive")}
+            />
+            {numberError && <p className="text-xs text-destructive mt-0.5">{numberError}</p>}
+          </>
         );
       case 'textarea':
       case 'json':
         return (
-          <Textarea
-            id={`${node.id}-${fieldKey}`}
-            value={String(currentValue)} 
-            placeholder={fieldSchema.placeholder}
-            onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
-            className={cn("mt-1 min-h-[70px] font-mono text-xs max-h-[200px]", isRequiredAndEmpty && "border-destructive focus-visible:ring-destructive")}
-            rows={fieldSchema.type === 'json' ? 4 : 3}
-          />
+          <>
+            <Textarea
+              id={`${node.id}-${fieldKey}`}
+              value={String(currentValue)} 
+              placeholder={fieldSchema.placeholder}
+              onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
+              className={cn("mt-1 min-h-[70px] font-mono text-xs max-h-[200px]", (isRequiredAndEmpty || jsonError) && "border-destructive focus-visible:ring-destructive")}
+              rows={fieldSchema.type === 'json' ? 4 : 3}
+            />
+            {jsonError && <p className="text-xs text-destructive mt-0.5">{jsonError}</p>}
+          </>
         );
       case 'select':
         return (
@@ -312,8 +351,11 @@ export function NodeConfigPanel({
                 return true; 
               })
               .map(([key, schema]) => {
-                const isRequiredAndEmpty = schema.required && 
-                  (node.config[key] === undefined || node.config[key] === null || (typeof node.config[key] === 'string' && String(node.config[key]).trim() === ''));
+                 const isRequiredAndEmpty = schema.required && 
+                    (node.config[key] === undefined || node.config[key] === null || 
+                     (typeof node.config[key] === 'string' && String(node.config[key]).trim() === '') ||
+                     (schema.type === 'json' && !schema.allowEmptyJson && typeof node.config[key] === 'string' && (String(node.config[key]).trim() === '{}' || String(node.config[key]).trim() === '[]'))
+                    );
                 return (
                 <div key={key} className="space-y-1 mt-2">
                    {schema.type !== 'boolean' && 
@@ -323,7 +365,7 @@ export function NodeConfigPanel({
                     </Label>}
                   {renderFormField(key, schema)}
                   {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
-                  {isRequiredAndEmpty && schema.type !== 'boolean' && <p className="text-xs text-destructive mt-0.5">This field is required.</p>}
+                  {isRequiredAndEmpty && schema.type !== 'boolean' && !jsonValidationErrors[key] && !numberValidationErrors[key] && <p className="text-xs text-destructive mt-0.5">This field is required.</p>}
                 </div>
               )})
           ) : (
@@ -345,14 +387,16 @@ export function NodeConfigPanel({
                                 ...(node.config.onErrorWebhook && { onErrorWebhook: node.config.onErrorWebhook }),
                             };
                             onConfigChange(node.id, updatedFullConfig);
+                             setJsonValidationErrors(prev => ({ ...prev, ["rawConfig"]: null }));
                         } catch (err) {
-                           // Handle invalid JSON if needed
+                           setJsonValidationErrors(prev => ({ ...prev, ["rawConfig"]: "Invalid JSON format."}));
                         }
                     }}
-                    className="mt-1 font-mono text-xs min-h-[80px] max-h-[200px]"
+                    className={cn("mt-1 font-mono text-xs min-h-[80px] max-h-[200px]", jsonValidationErrors["rawConfig"] && "border-destructive")}
                     rows={4}
                     placeholder='Enter valid JSON or leave empty. Example: {"key": "value"}'
                 />
+                {jsonValidationErrors["rawConfig"] && <p className="text-xs text-destructive mt-0.5">{jsonValidationErrors["rawConfig"]}</p>}
                 <p className="text-xs text-muted-foreground/80 mt-0.5">Edit raw JSON for this node's config. Use with caution. This is shown if no specific parameters are defined (excluding retry/webhook).</p>
              </div>
           )}
@@ -449,9 +493,13 @@ export function NodeConfigPanel({
                         </div>
                         {node.config.onErrorWebhook && (
                           <>
-                            <Label htmlFor={`${node.id}-onErrorWebhook`} className="text-xs">Webhook Configuration (JSON)</Label>
+                            <Label htmlFor={`${node.id}-onErrorWebhook`} className={cn("text-xs", jsonValidationErrors[`onErrorWebhook`] && "text-destructive")}>
+                                Webhook Configuration (JSON)
+                                {nodeType.configSchema.onErrorWebhook.required && <span className="text-destructive ml-1">*</span>}
+                            </Label>
                             {renderFormField('onErrorWebhook', nodeType.configSchema.onErrorWebhook, true)}
                             {nodeType.configSchema.onErrorWebhook.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{nodeType.configSchema.onErrorWebhook.helperText}</p>}
+                            {jsonValidationErrors[`onErrorWebhook`] && <p className="text-xs text-destructive mt-0.5">{jsonValidationErrors[`onErrorWebhook`]}</p>}
                           </>
                         )}
                     </AccordionContent>
@@ -528,4 +576,5 @@ export function NodeConfigPanel({
     </Card>
   );
 }
+
 

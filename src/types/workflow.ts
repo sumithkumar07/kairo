@@ -73,6 +73,7 @@ export interface ConfigFieldSchema {
   helperText?: string;
   required?: boolean; 
   relevantForTypes?: string[]; // For dataTransform node conditional fields
+  allowEmptyJson?: boolean; // For JSON type, if an empty object/array is acceptable when required
 }
 
 export interface BranchConfig {
@@ -114,3 +115,4 @@ export interface WorkflowExecutionResult {
   serverLogs: ServerLogOutput[];
   finalWorkflowData: Record<string, any>; // Contains node outputs and their lastExecutionStatus
 }
+
