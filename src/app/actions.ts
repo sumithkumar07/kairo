@@ -1544,11 +1544,29 @@ async function executeFlowInternal(
               }
               serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`, type: 'info' });
               console.log(`[NODE DELAY - SERVER] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`);
-              await new Promise(resolve => setTimeout(resolve, delayMs));
+              
+              if (delayMs > 0) { // Only actually pause if delay is positive
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+              }
+              
               serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Delay finished after ${delayMs}ms.`, type: 'success' });
               console.log(`[NODE DELAY - SERVER] ${nodeIdentifier}: Delay finished.`);
               
-              const delayInputData = resolveValue(`{{${node.id}.input}}`, currentWorkflowData, serverLogs, additionalContexts);
+              
+              let delayInputData: any = undefined;
+              const inputConnections = connectionsToExecute.filter(c => c.targetNodeId === node.id && c.targetHandle === 'input');
+              if (inputConnections.length > 0) {
+                const sourceNodeId = inputConnections[0].sourceNodeId;
+                const sourceHandle = inputConnections[0].sourceHandle || 'output'; // Assume 'output' if not specified
+                if (currentWorkflowData[sourceNodeId] && currentWorkflowData[sourceNodeId].hasOwnProperty(sourceHandle)) {
+                    delayInputData = currentWorkflowData[sourceNodeId][sourceHandle];
+                     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Passing through input from ${sourceNodeId}.${sourceHandle}. Data (preview): ${JSON.stringify(delayInputData).substring(0,100)}`, type: 'info'});
+                } else {
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Input handle 'input' connected, but no data found from source ${sourceNodeId}.${sourceHandle}. Output will be undefined.`, type: 'info'});
+                }
+              } else {
+                 serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: No input connection. Output will be undefined.`, type: 'info'});
+              }
               currentAttemptOutput = { ...currentAttemptOutput, output: delayInputData };
               break;
 
@@ -1745,5 +1763,3 @@ export async function executeWorkflow(
   console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
-
-

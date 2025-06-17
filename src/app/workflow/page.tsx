@@ -45,6 +45,8 @@ interface HistoryEntry {
   connections: WorkflowConnection[];
   selectedNodeId: string | null;
   selectedConnectionId: string | null;
+  canvasOffset: { x: number; y: number };
+  zoomLevel: number;
 }
 
 export default function WorkflowPage() {
@@ -97,20 +99,22 @@ export default function WorkflowPage() {
         nodes: nodes,
         connections: connections,
         selectedNodeId: selectedNodeId,
-        selectedConnectionId: selectedConnectionId
+        selectedConnectionId: selectedConnectionId,
+        canvasOffset: canvasOffset,
+        zoomLevel: zoomLevel,
       };
       const limitedHistory = [...newHistory, currentEntry].slice(-MAX_HISTORY_STEPS);
       setHistoryIndex(limitedHistory.length - 1);
       return limitedHistory;
     });
-  }, [historyIndex, nodes, connections, selectedNodeId, selectedConnectionId]);
+  }, [historyIndex, nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel]);
 
   useEffect(() => {
     if (nodes.length > 0 && history.length === 0 && historyIndex === -1) {
-      setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId }]);
+      setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel }]);
       setHistoryIndex(0);
     }
-  }, [nodes, connections, history, historyIndex, selectedNodeId, selectedConnectionId]);
+  }, [nodes, connections, history, historyIndex, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel]);
 
 
   useEffect(() => {
@@ -178,7 +182,9 @@ export default function WorkflowPage() {
       nodes: initialNodes,
       connections: initialConnections,
       selectedNodeId: null,
-      selectedConnectionId: null
+      selectedConnectionId: null,
+      canvasOffset: { x: 0, y: 0 },
+      zoomLevel: 1,
     };
     setHistory([initialEntry]);
     setHistoryIndex(0);
@@ -338,6 +344,8 @@ export default function WorkflowPage() {
       setConnections(prevState.connections);
       setSelectedNodeId(prevState.selectedNodeId);
       setSelectedConnectionId(prevState.selectedConnectionId);
+      setCanvasOffset(prevState.canvasOffset);
+      setZoomLevel(prevState.zoomLevel);
       setHistoryIndex(newIndex);
     }
   }, [history, historyIndex]);
@@ -350,6 +358,8 @@ export default function WorkflowPage() {
       setConnections(nextState.connections);
       setSelectedNodeId(nextState.selectedNodeId);
       setSelectedConnectionId(nextState.selectedConnectionId);
+      setCanvasOffset(nextState.canvasOffset);
+      setZoomLevel(nextState.zoomLevel);
       setHistoryIndex(newIndex);
     }
   }, [history, historyIndex]);
@@ -360,6 +370,22 @@ export default function WorkflowPage() {
     setConnectionStartHandleId(null);
     setConnectionPreviewPosition(null);
   }, []);
+  
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => {
+      const newZoom = Math.min(MAX_ZOOM, prev + ZOOM_STEP);
+      if (newZoom !== prev) saveHistory();
+      return newZoom;
+    });
+  }, [saveHistory]);
+
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => {
+      const newZoom = Math.max(MIN_ZOOM, prev - ZOOM_STEP);
+      if (newZoom !== prev) saveHistory();
+      return newZoom;
+    });
+  }, [saveHistory]);
 
   useEffect(() => {
     handleLoadWorkflow(false);
@@ -397,6 +423,16 @@ export default function WorkflowPage() {
         handleRedo();
         return;
       }
+      if (isCtrlOrMeta && (event.key === '+' || event.key === '=')) {
+        event.preventDefault();
+        handleZoomIn();
+        return;
+      }
+      if (isCtrlOrMeta && event.key === '-') {
+        event.preventDefault();
+        handleZoomOut();
+        return;
+      }
 
 
       if (event.key === 'Escape') {
@@ -419,7 +455,8 @@ export default function WorkflowPage() {
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection
+    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection,
+    handleZoomIn, handleZoomOut 
   ]);
 
   useEffect(() => {
@@ -515,8 +552,8 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-    setCanvasOffset({ x: 0, y: 0 });
-    setZoomLevel(1);
+    setCanvasOffset({ x: 0, y: 0 }); // Reset view
+    setZoomLevel(1); // Reset zoom
     resetHistoryForNewWorkflow(newNodes, newConnections);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast]);
@@ -749,16 +786,6 @@ export default function WorkflowPage() {
     return AVAILABLE_NODES_CONFIG.find(nt => nt.type === selectedNode.type);
   }, [selectedNode]);
 
-  const handleZoomIn = useCallback(() => {
-    setZoomLevel(prev => Math.min(MAX_ZOOM, prev + ZOOM_STEP));
-    saveHistory();
-  }, [saveHistory]);
-
-  const handleZoomOut = useCallback(() => {
-    setZoomLevel(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP));
-    saveHistory();
-  }, [saveHistory]);
-
   const handleGetWorkflowExplanation = useCallback(async () => {
     if (nodes.length === 0) {
       toast({ title: 'Empty Workflow', description: 'Add nodes to the canvas to get an explanation.', variant: 'default' });
@@ -883,6 +910,22 @@ export default function WorkflowPage() {
               isSimulationMode={isSimulationMode}
               onToggleSimulationMode={handleToggleSimulationMode}
             />
+             <AIWorkflowAssistantPanel
+                onWorkflowGenerated={handleAiPromptSubmit}
+                setIsLoadingGlobal={setIsLoadingAi}
+                isExplainingWorkflow={isExplainingWorkflow}
+                workflowExplanation={workflowExplanation}
+                onClearExplanation={() => {
+                    setWorkflowExplanation(null);
+                }}
+                initialCanvasSuggestion={initialCanvasSuggestion}
+                isLoadingSuggestion={isLoadingSuggestion}
+                onAddSuggestedNode={handleAddSuggestedNode}
+                isCanvasEmpty={nodes.length === 0}
+                executionLogs={executionLogs}
+                onClearLogs={handleClearLogs}
+                isWorkflowRunning={isWorkflowRunning}
+              />
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType ? (
                 <NodeConfigPanel
@@ -924,22 +967,7 @@ export default function WorkflowPage() {
                       </Button>
                   </div>
               ) : (
-                <AIWorkflowAssistantPanel
-                  onWorkflowGenerated={handleAiPromptSubmit}
-                  setIsLoadingGlobal={setIsLoadingAi}
-                  isExplainingWorkflow={isExplainingWorkflow}
-                  workflowExplanation={workflowExplanation}
-                  onClearExplanation={() => {
-                      setWorkflowExplanation(null);
-                  }}
-                  initialCanvasSuggestion={initialCanvasSuggestion}
-                  isLoadingSuggestion={isLoadingSuggestion}
-                  onAddSuggestedNode={handleAddSuggestedNode}
-                  isCanvasEmpty={nodes.length === 0}
-                  executionLogs={executionLogs}
-                  onClearLogs={handleClearLogs}
-                  isWorkflowRunning={isWorkflowRunning}
-                />
+               null // AIWorkflowAssistantPanel is now rendered above this section
               )}
             </div>
           </aside>
@@ -980,5 +1008,3 @@ export default function WorkflowPage() {
     </div>
   );
 }
-
-
