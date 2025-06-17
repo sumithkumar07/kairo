@@ -4,7 +4,7 @@
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useMemo, useState, memo } from 'react';
+import { useMemo, useState, memo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 
@@ -70,8 +70,19 @@ interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
 }
 
-export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLibraryProps) {
+const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [inputValue, setInputValue] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(inputValue);
+    }, 300); // Debounce delay: 300ms
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputValue]);
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeType: AvailableNodeType) => {
     event.dataTransfer.setData('application/json', JSON.stringify(nodeType));
@@ -102,13 +113,13 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
         <Input
           type="search"
           placeholder="Search nodes..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
           className="w-full pl-8 h-9 text-sm"
         />
       </div>
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-2"> {/* Reduced space-y from 3 to 2 for tighter list */}
+        <div className="p-3 space-y-2">
           {filteredNodes.length === 0 && searchTerm.trim() !== '' && (
             <p className="text-sm text-muted-foreground text-center py-4">No nodes found matching "{searchTerm}".</p>
           )}
@@ -139,6 +150,7 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
       </ScrollArea>
     </aside>
   );
-});
+};
 
+export const NodeLibrary = memo(NodeLibraryComponent);
 NodeLibrary.displayName = 'NodeLibrary';
