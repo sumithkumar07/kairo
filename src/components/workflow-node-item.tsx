@@ -192,9 +192,9 @@ export function WorkflowNodeItem({
         {nodeType?.inputHandles?.map((handleId, index) => {
           const numHandles = nodeType.inputHandles?.length || 1;
           const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
-          const isPotentialTarget = isConnecting && node.id !== connectionStartNodeId;
-          const isSelfInputDuringConnect = isConnecting && node.id === connectionStartNodeId;
           const isConnected = connections.some(conn => conn.targetNodeId === node.id && conn.targetHandle === handleId);
+          const isPotentialTarget = isConnecting && node.id !== connectionStartNodeId && !isConnected;
+          const isSelfInputDuringConnect = isConnecting && node.id === connectionStartNodeId;
 
 
           return (
@@ -207,11 +207,11 @@ export function WorkflowNodeItem({
                     className={cn(
                       "absolute -left-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out group",
                       categoryStyling.inputHandleBorder,
-                      isConnected && !isConnecting ? categoryStyling.inputHandleColor : 'bg-card', 
+                      isConnected && !isConnecting && !isPotentialTarget ? categoryStyling.inputHandleColor : 'bg-card', 
                        isPotentialTarget 
-                        ? "border-green-400 bg-green-500 hover:bg-green-400 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-400/50" 
-                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : "cursor-default"),
-                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-40 cursor-not-allowed" ,
+                        ? "border-green-400 bg-green-500/80 hover:bg-green-400 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-400/50" 
+                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : (isConnecting && isConnected ? "border-muted bg-muted opacity-50 cursor-not-allowed": "cursor-default")), // De-emphasize connected inputs if connecting
+                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && !isConnected && "opacity-40 cursor-not-allowed" ,
                       !isConnecting && "hover:scale-110 hover:border-primary",
                       !isConnecting && isConnected && `${categoryStyling.inputHandleColor} border-primary/50`
                     )}
@@ -238,7 +238,7 @@ export function WorkflowNodeItem({
            const numHandles = nodeType.outputHandles?.length || 1;
            const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
            const isActiveSource = isConnecting && node.id === connectionStartNodeId && handleId === connectionStartHandleId;
-           const isOtherNodeOutputDuringConnect = isConnecting && node.id !== connectionStartNodeId;
+           const isOtherNodeOutputDuringConnect = isConnecting && (node.id !== connectionStartNodeId || (node.id === connectionStartNodeId && handleId !== connectionStartHandleId));
            const isConnected = connections.some(conn => conn.sourceNodeId === node.id && conn.sourceHandle === handleId);
           return (
             <TooltipProvider key={`out-tp-${node.id}-${handleId}`} delayDuration={100}>
