@@ -55,19 +55,19 @@ export function NodeConfigPanel({
     // Validation for JSON fields
     if (schema?.type === 'json') {
       try {
-        if (String(valueToSet).trim() === '') { // Allow empty string for optional JSON
+        const trimmedValue = String(valueToSet).trim();
+        if (trimmedValue === '') { 
             if (schema.required && !schema.allowEmptyJson) {
                  setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'This JSON field is required and cannot be empty.' }));
             } else {
                  setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null }));
             }
         } else {
-            JSON.parse(String(valueToSet)); // Attempt to parse
-            setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null })); // Clear error if valid
+            JSON.parse(trimmedValue); 
+            setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null })); 
         }
       } catch (e) {
         setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'Invalid JSON format.' }));
-        // Do not set valueToSet if it's invalid JSON, keep the string as is for user to correct
       }
     }
 
@@ -78,7 +78,7 @@ export function NodeConfigPanel({
         setNumberValidationErrors(prev => ({ ...prev, [fieldKey]: 'Must be a valid number.' }));
       } else {
         setNumberValidationErrors(prev => ({ ...prev, [fieldKey]: null }));
-        if (String(valueToSet).trim() === '') valueToSet = undefined; // Store as undefined if empty string for number
+        if (String(valueToSet).trim() === '') valueToSet = undefined; 
         else valueToSet = numValue;
       }
     }
@@ -125,17 +125,29 @@ export function NodeConfigPanel({
         else currentValue = '';
     }
 
-    // Ensure JSON is stringified for textarea, unless it's already a string (e.g. from user input)
     if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
     
-    const isRequiredAndEmpty = fieldSchema.required && 
-      (currentValue === undefined || currentValue === null || (typeof currentValue === 'string' && currentValue.trim() === '') ||
-       (fieldSchema.type === 'json' && !fieldSchema.allowEmptyJson && (currentValue.trim() === '{}' || currentValue.trim() === '[]')));
-
+    const isEffectivelyEmpty = (val: any, schema: ConfigFieldSchema) => {
+      if (val === undefined || val === null) return true;
+      if (typeof val === 'string' && val.trim() === '') return true;
+      if (schema.type === 'json' && typeof val === 'string') {
+        const trimmed = val.trim();
+        return (trimmed === '{}' || trimmed === '[]') && !schema.allowEmptyJson;
+      }
+      return false;
+    };
+    
+    const isRequiredAndEmpty = fieldSchema.required && isEffectivelyEmpty(currentValue, fieldSchema);
     const jsonError = jsonValidationErrors[fieldKey];
     const numberError = numberValidationErrors[fieldKey];
+    const hasError = isRequiredAndEmpty || !!jsonError || !!numberError;
+
+    let errorMessage = null;
+    if (jsonError) errorMessage = jsonError;
+    else if (numberError) errorMessage = numberError;
+    else if (isRequiredAndEmpty) errorMessage = "This field is required.";
 
 
     switch (fieldSchema.type) {
@@ -144,14 +156,14 @@ export function NodeConfigPanel({
         return (
           <>
             <Input
-              type={fieldSchema.type === 'number' ? 'text' : 'text'} // Use text for number to allow intermediate invalid states
+              type={fieldSchema.type === 'number' ? 'text' : 'text'} 
               id={`${node.id}-${fieldKey}`}
               value={currentValue}
               placeholder={fieldSchema.placeholder}
               onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
-              className={cn("mt-1 text-sm", (isRequiredAndEmpty || numberError) && "border-destructive focus-visible:ring-destructive")}
+              className={cn("mt-1 text-sm", hasError && "border-destructive focus-visible:ring-destructive")}
             />
-            {numberError && <p className="text-xs text-destructive mt-0.5">{numberError}</p>}
+            {errorMessage && <p className="text-xs text-destructive mt-0.5">{errorMessage}</p>}
           </>
         );
       case 'textarea':
@@ -163,29 +175,32 @@ export function NodeConfigPanel({
               value={String(currentValue)} 
               placeholder={fieldSchema.placeholder}
               onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
-              className={cn("mt-1 min-h-[70px] font-mono text-xs max-h-[200px]", (isRequiredAndEmpty || jsonError) && "border-destructive focus-visible:ring-destructive")}
+              className={cn("mt-1 min-h-[70px] font-mono text-xs max-h-[200px]", hasError && "border-destructive focus-visible:ring-destructive")}
               rows={fieldSchema.type === 'json' ? 4 : 3}
             />
-            {jsonError && <p className="text-xs text-destructive mt-0.5">{jsonError}</p>}
+            {errorMessage && <p className="text-xs text-destructive mt-0.5">{errorMessage}</p>}
           </>
         );
       case 'select':
         return (
-          <Select
-            value={String(currentValue)}
-            onValueChange={(value) => handleInputChange(fieldKey, value, false, isOnErrorWebhook)}
-          >
-            <SelectTrigger id={`${node.id}-${fieldKey}`} className={cn("mt-1 text-sm", isRequiredAndEmpty && "border-destructive focus-visible:ring-destructive")}>
-              <SelectValue placeholder={fieldSchema.placeholder || `Select ${fieldSchema.label}`} />
-            </SelectTrigger>
-            <SelectContent>
-              {fieldSchema.options?.map((option, index) => {
-                const val = typeof option === 'string' ? option : option.value;
-                const lab = typeof option === 'string' ? option : option.label;
-                return <SelectItem key={`${val}-${index}`} value={val} className="text-sm">{lab}</SelectItem>
-              })}
-            </SelectContent>
-          </Select>
+          <>
+            <Select
+              value={String(currentValue)}
+              onValueChange={(value) => handleInputChange(fieldKey, value, false, isOnErrorWebhook)}
+            >
+              <SelectTrigger id={`${node.id}-${fieldKey}`} className={cn("mt-1 text-sm", hasError && "border-destructive focus-visible:ring-destructive")}>
+                <SelectValue placeholder={fieldSchema.placeholder || `Select ${fieldSchema.label}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {fieldSchema.options?.map((option, index) => {
+                  const val = typeof option === 'string' ? option : option.value;
+                  const lab = typeof option === 'string' ? option : option.label;
+                  return <SelectItem key={`${val}-${index}`} value={val} className="text-sm">{lab}</SelectItem>
+                })}
+              </SelectContent>
+            </Select>
+            {errorMessage && <p className="text-xs text-destructive mt-0.5">{errorMessage}</p>}
+          </>
         );
       case 'boolean':
         return (
@@ -194,7 +209,7 @@ export function NodeConfigPanel({
               id={`${node.id}-${fieldKey}`}
               checked={!!currentValue}
               onCheckedChange={(checked) => handleInputChange(fieldKey, checked, false, isOnErrorWebhook)}
-              className={cn(isRequiredAndEmpty && "ring-2 ring-destructive focus:ring-destructive")}
+              className={cn(hasError && "ring-2 ring-destructive focus:ring-destructive")}
             />
             <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer text-muted-foreground">
               {fieldSchema.label} {currentValue ? <span className="text-primary/80">(Enabled)</span> : <span className="text-muted-foreground/70">(Disabled)</span>}
@@ -351,21 +366,25 @@ export function NodeConfigPanel({
                 return true; 
               })
               .map(([key, schema]) => {
-                 const isRequiredAndEmpty = schema.required && 
-                    (node.config[key] === undefined || node.config[key] === null || 
-                     (typeof node.config[key] === 'string' && String(node.config[key]).trim() === '') ||
-                     (schema.type === 'json' && !schema.allowEmptyJson && typeof node.config[key] === 'string' && (String(node.config[key]).trim() === '{}' || String(node.config[key]).trim() === '[]'))
-                    );
+                const isEffectivelyEmpty = (val: any, s: ConfigFieldSchema) => {
+                  if (val === undefined || val === null) return true;
+                  if (typeof val === 'string' && val.trim() === '') return true;
+                  if (s.type === 'json' && typeof val === 'string') {
+                    const trimmed = val.trim();
+                    return (trimmed === '{}' || trimmed === '[]') && !s.allowEmptyJson;
+                  }
+                  return false;
+                };
+                const isRequiredAndStillEmpty = schema.required && isEffectivelyEmpty(node.config[key], schema);
                 return (
                 <div key={key} className="space-y-1 mt-2">
                    {schema.type !== 'boolean' && 
-                    <Label htmlFor={`${node.id}-${key}`} className={cn("text-xs font-medium", isRequiredAndEmpty && "text-destructive")}>
+                    <Label htmlFor={`${node.id}-${key}`} className={cn("text-xs font-medium", (isRequiredAndStillEmpty || jsonValidationErrors[key] || numberValidationErrors[key]) && "text-destructive")}>
                         {schema.label}
                         {schema.required && <span className="text-destructive ml-1">*</span>}
                     </Label>}
                   {renderFormField(key, schema)}
-                  {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
-                  {isRequiredAndEmpty && schema.type !== 'boolean' && !jsonValidationErrors[key] && !numberValidationErrors[key] && <p className="text-xs text-destructive mt-0.5">This field is required.</p>}
+                  {schema.helperText && !jsonValidationErrors[key] && !numberValidationErrors[key] && !isRequiredAndStillEmpty && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
                 </div>
               )})
           ) : (
@@ -499,7 +518,6 @@ export function NodeConfigPanel({
                             </Label>
                             {renderFormField('onErrorWebhook', nodeType.configSchema.onErrorWebhook, true)}
                             {nodeType.configSchema.onErrorWebhook.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{nodeType.configSchema.onErrorWebhook.helperText}</p>}
-                            {jsonValidationErrors[`onErrorWebhook`] && <p className="text-xs text-destructive mt-0.5">{jsonValidationErrors[`onErrorWebhook`]}</p>}
                           </>
                         )}
                     </AccordionContent>
@@ -576,5 +594,3 @@ export function NodeConfigPanel({
     </Card>
   );
 }
-
-

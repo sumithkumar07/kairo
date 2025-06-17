@@ -8,23 +8,22 @@ export function isConfigComplete(node: WorkflowNode, nodeType?: AvailableNodeTyp
   for (const [key, schemaEntry] of Object.entries(nodeType.configSchema)) {
     if (schemaEntry.required) {
       const value = node.config[key];
-      if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
-        // Special check for retry and onErrorWebhook: if they are empty objects but schema requires them, it's fine if they are not truly "required" for basic functionality
-        if ((key === 'retry' || key === 'onErrorWebhook') && typeof value === 'object' && Object.keys(value).length === 0) {
-          // If the schema marks retry/onErrorWebhook itself as required but it's an empty object,
-          // consider it "present" for this check, actual validation of its fields happens elsewhere or is implied.
-          // This might need refinement based on how "required" is defined for these complex objects.
-          // For now, an empty object satisfies a "required" complex field placeholder.
-        } else {
-          return false;
-        }
+      if (value === undefined || value === null) {
+        return false;
       }
-      if (schemaEntry.type === 'json' && typeof value === 'string' && (value.trim() === '{}' || value.trim() === '[]')) {
-        // If a JSON field is required and it's an empty object/array string, this might be invalid.
-        // However, some "required" JSON fields might accept empty structures.
-        // This part of the logic is tricky without more context on specific field requirements.
-        // For now, we assume an empty JSON string for a required JSON field might be incomplete.
-        // Consider schemaEntry.allowEmptyJson: boolean if finer control is needed.
+      if (typeof value === 'string' && value.trim() === '') {
+        return false;
+      }
+      if (schemaEntry.type === 'json' && typeof value === 'string') {
+        const trimmedValue = value.trim();
+        if ((trimmedValue === '{}' || trimmedValue === '[]') && !schemaEntry.allowEmptyJson) {
+            return false;
+        }
+        // Basic check for non-empty but potentially invalid JSON structure if required
+        if (trimmedValue !== '' && (trimmedValue === '{}' || trimmedValue === '[]') && !schemaEntry.allowEmptyJson && schemaEntry.required) {
+             // This scenario is tricky; an empty object/array might be invalid if content is expected.
+             // However, if allowEmptyJson is false, it implies non-empty content is expected.
+        }
       }
     }
   }
@@ -50,9 +49,9 @@ export function hasUnconnectedInputs(node: WorkflowNode, connections: WorkflowCo
   return false;
 }
 
-export function findPlaceholdersInObject(obj: any, type: 'env' | 'secret'): string[] {
+export function findPlaceholdersInObject(obj: any, type: 'env' | 'credential'): string[] {
   const placeholders = new Set<string>();
-  const regex = new RegExp(`{{\\s*${type}\\.([^}\\s]+)\\s*}}`, 'g');
+  const regex = new RegExp(`{{\\s*${type === 'secret' ? '(?:secret|credential)' : type}\\.([^}\\s]+)\\s*}}`, 'g');
 
   function recurse(current: any) {
     if (typeof current === 'string') {
