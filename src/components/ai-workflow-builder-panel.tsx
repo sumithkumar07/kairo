@@ -1,12 +1,16 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
 import { Separator } from '@/components/ui/separator';
 import type { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from '@/lib/utils';
 
 interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
@@ -92,21 +96,28 @@ export function AIWorkflowBuilderPanel({
   onDeleteSelectedConnection,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
+  const { currentTier, features, isProTier } = useSubscription();
 
-  const handleUpgradeClick = () => {
-    toast({
-      title: 'Unlock More AI Features',
-      description: 'Upgrade your plan to access advanced AI capabilities, enhanced generation, in-depth explanations, and smarter suggestions for your workflows!',
-      duration: 6000,
-    });
+  const handleExplainWorkflowClick = () => {
+    if (!features.canExplainWorkflow) {
+      toast({
+        title: 'Pro Feature',
+        description: 'Workflow explanation is available on the Pro plan. Please upgrade to use this feature.',
+        variant: 'default', 
+        duration: 5000,
+      });
+      return;
+    }
+    onExplainWorkflow();
   };
+  
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
       <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
         <div>
           <h1 className="text-xl font-semibold text-foreground">FlowAI Studio</h1>
-          <p className="text-xs text-muted-foreground">Build, simulate, and deploy AI-driven automations.</p>
+          <p className="text-xs text-muted-foreground">Build, simulate, and deploy AI-driven automations. Current Tier: <span className={cn("font-semibold", isProTier ? "text-primary" : "text-amber-500")}>{currentTier}</span></p>
         </div>
         <div className="flex items-center gap-1.5">
           {/* Zoom Controls */}
@@ -157,15 +168,28 @@ export function AIWorkflowBuilderPanel({
 
           <Separator orientation="vertical" className="h-6 mx-1.5" />
           
-          <Button
-            variant="ghost" // Changed variant
-            size="sm"
-            onClick={handleUpgradeClick}
-            title="Upgrade to unlock more AI features"
-          >
-            <Sparkles className="h-4 w-4 mr-1.5 text-primary" />
-            Unlock AI
-          </Button>
+          {isProTier ? (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="cursor-default text-primary hover:bg-primary/10">
+                    <Sparkles className="h-4 w-4 mr-1.5" />
+                    Pro Plan Active
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">You are on the Pro plan with all features unlocked!</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Link href="/subscriptions" passHref legacyBehavior>
+              <Button variant="ghost" size="sm" title="Upgrade to unlock more AI features" className="text-amber-500 hover:bg-amber-500/10 hover:text-amber-600">
+                  <Sparkles className="h-4 w-4 mr-1.5" />
+                  Unlock AI Features
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -230,18 +254,41 @@ export function AIWorkflowBuilderPanel({
         >
           <Bot className="h-6 w-6" />
         </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="rounded-full shadow-lg w-12 h-12 bg-card hover:bg-accent"
-          onClick={onExplainWorkflow}
-          disabled={!hasWorkflow || isExplainingWorkflow}
-          title="Let AI Explain this workflow"
-        >
-          {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> : <MessageSquareText className="h-5 w-5" />}
-        </Button>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div> {/* Wrapper div for TooltipTrigger when button is disabled */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full shadow-lg w-12 h-12 bg-card hover:bg-accent"
+                  onClick={handleExplainWorkflowClick}
+                  disabled={!hasWorkflow || isExplainingWorkflow || !features.canExplainWorkflow}
+                  title={!features.canExplainWorkflow ? "Upgrade to Pro for AI Explanations" : "Let AI Explain this workflow"}
+                >
+                  {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> : 
+                   !features.canExplainWorkflow ? <ShieldQuestion className="h-5 w-5 text-muted-foreground" /> : <MessageSquareText className="h-5 w-5" />}
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {!features.canExplainWorkflow && (
+              <TooltipContent side="left">
+                <p className="text-xs">Workflow explanation is a Pro feature. <Link href="/subscriptions" className="text-primary underline">Upgrade Plan</Link></p>
+              </TooltipContent>
+            )}
+             {features.canExplainWorkflow && hasWorkflow && (
+              <TooltipContent side="left">
+                <p className="text-xs">Let AI Explain this workflow</p>
+              </TooltipContent>
+            )}
+            {features.canExplainWorkflow && !hasWorkflow && (
+              <TooltipContent side="left">
+                <p className="text-xs">Add nodes to the canvas to enable explanation.</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </main>
   );
 }
-

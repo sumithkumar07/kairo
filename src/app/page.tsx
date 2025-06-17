@@ -1,7 +1,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Zap, BrainCircuit, BarChart3, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb } from 'lucide-react';
+import { Zap, BrainCircuit, BarChart3, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign } from 'lucide-react';
 import Image from 'next/image';
 
 export default function HomePage() {
@@ -16,6 +16,10 @@ export default function HomePage() {
           <nav className="space-x-4">
             <Link href="/workflow" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               Workflow Editor
+            </Link>
+            <Link href="/subscriptions" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center">
+              <DollarSign className="h-4 w-4 mr-1" />
+              Subscriptions
             </Link>
             {/* <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               Features
@@ -45,37 +49,51 @@ export default function HomePage() {
         <section id="features" className="py-16 md:py-20">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Everything You Need to Automate</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
-            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out">
+            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center mb-4">
-                <BrainCircuit className="h-16 w-16 text-primary" />
+                 <Image 
+                  src="https://placehold.co/200x125.png" 
+                  alt="AI Workflow Generation" 
+                  width={200} 
+                  height={125} 
+                  className="rounded-lg shadow-md"
+                  data-ai-hint="ai brain"
+                />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-3 text-center">AI-Powered Workflow Generation</h3>
-              <p className="text-muted-foreground text-sm text-center">
+              <p className="text-muted-foreground text-sm text-center flex-grow">
                 Describe your automation needs in plain language. Our AI assistant will intelligently draft a workflow, giving you a powerful head start.
               </p>
             </div>
-            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out">
+            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
                <div className="flex justify-center mb-4">
                 <Image 
-                  src="https://placehold.co/600x400.png" 
+                  src="https://placehold.co/200x125.png" 
                   alt="Visual Workflow Editor" 
                   width={200} 
                   height={125} 
                   className="rounded-lg shadow-md"
-                  data-ai-hint="workflow canvas editor"
+                  data-ai-hint="canvas editor"
                 />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Intuitive Drag & Drop Canvas</h3>
-              <p className="text-muted-foreground text-sm text-center">
+              <p className="text-muted-foreground text-sm text-center flex-grow">
                 Visually construct and modify your workflows. Connect nodes, configure steps, and see your automation take shape in real-time.
               </p>
             </div>
-            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out">
+            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center mb-4">
-                <BarChart3 className="h-16 w-16 text-primary" />
+                 <Image 
+                  src="https://placehold.co/200x125.png" 
+                  alt="Test & Deploy" 
+                  width={200} 
+                  height={125} 
+                  className="rounded-lg shadow-md"
+                  data-ai-hint="deployment success"
+                />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Test & Deploy with Confidence</h3>
-              <p className="text-muted-foreground text-sm text-center">
+              <p className="text-muted-foreground text-sm text-center flex-grow">
                 Simulate your workflow's behavior with mock data to ensure everything works as expected. Deploy validated automations to handle real-world tasks reliably.
               </p>
             </div>
@@ -87,29 +105,57 @@ export default function HomePage() {
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose FlowAI Studio?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/20 rounded-full mb-4">
-                  <Rocket className="h-8 w-8 text-primary" />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                   <Image 
+                    src="https://placehold.co/100x100.png" 
+                    alt="Accelerate Development" 
+                    width={80} 
+                    height={80} 
+                    className="rounded-md"
+                    data-ai-hint="speed rocket"
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Accelerate Development</h3>
                 <p className="text-muted-foreground text-sm">Go from idea to automation significantly faster than traditional coding.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/20 rounded-full mb-4">
-                  <Wrench className="h-8 w-8 text-primary" />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                   <Image 
+                    src="https://placehold.co/100x100.png" 
+                    alt="Reduce Complexity" 
+                    width={80} 
+                    height={80} 
+                    className="rounded-md"
+                    data-ai-hint="simplify puzzle"
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Reduce Complexity</h3>
                 <p className="text-muted-foreground text-sm">Abstract away intricate coding tasks with a visual, node-based approach.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/20 rounded-full mb-4">
-                  <Lightbulb className="h-8 w-8 text-primary" />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                  <Image 
+                    src="https://placehold.co/100x100.png" 
+                    alt="Smart Assistance" 
+                    width={80} 
+                    height={80} 
+                    className="rounded-md"
+                    data-ai-hint="ai assistant"
+                  />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Smart Assistance</h3>
                 <p className="text-muted-foreground text-sm">Leverage AI for workflow generation, suggestions, and explanations.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/20 rounded-full mb-4">
-                    <CheckCircle className="h-8 w-8 text-primary" />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                    <Image 
+                      src="https://placehold.co/100x100.png" 
+                      alt="Boost Efficiency" 
+                      width={80} 
+                      height={80} 
+                      className="rounded-md"
+                      data-ai-hint="efficiency gears"
+                    />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Boost Efficiency</h3>
                 <p className="text-muted-foreground text-sm">Automate repetitive processes and free up your team for high-value work.</p>
@@ -128,7 +174,7 @@ export default function HomePage() {
                         width={500} 
                         height={312} 
                         className="rounded-lg shadow-xl mx-auto transform hover:scale-105 transition-transform duration-300"
-                        data-ai-hint="process automation abstract"
+                        data-ai-hint="automation abstract"
                       />
                 </div>
                 <div className="md:w-1/2 md:text-left">
@@ -171,4 +217,3 @@ export default function HomePage() {
     </div>
   );
 }
-
