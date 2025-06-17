@@ -5,13 +5,14 @@ import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
-import { Input } from '@/components/ui/input'; // Import Input
-import { Search } from 'lucide-react'; // Import Search icon
+import { Input } from '@/components/ui/input'; 
+import { Search } from 'lucide-react'; 
 
 const capitalizeFirstLetter = (string: string) => {
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
+// Duplicating a simplified version for library-specific visual consistency
 const getCategoryStyling = (category: AvailableNodeType['category']) => {
   switch (category) {
     case 'trigger':
@@ -121,7 +122,7 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
           placeholder="Search nodes..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-8 h-9 text-sm" // Added padding for icon
+          className="w-full pl-8 h-9 text-sm" 
         />
       </div>
       <ScrollArea className="flex-1">
@@ -139,9 +140,9 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
               <div key={categoryKey} className="space-y-2">
                 <h3 className={cn(
                   "text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded-md",
-                  categoryStyling.iconColor,
-                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'),
-                  categoryStyling.borderColor,
+                  categoryStyling.titleColor, // Use titleColor for text
+                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'), // Use base bgColor
+                  categoryStyling.borderColor, // Use borderColor for border
                 )}>
                   {capitalizeFirstLetter(categoryKey)}
                 </h3>
