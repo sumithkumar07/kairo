@@ -4,7 +4,7 @@
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useMemo, useState, memo } from 'react'; // Import memo
+import { useMemo, useState, memo } from 'react'; 
 import { Input } from '@/components/ui/input'; 
 import { Search } from 'lucide-react'; 
 
@@ -12,7 +12,6 @@ const capitalizeFirstLetter = (string: string) => {
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
-// Duplicating a simplified version for library-specific visual consistency
 const getCategoryStyling = (category: AvailableNodeType['category']) => {
   switch (category) {
     case 'trigger':
@@ -75,7 +74,6 @@ interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
 }
 
-// Wrap the component definition with React.memo
 export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLibraryProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -141,9 +139,9 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
               <div key={categoryKey} className="space-y-2">
                 <h3 className={cn(
                   "text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded-md",
-                  categoryStyling.titleColor, // Use titleColor for text
-                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'), // Use base bgColor
-                  categoryStyling.borderColor, // Use borderColor for border
+                  categoryStyling.titleColor, 
+                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'), 
+                  categoryStyling.borderColor, 
                 )}>
                   {capitalizeFirstLetter(categoryKey)}
                 </h3>
@@ -155,7 +153,7 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
                       draggable
                       onDragStart={(e) => handleDragStart(e, nodeType)}
                       className={cn(
-                        "p-3 border rounded-lg cursor-grab transition-all duration-150 ease-in-out flex flex-col gap-1.5 shadow-sm",
+                        "p-3 border rounded-lg cursor-grab flex flex-col gap-1.5 shadow-sm",
                         itemStyling.borderColor,
                         itemStyling.bgColor,
                         "hover:shadow-md hover:ring-1 hover:ring-primary/50"
@@ -179,6 +177,4 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
   );
 });
 
-// If you are using ESLint and it complains about the display name for memoized components:
 NodeLibrary.displayName = 'NodeLibrary';
-
