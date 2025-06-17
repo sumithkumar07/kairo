@@ -451,7 +451,7 @@ export default function WorkflowPage() {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isInputField(event.target) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog) return;
+      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -1012,3 +1012,4 @@ export default function WorkflowPage() {
     </div>
   );
 }
+

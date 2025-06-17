@@ -84,7 +84,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'getEnvironmentVariable',
     name: 'Get Environment Variable',
     icon: KeyRound,
-    description: 'Retrieves the value of a specified environment variable. Outputs `value` or `null`.',
+    description: 'Retrieves the value of a specified environment variable. Outputs `value` or `null`. Can fail if not set.',
     category: 'io',
     defaultConfig: { variableName: '', failIfNotSet: false, retry: {}, onErrorWebhook: undefined, },
     configSchema: {
@@ -928,3 +928,4 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
+

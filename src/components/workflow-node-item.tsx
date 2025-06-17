@@ -213,9 +213,9 @@ export function WorkflowNodeItem({
                       categoryStyling.outputHandleColor,
                       categoryStyling.outputHandleBorder,
                       isActiveSource 
-                        ? "bg-orange-500 scale-125 cursor-grabbing ring-2 ring-orange-400/50" 
+                        ? "bg-orange-500 scale-150 cursor-grabbing ring-2 ring-orange-400/50 border-orange-500" 
                         : "", 
-                      !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-primary/70 hover:border-primary" : "cursor-default",
+                      !isConnecting ? "cursor-pointer group-hover:scale-125 group-hover:border-primary" : "cursor-default",
                       isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
@@ -240,5 +240,6 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+
 
 
