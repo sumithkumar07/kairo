@@ -70,6 +70,8 @@ export default function WorkflowPage() {
   const [suggestedNextNodeInfo, setSuggestedNextNodeInfo] = useState<{ suggestion: SuggestNextNodeOutput; forNodeId: string } | null>(null);
   const [initialCanvasSuggestion, setInitialCanvasSuggestion] = useState<SuggestNextNodeOutput | null>(null);
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
+  const [initialSuggestionAttempted, setInitialSuggestionAttempted] = useState(false);
+
 
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -93,11 +95,10 @@ export default function WorkflowPage() {
   }, [nodes, selectedNodeId]);
 
   const saveHistory = useCallback(() => {
-    // Debounce or throttle this if it's called too rapidly
     setHistory(prevHistory => {
       const newHistoryRaw = prevHistory.slice(0, historyIndex + 1);
       const currentEntry: HistoryEntry = {
-        nodes: nodes, // These are current values from state
+        nodes: nodes, 
         connections: connections,
         selectedNodeId: selectedNodeId,
         selectedConnectionId: selectedConnectionId,
@@ -105,7 +106,6 @@ export default function WorkflowPage() {
         zoomLevel: zoomLevel,
       };
       
-      // Avoid saving identical subsequent states
       if (newHistoryRaw.length > 0 && JSON.stringify(newHistoryRaw[newHistoryRaw.length -1]) === JSON.stringify(currentEntry) ) {
         return prevHistory;
       }
@@ -119,7 +119,7 @@ export default function WorkflowPage() {
   }, [historyIndex, nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel]);
 
 
-  const resetHistoryForNewWorkflow = (initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
+  const resetHistoryForNewWorkflow = useCallback((initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
     const initialEntry: HistoryEntry = {
       nodes: initialNodes,
       connections: initialConnections,
@@ -130,7 +130,7 @@ export default function WorkflowPage() {
     };
     setHistory([initialEntry]);
     setHistoryIndex(0);
-  };
+  }, []); // Memoized with empty dependencies
   
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -170,10 +170,18 @@ export default function WorkflowPage() {
 
   // Effect for automatic saving to local storage
   useEffect(() => {
-    // This effect should run only when critical data changes, to avoid excessive saves.
-    // The saveHistory call inside other handlers should be the primary way to manage history for user actions.
-    // This auto-save acts more like a periodic backup or save-on-significant-change.
-    if (typeof window !== 'undefined' && historyIndex >=0) { // Ensure history is initialized
+    if (typeof window !== 'undefined' && historyIndex >=0) { 
+        const currentHistoryEntry = history[historyIndex];
+        if (currentHistoryEntry && 
+            (JSON.stringify(currentHistoryEntry.nodes) !== JSON.stringify(nodes) ||
+             JSON.stringify(currentHistoryEntry.connections) !== JSON.stringify(connections) ||
+             currentHistoryEntry.selectedNodeId !== selectedNodeId ||
+             currentHistoryEntry.selectedConnectionId !== selectedConnectionId ||
+             currentHistoryEntry.canvasOffset.x !== canvasOffset.x || currentHistoryEntry.canvasOffset.y !== canvasOffset.y ||
+             currentHistoryEntry.zoomLevel !== zoomLevel
+            )
+        ) {
+        }
         const workflowToSave = {
             nodes,
             connections,
@@ -184,7 +192,7 @@ export default function WorkflowPage() {
         };
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
     }
-  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, historyIndex]); // nextNodeIdRef.current is not reactive
+  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, history, historyIndex, selectedNodeId, selectedConnectionId]);
 
 
   const handleLoadWorkflow = useCallback((showToast = true) => {
@@ -212,6 +220,7 @@ export default function WorkflowPage() {
           setWorkflowExplanation(null);
           setInitialCanvasSuggestion(null);
           setSuggestedNextNodeInfo(null);
+          setInitialSuggestionAttempted(false);
           resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
           if (showToast) {
             toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
@@ -223,6 +232,7 @@ export default function WorkflowPage() {
            }
            localStorage.removeItem(LOCAL_STORAGE_KEY);
            setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
+           setInitialSuggestionAttempted(false);
            resetHistoryForNewWorkflow([], []);
         }
       } else {
@@ -230,17 +240,18 @@ export default function WorkflowPage() {
           toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
         }
         setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
+        setInitialSuggestionAttempted(false);
         resetHistoryForNewWorkflow([], []);
       }
     }
-  }, [toast]);
+  }, [toast, resetHistoryForNewWorkflow]);
 
   const handleManualSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
       const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
-      saveHistory(); // Ensure explicit save also updates history
+      saveHistory(); 
     }
   }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
 
@@ -418,7 +429,7 @@ export default function WorkflowPage() {
   const handleZoomIn = useCallback(() => {
     setZoomLevel(prev => {
       const newZoom = Math.min(MAX_ZOOM, prev + ZOOM_STEP);
-      if (newZoom !== prev) saveHistory(); // Save history if zoom actually changed
+      if (newZoom !== prev) saveHistory(); 
       return newZoom;
     });
   }, [saveHistory]);
@@ -426,7 +437,7 @@ export default function WorkflowPage() {
   const handleZoomOut = useCallback(() => {
     setZoomLevel(prev => {
       const newZoom = Math.max(MIN_ZOOM, prev - ZOOM_STEP);
-      if (newZoom !== prev) saveHistory(); // Save history if zoom actually changed
+      if (newZoom !== prev) saveHistory(); 
       return newZoom;
     });
   }, [saveHistory]);
@@ -434,15 +445,15 @@ export default function WorkflowPage() {
 
   // Effect for initial load from local storage
   useEffect(() => {
-    handleLoadWorkflow(false); // Don't show toast on initial silent load
+    handleLoadWorkflow(false); 
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
     } else {
-      setIsAssistantVisible(false); // Default if not found
+      setIsAssistantVisible(false); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, []); 
 
 
   // Effect for keyboard shortcuts
@@ -523,7 +534,7 @@ export default function WorkflowPage() {
       if (isPanning) {
         setIsPanning(false);
         document.body.style.cursor = 'default';
-        saveHistory(); // Save history after panning operation
+        saveHistory(); 
       }
     };
 
@@ -543,12 +554,6 @@ export default function WorkflowPage() {
 
   // Effect for AI Suggestions (Assistant Panel)
   useEffect(() => {
-    if (!isAssistantVisible) {
-      setSuggestedNextNodeInfo(null);
-      setInitialCanvasSuggestion(null);
-      return;
-    }
-
     let isActive = true;
 
     const fetchSuggestionsLogic = async () => {
@@ -558,11 +563,10 @@ export default function WorkflowPage() {
           if (isActive) setSuggestedNextNodeInfo(null);
           return;
         }
-        // Only fetch if not already loading for this node, or if suggestion is not already present for this node
         if (!isLoadingSuggestion && suggestedNextNodeInfo?.forNodeId !== selectedNodeId) {
           if (isActive) {
             setIsLoadingSuggestion(true);
-            setInitialCanvasSuggestion(null);
+            setInitialCanvasSuggestion(null); 
           }
           try {
             let context = `Workflow in progress. Current node: "${currentNode.name}" (Type: ${currentNode.type}).`;
@@ -581,36 +585,54 @@ export default function WorkflowPage() {
             if (isActive) setIsLoadingSuggestion(false);
           }
         }
-      } else {
-        if (isActive) setSuggestedNextNodeInfo(null);
-        if (nodes.length === 0 && !selectedConnectionId && !workflowExplanation) {
-          if (!initialCanvasSuggestion && !isLoadingSuggestion) {
-            if (isActive) setIsLoadingSuggestion(true);
-            try {
-              const suggestionResult = await suggestNextWorkflowNode({
-                currentNodeType: undefined,
-                workflowContext: "User is starting a new empty workflow. Suggest a good first node type (e.g., a trigger or an initial action) to begin building an automation.",
-              });
-              if (isActive) setInitialCanvasSuggestion(suggestionResult);
-            } catch (error: any) {
-              console.warn("Failed to fetch initial canvas suggestion:", error);
-              if (isActive) setInitialCanvasSuggestion(null);
-            } finally {
-              if (isActive) setIsLoadingSuggestion(false);
-            }
+      } else { // No node selected
+        if (isActive) setSuggestedNextNodeInfo(null); // Clear per-node suggestion
+
+        const shouldFetchInitial = nodes.length === 0 &&
+                                   !selectedConnectionId &&
+                                   !workflowExplanation &&
+                                   !initialCanvasSuggestion && 
+                                   !isLoadingSuggestion &&
+                                   !initialSuggestionAttempted; // Check the attempt flag
+
+        if (shouldFetchInitial) {
+          if (isActive) {
+            setIsLoadingSuggestion(true);
+            setInitialSuggestionAttempted(true); // Set flag before fetch
+          }
+          try {
+            const suggestionResult = await suggestNextWorkflowNode({
+              currentNodeType: undefined,
+              workflowContext: "User is starting a new empty workflow. Suggest a good first node type (e.g., a trigger or an initial action) to begin building an automation.",
+            });
+            if (isActive) setInitialCanvasSuggestion(suggestionResult);
+          } catch (error: any) {
+            console.warn("Failed to fetch initial canvas suggestion:", error);
+            if (isActive) setInitialCanvasSuggestion(null);
+          } finally {
+            if (isActive) setIsLoadingSuggestion(false);
           }
         } else {
-          if (isActive) setInitialCanvasSuggestion(null);
+          if (isActive && initialCanvasSuggestion && (nodes.length > 0 || selectedConnectionId || workflowExplanation)) {
+            setInitialCanvasSuggestion(null);
+          }
         }
       }
     };
 
-    fetchSuggestionsLogic();
+    if (isAssistantVisible) {
+      fetchSuggestionsLogic();
+    } else {
+      if (isActive) {
+        setSuggestedNextNodeInfo(null);
+        setInitialCanvasSuggestion(null);
+      }
+    }
 
     return () => {
       isActive = false;
     };
-  }, [isAssistantVisible, selectedNodeId, nodes, nodes.length, selectedConnectionId, workflowExplanation, isLoadingSuggestion, initialCanvasSuggestion, suggestedNextNodeInfo]);
+  }, [isAssistantVisible, selectedNodeId, nodes, nodes.length, selectedConnectionId, workflowExplanation, initialSuggestionAttempted, isLoadingSuggestion, initialCanvasSuggestion, suggestedNextNodeInfo]);
 
 
   const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
@@ -675,11 +697,12 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
+    setInitialSuggestionAttempted(false);
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
     resetHistoryForNewWorkflow(newNodes, newConnections);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
-  }, [mapAiWorkflowToInternal, toast]);
+  }, [mapAiWorkflowToInternal, toast, resetHistoryForNewWorkflow]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
     const newNodeId = `${nodeType.type}_${nextNodeIdRef.current++}`;
@@ -725,11 +748,11 @@ export default function WorkflowPage() {
       let newY = 50;
       if (nodes.length > 0) {
         newX = Math.max(...nodes.map(n => n.position.x)) + NODE_WIDTH + 60;
-        if (newX > 1000) { // Simple wrap logic
+        if (newX > 1000) { 
           newX = 50;
           newY = Math.max(...nodes.map(n => n.position.y)) + NODE_HEIGHT + 40;
         } else {
-          newY = nodes[nodes.length -1].position.y; // Align with last node if space allows
+          newY = nodes[nodes.length -1].position.y; 
         }
       }
       position = { x: newX, y: newY };
@@ -746,7 +769,6 @@ export default function WorkflowPage() {
       const node = draft.find(n => n.id === nodeId);
       if (node) node.position = position;
     }));
-    // saveHistory will be called by the drag stop handler in AIWorkflowBuilderPanel
   }, []);
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
@@ -785,7 +807,7 @@ export default function WorkflowPage() {
     setIsConnecting(true);
     setConnectionStartNodeId(startNodeId);
     setConnectionStartHandleId(startHandleId);
-    setConnectionPreviewPosition(startHandlePos); // Initial preview position
+    setConnectionPreviewPosition(startHandlePos); 
     setSelectedNodeId(null);
     setSelectedConnectionId(null);
     setWorkflowExplanation(null);
@@ -800,7 +822,6 @@ export default function WorkflowPage() {
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     const target = event.target as HTMLElement;
-    // Prevent deselecting if the click was on a connection's delete button or the connection line itself
     if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
         return;
     }
@@ -814,10 +835,8 @@ export default function WorkflowPage() {
   }, [isConnecting, handleCancelConnection]);
 
   const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
-    // Only pan with left mouse button
     if (event.button !== 0) return;
 
-    // Don't pan if clicking on a node, handle, or connection control
     const targetElement = event.target as HTMLElement;
     if (targetElement.closest('.workflow-node-item') ||
         targetElement.closest('[data-handle-id]') ||
@@ -827,8 +846,8 @@ export default function WorkflowPage() {
         return;
     }
 
-    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>); // Deselect items
-    if (!isConnecting) { // Don't pan if trying to connect
+    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>); 
+    if (!isConnecting) { 
       setIsPanning(true);
       panStartRef.current = { x: event.clientX, y: event.clientY };
       document.body.style.cursor = 'grabbing';
@@ -862,14 +881,14 @@ export default function WorkflowPage() {
       return;
     }
     setIsExplainingWorkflow(true);
-    setWorkflowExplanation(null); // Clear previous explanation
-    setSelectedNodeId(null); // Deselect node/connection when explaining whole workflow
+    setWorkflowExplanation(null); 
+    setSelectedNodeId(null); 
     setSelectedConnectionId(null);
-    setInitialCanvasSuggestion(null); // Clear suggestions
+    setInitialCanvasSuggestion(null); 
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
-      setIsAssistantVisible(true); // Ensure panel is visible to show explanation
+      setIsAssistantVisible(true); 
       localStorage.setItem(ASSISTANT_PANEL_VISIBLE_KEY, JSON.stringify(true));
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
@@ -890,9 +909,9 @@ export default function WorkflowPage() {
 
   const handleClearLogs = useCallback(() => {
     setExecutionLogs([]);
-    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }))); // Reset node statuses
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }))); 
     toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared and node statuses reset.' });
-    saveHistory(); // Save the state change (node statuses reset)
+    saveHistory(); 
   }, [toast, saveHistory]);
 
   const handleConfirmClearCanvas = useCallback(() => {
@@ -905,12 +924,13 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
+    setInitialSuggestionAttempted(false);
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
     resetHistoryForNewWorkflow([], []);
     toast({ title: 'Canvas Cleared', description: 'All nodes and connections have been removed.' });
     setShowClearCanvasConfirmDialog(false);
-  }, [toast]);
+  }, [toast, resetHistoryForNewWorkflow]);
 
   const handleExportWorkflow = useCallback(() => {
     const workflowData = {
@@ -950,12 +970,11 @@ export default function WorkflowPage() {
             const content = e.target?.result as string;
             const importedData = JSON.parse(content);
 
-            // Basic validation
             if (!Array.isArray(importedData.nodes) || !Array.isArray(importedData.connections)) {
               throw new Error('Invalid workflow file structure.');
             }
 
-            const importedNodes = (importedData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus']})); // Reset status
+            const importedNodes = (importedData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus']})); 
             setNodes(importedNodes);
             setConnections(importedData.connections || []);
             nextNodeIdRef.current = importedData.nextNodeId || Math.max(0, ...importedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1;
@@ -969,6 +988,7 @@ export default function WorkflowPage() {
             setWorkflowExplanation(null);
             setInitialCanvasSuggestion(null);
             setSuggestedNextNodeInfo(null);
+            setInitialSuggestionAttempted(false);
             resetHistoryForNewWorkflow(importedNodes, importedData.connections || []);
 
             toast({ title: 'Workflow Imported', description: 'Workflow loaded from file.' });
@@ -983,7 +1003,7 @@ export default function WorkflowPage() {
 
     document.body.appendChild(input);
     input.click();
-  }, [toast]);
+  }, [toast, resetHistoryForNewWorkflow]);
 
 
   const canUndo = historyIndex > 0;
@@ -991,14 +1011,13 @@ export default function WorkflowPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {/* Global Loading Overlay */}
       {(isLoadingAi || isExplainingWorkflow || (isLoadingSuggestion && nodes.length === 0 && !initialCanvasSuggestion && isAssistantVisible && !selectedNodeId && !selectedConnectionId)) && (
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="ml-4 text-lg text-foreground">
             {isLoadingAi ? 'AI is generating your workflow...' :
              isExplainingWorkflow ? 'AI is explaining the workflow...' :
-             isLoadingSuggestion ? 'AI is suggesting a first step...' :
+             (isLoadingSuggestion && !initialCanvasSuggestion && nodes.length === 0) ? 'AI is suggesting a first step...' : // More specific message
              'Processing...'}
           </p>
         </div>
@@ -1015,9 +1034,9 @@ export default function WorkflowPage() {
           onConnectionClick={handleConnectionClick}
           onNodeDragStop={(nodeId, position) => {
             updateNodePosition(nodeId, position);
-            saveHistory(); // Save history after node drag completes
+            saveHistory(); 
           }}
-          onCanvasDrop={addNodeToCanvas} // addNodeToCanvas calls saveHistory internally
+          onCanvasDrop={addNodeToCanvas} 
           onToggleAssistant={toggleAssistantPanel}
           onSaveWorkflow={handleManualSaveWorkflow}
           onLoadWorkflow={() => handleLoadWorkflow(true)}
@@ -1026,7 +1045,7 @@ export default function WorkflowPage() {
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
           onStartConnection={handleStartConnection}
-          onCompleteConnection={handleCompleteConnection} // calls saveHistory internally
+          onCompleteConnection={handleCompleteConnection} 
           onUpdateConnectionPreview={handleUpdateConnectionPreview}
           connectionPreview={{
             startNodeId: connectionStartNodeId,
@@ -1040,8 +1059,8 @@ export default function WorkflowPage() {
           connectionStartNodeId={connectionStartNodeId}
           connectionStartHandleId={connectionStartHandleId}
           zoomLevel={zoomLevel}
-          onZoomIn={handleZoomIn} // calls saveHistory internally if zoom changes
-          onZoomOut={handleZoomOut} // calls saveHistory internally if zoom changes
+          onZoomIn={handleZoomIn} 
+          onZoomOut={handleZoomOut} 
           onExplainWorkflow={handleGetWorkflowExplanation}
           isExplainingWorkflow={isExplainingWorkflow}
           onUndo={handleUndo}
@@ -1049,65 +1068,60 @@ export default function WorkflowPage() {
           onRedo={handleRedo}
           canRedo={canRedo}
           toast={toast}
-          onDeleteSelectedConnection={handleDeleteSelectedConnection} // calls saveHistory internally
+          onDeleteSelectedConnection={handleDeleteSelectedConnection} 
         />
 
         {isAssistantVisible && (
           <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
-            {/* Execution Controls always visible */}
             <ExecutionLogPanel
-              onRunWorkflow={handleRunWorkflow} // calls saveHistory internally on completion/error
+              onRunWorkflow={handleRunWorkflow} 
               isWorkflowRunning={isWorkflowRunning}
               isSimulationMode={isSimulationMode}
-              onToggleSimulationMode={handleToggleSimulationMode} // This should save to localStorage via main effect
+              onToggleSimulationMode={handleToggleSimulationMode} 
             />
-            {/* AI Assistant & Logs */}
              <AIWorkflowAssistantPanel
-                onWorkflowGenerated={handleAiPromptSubmit} // calls resetHistoryForNewWorkflow
+                onWorkflowGenerated={handleAiPromptSubmit} 
                 setIsLoadingGlobal={setIsLoadingAi}
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
                 onClearExplanation={() => {
                     setWorkflowExplanation(null);
-                    // Optionally re-fetch suggestions if needed
                 }}
                 initialCanvasSuggestion={initialCanvasSuggestion}
                 isLoadingSuggestion={isLoadingSuggestion}
-                onAddSuggestedNode={handleAddSuggestedNode} // calls saveHistory via addNodeToCanvas
+                onAddSuggestedNode={handleAddSuggestedNode} 
                 isCanvasEmpty={nodes.length === 0}
                 executionLogs={executionLogs}
-                onClearLogs={handleClearLogs} // calls saveHistory internally
+                onClearLogs={handleClearLogs} 
                 isWorkflowRunning={isWorkflowRunning}
                 selectedNodeId={selectedNodeId}
                 selectedConnectionId={selectedConnectionId}
-                onDeleteSelectedConnection={handleDeleteSelectedConnection} // calls saveHistory internally
-                onDeselectConnection={() => setSelectedConnectionId(null)} // Might need saveHistory if selection itself is part of history
+                onDeleteSelectedConnection={handleDeleteSelectedConnection} 
+                onDeselectConnection={() => setSelectedConnectionId(null)} 
                 isConnecting={isConnecting}
                 onCancelConnection={handleCancelConnection}
               />
 
-            {/* Node Config Panel (conditionally rendered) */}
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
                 <NodeConfigPanel
                   node={selectedNode}
                   nodeType={selectedNodeType}
-                  onConfigChange={handleNodeConfigChange} // calls saveHistory internally
-                  onNodeNameChange={handleNodeNameChange} // calls saveHistory internally
-                  onNodeDescriptionChange={handleNodeDescriptionChange} // calls saveHistory internally
-                  onDeleteNode={handleDeleteNode} // confirmDeleteNode calls saveHistory
+                  onConfigChange={handleNodeConfigChange} 
+                  onNodeNameChange={handleNodeNameChange} 
+                  onNodeDescriptionChange={handleNodeDescriptionChange} 
+                  onDeleteNode={handleDeleteNode} 
                   suggestedNextNodeInfo={suggestedNextNodeInfo}
                   isLoadingSuggestion={isLoadingSuggestion}
-                  onAddSuggestedNode={handleAddSuggestedNode} // calls saveHistory via addNodeToCanvas
+                  onAddSuggestedNode={handleAddSuggestedNode} 
                 />
               ) : (
-               null // No node selected or other UI is active
+               null 
               )}
             </div>
           </aside>
         )}
       </div>
-      {/* Confirmation Dialogs */}
       <AlertDialog open={showDeleteNodeConfirmDialog} onOpenChange={setShowDeleteNodeConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
