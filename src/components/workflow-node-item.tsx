@@ -72,20 +72,53 @@ export function WorkflowNodeItem({
     if (!node.lastExecutionStatus || node.lastExecutionStatus === 'pending') {
       return null; 
     }
+    let StatusIconComponent: React.ElementType | null = null;
+    let iconColor = '';
+    let tooltipText = '';
+
     switch (node.lastExecutionStatus) {
       case 'success':
-        return <CheckCircle2 className="h-3.5 w-3.5 text-green-500" title="Success" />;
+        StatusIconComponent = CheckCircle2;
+        iconColor = 'text-green-500 dark:text-green-400';
+        tooltipText = 'Successfully Executed';
+        break;
       case 'error':
-        return <XCircle className="h-3.5 w-3.5 text-destructive" title="Error" />;
+        StatusIconComponent = XCircle;
+        iconColor = 'text-destructive';
+        tooltipText = 'Execution Error';
+        break;
       case 'running':
-        return <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" title="Running" />;
+        StatusIconComponent = Loader2;
+        iconColor = 'text-blue-500 dark:text-blue-400 animate-spin';
+        tooltipText = 'Currently Running';
+        break;
       case 'skipped':
-        return <SkipForward className="h-3.5 w-3.5 text-gray-400" title="Skipped" />;
+        StatusIconComponent = SkipForward;
+        iconColor = 'text-gray-400 dark:text-gray-500';
+        tooltipText = 'Execution Skipped';
+        break;
       case 'partial_success':
-        return <AlertCircleIcon className="h-3.5 w-3.5 text-yellow-500" title="Partial Success" />;
+        StatusIconComponent = AlertCircleIcon;
+        iconColor = 'text-yellow-500 dark:text-yellow-400';
+        tooltipText = 'Partial Success (some iterations/branches failed)';
+        break;
       default:
         return null;
     }
+    if (!StatusIconComponent) return null;
+
+    return (
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <StatusIconComponent className={cn("h-3.5 w-3.5", iconColor)} />
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="text-xs">{tooltipText}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   return (
@@ -107,7 +140,9 @@ export function WorkflowNodeItem({
         'border',
         hasWarning && node.lastExecutionStatus !== 'error' ? 'ring-2 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/20' : 
         node.lastExecutionStatus === 'error' ? 'ring-2 ring-destructive border-destructive/80 shadow-destructive/20' : 
-        node.lastExecutionStatus === 'success' ? 'ring-1 ring-green-500 border-green-500/70 shadow-green-500/10' : categoryStyling.nodeBorder,
+        node.lastExecutionStatus === 'success' ? 'ring-1 ring-green-500 border-green-500/70 shadow-green-500/10' : 
+        node.lastExecutionStatus === 'partial_success' ? 'ring-1 ring-yellow-500 border-yellow-500/70 shadow-yellow-500/10' : 
+        categoryStyling.nodeBorder,
         isSelected && !hasWarning && node.lastExecutionStatus !== 'error' && 'ring-2 ring-primary shadow-lg shadow-primary/30', 
         isSelected && 'ring-offset-2 ring-offset-background', 
         isSelected && hasWarning && node.lastExecutionStatus !== 'error' && 'ring-yellow-400 shadow-yellow-400/40',
