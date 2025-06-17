@@ -183,12 +183,12 @@ export function AIWorkflowBuilderPanel({
               </Tooltip>
             </TooltipProvider>
           ) : (
-            <Link href="/subscriptions">
-              <Button variant="ghost" size="sm" title="Upgrade to unlock more AI features" className="text-amber-500 hover:bg-amber-500/10 hover:text-amber-600">
+            <Button asChild variant="ghost" size="sm" title="Upgrade to unlock more AI features" className="text-amber-500 hover:bg-amber-500/10 hover:text-amber-600">
+              <Link href="/subscriptions">
                   <Sparkles className="h-4 w-4 mr-1.5" />
                   Unlock AI Features
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           )}
         </div>
       </div>

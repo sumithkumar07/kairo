@@ -39,11 +39,11 @@ export default function HomePage() {
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
             FlowAI Studio empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
           </p>
-          <Link href="/workflow">
-            <Button size="lg" className="text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-shadow group">
+          <Button asChild size="lg" className="text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-shadow group">
+            <Link href="/workflow">
               Start Building Your First Workflow <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </section>
 
         <section id="features" className="py-16 md:py-20">
@@ -199,11 +199,11 @@ export default function HomePage() {
                             <span className="text-muted-foreground">Leverage AI for suggestions, explanations, and configuration help.</span>
                         </li>
                     </ul>
-                    <Link href="/workflow">
-                        <Button size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5">
+                    <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5">
+                        <Link href="/workflow">
                             Start Building Now
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                 </div>
             </div>
         </section>
@@ -217,3 +217,4 @@ export default function HomePage() {
     </div>
   );
 }
+
