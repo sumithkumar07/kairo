@@ -109,40 +109,136 @@ export default function WorkflowPage() {
     });
   }, [historyIndex, nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel]);
 
+  const resetHistoryForNewWorkflow = (initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
+    const initialEntry: HistoryEntry = {
+      nodes: initialNodes,
+      connections: initialConnections,
+      selectedNodeId: null,
+      selectedConnectionId: null,
+      canvasOffset: { x: 0, y: 0 },
+      zoomLevel: 1,
+    };
+    setHistory([initialEntry]);
+    setHistoryIndex(0);
+  };
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const prevState = history[newIndex];
+      setNodes(prevState.nodes);
+      setConnections(prevState.connections);
+      setSelectedNodeId(prevState.selectedNodeId);
+      setSelectedConnectionId(prevState.selectedConnectionId);
+      setCanvasOffset(prevState.canvasOffset);
+      setZoomLevel(prevState.zoomLevel);
+      setHistoryIndex(newIndex);
+    }
+  }, [history, historyIndex]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const nextState = history[newIndex];
+      setNodes(nextState.nodes);
+      setConnections(nextState.connections);
+      setSelectedNodeId(nextState.selectedNodeId);
+      setSelectedConnectionId(nextState.selectedConnectionId);
+      setCanvasOffset(nextState.canvasOffset);
+      setZoomLevel(nextState.zoomLevel);
+      setHistoryIndex(newIndex);
+    }
+  }, [history, historyIndex]);
+
   useEffect(() => {
-    if (nodes.length > 0 || connections.length > 0 || canvasOffset.x !== 0 || canvasOffset.y !== 0 || zoomLevel !== 1 ) {
-      if (history.length === 0 && historyIndex === -1 && (nodes.length > 0 || connections.length > 0)) { 
-          setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel }]);
-          setHistoryIndex(0);
-      } else if (history.length > 0 && historyIndex > -1) {
-          const lastSavedState = history[historyIndex];
-          if (
-              JSON.stringify(lastSavedState.nodes) !== JSON.stringify(nodes) ||
-              JSON.stringify(lastSavedState.connections) !== JSON.stringify(connections) ||
-              lastSavedState.selectedNodeId !== selectedNodeId ||
-              lastSavedState.selectedConnectionId !== selectedConnectionId ||
-              lastSavedState.canvasOffset.x !== canvasOffset.x ||
-              lastSavedState.canvasOffset.y !== canvasOffset.y ||
-              lastSavedState.zoomLevel !== zoomLevel
-          ) {
-            
-            if (typeof window !== 'undefined') {
-              const workflowToSave = { 
-                nodes, 
-                connections, 
-                nextNodeId: nextNodeIdRef.current, 
-                canvasOffset, 
-                zoomLevel, 
-                isSimulationMode 
-              };
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
-            }
+    const currentState: HistoryEntry = { nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel };
+    const lastSavedState = history[historyIndex];
+
+    const hasMeaningfulChange = () => {
+        if (!lastSavedState) return true; // No history yet, definitely a change if there's content
+        if (nodes.length === 0 && connections.length === 0 && canvasOffset.x === 0 && canvasOffset.y === 0 && zoomLevel === 1 && !selectedNodeId && !selectedConnectionId) {
+            return false; // Initial empty state, don't consider it a change unless something is added
+        }
+        return (
+            JSON.stringify(lastSavedState.nodes) !== JSON.stringify(currentState.nodes) ||
+            JSON.stringify(lastSavedState.connections) !== JSON.stringify(currentState.connections) ||
+            lastSavedState.selectedNodeId !== currentState.selectedNodeId ||
+            lastSavedState.selectedConnectionId !== currentState.selectedConnectionId ||
+            lastSavedState.canvasOffset.x !== currentState.canvasOffset.x ||
+            lastSavedState.canvasOffset.y !== currentState.canvasOffset.y ||
+            lastSavedState.zoomLevel !== currentState.zoomLevel
+        );
+    };
+    
+    if (typeof window !== 'undefined' && hasMeaningfulChange()) {
+      const workflowToSave = { 
+        nodes, 
+        connections, 
+        nextNodeId: nextNodeIdRef.current, 
+        canvasOffset, 
+        zoomLevel, 
+        isSimulationMode 
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
+    }
+  }, [nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel, isSimulationMode, history, historyIndex]);
+
+  const handleLoadWorkflow = useCallback((showToast = true) => {
+    if (typeof window !== 'undefined') {
+      const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedWorkflowJson) {
+        try {
+          const savedWorkflow = JSON.parse(savedWorkflowJson);
+          if (!Array.isArray(savedWorkflow.nodes) || !Array.isArray(savedWorkflow.connections)) {
+             throw new Error("Invalid workflow structure in local storage.");
           }
+          const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
+          const loadedConnections = savedWorkflow.connections || [];
+          
+          setNodes(loadedNodes);
+          setConnections(loadedConnections);
+          nextNodeIdRef.current = savedWorkflow.nextNodeId || Math.max(0, ...loadedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1;
+          setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
+          setZoomLevel(savedWorkflow.zoomLevel || 1);
+          setIsSimulationMode(savedWorkflow.isSimulationMode === undefined ? true : savedWorkflow.isSimulationMode);
+          
+          setSelectedNodeId(null);
+          setSelectedConnectionId(null);
+          setExecutionLogs([]);
+          setWorkflowExplanation(null);
+          setInitialCanvasSuggestion(null);
+          setSuggestedNextNodeInfo(null);
+          resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
+          if (showToast) {
+            toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
+          }
+        } catch (error: any) {
+           console.error("Error loading workflow from local storage:", error);
+           if (showToast) {
+            toast({ title: 'Load Error', description: `Failed to load workflow: ${error.message}`, variant: 'destructive'});
+           }
+           localStorage.removeItem(LOCAL_STORAGE_KEY); 
+           setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
+           resetHistoryForNewWorkflow([], []);
+        }
+      } else {
+        if (showToast) {
+          toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
+        }
+        setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
+        resetHistoryForNewWorkflow([], []); 
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel, isSimulationMode]);
-
+  }, [toast]);
+  
+  const handleManualSaveWorkflow = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
+      toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
+      saveHistory(); 
+    }
+  }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
 
   useEffect(() => {
     const fetchSuggestion = async () => {
@@ -193,74 +289,7 @@ export default function WorkflowPage() {
     };
     if(isAssistantVisible) fetchSuggestion();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible, selectedNode]);
-
-
-  const handleManualSaveWorkflow = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
-      toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
-      saveHistory(); 
-    }
-  }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
-
-  const resetHistoryForNewWorkflow = (initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
-    const initialEntry: HistoryEntry = {
-      nodes: initialNodes,
-      connections: initialConnections,
-      selectedNodeId: null,
-      selectedConnectionId: null,
-      canvasOffset: { x: 0, y: 0 },
-      zoomLevel: 1,
-    };
-    setHistory([initialEntry]);
-    setHistoryIndex(0);
-  };
-
-  const handleLoadWorkflow = useCallback((showToast = true) => {
-    if (typeof window !== 'undefined') {
-      const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (savedWorkflowJson) {
-        try {
-          const savedWorkflow = JSON.parse(savedWorkflowJson);
-          if (!Array.isArray(savedWorkflow.nodes) || !Array.isArray(savedWorkflow.connections)) {
-             throw new Error("Invalid workflow structure in local storage.");
-          }
-          const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
-          const loadedConnections = savedWorkflow.connections || [];
-          setNodes(loadedNodes);
-          setConnections(loadedConnections);
-          nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
-          setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
-          setZoomLevel(savedWorkflow.zoomLevel || 1);
-          setIsSimulationMode(savedWorkflow.isSimulationMode === undefined ? true : savedWorkflow.isSimulationMode);
-          setSelectedNodeId(null);
-          setSelectedConnectionId(null);
-          setExecutionLogs([]);
-          setWorkflowExplanation(null);
-          setInitialCanvasSuggestion(null);
-          setSuggestedNextNodeInfo(null);
-          resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
-          if (showToast) {
-            toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
-          }
-        } catch (error: any) {
-           console.error("Error loading workflow from local storage:", error);
-           if (showToast) {
-            toast({ title: 'Load Error', description: `Failed to load workflow: ${error.message}`, variant: 'destructive'});
-           }
-           localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
-           resetHistoryForNewWorkflow([], []);
-        }
-      } else {
-        if (showToast) {
-          toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
-        }
-         resetHistoryForNewWorkflow([], []); 
-      }
-    }
-  }, [toast]);
+  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible]); // Removed selectedNode from deps to avoid loop
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
@@ -526,34 +555,6 @@ export default function WorkflowPage() {
     showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection,
     handleZoomIn, handleZoomOut 
   ]);
-
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      const prevState = history[newIndex];
-      setNodes(prevState.nodes);
-      setConnections(prevState.connections);
-      setSelectedNodeId(prevState.selectedNodeId);
-      setSelectedConnectionId(prevState.selectedConnectionId);
-      setCanvasOffset(prevState.canvasOffset);
-      setZoomLevel(prevState.zoomLevel);
-      setHistoryIndex(newIndex);
-    }
-  }, [history, historyIndex]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      const nextState = history[newIndex];
-      setNodes(nextState.nodes);
-      setConnections(nextState.connections);
-      setSelectedNodeId(nextState.selectedNodeId);
-      setSelectedConnectionId(nextState.selectedConnectionId);
-      setCanvasOffset(nextState.canvasOffset);
-      setZoomLevel(nextState.zoomLevel);
-      setHistoryIndex(newIndex);
-    }
-  }, [history, historyIndex]);
 
   useEffect(() => {
     const handleGlobalMouseMove = (event: MouseEvent) => {
@@ -951,7 +952,7 @@ export default function WorkflowPage() {
 
     document.body.appendChild(input);
     input.click();
-  }, [toast, resetHistoryForNewWorkflow]);
+  }, [toast]);
 
 
   const canUndo = historyIndex > 0;
@@ -1105,4 +1106,5 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
 
