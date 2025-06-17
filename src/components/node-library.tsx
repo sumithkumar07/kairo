@@ -4,13 +4,9 @@
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useMemo, useState, memo } from 'react'; 
-import { Input } from '@/components/ui/input'; 
-import { Search } from 'lucide-react'; 
-
-const capitalizeFirstLetter = (string: string) => {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-};
+import { useMemo, useState, memo } from 'react';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 
 const getCategoryStyling = (category: AvailableNodeType['category']) => {
   switch (category) {
@@ -95,19 +91,6 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
     );
   }, [availableNodes, searchTerm]);
 
-  const groupedNodes = useMemo(() => {
-    return filteredNodes.reduce((acc, node) => {
-      const category = node.category || 'unknown';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(node);
-      return acc;
-    }, {} as Record<string, AvailableNodeType[]>);
-  }, [filteredNodes]);
-
-  const categoryOrder: AvailableNodeType['category'][] = ['trigger', 'action', 'io', 'logic', 'ai', 'group', 'iteration', 'control', 'interaction', 'unknown'];
-
   return (
     <aside className="w-72 border-r bg-card h-full flex flex-col shadow-md">
       <div className="p-4 border-b">
@@ -121,53 +104,34 @@ export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLib
           placeholder="Search nodes..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-8 h-9 text-sm" 
+          className="w-full pl-8 h-9 text-sm"
         />
       </div>
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-3">
+        <div className="p-3 space-y-2"> {/* Reduced space-y from 3 to 2 for tighter list */}
           {filteredNodes.length === 0 && searchTerm.trim() !== '' && (
             <p className="text-sm text-muted-foreground text-center py-4">No nodes found matching "{searchTerm}".</p>
           )}
-          {categoryOrder.map(categoryKey => {
-            const nodesInCategory = groupedNodes[categoryKey];
-            if (!nodesInCategory || nodesInCategory.length === 0) {
-              return null;
-            }
-            const categoryStyling = getCategoryStyling(categoryKey);
+          {filteredNodes.map((nodeType) => {
+            const itemStyling = getCategoryStyling(nodeType.category);
             return (
-              <div key={categoryKey} className="space-y-2">
-                <h3 className={cn(
-                  "text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded-md",
-                  categoryStyling.titleColor, 
-                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'), 
-                  categoryStyling.borderColor, 
-                )}>
-                  {capitalizeFirstLetter(categoryKey)}
-                </h3>
-                {nodesInCategory.map((nodeType) => {
-                   const itemStyling = getCategoryStyling(nodeType.category);
-                  return (
-                    <div
-                      key={nodeType.type}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, nodeType)}
-                      className={cn(
-                        "p-3 border rounded-lg cursor-grab flex flex-col gap-1.5 shadow-sm",
-                        itemStyling.borderColor,
-                        itemStyling.bgColor,
-                        "hover:shadow-md hover:ring-1 hover:ring-primary/50"
-                      )}
-                      title={nodeType.description || nodeType.name}
-                    >
-                      <div className="flex items-center gap-2">
-                        <nodeType.icon className={cn("h-5 w-5 shrink-0", itemStyling.iconColor)} />
-                        <span className={cn("text-sm font-medium", itemStyling.titleColor)}>{nodeType.name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{nodeType.description}</p>
-                    </div>
-                  );
-                })}
+              <div
+                key={nodeType.type}
+                draggable
+                onDragStart={(e) => handleDragStart(e, nodeType)}
+                className={cn(
+                  "p-3 border rounded-lg cursor-grab flex flex-col gap-1.5 shadow-sm",
+                  itemStyling.borderColor,
+                  itemStyling.bgColor,
+                  "hover:shadow-md hover:ring-1 hover:ring-primary/50"
+                )}
+                title={nodeType.description || nodeType.name}
+              >
+                <div className="flex items-center gap-2">
+                  <nodeType.icon className={cn("h-5 w-5 shrink-0", itemStyling.iconColor)} />
+                  <span className={cn("text-sm font-medium", itemStyling.titleColor)}>{nodeType.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{nodeType.description}</p>
               </div>
             );
           })}
