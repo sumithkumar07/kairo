@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -20,6 +20,8 @@ interface AIWorkflowBuilderPanelProps {
   onToggleAssistant: () => void;
   onSaveWorkflow: () => void;
   onLoadWorkflow: () => void;
+  onExportWorkflow: () => void;
+  onImportWorkflow: () => void;
   onClearCanvas: () => void;
   isConnecting: boolean;
   onStartConnection: (nodeId: string, handleId: string, handlePosition: { x: number, y: number }) => void;
@@ -61,6 +63,8 @@ export function AIWorkflowBuilderPanel({
   onToggleAssistant,
   onSaveWorkflow,
   onLoadWorkflow,
+  onExportWorkflow,
+  onImportWorkflow,
   onClearCanvas,
   isConnecting,
   onStartConnection,
@@ -129,14 +133,23 @@ export function AIWorkflowBuilderPanel({
             <Trash2 className="h-4 w-4 mr-1.5" />
             Clear
           </Button>
-          <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow (Ctrl+O)">
-            <FolderOpen className="h-4 w-4 mr-1.5" />
-            Load
+          <Button variant="outline" size="sm" onClick={onImportWorkflow} title="Import Workflow from JSON">
+            <UploadCloud className="h-4 w-4 mr-1.5" />
+            Import
           </Button>
-          <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow (Ctrl+S)">
+          <Button variant="outline" size="sm" onClick={onExportWorkflow} title="Export Workflow to JSON" disabled={!hasWorkflow}>
+            <DownloadCloud className="h-4 w-4 mr-1.5" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow Locally (Ctrl+S)">
             <Save className="h-4 w-4 mr-1.5" />
             Save
           </Button>
+           <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow from Local (Ctrl+O)">
+            <FolderOpen className="h-4 w-4 mr-1.5" />
+            Load
+          </Button>
+
 
           <Separator orientation="vertical" className="h-6 mx-1.5" />
           
@@ -228,3 +241,4 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
+

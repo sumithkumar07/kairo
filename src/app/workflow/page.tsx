@@ -111,7 +111,7 @@ export default function WorkflowPage() {
 
   useEffect(() => {
     if (nodes.length > 0 || connections.length > 0 || canvasOffset.x !== 0 || canvasOffset.y !== 0 || zoomLevel !== 1 ) {
-      if (history.length === 0 && historyIndex === -1 && (nodes.length > 0 || connections.length > 0)) { // Only for initial meaningful state
+      if (history.length === 0 && historyIndex === -1 && (nodes.length > 0 || connections.length > 0)) { 
           setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel }]);
           setHistoryIndex(0);
       } else if (history.length > 0 && historyIndex > -1) {
@@ -125,9 +125,16 @@ export default function WorkflowPage() {
               lastSavedState.canvasOffset.y !== canvasOffset.y ||
               lastSavedState.zoomLevel !== zoomLevel
           ) {
-            // Auto-save to local storage on meaningful changes
+            
             if (typeof window !== 'undefined') {
-              const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
+              const workflowToSave = { 
+                nodes, 
+                connections, 
+                nextNodeId: nextNodeIdRef.current, 
+                canvasOffset, 
+                zoomLevel, 
+                isSimulationMode 
+              };
               localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
             }
           }
@@ -194,7 +201,7 @@ export default function WorkflowPage() {
       const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
-      saveHistory(); // Also update history on manual save
+      saveHistory(); 
     }
   }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
 
@@ -215,30 +222,42 @@ export default function WorkflowPage() {
     if (typeof window !== 'undefined') {
       const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedWorkflowJson) {
-        const savedWorkflow = JSON.parse(savedWorkflowJson);
-        const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
-        const loadedConnections = savedWorkflow.connections || [];
-        setNodes(loadedNodes);
-        setConnections(loadedConnections);
-        nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
-        setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
-        setZoomLevel(savedWorkflow.zoomLevel || 1);
-        setIsSimulationMode(savedWorkflow.isSimulationMode === undefined ? true : savedWorkflow.isSimulationMode);
-        setSelectedNodeId(null);
-        setSelectedConnectionId(null);
-        setExecutionLogs([]);
-        setWorkflowExplanation(null);
-        setInitialCanvasSuggestion(null);
-        setSuggestedNextNodeInfo(null);
-        resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
-        if (showToast) {
-          toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
+        try {
+          const savedWorkflow = JSON.parse(savedWorkflowJson);
+          if (!Array.isArray(savedWorkflow.nodes) || !Array.isArray(savedWorkflow.connections)) {
+             throw new Error("Invalid workflow structure in local storage.");
+          }
+          const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
+          const loadedConnections = savedWorkflow.connections || [];
+          setNodes(loadedNodes);
+          setConnections(loadedConnections);
+          nextNodeIdRef.current = savedWorkflow.nextNodeId || 1;
+          setCanvasOffset(savedWorkflow.canvasOffset || { x: 0, y: 0 });
+          setZoomLevel(savedWorkflow.zoomLevel || 1);
+          setIsSimulationMode(savedWorkflow.isSimulationMode === undefined ? true : savedWorkflow.isSimulationMode);
+          setSelectedNodeId(null);
+          setSelectedConnectionId(null);
+          setExecutionLogs([]);
+          setWorkflowExplanation(null);
+          setInitialCanvasSuggestion(null);
+          setSuggestedNextNodeInfo(null);
+          resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
+          if (showToast) {
+            toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
+          }
+        } catch (error: any) {
+           console.error("Error loading workflow from local storage:", error);
+           if (showToast) {
+            toast({ title: 'Load Error', description: `Failed to load workflow: ${error.message}`, variant: 'destructive'});
+           }
+           localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
+           resetHistoryForNewWorkflow([], []);
         }
       } else {
         if (showToast) {
           toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
         }
-         resetHistoryForNewWorkflow([], []); // Reset history even if nothing loaded
+         resetHistoryForNewWorkflow([], []); 
       }
     }
   }, [toast]);
@@ -437,7 +456,7 @@ export default function WorkflowPage() {
   }, [saveHistory]);
 
   useEffect(() => {
-    handleLoadWorkflow(false); // Attempt to load on initial mount
+    handleLoadWorkflow(false); 
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
@@ -629,8 +648,8 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-    setCanvasOffset({ x: 0, y: 0 }); // Reset view
-    setZoomLevel(1); // Reset zoom
+    setCanvasOffset({ x: 0, y: 0 }); 
+    setZoomLevel(1); 
     resetHistoryForNewWorkflow(newNodes, newConnections);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast]);
@@ -700,7 +719,6 @@ export default function WorkflowPage() {
       const node = draft.find(n => n.id === nodeId);
       if (node) node.position = position;
     }));
-    // saveHistory(); // Dragging is too frequent for history, will save on dragStop or panStop
   }, []);
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
@@ -863,6 +881,79 @@ export default function WorkflowPage() {
     setShowClearCanvasConfirmDialog(false);
   }, [toast]);
 
+  const handleExportWorkflow = useCallback(() => {
+    const workflowData = {
+      nodes,
+      connections,
+      nextNodeId: nextNodeIdRef.current,
+      canvasOffset,
+      zoomLevel,
+      isSimulationMode,
+    };
+    const jsonString = JSON.stringify(workflowData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    link.download = `flowai_workflow_${timestamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: 'Workflow Exported', description: 'Workflow saved as JSON file.' });
+  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast]);
+
+  const handleImportWorkflow = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+
+    input.onchange = (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const content = e.target?.result as string;
+            const importedData = JSON.parse(content);
+
+            if (!Array.isArray(importedData.nodes) || !Array.isArray(importedData.connections)) {
+              throw new Error('Invalid workflow file structure.');
+            }
+            
+            const importedNodes = (importedData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus']}));
+            setNodes(importedNodes);
+            setConnections(importedData.connections || []);
+            nextNodeIdRef.current = importedData.nextNodeId || Math.max(0, ...importedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1;
+            setCanvasOffset(importedData.canvasOffset || { x: 0, y: 0 });
+            setZoomLevel(importedData.zoomLevel || 1);
+            setIsSimulationMode(importedData.isSimulationMode === undefined ? true : importedData.isSimulationMode);
+            
+            setSelectedNodeId(null);
+            setSelectedConnectionId(null);
+            setExecutionLogs([]);
+            setWorkflowExplanation(null);
+            setInitialCanvasSuggestion(null);
+            setSuggestedNextNodeInfo(null);
+            resetHistoryForNewWorkflow(importedNodes, importedData.connections || []);
+            
+            toast({ title: 'Workflow Imported', description: 'Workflow loaded from file.' });
+          } catch (error: any) {
+            toast({ title: 'Import Error', description: `Failed to import workflow: ${error.message}`, variant: 'destructive' });
+          }
+        };
+        reader.readAsText(file);
+      }
+      document.body.removeChild(input);
+    };
+
+    document.body.appendChild(input);
+    input.click();
+  }, [toast, resetHistoryForNewWorkflow]);
+
+
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1 && historyIndex !== -1;
 
@@ -891,12 +982,14 @@ export default function WorkflowPage() {
           onConnectionClick={handleConnectionClick}
           onNodeDragStop={(nodeId, position) => {
             updateNodePosition(nodeId, position);
-            saveHistory(); // Save history after drag completes
+            saveHistory(); 
           }}
           onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
           onSaveWorkflow={handleManualSaveWorkflow}
           onLoadWorkflow={() => handleLoadWorkflow(true)}
+          onExportWorkflow={handleExportWorkflow}
+          onImportWorkflow={handleImportWorkflow}
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
           onStartConnection={handleStartConnection}
@@ -956,7 +1049,7 @@ export default function WorkflowPage() {
                 isConnecting={isConnecting}
                 onCancelConnection={handleCancelConnection}
               />
-            {/* This div below used to show NodeConfigPanel, but now it's handled by AIWorkflowAssistantPanel or the if-block above it */}
+            
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
                 <NodeConfigPanel

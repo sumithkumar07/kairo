@@ -159,6 +159,8 @@ export function WorkflowNodeItem({
           const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
           const isPotentialTarget = isConnecting && node.id !== connectionStartNodeId;
           const isSelfInputDuringConnect = isConnecting && node.id === connectionStartNodeId;
+          const isConnected = connections.some(conn => conn.targetNodeId === node.id && conn.targetHandle === handleId);
+
 
           return (
             <TooltipProvider key={`in-tp-${node.id}-${handleId}`} delayDuration={100}>
@@ -169,13 +171,14 @@ export function WorkflowNodeItem({
                     data-handle-type="input"
                     className={cn(
                       "absolute -left-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out group",
-                      categoryStyling.inputHandleColor, 
                       categoryStyling.inputHandleBorder,
+                      isConnected && !isConnecting ? categoryStyling.inputHandleColor : 'bg-card', 
                        isPotentialTarget 
                         ? "border-green-400 bg-green-500 hover:bg-green-400 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-400/50" 
                         : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : "cursor-default"),
                       isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-40 cursor-not-allowed" ,
-                      !isConnecting && "hover:scale-110 hover:border-primary"
+                      !isConnecting && "hover:scale-110 hover:border-primary",
+                      !isConnecting && isConnected && `${categoryStyling.inputHandleColor} border-primary/50`
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -189,7 +192,7 @@ export function WorkflowNodeItem({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p className="text-xs">Input: {handleId}</p>
+                  <p className="text-xs">Input: {handleId} {isConnected ? "(Connected)" : ""}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -201,6 +204,7 @@ export function WorkflowNodeItem({
            const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
            const isActiveSource = isConnecting && node.id === connectionStartNodeId && handleId === connectionStartHandleId;
            const isOtherNodeOutputDuringConnect = isConnecting && node.id !== connectionStartNodeId;
+           const isConnected = connections.some(conn => conn.sourceNodeId === node.id && conn.sourceHandle === handleId);
           return (
             <TooltipProvider key={`out-tp-${node.id}-${handleId}`} delayDuration={100}>
               <Tooltip>
@@ -210,13 +214,14 @@ export function WorkflowNodeItem({
                     data-handle-type="output"
                     className={cn(
                       "absolute -right-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out group",
-                      categoryStyling.outputHandleColor,
                       categoryStyling.outputHandleBorder,
+                      isConnected && !isActiveSource ? categoryStyling.outputHandleColor : 'bg-card',
                       isActiveSource 
                         ? "bg-orange-500 scale-150 cursor-grabbing ring-2 ring-orange-400/50 border-orange-500" 
                         : "", 
                       !isConnecting ? "cursor-pointer group-hover:scale-125 group-hover:border-primary" : "cursor-default",
-                      isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed" 
+                      isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed",
+                      !isConnecting && isConnected && `${categoryStyling.outputHandleColor} border-primary/50`
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -230,7 +235,7 @@ export function WorkflowNodeItem({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  <p className="text-xs">Output: {handleId}</p>
+                  <p className="text-xs">Output: {handleId} {isConnected ? "(Connected)" : ""}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -240,6 +245,4 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
-
-
 
