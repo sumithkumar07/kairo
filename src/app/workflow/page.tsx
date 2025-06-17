@@ -5,7 +5,7 @@ import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ExampleWorkflow } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation } from '@/app/actions';
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 
 
@@ -161,7 +161,7 @@ export default function WorkflowPage() {
     };
     if(isAssistantVisible) fetchSuggestion();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible]);
+  }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible, selectedNode]);
 
 
   const handleSaveWorkflow = useCallback(() => {
@@ -188,7 +188,7 @@ export default function WorkflowPage() {
       const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedWorkflowJson) {
         const savedWorkflow = JSON.parse(savedWorkflowJson);
-        const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' }));
+        const loadedNodes = (savedWorkflow.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
         const loadedConnections = savedWorkflow.connections || [];
         setNodes(loadedNodes);
         setConnections(loadedConnections);
@@ -254,7 +254,7 @@ export default function WorkflowPage() {
     }
 
     setIsWorkflowRunning(true);
-    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' })));
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
     const runModeMessage = isSimulationMode ? 'Simulation Mode' : 'Live Mode';
     setExecutionLogs(prevLogs => [{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
     
@@ -272,7 +272,7 @@ export default function WorkflowPage() {
           if (executedNodeData && executedNodeData.lastExecutionStatus) {
             return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
           }
-          return { ...existingNode, lastExecutionStatus: 'skipped' }; 
+          return { ...existingNode, lastExecutionStatus: 'skipped' as WorkflowNode['lastExecutionStatus'] }; 
         })
       );
       saveHistory();
@@ -287,7 +287,7 @@ export default function WorkflowPage() {
         ...prevLogs,
         { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
       ]);
-      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' }))); 
+      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] }))); 
       saveHistory();
       toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
     } finally {
@@ -353,13 +353,20 @@ export default function WorkflowPage() {
     }
   }, [history, historyIndex]);
 
+  const handleCancelConnection = useCallback(() => {
+    setIsConnecting(false);
+    setConnectionStartNodeId(null);
+    setConnectionStartHandleId(null);
+    setConnectionPreviewPosition(null);
+  }, []);
+
   useEffect(() => {
     handleLoadWorkflow(false);
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
     } else {
-      setIsAssistantVisible(false); // Default to false if not set
+      setIsAssistantVisible(false); 
     }
 
 
@@ -407,12 +414,11 @@ export default function WorkflowPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog
+    showDeleteNodeConfirmDialog, handleCancelConnection
   ]);
 
   useEffect(() => {
@@ -474,7 +480,7 @@ export default function WorkflowPage() {
         outputHandles: nodeConfigDef.outputHandles,
         aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
         category: nodeConfigDef.category,
-        lastExecutionStatus: 'pending',
+        lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'],
       };
     });
     nextNodeIdRef.current = maxIdNum;
@@ -527,7 +533,7 @@ export default function WorkflowPage() {
       outputHandles: nodeType.outputHandles,
       aiExplanation: `Manually added ${nodeType.name} node.`,
       category: nodeType.category,
-      lastExecutionStatus: 'pending',
+      lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'],
     };
     setNodes(prevNodes => produce(prevNodes, draft => {
       draft.push(newNode);
@@ -686,12 +692,6 @@ export default function WorkflowPage() {
     handleCancelConnection();
   }, [isConnecting, connectionStartNodeId, connectionStartHandleId, nodes, toast, saveHistory, handleCancelConnection]);
 
-  const handleCancelConnection = useCallback(() => {
-    setIsConnecting(false);
-    setConnectionStartNodeId(null);
-    setConnectionStartHandleId(null);
-    setConnectionPreviewPosition(null);
-  }, []);
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     const target = event.target as HTMLElement;
@@ -792,7 +792,7 @@ export default function WorkflowPage() {
 
   const handleClearLogs = useCallback(() => {
     setExecutionLogs([]);
-    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' })));
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
     toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared and node statuses reset.' });
     saveHistory();
   }, [toast, saveHistory]);
@@ -858,14 +858,12 @@ export default function WorkflowPage() {
 
         {isAssistantVisible && (
           <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
-            <div className="border-b">
-              <ExecutionLogPanel
-                onRunWorkflow={handleRunWorkflow}
-                isWorkflowRunning={isWorkflowRunning}
-                isSimulationMode={isSimulationMode}
-                onToggleSimulationMode={handleToggleSimulationMode}
-              />
-            </div>
+            <ExecutionLogPanel
+              onRunWorkflow={handleRunWorkflow}
+              isWorkflowRunning={isWorkflowRunning}
+              isSimulationMode={isSimulationMode}
+              onToggleSimulationMode={handleToggleSimulationMode}
+            />
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType ? (
                 <NodeConfigPanel
@@ -947,3 +945,4 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
