@@ -145,7 +145,7 @@ export function AIWorkflowAssistantPanel({
   }
 
   // If a connection is selected, show connection management UI
-  if (selectedConnectionId && !selectedNodeId) {
+  if (selectedConnectionId && !selectedNodeId && !workflowExplanation && !isConnecting) {
      return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
@@ -157,13 +157,13 @@ export function AIWorkflowAssistantPanel({
         </div>
         <div className="p-6 text-center flex flex-col items-center justify-center flex-1 space-y-3">
             <p className="text-sm text-muted-foreground">
-                Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Delete</kbd> or <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Backspace</kbd> to remove. <br/>Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-neutral-700 dark:text-gray-100 dark:border-neutral-600">Esc</kbd> to deselect.
+                Connection ID: <code className="text-xs bg-muted p-1 rounded">{selectedConnectionId.substring(0,8)}...</code>
             </p>
             <div className="flex gap-2">
-                <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection}>
+                <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection} title="Delete selected connection (Delete/Backspace)">
                     <Trash2 className="mr-2 h-4 w-4" /> Delete Connection
                 </Button>
-                <Button variant="outline" size="sm" onClick={onDeselectConnection}>
+                <Button variant="outline" size="sm" onClick={onDeselectConnection} title="Deselect connection (Esc)">
                     <XCircle className="mr-2 h-4 w-4" /> Deselect
                 </Button>
             </div>
@@ -177,7 +177,6 @@ export function AIWorkflowAssistantPanel({
               </div>
             </AccordionTrigger>
             <AccordionContent className="bg-muted/20">
-               {/* Log content remains same as below */}
               <div className="flex justify-between items-center px-4 pt-2 pb-1">
                 <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
                 <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
@@ -238,7 +237,6 @@ export function AIWorkflowAssistantPanel({
               </div>
             </AccordionTrigger>
             <AccordionContent className="bg-muted/20">
-               {/* Log content remains same as below */}
               <div className="flex justify-between items-center px-4 pt-2 pb-1">
                 <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
                 <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
@@ -272,7 +270,11 @@ export function AIWorkflowAssistantPanel({
   }
 
 
-  // Default view: AI prompt and initial suggestions
+  // Default view: AI prompt and initial suggestions (unless a node is selected)
+  if (selectedNodeId) { // NodeConfigPanel is expected to be rendered by the parent if selectedNodeId is set
+    return null; 
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">

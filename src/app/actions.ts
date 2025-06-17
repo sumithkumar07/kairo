@@ -33,16 +33,15 @@ let pool: Pool | undefined;
 function getDbPool() {
   if (!pool) {
     if (!process.env.DB_CONNECTION_STRING) {
-      console.error("[DB POOL] DB_CONNECTION_STRING environment variable is not set. Database operations will fail.");
-      // Optionally, throw an error here or handle it gracefully depending on desired behavior
-      // For now, we'll let it try to connect and fail within the query if the string is missing.
+      const fatalErrorMsg = "[DB POOL] FATAL: DB_CONNECTION_STRING environment variable is not set. Database operations cannot proceed.";
+      console.error(fatalErrorMsg);
+      throw new Error(fatalErrorMsg); 
     }
     pool = new Pool({
       connectionString: process.env.DB_CONNECTION_STRING,
-      // Suggested pool configuration options:
-      // max: 20, // max number of clients in the pool
-      // idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
-      // connectionTimeoutMillis: 2000, // how long to wait for a connection from the pool
+      // max: 20, 
+      // idleTimeoutMillis: 30000, 
+      // connectionTimeoutMillis: 2000, 
     });
 
     pool.on('error', (err, client) => {
@@ -1084,7 +1083,6 @@ async function executeFlowInternal(
                       currentAttemptOutput = { ...currentAttemptOutput, results: queryResult.rows, rowCount: queryResult.rowCount };
                   } finally { 
                       client.release(); 
-                      // Do NOT call pool.end() here as the pool is shared
                   } 
                 }
                 break;
@@ -1568,7 +1566,7 @@ async function executeFlowInternal(
               serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`, type: 'info' });
               console.log(`[NODE DELAY - SERVER] ${nodeIdentifier}: Starting delay for ${delayMs}ms.`);
               
-              if (delayMs > 0) { // Only actually pause if delay is positive
+              if (delayMs > 0) { 
                 await new Promise(resolve => setTimeout(resolve, delayMs));
               }
               
@@ -1580,7 +1578,7 @@ async function executeFlowInternal(
               const inputConnections = connectionsToExecute.filter(c => c.targetNodeId === node.id && c.targetHandle === 'input');
               if (inputConnections.length > 0) {
                 const sourceNodeId = inputConnections[0].sourceNodeId;
-                const sourceHandle = inputConnections[0].sourceHandle || 'output'; // Assume 'output' if not specified
+                const sourceHandle = inputConnections[0].sourceHandle || 'output'; 
                 if (currentWorkflowData[sourceNodeId] && currentWorkflowData[sourceNodeId].hasOwnProperty(sourceHandle)) {
                     delayInputData = currentWorkflowData[sourceNodeId][sourceHandle];
                      serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DELAY] ${nodeIdentifier}: Passing through input from ${sourceNodeId}.${sourceHandle}. Data (preview): ${JSON.stringify(delayInputData).substring(0,100)}`, type: 'info'});

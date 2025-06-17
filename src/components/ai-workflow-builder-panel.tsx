@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -41,6 +41,7 @@ interface AIWorkflowBuilderPanelProps {
   zoomLevel: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  onResetView: () => void; 
   onExplainWorkflow: () => void;
   isExplainingWorkflow: boolean;
   onUndo: () => void; 
@@ -80,6 +81,7 @@ export function AIWorkflowBuilderPanel({
   zoomLevel,
   onZoomIn,
   onZoomOut,
+  onResetView,
   onExplainWorkflow,
   isExplainingWorkflow,
   onUndo,
@@ -93,9 +95,9 @@ export function AIWorkflowBuilderPanel({
 
   const handleUpgradeClick = () => {
     toast({
-      title: 'Upgrade Your Plan',
-      description: 'Unlock powerful AI features like advanced generation, in-depth explanations, and smart suggestions by upgrading your plan!',
-      duration: 5000,
+      title: 'Unlock More AI Features',
+      description: 'Upgrade your plan to access advanced AI capabilities, enhanced generation, in-depth explanations, and smarter suggestions for your workflows!',
+      duration: 6000,
     });
   };
 
@@ -111,7 +113,10 @@ export function AIWorkflowBuilderPanel({
           <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
             <Minus className="h-4 w-4" />
           </Button>
-          <span className="text-xs text-muted-foreground w-10 text-center select-none" title="Current Zoom Level">{(zoomLevel * 100).toFixed(0)}%</span>
+          <Button variant="outline" size="icon" className="w-12 text-xs" onClick={onResetView} title="Reset View (Zoom & Pan)">
+            <RefreshCw className="h-3.5 w-3.5 mr-0.5" />
+            {(zoomLevel * 100).toFixed(0)}%
+          </Button>
           <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
             <Plus className="h-4 w-4" />
           </Button>
@@ -150,18 +155,16 @@ export function AIWorkflowBuilderPanel({
             Load
           </Button>
 
-
           <Separator orientation="vertical" className="h-6 mx-1.5" />
           
           <Button
-            variant="outline"
+            variant="ghost" // Changed variant
             size="sm"
             onClick={handleUpgradeClick}
             title="Upgrade to unlock more AI features"
-            className="bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 hover:shadow-lg"
           >
             <Sparkles className="h-4 w-4 mr-1.5 text-primary" />
-            Upgrade Plan
+            Unlock AI
           </Button>
         </div>
       </div>

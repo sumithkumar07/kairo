@@ -479,6 +479,13 @@ export default function WorkflowPage() {
     });
   }, [saveHistory]);
 
+  const handleResetView = useCallback(() => {
+    setCanvasOffset({ x: 0, y: 0 });
+    setZoomLevel(1);
+    saveHistory();
+    toast({ title: "View Reset", description: "Canvas zoom and pan have been reset."});
+  }, [saveHistory, toast]);
+
 
   // Effect for initial load from local storage
   useEffect(() => {
@@ -621,20 +628,20 @@ export default function WorkflowPage() {
         } finally {
           if (isActive) setIsLoadingSuggestion(false);
         }
-      } else { // No node selected
+      } else { 
         if (isActive) {
-          setSuggestedNextNodeInfo(null); // Clear suggestion for selected node
-          if(isLoadingSuggestion) setIsLoadingSuggestion(false); // Stop loading for selected node
+          setSuggestedNextNodeInfo(null); 
+          if(isLoadingSuggestion) setIsLoadingSuggestion(false); 
         }
   
         const shouldFetchInitial =
-          isAssistantVisible && // Only fetch if panel is open
+          isAssistantVisible && 
           nodes.length === 0 &&
           !selectedConnectionId &&
           !workflowExplanation &&
-          !initialCanvasSuggestion && // Don't fetch if already have one
-          !isLoadingInitialSuggestion && // Don't fetch if already loading initial
-          !initialSuggestionAttempted; // Don't fetch if already tried for this empty canvas state
+          !initialCanvasSuggestion && 
+          !isLoadingInitialSuggestion && 
+          !initialSuggestionAttempted; 
   
         if (shouldFetchInitial) {
           if (isActive) {
@@ -654,7 +661,6 @@ export default function WorkflowPage() {
             if (isActive) setIsLoadingInitialSuggestion(false);
           }
         } else if (initialCanvasSuggestion && (nodes.length > 0 || selectedConnectionId || workflowExplanation)) {
-           // Clear initial suggestion if canvas is no longer empty or something else is focused
           if (isActive) setInitialCanvasSuggestion(null);
         }
       }
@@ -663,13 +669,11 @@ export default function WorkflowPage() {
     if (isAssistantVisible) {
       fetchSuggestionsLogic();
     } else {
-      // If assistant panel is closed, clear all suggestion-related states
       if (isActive) {
         setInitialCanvasSuggestion(null);
         setSuggestedNextNodeInfo(null);
         if (isLoadingSuggestion) setIsLoadingSuggestion(false);
         if (isLoadingInitialSuggestion) setIsLoadingInitialSuggestion(false);
-        // Do not reset initialSuggestionAttempted here, let it reset with new/cleared workflows
       }
     }
   
@@ -677,13 +681,12 @@ export default function WorkflowPage() {
   }, [
     isAssistantVisible, 
     selectedNodeId, 
-    nodes, // Using nodes directly as a dependency
+    nodes, 
     selectedConnectionId, 
     workflowExplanation, 
-    initialCanvasSuggestion, // Check if already have it
-    isLoadingInitialSuggestion, // Check if already loading it
-    initialSuggestionAttempted, // Check if already tried
-    // setIsLoadingSuggestion, setSuggestedNextNodeInfo, setIsLoadingInitialSuggestion, setInitialCanvasSuggestion, setInitialSuggestionAttempted are state setters, not needed in deps
+    initialCanvasSuggestion, 
+    isLoadingInitialSuggestion, 
+    initialSuggestionAttempted,
   ]);
 
 
@@ -1063,13 +1066,12 @@ export default function WorkflowPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {(isLoadingAi || isExplainingWorkflow || isLoadingInitialSuggestion || (isLoadingSuggestion && selectedNodeId && !isLoadingInitialSuggestion)) && (
+      {(isLoadingAi || (isLoadingInitialSuggestion && nodes.length === 0) || (isLoadingSuggestion && selectedNodeId && !isLoadingInitialSuggestion)) && (
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="ml-4 text-lg text-foreground">
             {isLoadingAi ? 'AI is generating your workflow...' :
-             isExplainingWorkflow ? 'AI is explaining the workflow...' :
-             isLoadingInitialSuggestion ? 'AI is suggesting a first step...' :
+             (isLoadingInitialSuggestion && nodes.length === 0) ? 'AI is suggesting a first step...' :
              (isLoadingSuggestion && selectedNodeId) ? 'AI is suggesting next step for selected node...' :
              'Processing...'}
           </p>
@@ -1114,6 +1116,7 @@ export default function WorkflowPage() {
           zoomLevel={zoomLevel}
           onZoomIn={handleZoomIn} 
           onZoomOut={handleZoomOut} 
+          onResetView={handleResetView}
           onExplainWorkflow={handleGetWorkflowExplanation}
           isExplainingWorkflow={isExplainingWorkflow}
           onUndo={handleUndo}
@@ -1141,8 +1144,7 @@ export default function WorkflowPage() {
                     setWorkflowExplanation(null);
                 }}
                 initialCanvasSuggestion={initialCanvasSuggestion}
-                isLoadingInitialSuggestion={isLoadingInitialSuggestion}
-                isLoadingSuggestion={isLoadingSuggestion} 
+                isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
                 onAddSuggestedNode={handleAddSuggestedNode} 
                 isCanvasEmpty={nodes.length === 0}
                 executionLogs={executionLogs}
