@@ -3,14 +3,15 @@
 
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils'; 
-import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
+import { useMemo, useState } from 'react';
+import { Input } from '@/components/ui/input'; // Import Input
+import { Search } from 'lucide-react'; // Import Search icon
 
 const capitalizeFirstLetter = (string: string) => {
   return string.charAt(0).toUpperCase() + string.slice(1);
 };
 
-// Re-using a similar styling function, could be centralized if shared with canvas nodes eventually
 const getCategoryStyling = (category: AvailableNodeType['category']) => {
   switch (category) {
     case 'trigger':
@@ -74,13 +75,28 @@ interface NodeLibraryProps {
 }
 
 export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeType: AvailableNodeType) => {
     event.dataTransfer.setData('application/json', JSON.stringify(nodeType));
     event.dataTransfer.effectAllowed = 'move';
   };
 
+  const filteredNodes = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return availableNodes;
+    }
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return availableNodes.filter(node =>
+      node.name.toLowerCase().includes(lowerSearchTerm) ||
+      (node.description && node.description.toLowerCase().includes(lowerSearchTerm)) ||
+      node.type.toLowerCase().includes(lowerSearchTerm) ||
+      node.category.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [availableNodes, searchTerm]);
+
   const groupedNodes = useMemo(() => {
-    return availableNodes.reduce((acc, node) => {
+    return filteredNodes.reduce((acc, node) => {
       const category = node.category || 'unknown';
       if (!acc[category]) {
         acc[category] = [];
@@ -88,7 +104,7 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
       acc[category].push(node);
       return acc;
     }, {} as Record<string, AvailableNodeType[]>);
-  }, [availableNodes]);
+  }, [filteredNodes]);
 
   const categoryOrder: AvailableNodeType['category'][] = ['trigger', 'action', 'io', 'logic', 'ai', 'group', 'iteration', 'control', 'interaction', 'unknown'];
 
@@ -98,8 +114,21 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
         <h2 className="text-lg font-semibold text-foreground">Node Library</h2>
         <p className="text-sm text-muted-foreground">Drag nodes to the canvas</p>
       </div>
+      <div className="p-3 border-b relative">
+        <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search nodes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-8 h-9 text-sm" // Added padding for icon
+        />
+      </div>
       <ScrollArea className="flex-1">
         <div className="p-3 space-y-3">
+          {filteredNodes.length === 0 && searchTerm.trim() !== '' && (
+            <p className="text-sm text-muted-foreground text-center py-4">No nodes found matching "{searchTerm}".</p>
+          )}
           {categoryOrder.map(categoryKey => {
             const nodesInCategory = groupedNodes[categoryKey];
             if (!nodesInCategory || nodesInCategory.length === 0) {
@@ -110,8 +139,8 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
               <div key={categoryKey} className="space-y-2">
                 <h3 className={cn(
                   "text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded-md",
-                  categoryStyling.iconColor, // Using iconColor for category title as well
-                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'), // Use non-hover version for title bg
+                  categoryStyling.iconColor,
+                  categoryStyling.bgColor.replace('hover:bg-', 'bg-'),
                   categoryStyling.borderColor,
                 )}>
                   {capitalizeFirstLetter(categoryKey)}

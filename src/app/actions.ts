@@ -95,13 +95,25 @@ function resolveValue(
       for (let i = 1; i < pathParts.length; i++) {
         const part = pathParts[i];
         currentPathForLog += `.${part}`;
-        const arrayMatch = part.match(/(\w+)\[(\d+)\]/);
-        if (arrayMatch) {
-          const arrayKey = arrayMatch[1]; const index = parseInt(arrayMatch[2], 10);
-          if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) dataAtPath = dataAtPath[arrayKey][index];
-          else { contextFound = false; break; }
-        } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) dataAtPath = dataAtPath[part];
-        else { contextFound = false; break; }
+        const arrayMatch = part.match(/^([^\[]+)\[(\d+)\]$/); // Matches 'arrayName[index]'
+        if (arrayMatch && dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null) {
+          const arrayKey = arrayMatch[1];
+          const index = parseInt(arrayMatch[2], 10);
+          if (Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
+            dataAtPath = dataAtPath[arrayKey][index];
+          } else {
+            contextFound = false; 
+            const arrErrorMsg = `[ENGINE] Array indexing error in additional context '${firstPart}': Key '${arrayKey}' is not an array, or index '${index}' is out of bounds for path '${currentPathForLog}'.`;
+            console.warn(arrErrorMsg);
+            serverLogs.push({ timestamp: new Date().toISOString(), message: arrErrorMsg, type: 'info' });
+            break;
+          }
+        } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
+          dataAtPath = dataAtPath[part];
+        } else {
+          contextFound = false; 
+          break;
+        }
       }
       if (contextFound) {
         dataFound = true;
@@ -164,13 +176,25 @@ function resolveValue(
         for (let i = 1; i < pathParts.length; i++) {
             const part = pathParts[i];
             currentPathForLog += `.${part}`;
-            const arrayMatch = part.match(/(\w+)\[(\d+)\]/);
-            if (arrayMatch) {
-                const arrayKey = arrayMatch[1]; const index = parseInt(arrayMatch[2], 10);
-                if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) dataAtPath = dataAtPath[arrayKey][index];
-                else { wfDataFound = false; break; }
-            } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) dataAtPath = dataAtPath[part];
-            else { wfDataFound = false; break; }
+            const arrayMatch = part.match(/^([^\[]+)\[(\d+)\]$/); // Matches 'arrayName[index]'
+            if (arrayMatch && dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null) {
+                const arrayKey = arrayMatch[1];
+                const index = parseInt(arrayMatch[2], 10);
+                if (Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
+                    dataAtPath = dataAtPath[arrayKey][index];
+                } else {
+                    wfDataFound = false;
+                    const arrErrorMsg = `[ENGINE] Array indexing error in workflowData: Key '${arrayKey}' for node '${firstPart}' is not an array, or index '${index}' is out of bounds for path '${currentPathForLog}'.`;
+                    console.warn(arrErrorMsg);
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: arrErrorMsg, type: 'info' });
+                    break;
+                }
+            } else if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
+                dataAtPath = dataAtPath[part];
+            } else {
+                wfDataFound = false;
+                break;
+            }
         }
         if (wfDataFound) {
             dataFound = true;
@@ -554,15 +578,16 @@ async function executeFlowInternal(
   let lastNodeOutput: any = null;
 
   if (sortError) {
-    const sortErrorMsg = `[ENGINE/${flowLabel} - SERVER] Graph error: ${sortError}`;
+    const sortErrorMsg = `[ENGINE/${flowLabel} - SERVER] Graph error prevented execution: ${sortError}`;
     console.error(sortErrorMsg);
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Critical graph error prevented execution: ${sortError}`, type: 'error' });
-    // Mark all nodes as skipped or errored if graph fails
+    // Mark all nodes as errored if graph fails
     for (const node of nodesToExecute) {
       currentWorkflowData[node.id] = { 
+        ...(currentWorkflowData[node.id] || {}),
         status: 'error', 
-        error_message: `Workflow graph error prevented execution: ${sortError}`,
-        lastExecutionStatus: 'error'
+        lastExecutionStatus: 'error',
+        error_message: `Workflow graph error prevented execution: ${sortError}`
       };
     }
     return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput, flowError: sortError };
@@ -575,9 +600,10 @@ async function executeFlowInternal(
     // Mark all nodes as skipped
     for (const node of nodesToExecute) {
         currentWorkflowData[node.id] = { 
+            ...(currentWorkflowData[node.id] || {}),
             status: 'skipped', 
-            reason: 'No valid execution path including this node.',
-            lastExecutionStatus: 'skipped' 
+            lastExecutionStatus: 'skipped',
+            reason: 'No valid execution path including this node.'
         };
     }
     return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
@@ -590,12 +616,12 @@ async function executeFlowInternal(
   
   // Initialize all nodes in this flow as 'pending' for their lastExecutionStatus
   for (const node of executionOrder) {
-    currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'pending', lastExecutionStatus: 'pending' };
+    currentWorkflowData[node.id] = { ...(currentWorkflowData[node.id] || {}), status: 'pending', lastExecutionStatus: 'pending' };
   }
 
   try {
     for (const node of executionOrder) {
-      currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
+      currentWorkflowData[node.id] = { ...(currentWorkflowData[node.id] || {}), status: 'running', lastExecutionStatus: 'running' };
       const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
       console.log(`[ENGINE/${flowLabel} - SERVER] Preparing to process node: ${nodeIdentifier}`);
       serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Preparing to process node: ${nodeIdentifier}`, type: 'info' });
