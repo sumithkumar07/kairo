@@ -168,13 +168,14 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="input"
                     className={cn(
-                      "absolute -left-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -left-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out group",
                       categoryStyling.inputHandleColor, 
                       categoryStyling.inputHandleBorder,
                        isPotentialTarget 
-                        ? "border-green-400 bg-green-500 hover:bg-green-400 scale-110 hover:scale-125 cursor-pointer ring-2 ring-green-400/50" 
+                        ? "border-green-400 bg-green-500 hover:bg-green-400 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-400/50" 
                         : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : "cursor-default"),
-                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-40 cursor-not-allowed" 
+                      isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && "opacity-40 cursor-not-allowed" ,
+                      !isConnecting && "hover:scale-110 hover:border-primary"
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -208,13 +209,13 @@ export function WorkflowNodeItem({
                     data-handle-id={handleId}
                     data-handle-type="output"
                     className={cn(
-                      "absolute -right-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out",
+                      "absolute -right-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all duration-150 ease-in-out group",
                       categoryStyling.outputHandleColor,
                       categoryStyling.outputHandleBorder,
                       isActiveSource 
-                        ? "bg-orange-500 scale-110 cursor-grabbing ring-2 ring-orange-400/50" 
+                        ? "bg-orange-500 scale-125 cursor-grabbing ring-2 ring-orange-400/50" 
                         : "", 
-                      !isConnecting ? "cursor-pointer hover:scale-110" : "cursor-default",
+                      !isConnecting ? "cursor-pointer hover:scale-125 hover:bg-primary/70 hover:border-primary" : "cursor-default",
                       isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed" 
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
@@ -239,4 +240,5 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+
 

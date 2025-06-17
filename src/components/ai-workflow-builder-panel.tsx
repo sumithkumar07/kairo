@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2 } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
@@ -20,6 +20,7 @@ interface AIWorkflowBuilderPanelProps {
   onToggleAssistant: () => void;
   onSaveWorkflow: () => void;
   onLoadWorkflow: () => void;
+  onClearCanvas: () => void;
   isConnecting: boolean;
   onStartConnection: (nodeId: string, handleId: string, handlePosition: { x: number, y: number }) => void;
   onCompleteConnection: (nodeId: string, handleId: string) => void;
@@ -60,6 +61,7 @@ export function AIWorkflowBuilderPanel({
   onToggleAssistant,
   onSaveWorkflow,
   onLoadWorkflow,
+  onClearCanvas,
   isConnecting,
   onStartConnection,
   onCompleteConnection,
@@ -123,6 +125,10 @@ export function AIWorkflowBuilderPanel({
           <Separator orientation="vertical" className="h-6 mx-1.5" />
 
           {/* File Operations */}
+           <Button variant="outline" size="sm" onClick={onClearCanvas} title="Clear Canvas (Delete all nodes and connections)" disabled={!hasWorkflow}>
+            <Trash2 className="h-4 w-4 mr-1.5" />
+            Clear
+          </Button>
           <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow (Ctrl+O)">
             <FolderOpen className="h-4 w-4 mr-1.5" />
             Load
@@ -222,4 +228,5 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
+
 

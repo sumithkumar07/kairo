@@ -69,13 +69,15 @@ function resolveValue(
   const placeholderRegex = /{{\s*([^{}\s]+)\s*}}/g;
   let resolvedValue = value;
   let match;
-  console.log(`[RESOLVE_VALUE] Attempting to resolve value: "${value}"`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Attempting to resolve value: "${value}"`, type: 'info' });
 
   while ((match = placeholderRegex.exec(value)) !== null) {
     const placeholder = match[0]; 
     const path = match[1]; 
     const pathParts = path.split('.'); 
     
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Processing placeholder: "${placeholder}" with path: "${path}"`, type: 'info' });
+
     if (pathParts.length === 0) {
       const warningMsg = `[ENGINE] Invalid placeholder path: '${path}' in value '${value}'. Placeholder remains unresolved.`;
       console.warn(warningMsg);
@@ -112,13 +114,12 @@ function resolveValue(
           dataAtPath = dataAtPath[part];
         } else {
           contextFound = false; 
+          serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Path part '${part}' not found in additional context '${firstPart}' for placeholder '${placeholder}'. Path attempted: ${currentPathForLog}`, type: 'info' });
           break;
         }
       }
       if (contextFound) {
         dataFound = true;
-      } else {
-         serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Path part '${pathParts.slice(1).join('.')}' not found in additional context '${firstPart}' for placeholder '${placeholder}'.`, type: 'info' });
       }
     }
 
@@ -130,7 +131,6 @@ function resolveValue(
         resolvedValue = resolvedValue.replace(placeholder, envVarValue);
         if (placeholder === value) resolvedValue = envVarValue; 
         dataFound = true; 
-        console.log(`[RESOLVE_VALUE] Resolved '{{env.${envVarName}}}' to: "${envVarValue}"`);
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Resolved '{{env.${envVarName}}}' from environment.`, type: 'info' });
       } else {
         const warningMsg = `[ENGINE] Environment variable '${envVarName}' not found for placeholder '${placeholder}'. Define it in .env.local or server environment. Placeholder remains unresolved.`;
@@ -152,7 +152,6 @@ function resolveValue(
             resolvedValue = resolvedValue.replace(placeholder, envVarValue);
             if (placeholder === value) resolvedValue = envVarValue;
             dataFound = true;
-            console.log(`[RESOLVE_VALUE] Resolved '{{credential.${credentialName}}}' via env fallback to (value may be sensitive, not logged).`);
             serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] For development, '{{credential.${credentialName}}}' was resolved using a fallback environment variable ('${credentialName}' or variations).`, type: 'info' });
         } else {
             const warningMsg = `[ENGINE] Credential '{{credential.${credentialName}}}' not found via Credential Manager (not implemented) or as an environment variable fallback. Placeholder remains unresolved.`;
@@ -180,11 +179,11 @@ function resolveValue(
             if (arrayMatch && dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null) {
                 const arrayKey = arrayMatch[1];
                 const index = parseInt(arrayMatch[2], 10);
-                if (Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
+                if (dataAtPath.hasOwnProperty(arrayKey) && Array.isArray(dataAtPath[arrayKey]) && dataAtPath[arrayKey].length > index) {
                     dataAtPath = dataAtPath[arrayKey][index];
                 } else {
                     wfDataFound = false;
-                    const arrErrorMsg = `[ENGINE] Array indexing error in workflowData: Key '${arrayKey}' for node '${firstPart}' is not an array, or index '${index}' is out of bounds for path '${currentPathForLog}'.`;
+                    const arrErrorMsg = `[ENGINE] Array indexing error in workflowData: Key '${arrayKey}' for node '${firstPart}' is not an array, or index '${index}' is out of bounds, or key does not exist. Path attempted: '${currentPathForLog}'.`;
                     console.warn(arrErrorMsg);
                     serverLogs.push({ timestamp: new Date().toISOString(), message: arrErrorMsg, type: 'info' });
                     break;
@@ -193,20 +192,30 @@ function resolveValue(
                 dataAtPath = dataAtPath[part];
             } else {
                 wfDataFound = false;
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Path part '${part}' not found in data for node '${firstPart}'. Path attempted: ${currentPathForLog}. Placeholder remains unresolved.`, type: 'info' });
                 break;
             }
         }
         if (wfDataFound) {
             dataFound = true;
         } else {
-            const warningMsg = `[ENGINE] Path part '${pathParts.slice(1).join('.')}' not found in data for node '${firstPart}' when resolving placeholder '${placeholder}'. Attempted path: ${currentPathForLog}. Data at path start: ${JSON.stringify(workflowData[firstPart], null, 2).substring(0,100)}. Placeholder remains unresolved.`;
+            const warningMsg = `[ENGINE] Path part '${pathParts.slice(1).join('.')}' not found in data for node '${firstPart}' when resolving placeholder '${placeholder}'. Attempted path: ${currentPathForLog}. Placeholder remains unresolved.`;
             console.warn(warningMsg); serverLogs.push({ timestamp: new Date().toISOString(), message: warningMsg, type: 'info' });
         }
     }
     
     if (dataFound) {
       const resolvedValueType = typeof dataAtPath;
-      console.log(`[RESOLVE_VALUE] Placeholder "${placeholder}" resolved to type: ${resolvedValueType}, value (first 100 chars/if simple): ${String(dataAtPath).substring(0,100)}`);
+      let valuePreview = String(dataAtPath);
+      if (typeof dataAtPath === 'object' && dataAtPath !== null) {
+          valuePreview = `Object (keys: ${Object.keys(dataAtPath).join(', ').substring(0,50)}...)`;
+      } else if (Array.isArray(dataAtPath)) {
+          valuePreview = `Array (length: ${dataAtPath.length}, first item (sample): ${String(dataAtPath[0]).substring(0,50)}...)`;
+      } else {
+          valuePreview = valuePreview.substring(0,100);
+      }
+      serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Placeholder "${placeholder}" resolved. Type: ${resolvedValueType}, Value (preview): ${valuePreview}`, type: 'info' });
+
       if (placeholder === value && (typeof dataAtPath !== 'string' && typeof dataAtPath !== 'number' && typeof dataAtPath !== 'boolean' && dataAtPath !== null)) { 
         resolvedValue = dataAtPath; 
       } else { 
@@ -215,9 +224,11 @@ function resolveValue(
           : JSON.stringify(dataAtPath); 
         resolvedValue = resolvedValue.replace(placeholder, replacementValue);
       }
+    } else {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Placeholder "${placeholder}" could NOT be resolved. It remains as is in the value.`, type: 'info' });
     }
   }
-  console.log(`[RESOLVE_VALUE] Final resolved value for "${value}": "${String(resolvedValue).substring(0, 200)}${String(resolvedValue).length > 200 ? "..." : ""}"`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Final resolved value for "${value}": "${String(resolvedValue).substring(0, 200)}${String(resolvedValue).length > 200 ? "..." : ""}"`, type: 'info' });
   return resolvedValue;
 }
 
@@ -229,7 +240,7 @@ function resolveNodeConfig(
   additionalContexts?: Record<string, any>
 ): Record<string, any> {
   const resolvedConfig: Record<string, any> = {};
-  console.log(`[RESOLVE_CONFIG] Resolving config for keys: ${Object.keys(nodeConfig).join(', ')}`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Resolving config for keys: ${Object.keys(nodeConfig).join(', ')}`, type: 'info' });
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
@@ -238,17 +249,17 @@ function resolveNodeConfig(
           key === 'loopNodes' || key === 'loopConnections' ||
           key === 'branches' || key === 'inputFieldsSchema') { 
         resolvedConfig[key] = value; 
-        console.log(`[RESOLVE_CONFIG] Kept raw config for key '${key}' (sub-flow/schema definition).`);
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Kept raw config for key '${key}' (sub-flow/schema definition).`, type: 'info' });
         continue;
       }
       if (key === 'retry' && typeof value === 'object' && value !== null) {
         resolvedConfig[key] = value; 
-        console.log(`[RESOLVE_CONFIG] Kept raw config for key 'retry'.`);
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Kept raw config for key 'retry'.`, type: 'info' });
         continue;
       }
       if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
          resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
-         console.log(`[RESOLVE_CONFIG] Recursively resolved config for key 'onErrorWebhook'.`);
+         serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Recursively resolved config for key 'onErrorWebhook'.`, type: 'info' });
         continue;
       }
       if (typeof value === 'string') {
@@ -264,7 +275,7 @@ function resolveNodeConfig(
       }
     }
   }
-  console.log(`[RESOLVE_CONFIG] Final resolved config (top-level keys): ${Object.keys(resolvedConfig).join(', ')}`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Final resolved config (top-level keys): ${Object.keys(resolvedConfig).join(', ')}`, type: 'info' });
   return resolvedConfig;
 }
 
@@ -578,10 +589,9 @@ async function executeFlowInternal(
   let lastNodeOutput: any = null;
 
   if (sortError) {
-    const sortErrorMsg = `[ENGINE/${flowLabel} - SERVER] Graph error prevented execution: ${sortError}`;
-    console.error(sortErrorMsg);
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Critical graph error prevented execution: ${sortError}`, type: 'error' });
-    // Mark all nodes as errored if graph fails
+    const sortErrorMsg = `[ENGINE/${flowLabel}] Critical graph error prevented execution: ${sortError}`;
+    console.error(`[ENGINE/${flowLabel} - SERVER] ${sortErrorMsg}`);
+    serverLogs.push({ timestamp: new Date().toISOString(), message: sortErrorMsg, type: 'error' });
     for (const node of nodesToExecute) {
       currentWorkflowData[node.id] = { 
         ...(currentWorkflowData[node.id] || {}),
@@ -594,10 +604,9 @@ async function executeFlowInternal(
   }
   
   if (nodesToExecute.length > 0 && executionOrder.length === 0 && !sortError) {
-    const noOrderMsg = `[ENGINE/${flowLabel} - SERVER] No execution order could be determined for nodes, but no specific graph error reported. This might indicate disconnected trigger nodes.`;
-    console.warn(noOrderMsg);
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] ${noOrderMsg}`, type: 'info' });
-    // Mark all nodes as skipped
+    const noOrderMsg = `[ENGINE/${flowLabel}] No execution order could be determined for nodes, but no specific graph error reported. This might indicate disconnected trigger nodes.`;
+    console.warn(`[ENGINE/${flowLabel} - SERVER] ${noOrderMsg}`);
+    serverLogs.push({ timestamp: new Date().toISOString(), message: noOrderMsg, type: 'info' });
     for (const node of nodesToExecute) {
         currentWorkflowData[node.id] = { 
             ...(currentWorkflowData[node.id] || {}),
@@ -610,11 +619,10 @@ async function executeFlowInternal(
   }
 
 
-  const startMsg = `[ENGINE/${flowLabel} - SERVER] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode. Order: ${executionOrder.map(n=>n.id).join(' -> ')}`;
-  console.log(startMsg);
-  serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution. Order: ${executionOrder.map(n=>n.id).join(' -> ')}`, type: 'info' });
+  const startMsg = `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode. Order: ${executionOrder.map(n=>n.id).join(' -> ')}`;
+  console.log(`[ENGINE/${flowLabel} - SERVER] ${startMsg}`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: startMsg, type: 'info' });
   
-  // Initialize all nodes in this flow as 'pending' for their lastExecutionStatus
   for (const node of executionOrder) {
     currentWorkflowData[node.id] = { ...(currentWorkflowData[node.id] || {}), status: 'pending', lastExecutionStatus: 'pending' };
   }
@@ -1663,10 +1671,9 @@ async function executeFlowInternal(
         }
       } 
 
-      // Store the final output and its status, ensuring lastExecutionStatus is set
       currentWorkflowData[node.id] = { 
         ...finalNodeOutput, 
-        lastExecutionStatus: finalNodeOutput.lastExecutionStatus || (finalNodeOutput.status as WorkflowNode['lastExecutionStatus']) || 'error' // Fallback if not explicitly set
+        lastExecutionStatus: finalNodeOutput.lastExecutionStatus || (finalNodeOutput.status as WorkflowNode['lastExecutionStatus']) || 'error' 
       };
       lastNodeOutput = currentWorkflowData[node.id]; 
       console.log(`[ENGINE/${flowLabel} - SERVER] Node ${node.id} final output stored (status: ${finalNodeOutput.status}, lastExecStatus: ${currentWorkflowData[node.id].lastExecutionStatus}). Output (first 200 chars): ${JSON.stringify(currentWorkflowData[node.id], null, 2).substring(0, 200)}`);
@@ -1678,7 +1685,7 @@ async function executeFlowInternal(
       } else if (currentWorkflowData[node.id].lastExecutionStatus === 'error') {
           const errorOverallMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} ultimately FAILED. Check previous logs for attempt details. Workflow continues if possible.`;
           console.warn(`[ENGINE/${flowLabel} - SERVER] ${errorOverallMsg}`);
-          serverLogs.push({ timestamp: new Date().toISOString(), message: errorOverallMsg, type: 'info' }); // Log as info since workflow tries to continue
+          serverLogs.push({ timestamp: new Date().toISOString(), message: errorOverallMsg, type: 'info' }); 
       } else if (currentWorkflowData[node.id].lastExecutionStatus === 'partial_success' && (node.type === 'parallel' || node.type === 'forEach')) {
           const partialSuccessMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} (${node.type}) completed with partial success. Some branches/iterations failed. Check 'results' for details. Workflow continues.`;
           console.warn(`[ENGINE/${flowLabel} - SERVER] ${partialSuccessMsg}`);
@@ -1686,9 +1693,9 @@ async function executeFlowInternal(
       }
     }
   } catch (flowLoopError: any) {
-    const unexpectedErrorMsg = `[ENGINE/${flowLabel} - SERVER] Unexpected error during flow execution loop: ${flowLoopError.message}`;
-    console.error(unexpectedErrorMsg, flowLoopError.stack);
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Critical error during flow execution: ${flowLoopError.message}. Some nodes may not have run.`, type: 'error' });
+    const unexpectedErrorMsg = `[ENGINE/${flowLabel}] Critical error during flow execution: ${flowLoopError.message}. Some nodes may not have run.`;
+    console.error(`[ENGINE/${flowLabel} - SERVER] Unexpected error during flow execution loop: ${flowLoopError.message}`, flowLoopError.stack);
+    serverLogs.push({ timestamp: new Date().toISOString(), message: unexpectedErrorMsg, type: 'error' });
     return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput, flowError: flowLoopError.message };
   }
 
@@ -1705,16 +1712,15 @@ export async function executeWorkflow(
   const serverLogs: ServerLogOutput[] = [];
   let workflowInitialData = initialData || {}; 
 
-  const modeMessage = isSimulationMode ? "[ENGINE - SERVER] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE - SERVER] Starting MAIN workflow execution for";
-  console.log(`${modeMessage} ${workflow.nodes.length} nodes.`);
-  serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Starting MAIN workflow execution in ${isSimulationMode ? 'Simulation Mode' : 'Live Mode'} for ${workflow.nodes.length} nodes.`, type: 'info' });
+  const modeMessage = isSimulationMode ? "[ENGINE] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE] Starting MAIN workflow execution for";
+  console.log(`${modeMessage.replace('[ENGINE]', '[ENGINE - SERVER]')} ${workflow.nodes.length} nodes.`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: `${modeMessage} ${workflow.nodes.length} nodes.`, type: 'info' });
   
   if (!isSimulationMode && initialData) {
       console.log(`[ENGINE - SERVER] MAIN workflow received initialData for live run: ${Object.keys(initialData).join(', ')}`);
       serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] MAIN workflow received initialData for live run: ${Object.keys(initialData).join(', ')}`, type: 'info' });
   }
   
-  // Initialize all nodes with a 'pending' lastExecutionStatus
   const initialWorkflowDataWithStatus: Record<string, any> = {};
   workflow.nodes.forEach(node => {
     initialWorkflowDataWithStatus[node.id] = { lastExecutionStatus: 'pending' };
@@ -1739,4 +1745,5 @@ export async function executeWorkflow(
   console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
+
 

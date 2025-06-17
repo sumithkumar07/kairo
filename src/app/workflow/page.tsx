@@ -80,6 +80,7 @@ export default function WorkflowPage() {
 
   const [showDeleteNodeConfirmDialog, setShowDeleteNodeConfirmDialog] = useState(false);
   const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
+  const [showClearCanvasConfirmDialog, setShowClearCanvasConfirmDialog] = useState(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -375,7 +376,7 @@ export default function WorkflowPage() {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isInputField(event.target) || showDeleteNodeConfirmDialog) return;
+      if (isInputField(event.target) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -418,7 +419,7 @@ export default function WorkflowPage() {
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog, handleCancelConnection
+    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection
   ]);
 
   useEffect(() => {
@@ -797,6 +798,23 @@ export default function WorkflowPage() {
     saveHistory();
   }, [toast, saveHistory]);
 
+  const handleConfirmClearCanvas = useCallback(() => {
+    setNodes([]);
+    setConnections([]);
+    setSelectedNodeId(null);
+    setSelectedConnectionId(null);
+    nextNodeIdRef.current = 1;
+    setExecutionLogs([]);
+    setWorkflowExplanation(null);
+    setInitialCanvasSuggestion(null);
+    setSuggestedNextNodeInfo(null);
+    setCanvasOffset({ x: 0, y: 0 });
+    setZoomLevel(1);
+    resetHistoryForNewWorkflow([], []);
+    toast({ title: 'Canvas Cleared', description: 'All nodes and connections have been removed.' });
+    setShowClearCanvasConfirmDialog(false);
+  }, [toast]);
+
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1 && historyIndex !== -1;
 
@@ -828,6 +846,7 @@ export default function WorkflowPage() {
           onToggleAssistant={toggleAssistantPanel}
           onSaveWorkflow={handleSaveWorkflow}
           onLoadWorkflow={() => handleLoadWorkflow(true)}
+          onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
           onStartConnection={handleStartConnection}
           onCompleteConnection={handleCompleteConnection}
@@ -942,7 +961,24 @@ export default function WorkflowPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={showClearCanvasConfirmDialog} onOpenChange={setShowClearCanvasConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Entire Canvas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete all nodes and connections? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowClearCanvasConfirmDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClearCanvas} className={buttonVariants({ variant: "destructive" })}>
+              Clear Canvas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
 
