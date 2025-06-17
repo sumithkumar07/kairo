@@ -4,7 +4,7 @@
 import type { AvailableNodeType } from '@/types/workflow';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, memo } from 'react'; // Import memo
 import { Input } from '@/components/ui/input'; 
 import { Search } from 'lucide-react'; 
 
@@ -75,7 +75,8 @@ interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
 }
 
-export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
+// Wrap the component definition with React.memo
+export const NodeLibrary = memo(function NodeLibrary({ availableNodes }: NodeLibraryProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeType: AvailableNodeType) => {
@@ -176,4 +177,8 @@ export function NodeLibrary({ availableNodes }: NodeLibraryProps) {
       </ScrollArea>
     </aside>
   );
-}
+});
+
+// If you are using ESLint and it complains about the display name for memoized components:
+NodeLibrary.displayName = 'NodeLibrary';
+
