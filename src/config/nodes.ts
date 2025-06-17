@@ -84,14 +84,16 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'getEnvironmentVariable',
     name: 'Get Environment Variable',
     icon: KeyRound,
-    description: 'Retrieves the value of a specified environment variable.',
+    description: 'Retrieves the value of a specified environment variable. Outputs `value` or `null`.',
     category: 'io',
-    defaultConfig: { variableName: '', failIfNotSet: false },
+    defaultConfig: { variableName: '', failIfNotSet: false, retry: {}, onErrorWebhook: undefined, },
     configSchema: {
       variableName: { label: 'Variable Name', type: 'string', placeholder: 'e.g., MY_API_KEY', required: true, helperText: 'The name of the environment variable to retrieve.' },
       failIfNotSet: { label: 'Fail if Not Set', type: 'boolean', defaultValue: false, helperText: 'If true, the node will error if the environment variable is not found.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
-    inputHandles: [],
+    inputHandles: ['input'],
     outputHandles: ['value', 'status', 'error_message'],
   },
   {
@@ -496,9 +498,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Timer,
     description: 'Pauses workflow execution for a specified duration in milliseconds.',
     category: 'control',
-    defaultConfig: { delayMs: 1000 },
+    defaultConfig: { delayMs: 1000, retry: {}, onErrorWebhook: undefined, },
     configSchema: {
       delayMs: { label: 'Delay (milliseconds)', type: 'number', defaultValue: 1000, required: true, placeholder: 'e.g., 5000 for 5 seconds', helperText: 'The duration for which the workflow will pause.' },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
@@ -924,4 +928,3 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
-

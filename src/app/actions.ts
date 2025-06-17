@@ -751,7 +751,7 @@ async function executeFlowInternal(
                 if (failIfNotSet) {
                   throw new Error(notFoundMsg);
                 }
-                currentAttemptOutput = { ...currentAttemptOutput, value: null, status: 'success' }; // Or 'error' if prefer to indicate missing but not fail
+                currentAttemptOutput = { ...currentAttemptOutput, value: null, status: 'success' }; 
               }
               break;
 
@@ -999,9 +999,11 @@ async function executeFlowInternal(
                       const strToParse = ensureString(inputString, 'inputString', 'parseNumber');
                       const num = parseFloat(strToParse);
                       if (isNaN(num)) {
-                          throw new Error(`dataTransform 'parseNumber' for node ${nodeIdentifier}: Input string "${strToParse}" is not a valid number.`);
+                          serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DATATRANSFORM] ${nodeIdentifier}: Input string "${strToParse}" is not a valid number. Outputting null.`, type: 'info' });
+                          transformedData = { numberValue: null };
+                      } else {
+                         transformedData = { numberValue: num };
                       }
-                      transformedData = { numberValue: num };
                       break;
                   case 'formatDate':
                       const dateStr = ensureString(inputDateString, 'inputDateString', 'formatDate');
@@ -1784,4 +1786,3 @@ export async function executeWorkflow(
   console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
-

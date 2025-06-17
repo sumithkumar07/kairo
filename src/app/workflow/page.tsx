@@ -110,11 +110,31 @@ export default function WorkflowPage() {
   }, [historyIndex, nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel]);
 
   useEffect(() => {
-    if (nodes.length > 0 && history.length === 0 && historyIndex === -1) {
-      setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel }]);
-      setHistoryIndex(0);
+    if (nodes.length > 0 || connections.length > 0 || canvasOffset.x !== 0 || canvasOffset.y !== 0 || zoomLevel !== 1 ) {
+      if (history.length === 0 && historyIndex === -1 && (nodes.length > 0 || connections.length > 0)) { // Only for initial meaningful state
+          setHistory([{ nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel }]);
+          setHistoryIndex(0);
+      } else if (history.length > 0 && historyIndex > -1) {
+          const lastSavedState = history[historyIndex];
+          if (
+              JSON.stringify(lastSavedState.nodes) !== JSON.stringify(nodes) ||
+              JSON.stringify(lastSavedState.connections) !== JSON.stringify(connections) ||
+              lastSavedState.selectedNodeId !== selectedNodeId ||
+              lastSavedState.selectedConnectionId !== selectedConnectionId ||
+              lastSavedState.canvasOffset.x !== canvasOffset.x ||
+              lastSavedState.canvasOffset.y !== canvasOffset.y ||
+              lastSavedState.zoomLevel !== zoomLevel
+          ) {
+            // Auto-save to local storage on meaningful changes
+            if (typeof window !== 'undefined') {
+              const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
+            }
+          }
+      }
     }
-  }, [nodes, connections, history, historyIndex, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, connections, selectedNodeId, selectedConnectionId, canvasOffset, zoomLevel, isSimulationMode]);
 
 
   useEffect(() => {
@@ -169,13 +189,14 @@ export default function WorkflowPage() {
   }, [selectedNodeId, nodes.length, selectedConnectionId, workflowExplanation, isAssistantVisible, selectedNode]);
 
 
-  const handleSaveWorkflow = useCallback(() => {
+  const handleManualSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
       const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
+      saveHistory(); // Also update history on manual save
     }
-  }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode]);
+  }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
 
   const resetHistoryForNewWorkflow = (initialNodes: WorkflowNode[], initialConnections: WorkflowConnection[]) => {
     const initialEntry: HistoryEntry = {
@@ -217,6 +238,7 @@ export default function WorkflowPage() {
         if (showToast) {
           toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
         }
+         resetHistoryForNewWorkflow([], []); // Reset history even if nothing loaded
       }
     }
   }, [toast]);
@@ -335,34 +357,6 @@ export default function WorkflowPage() {
       toast({ title: "Connection Deleted", description: "The selected connection has been removed." });
     }
   }, [selectedConnectionId, toast, saveHistory]);
-
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      const prevState = history[newIndex];
-      setNodes(prevState.nodes);
-      setConnections(prevState.connections);
-      setSelectedNodeId(prevState.selectedNodeId);
-      setSelectedConnectionId(prevState.selectedConnectionId);
-      setCanvasOffset(prevState.canvasOffset);
-      setZoomLevel(prevState.zoomLevel);
-      setHistoryIndex(newIndex);
-    }
-  }, [history, historyIndex]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      const nextState = history[newIndex];
-      setNodes(nextState.nodes);
-      setConnections(nextState.connections);
-      setSelectedNodeId(nextState.selectedNodeId);
-      setSelectedConnectionId(nextState.selectedConnectionId);
-      setCanvasOffset(nextState.canvasOffset);
-      setZoomLevel(nextState.zoomLevel);
-      setHistoryIndex(newIndex);
-    }
-  }, [history, historyIndex]);
   
   const handleCancelConnection = useCallback(() => {
     setIsConnecting(false);
@@ -370,6 +364,61 @@ export default function WorkflowPage() {
     setConnectionStartHandleId(null);
     setConnectionPreviewPosition(null);
   }, []);
+
+  const handleCompleteConnection = useCallback((endNodeId: string, endHandleId: string) => {
+    if (isConnecting && connectionStartNodeId && connectionStartHandleId && connectionStartNodeId !== endNodeId) {
+      const sourceNode = nodes.find(n => n.id === connectionStartNodeId);
+      const targetNode = nodes.find(n => n.id === endNodeId);
+      if (!sourceNode || !targetNode) {
+        handleCancelConnection();
+        return;
+      }
+
+      const sourceNodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === sourceNode.type);
+      const targetNodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === targetNode.type);
+
+      const sourceHandleIsOutput = sourceNodeConfig?.outputHandles?.includes(connectionStartHandleId);
+      const targetHandleIsInput = targetNodeConfig?.inputHandles?.includes(endHandleId);
+
+      if (!sourceHandleIsOutput || !targetHandleIsInput) {
+         let invalidReason = "Cannot connect an input to an input, or an output to an output.";
+         if (sourceHandleIsOutput && !targetHandleIsInput) {
+            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle. Output handles can only connect to input handles.`;
+         } else if (!sourceHandleIsOutput && targetHandleIsInput) {
+            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle. Input handles can only connect from output handles.`;
+         }
+         toast({
+            title: 'Invalid Connection',
+            description: invalidReason,
+            variant: 'destructive'
+         });
+         handleCancelConnection();
+         return;
+      }
+
+      const newConnection: WorkflowConnection = {
+        id: crypto.randomUUID(),
+        sourceNodeId: connectionStartNodeId,
+        sourceHandle: connectionStartHandleId,
+        targetNodeId: endNodeId,
+        targetHandle: endHandleId,
+      };
+      setConnections(prevConnections => produce(prevConnections, draft => {
+        const exists = draft.find(c =>
+            c.sourceNodeId === newConnection.sourceNodeId && c.sourceHandle === newConnection.sourceHandle &&
+            c.targetNodeId === newConnection.targetNodeId && c.targetHandle === newConnection.targetHandle
+        );
+        if (!exists) {
+            draft.push(newConnection);
+            toast({ title: 'Connection Created', description: `Connected ${sourceNode.name} to ${targetNode.name}.` });
+        } else {
+            toast({ title: 'Connection Exists', description: 'This connection already exists.', variant: 'default'});
+        }
+      }));
+      saveHistory();
+    }
+    handleCancelConnection();
+  }, [isConnecting, connectionStartNodeId, connectionStartHandleId, nodes, toast, saveHistory, handleCancelConnection]);
   
   const handleZoomIn = useCallback(() => {
     setZoomLevel(prev => {
@@ -388,7 +437,7 @@ export default function WorkflowPage() {
   }, [saveHistory]);
 
   useEffect(() => {
-    handleLoadWorkflow(false);
+    handleLoadWorkflow(false); // Attempt to load on initial mount
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
@@ -406,7 +455,7 @@ export default function WorkflowPage() {
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
-      if (isCtrlOrMeta && event.key.toLowerCase() === 's') { event.preventDefault(); handleSaveWorkflow(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 's') { event.preventDefault(); handleManualSaveWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleLoadWorkflow(true); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'z') {
@@ -453,11 +502,39 @@ export default function WorkflowPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
-    handleSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
+    handleManualSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
     showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection,
     handleZoomIn, handleZoomOut 
   ]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const prevState = history[newIndex];
+      setNodes(prevState.nodes);
+      setConnections(prevState.connections);
+      setSelectedNodeId(prevState.selectedNodeId);
+      setSelectedConnectionId(prevState.selectedConnectionId);
+      setCanvasOffset(prevState.canvasOffset);
+      setZoomLevel(prevState.zoomLevel);
+      setHistoryIndex(newIndex);
+    }
+  }, [history, historyIndex]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const nextState = history[newIndex];
+      setNodes(nextState.nodes);
+      setConnections(nextState.connections);
+      setSelectedNodeId(nextState.selectedNodeId);
+      setSelectedConnectionId(nextState.selectedConnectionId);
+      setCanvasOffset(nextState.canvasOffset);
+      setZoomLevel(nextState.zoomLevel);
+      setHistoryIndex(newIndex);
+    }
+  }, [history, historyIndex]);
 
   useEffect(() => {
     const handleGlobalMouseMove = (event: MouseEvent) => {
@@ -623,8 +700,8 @@ export default function WorkflowPage() {
       const node = draft.find(n => n.id === nodeId);
       if (node) node.position = position;
     }));
-    saveHistory();
-  }, [saveHistory]);
+    // saveHistory(); // Dragging is too frequent for history, will save on dragStop or panStop
+  }, []);
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
     setNodes(prevNodes => produce(prevNodes, draft => {
@@ -674,62 +751,6 @@ export default function WorkflowPage() {
       setConnectionPreviewPosition(mousePosition);
     }
   }, [isConnecting]);
-
-  const handleCompleteConnection = useCallback((endNodeId: string, endHandleId: string) => {
-    if (isConnecting && connectionStartNodeId && connectionStartHandleId && connectionStartNodeId !== endNodeId) {
-      const sourceNode = nodes.find(n => n.id === connectionStartNodeId);
-      const targetNode = nodes.find(n => n.id === endNodeId);
-      if (!sourceNode || !targetNode) {
-        handleCancelConnection();
-        return;
-      }
-
-      const sourceNodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === sourceNode.type);
-      const targetNodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === targetNode.type);
-
-      const sourceHandleIsOutput = sourceNodeConfig?.outputHandles?.includes(connectionStartHandleId);
-      const targetHandleIsInput = targetNodeConfig?.inputHandles?.includes(endHandleId);
-
-      if (!sourceHandleIsOutput || !targetHandleIsInput) {
-         let invalidReason = "Cannot connect an input to an input, or an output to an output.";
-         if (sourceHandleIsOutput && !targetHandleIsInput) {
-            invalidReason = `Target handle "${endHandleId}" on node "${targetNode.name}" is not a valid input handle. Output handles can only connect to input handles.`;
-         } else if (!sourceHandleIsOutput && targetHandleIsInput) {
-            invalidReason = `Source handle "${connectionStartHandleId}" on node "${sourceNode.name}" is not a valid output handle. Input handles can only connect from output handles.`;
-         }
-         toast({
-            title: 'Invalid Connection',
-            description: invalidReason,
-            variant: 'destructive'
-         });
-         handleCancelConnection();
-         return;
-      }
-
-      const newConnection: WorkflowConnection = {
-        id: crypto.randomUUID(),
-        sourceNodeId: connectionStartNodeId,
-        sourceHandle: connectionStartHandleId,
-        targetNodeId: endNodeId,
-        targetHandle: endHandleId,
-      };
-      setConnections(prevConnections => produce(prevConnections, draft => {
-        const exists = draft.find(c =>
-            c.sourceNodeId === newConnection.sourceNodeId && c.sourceHandle === newConnection.sourceHandle &&
-            c.targetNodeId === newConnection.targetNodeId && c.targetHandle === newConnection.targetHandle
-        );
-        if (!exists) {
-            draft.push(newConnection);
-            toast({ title: 'Connection Created', description: `Connected ${sourceNode.name} to ${targetNode.name}.` });
-        } else {
-            toast({ title: 'Connection Exists', description: 'This connection already exists.', variant: 'default'});
-        }
-      }));
-      saveHistory();
-    }
-    handleCancelConnection();
-  }, [isConnecting, connectionStartNodeId, connectionStartHandleId, nodes, toast, saveHistory, handleCancelConnection]);
-
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     const target = event.target as HTMLElement;
@@ -868,10 +889,13 @@ export default function WorkflowPage() {
           selectedConnectionId={selectedConnectionId}
           onNodeClick={handleNodeClick}
           onConnectionClick={handleConnectionClick}
-          onNodeDragStop={updateNodePosition}
+          onNodeDragStop={(nodeId, position) => {
+            updateNodePosition(nodeId, position);
+            saveHistory(); // Save history after drag completes
+          }}
           onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
-          onSaveWorkflow={handleSaveWorkflow}
+          onSaveWorkflow={handleManualSaveWorkflow}
           onLoadWorkflow={() => handleLoadWorkflow(true)}
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
@@ -988,4 +1012,3 @@ export default function WorkflowPage() {
     </div>
   );
 }
-
