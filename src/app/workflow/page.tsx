@@ -10,7 +10,7 @@ import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/li
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText } from 'lucide-react';
+import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText, SaveAll } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -21,7 +21,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
@@ -33,8 +38,10 @@ import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH }
 import { produce } from 'immer';
 import { MousePointer2 } from 'lucide-react';
 
-const LOCAL_STORAGE_KEY = 'flowAIWorkflow';
-const ASSISTANT_PANEL_VISIBLE_KEY = 'flowAIAssistantPanelVisible';
+const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; // Renamed from LOCAL_STORAGE_KEY
+const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
+const WORKFLOW_PREFIX = 'kairoWorkflow_';
+const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
@@ -54,7 +61,7 @@ export default function WorkflowPage() {
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false); // For full workflow generation
+  const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false); 
   const [isAssistantVisible, setIsAssistantVisible] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
@@ -89,6 +96,9 @@ export default function WorkflowPage() {
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1); 
+  
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [saveAsName, setSaveAsName] = useState('');
 
 
   const selectedNode = useMemo(() => {
@@ -170,7 +180,6 @@ export default function WorkflowPage() {
     setConnectionPreviewPosition(null);
   }, []);
 
-  // Effect for automatic saving to local storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const lastHistoryState = history[historyIndex];
@@ -187,7 +196,7 @@ export default function WorkflowPage() {
         }
       }
       
-      const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
       if (savedWorkflowJson) {
         try {
           const savedWorkflow = JSON.parse(savedWorkflowJson);
@@ -202,7 +211,6 @@ export default function WorkflowPage() {
          changed = true;
       }
 
-
       if (changed) { 
         const workflowToSave = {
             nodes,
@@ -212,15 +220,14 @@ export default function WorkflowPage() {
             zoomLevel,
             isSimulationMode
         };
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
+        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(workflowToSave));
       }
     }
   }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, history, historyIndex]);
 
-
   const handleLoadWorkflow = useCallback((showToast = true) => {
     if (typeof window !== 'undefined') {
-      const savedWorkflowJson = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
       if (savedWorkflowJson) {
         try {
           const savedWorkflow = JSON.parse(savedWorkflowJson);
@@ -246,24 +253,22 @@ export default function WorkflowPage() {
           
           resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
           if (showToast) {
-            toast({ title: 'Workflow Loaded', description: 'Your saved workflow has been loaded.' });
+            toast({ title: 'Workflow Loaded', description: 'Your current working workflow has been loaded.' });
           }
         } catch (error: any) {
            console.error("Error loading workflow from local storage:", error);
            if (showToast) {
             toast({ title: 'Load Error', description: `Failed to load workflow: ${error.message}`, variant: 'destructive'});
            }
-           localStorage.removeItem(LOCAL_STORAGE_KEY);
+           localStorage.removeItem(CURRENT_WORKFLOW_KEY);
            setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
-           
            resetHistoryForNewWorkflow([], []);
         }
       } else {
         if (showToast) {
-          toast({ title: 'No Saved Workflow', description: 'No workflow found in local storage.', variant: 'default' });
+          toast({ title: 'No Saved Workflow', description: 'No current working workflow found in local storage.', variant: 'default' });
         }
         setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
-        
         resetHistoryForNewWorkflow([], []);
       }
     }
@@ -272,11 +277,57 @@ export default function WorkflowPage() {
   const handleManualSaveWorkflow = useCallback(() => {
     if (typeof window !== 'undefined') {
       const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflowToSave));
-      toast({ title: 'Workflow Saved', description: 'Your current workflow has been saved locally.' });
+      localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(workflowToSave));
+      toast({ title: 'Current Workflow Saved', description: 'Your current work has been saved locally.' });
       saveHistory(); 
     }
   }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
+  
+  const handleSaveWorkflowAs = useCallback(() => {
+    if (nodes.length === 0 && connections.length === 0) {
+      toast({ title: 'Empty Workflow', description: 'Cannot save an empty workflow with a name.', variant: 'default' });
+      return;
+    }
+    setSaveAsName(''); // Clear previous name
+    setShowSaveAsDialog(true);
+  }, [nodes, connections, toast]);
+
+  const confirmSaveAsWorkflow = useCallback(() => {
+    if (!saveAsName.trim()) {
+      toast({ title: 'Invalid Name', description: 'Please enter a valid name for the workflow.', variant: 'destructive' });
+      return;
+    }
+
+    const workflowKey = `${WORKFLOW_PREFIX}${saveAsName}`;
+    
+    const indexJson = localStorage.getItem(SAVED_WORKFLOWS_INDEX_KEY);
+    let names: string[] = [];
+    if (indexJson) {
+      try { names = JSON.parse(indexJson); } catch (e) { names = []; }
+    }
+
+    if (names.includes(saveAsName) || localStorage.getItem(workflowKey)) {
+      // Simple overwrite confirmation for this example, could be more robust
+      const overwrite = confirm(`A workflow named "${saveAsName}" already exists. Overwrite it?`);
+      if (!overwrite) {
+        setShowSaveAsDialog(false);
+        return;
+      }
+    }
+
+    const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
+    localStorage.setItem(workflowKey, JSON.stringify(workflowToSave));
+
+    if (!names.includes(saveAsName)) {
+      names.push(saveAsName);
+      localStorage.setItem(SAVED_WORKFLOWS_INDEX_KEY, JSON.stringify(names));
+    }
+
+    toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
+    setShowSaveAsDialog(false);
+    saveHistory(); 
+  }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
+
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
@@ -486,8 +537,6 @@ export default function WorkflowPage() {
     toast({ title: "View Reset", description: "Canvas zoom and pan have been reset."});
   }, [saveHistory, toast]);
 
-
-  // Effect for initial load from local storage
   useEffect(() => {
     handleLoadWorkflow(false); 
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
@@ -499,19 +548,25 @@ export default function WorkflowPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
-
-  // Effect for keyboard shortcuts
   useEffect(() => {
     const isInputField = (target: EventTarget | null): boolean => {
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog) return;
+      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog || showSaveAsDialog) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
-      if (isCtrlOrMeta && event.key.toLowerCase() === 's') { event.preventDefault(); handleManualSaveWorkflow(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 's') { 
+        event.preventDefault(); 
+        if (event.shiftKey) {
+            handleSaveWorkflowAs();
+        } else {
+            handleManualSaveWorkflow(); 
+        }
+        return; 
+      }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleLoadWorkflow(true); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'z') {
@@ -539,12 +594,12 @@ export default function WorkflowPage() {
         return;
       }
 
-
       if (event.key === 'Escape') {
         if (isConnecting) handleCancelConnection();
         if (selectedNodeId) setSelectedNodeId(null);
         if (selectedConnectionId) setSelectedConnectionId(null);
         if (workflowExplanation) setWorkflowExplanation(null);
+        if (showSaveAsDialog) setShowSaveAsDialog(false);
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -560,11 +615,10 @@ export default function WorkflowPage() {
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleManualSaveWorkflow, handleLoadWorkflow, handleRunWorkflow,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection,
-    handleZoomIn, handleZoomOut
+    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, showSaveAsDialog, handleCancelConnection,
+    handleZoomIn, handleZoomOut, handleSaveWorkflowAs
   ]);
 
-  // Effect for canvas panning
   useEffect(() => {
     const handleGlobalMouseMove = (event: MouseEvent) => {
       if (!isPanning) return;
@@ -596,7 +650,6 @@ export default function WorkflowPage() {
     };
   }, [isPanning, zoomLevel, saveHistory]);
 
-  // Effect for AI Suggestions (Assistant Panel)
   useEffect(() => {
     let isActive = true;
   
@@ -1002,7 +1055,7 @@ export default function WorkflowPage() {
     const link = document.createElement('a');
     link.href = url;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    link.download = `flowai_workflow_${timestamp}.json`;
+    link.download = `kairo_workflow_${timestamp}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1046,7 +1099,8 @@ export default function WorkflowPage() {
             
             resetHistoryForNewWorkflow(importedNodes, importedData.connections || []);
 
-            toast({ title: 'Workflow Imported', description: 'Workflow loaded from file.' });
+            toast({ title: 'Workflow Imported', description: 'Workflow loaded from file and set as current.' });
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData)); // Also save as current
           } catch (error: any) {
             toast({ title: 'Import Error', description: `Failed to import workflow: ${error.message}`, variant: 'destructive' });
           }
@@ -1091,6 +1145,7 @@ export default function WorkflowPage() {
           onCanvasDrop={addNodeToCanvas} 
           onToggleAssistant={toggleAssistantPanel}
           onSaveWorkflow={handleManualSaveWorkflow}
+          onSaveWorkflowAs={handleSaveWorkflowAs}
           onLoadWorkflow={() => handleLoadWorkflow(true)}
           onExportWorkflow={handleExportWorkflow}
           onImportWorkflow={handleImportWorkflow}
@@ -1134,14 +1189,14 @@ export default function WorkflowPage() {
             />
              <AIWorkflowAssistantPanel
                 onWorkflowGenerated={handleAiPromptSubmit} 
-                setIsLoadingGlobal={setIsLoadingAiWorkflow} // Use the specific loading state here
+                setIsLoadingGlobal={setIsLoadingAiWorkflow} 
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
                 onClearExplanation={() => {
                     setWorkflowExplanation(null);
                 }}
                 initialCanvasSuggestion={initialCanvasSuggestion}
-                isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion} // Combine suggestion loading states
+                isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion} 
                 onAddSuggestedNode={handleAddSuggestedNode} 
                 isCanvasEmpty={nodes.length === 0}
                 executionLogs={executionLogs}
@@ -1180,7 +1235,7 @@ export default function WorkflowPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Node?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this node and its connections? This action cannot be undone.
+              Are you sure you want to delete this node and its connections? This action cannot be undone from the history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1196,7 +1251,7 @@ export default function WorkflowPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Clear Entire Canvas?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete all nodes and connections? This action cannot be undone.
+              Are you sure you want to delete all nodes and connections? This action cannot be undone from the history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1207,7 +1262,39 @@ export default function WorkflowPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={showSaveAsDialog} onOpenChange={setShowSaveAsDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Save Workflow As</DialogTitle>
+            <DialogDescription>
+              Enter a name for your workflow. This will save the current state of the canvas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="save-as-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="save-as-name"
+                value={saveAsName}
+                onChange={(e) => setSaveAsName(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g., My Awesome Automation"
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmSaveAsWorkflow(); }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button type="button" onClick={confirmSaveAsWorkflow}>
+                <SaveAll className="mr-2 h-4 w-4" /> Save Workflow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

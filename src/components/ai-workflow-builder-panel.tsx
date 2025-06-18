@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -23,6 +23,7 @@ interface AIWorkflowBuilderPanelProps {
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
   onSaveWorkflow: () => void;
+  onSaveWorkflowAs: () => void; // New prop
   onLoadWorkflow: () => void;
   onExportWorkflow: () => void;
   onImportWorkflow: () => void;
@@ -67,6 +68,7 @@ export function AIWorkflowBuilderPanel({
   onCanvasDrop,
   onToggleAssistant,
   onSaveWorkflow,
+  onSaveWorkflowAs, // New prop
   onLoadWorkflow,
   onExportWorkflow,
   onImportWorkflow,
@@ -238,7 +240,7 @@ export function AIWorkflowBuilderPanel({
                   Clear
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Clear Canvas (Delete all nodes and connections)</p></TooltipContent>
+               <TooltipContent><p>Clear Canvas (Delete all nodes and connections)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -258,24 +260,45 @@ export function AIWorkflowBuilderPanel({
               </TooltipTrigger>
               <TooltipContent><p>Export Workflow to JSON</p></TooltipContent>
             </Tooltip>
+             <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onSaveWorkflowAs} disabled={!hasWorkflow}>
+                  <SaveAll className="h-4 w-4 mr-1.5" />
+                  Save As...
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Save Workflow with a Name (Ctrl + Shift + S)</p></TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" onClick={onSaveWorkflow}>
                   <Save className="h-4 w-4 mr-1.5" />
-                  Save
+                  Save Current
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Save Workflow Locally (Ctrl + S)</p></TooltipContent>
+              <TooltipContent><p>Save Current Workflow Locally (Ctrl + S)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" onClick={onLoadWorkflow}>
                   <FolderOpen className="h-4 w-4 mr-1.5" />
-                  Load
+                  Load Current
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Load Workflow from Local (Ctrl + O)</p></TooltipContent>
+              <TooltipContent><p>Load Current Workflow from Local (Ctrl + O)</p></TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                 <Button variant="ghost" size="sm" asChild>
+                    <Link href="/saved-workflows">
+                        <List className="mr-1.5 h-4 w-4" />
+                        My Workflows
+                    </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>View all saved workflows</p></TooltipContent>
+            </Tooltip>
+
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
             
@@ -361,6 +384,7 @@ export function AIWorkflowBuilderPanel({
                   className="rounded-full shadow-lg w-12 h-12 bg-card hover:bg-accent"
                   onClick={handleExplainWorkflowClick}
                   disabled={!hasWorkflow || isExplainingWorkflow || !isProOrTrial}
+                  title={getExplainWorkflowTooltipContent()}
                 >
                   {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> : 
                    !isProOrTrial ? <ShieldQuestion className="h-5 w-5 text-muted-foreground" /> : <MessageSquareText className="h-5 w-5" />}
