@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Zap, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard } from 'lucide-react';
+import { Zap, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -78,15 +78,8 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Powerful Features, Simplified</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
-              <div className="flex justify-center mb-4">
-                 <Image
-                  src="https://placehold.co/200x125.png"
-                  alt="AI Workflow Generation"
-                  width={200}
-                  height={125}
-                  className="rounded-lg shadow-md"
-                  data-ai-hint="ai brain"
-                />
+              <div className="flex justify-center items-center mb-4 h-[125px]">
+                 <BrainCircuit className="h-20 w-20 text-primary" />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Intelligent Design</h3>
               <p className="text-muted-foreground text-sm text-center flex-grow">
@@ -94,15 +87,8 @@ export default function HomePage() {
               </p>
             </div>
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
-               <div className="flex justify-center mb-4">
-                <Image
-                  src="https://placehold.co/200x125.png"
-                  alt="Visual Workflow Editor"
-                  width={200}
-                  height={125}
-                  className="rounded-lg shadow-md"
-                  data-ai-hint="canvas editor"
-                />
+               <div className="flex justify-center items-center mb-4 h-[125px]">
+                <GitFork className="h-20 w-20 text-primary" />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Visual Editor</h3>
               <p className="text-muted-foreground text-sm text-center flex-grow">
@@ -110,15 +96,8 @@ export default function HomePage() {
               </p>
             </div>
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
-              <div className="flex justify-center mb-4">
-                 <Image
-                  src="https://placehold.co/200x125.png"
-                  alt="Test & Deploy"
-                  width={200}
-                  height={125}
-                  className="rounded-lg shadow-md"
-                  data-ai-hint="deployment success"
-                />
+              <div className="flex justify-center items-center mb-4 h-[125px]">
+                 <Rocket className="h-20 w-20 text-primary" />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Simulate & Deploy</h3>
               <p className="text-muted-foreground text-sm text-center flex-grow">
