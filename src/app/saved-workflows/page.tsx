@@ -182,7 +182,7 @@ export default function SavedWorkflowsPage() {
       <footer className="text-center py-10 border-t mt-12">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
-        </HtmlTag>
+        </p>
       </footer>
 
       <AlertDialog open={!!workflowToDelete} onOpenChange={(open) => !open && setWorkflowToDelete(null)}>
@@ -204,4 +204,3 @@ export default function SavedWorkflowsPage() {
     </div>
   );
 }
-
