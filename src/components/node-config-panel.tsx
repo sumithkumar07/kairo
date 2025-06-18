@@ -112,14 +112,14 @@ export function NodeConfigPanel({
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
         }
       } else if (isOnErrorWebhookField) {
-        if (fieldKey === 'onErrorWebhook') {
+        if (fieldKey === 'onErrorWebhook') { // This refers to the entire onErrorWebhook object
             try {
                 const parsedValue = JSON.parse(String(valueToSet));
                 draftConfig.onErrorWebhook = parsedValue;
-                 setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null }));
+                 setJsonValidationErrors(prev => ({ ...prev, ['onErrorWebhookConfig']: null }));
             } catch (e) {
-                draftConfig.onErrorWebhook = valueToSet; 
-                setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'Invalid JSON for Webhook Config.' }));
+                draftConfig.onErrorWebhook = valueToSet; // Store as string if invalid JSON
+                setJsonValidationErrors(prev => ({ ...prev, ['onErrorWebhookConfig']: 'Invalid JSON for Webhook Config.' }));
             }
         }
       } else {
@@ -130,10 +130,10 @@ export function NodeConfigPanel({
   };
 
 
-  const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema, isOnErrorWebhook = false) => {
+  const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema, isWebhookConfigField = false) => {
     let currentValue: any;
 
-    if (isOnErrorWebhook) {
+    if (isWebhookConfigField && fieldKey === 'onErrorWebhookConfig') { // Special handling for the single JSON object for onErrorWebhook
         currentValue = node.config.onErrorWebhook;
     } else if (node.config[fieldKey] !== undefined) {
         currentValue = node.config[fieldKey];
@@ -146,13 +146,17 @@ export function NodeConfigPanel({
         else currentValue = '';
     }
 
-    if (fieldSchema.type === 'json' && typeof currentValue !== 'string') {
+    // Ensure JSON types are stringified for Textarea, unless it's the special webhook config field
+    if (fieldSchema.type === 'json' && typeof currentValue !== 'string' && !isWebhookConfigField) {
+        currentValue = JSON.stringify(currentValue, null, 2);
+    } else if (isWebhookConfigField && fieldKey === 'onErrorWebhookConfig' && typeof currentValue !== 'string') {
         currentValue = JSON.stringify(currentValue, null, 2);
     }
     
-    const requiredError = requiredFieldErrors[fieldKey];
-    const jsonError = jsonValidationErrors[fieldKey];
-    const numberError = numberValidationErrors[fieldKey];
+    const errorKey = isWebhookConfigField ? 'onErrorWebhookConfig' : fieldKey;
+    const requiredError = requiredFieldErrors[errorKey];
+    const jsonError = jsonValidationErrors[errorKey];
+    const numberError = numberValidationErrors[errorKey];
     const hasError = !!requiredError || !!jsonError || !!numberError;
 
     let errorMessage = requiredError || jsonError || numberError;
@@ -168,7 +172,7 @@ export function NodeConfigPanel({
               id={`${node.id}-${fieldKey}`}
               value={currentValue}
               placeholder={fieldSchema.placeholder}
-              onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
+              onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isWebhookConfigField)}
               className={cn("mt-1 text-sm", hasError && "border-destructive focus-visible:ring-destructive")}
             />
             {errorMessage && <p className="text-xs text-destructive mt-0.5">{errorMessage}</p>}
@@ -182,7 +186,7 @@ export function NodeConfigPanel({
               id={`${node.id}-${fieldKey}`}
               value={String(currentValue)} 
               placeholder={fieldSchema.placeholder}
-              onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isOnErrorWebhook)}
+              onChange={(e) => handleInputChange(fieldKey, e.target.value, false, isWebhookConfigField)}
               className={cn("mt-1 min-h-[70px] font-mono text-xs max-h-[200px]", hasError && "border-destructive focus-visible:ring-destructive")}
               rows={fieldSchema.type === 'json' ? 4 : 3}
             />
@@ -194,7 +198,7 @@ export function NodeConfigPanel({
           <>
             <Select
               value={String(currentValue)}
-              onValueChange={(value) => handleInputChange(fieldKey, value, false, isOnErrorWebhook)}
+              onValueChange={(value) => handleInputChange(fieldKey, value, false, isWebhookConfigField)}
             >
               <SelectTrigger id={`${node.id}-${fieldKey}`} className={cn("mt-1 text-sm", hasError && "border-destructive focus-visible:ring-destructive")}>
                 <SelectValue placeholder={fieldSchema.placeholder || `Select ${fieldSchema.label}`} />
@@ -216,7 +220,7 @@ export function NodeConfigPanel({
             <Switch
               id={`${node.id}-${fieldKey}`}
               checked={!!currentValue}
-              onCheckedChange={(checked) => handleInputChange(fieldKey, checked, false, isOnErrorWebhook)}
+              onCheckedChange={(checked) => handleInputChange(fieldKey, checked, false, isWebhookConfigField)}
               className={cn(hasError && "ring-2 ring-destructive focus:ring-destructive")}
             />
             <Label htmlFor={`${node.id}-${fieldKey}`} className="text-sm cursor-pointer text-muted-foreground">
@@ -260,7 +264,6 @@ export function NodeConfigPanel({
   }, [node.config, node.aiExplanation]);
 
   const currentRetryConfig: Partial<RetryConfig> = node.config.retry || {};
-  const currentOnErrorWebhookConfig: Partial<OnErrorWebhookConfig> = node.config.onErrorWebhook || {};
 
 
   const handleRetryConfigChange = (field: keyof RetryConfig, value: string) => {
@@ -293,8 +296,9 @@ export function NodeConfigPanel({
     const newConfig = produce(node.config, draft => {
         if (draft.onErrorWebhook) {
             delete draft.onErrorWebhook;
+            setJsonValidationErrors(prev => ({ ...prev, ['onErrorWebhookConfig']: null }));
         } else {
-            draft.onErrorWebhook = { url: "https://example.com/webhook" }; // Default starter
+            draft.onErrorWebhook = { url: "https://example.com/webhook", method: "POST", headers: {}, bodyTemplate: { error: "{{error_message}}" } }; 
         }
     });
     onConfigChange(node.id, newConfig);
@@ -303,6 +307,8 @@ export function NodeConfigPanel({
 
   const nodeSupportsRetry = nodeType?.configSchema?.hasOwnProperty('retry');
   const nodeSupportsOnErrorWebhook = nodeType?.configSchema?.hasOwnProperty('onErrorWebhook');
+  const onErrorWebhookSchema = nodeType?.configSchema?.onErrorWebhook;
+
 
   const currentDataTransformType = node.type === 'dataTransform' ? node.config.transformType : null;
 
@@ -492,7 +498,7 @@ export function NodeConfigPanel({
              </Accordion>
           )}
           
-          {nodeSupportsOnErrorWebhook && nodeType?.configSchema?.onErrorWebhook && (
+          {nodeSupportsOnErrorWebhook && onErrorWebhookSchema && (
              <Accordion type="single" collapsible className="w-full mt-3 border rounded-md shadow-sm" defaultValue={node.config.onErrorWebhook && Object.keys(node.config.onErrorWebhook).length > 0 ? "webhook-config" : undefined}>
                 <AccordionItem value="webhook-config" className="border-b-0">
                     <AccordionTrigger className="text-xs font-medium hover:no-underline px-3 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-t-md [&[data-state=open]]:rounded-b-none">
@@ -504,21 +510,21 @@ export function NodeConfigPanel({
                     <AccordionContent className="pt-2 px-3 pb-3 space-y-1 bg-card">
                          <div className="flex items-center justify-between pt-1">
                             <Label className="text-xs text-muted-foreground">
-                                {currentOnErrorWebhookConfig.url ? 'Customize on-error webhook.' : 'On-error webhook is currently disabled.'}
+                                {node.config.onErrorWebhook ? 'Customize on-error webhook.' : 'On-error webhook is currently disabled.'}
                             </Label>
                             <Button variant="outline" size="xs" onClick={toggleOnErrorWebhookConfig} className="text-xs h-7">
                                 {node.config.onErrorWebhook ? 'Disable Webhook' : 'Enable Webhook'}
                             </Button>
                         </div>
                         {node.config.onErrorWebhook && (
-                          <>
-                            <Label htmlFor={`${node.id}-onErrorWebhook`} className={cn("text-xs", jsonValidationErrors[`onErrorWebhook`] && "text-destructive")}>
-                                Webhook Configuration (JSON)
-                                {nodeType.configSchema.onErrorWebhook.required && <span className="text-destructive ml-1">*</span>}
+                          <div className="space-y-1 mt-2">
+                            <Label htmlFor={`${node.id}-onErrorWebhookConfig`} className={cn("text-xs font-medium", jsonValidationErrors['onErrorWebhookConfig'] && "text-destructive")}>
+                                {onErrorWebhookSchema.label}
+                                {onErrorWebhookSchema.required && <span className="text-destructive ml-1">*</span>}
                             </Label>
-                            {renderFormField('onErrorWebhook', nodeType.configSchema.onErrorWebhook, true)}
-                            {nodeType.configSchema.onErrorWebhook.helperText && <p className="text-xs text-muted-foreground/80 mt-0.5">{nodeType.configSchema.onErrorWebhook.helperText}</p>}
-                          </>
+                            {renderFormField('onErrorWebhookConfig', onErrorWebhookSchema, true)}
+                            {onErrorWebhookSchema.helperText && !jsonValidationErrors['onErrorWebhookConfig'] && <p className="text-xs text-muted-foreground/80 mt-0.5">{onErrorWebhookSchema.helperText}</p>}
+                          </div>
                         )}
                     </AccordionContent>
                 </AccordionItem>
@@ -595,3 +601,4 @@ export function NodeConfigPanel({
     </Card>
   );
 }
+
