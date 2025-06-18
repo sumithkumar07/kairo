@@ -44,6 +44,14 @@ export default function SignupPage() {
       });
       return;
     }
+    if (password.length < 6) {
+        toast({
+            title: 'Password Too Short',
+            description: 'Password must be at least 6 characters long.',
+            variant: 'destructive',
+        });
+        return;
+    }
     if (password !== confirmPassword) {
       toast({
         title: 'Passwords Do Not Match',
@@ -51,14 +59,6 @@ export default function SignupPage() {
         variant: 'destructive',
       });
       return;
-    }
-    if (password.length < 6) {
-        toast({
-            title: 'Password Too Short',
-            description: 'Password should be at least 6 characters long.',
-            variant: 'destructive',
-        });
-        return;
     }
     signup(email);
   };

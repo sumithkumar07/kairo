@@ -47,10 +47,31 @@ export function NodeConfigPanel({
   
   const [jsonValidationErrors, setJsonValidationErrors] = useState<Record<string, string | null>>({});
   const [numberValidationErrors, setNumberValidationErrors] = useState<Record<string, string | null>>({});
+  const [requiredFieldErrors, setRequiredFieldErrors] = useState<Record<string, string | null>>({});
+
 
   const handleInputChange = (fieldKey: string, value: any, isRetryField = false, isOnErrorWebhookField = false) => {
     let valueToSet = value;
     const schema = isRetryField || isOnErrorWebhookField ? null : nodeType?.configSchema?.[fieldKey];
+
+    // Required field validation
+    if (schema?.required) {
+      const isEffectivelyEmpty = (val: any) => {
+        if (val === undefined || val === null) return true;
+        if (typeof val === 'string' && val.trim() === '') return true;
+        if (schema.type === 'json' && typeof val === 'string') {
+          const trimmed = val.trim();
+          return (trimmed === '{}' || trimmed === '[]') && !schema.allowEmptyJson;
+        }
+        return false;
+      };
+      if (isEffectivelyEmpty(valueToSet)) {
+        setRequiredFieldErrors(prev => ({ ...prev, [fieldKey]: 'This field is required.' }));
+      } else {
+        setRequiredFieldErrors(prev => ({ ...prev, [fieldKey]: null }));
+      }
+    }
+
 
     // Validation for JSON fields
     if (schema?.type === 'json') {
@@ -129,25 +150,12 @@ export function NodeConfigPanel({
         currentValue = JSON.stringify(currentValue, null, 2);
     }
     
-    const isEffectivelyEmpty = (val: any, schema: ConfigFieldSchema) => {
-      if (val === undefined || val === null) return true;
-      if (typeof val === 'string' && val.trim() === '') return true;
-      if (schema.type === 'json' && typeof val === 'string') {
-        const trimmed = val.trim();
-        return (trimmed === '{}' || trimmed === '[]') && !schema.allowEmptyJson;
-      }
-      return false;
-    };
-    
-    const isRequiredAndEmpty = fieldSchema.required && isEffectivelyEmpty(currentValue, fieldSchema);
+    const requiredError = requiredFieldErrors[fieldKey];
     const jsonError = jsonValidationErrors[fieldKey];
     const numberError = numberValidationErrors[fieldKey];
-    const hasError = isRequiredAndEmpty || !!jsonError || !!numberError;
+    const hasError = !!requiredError || !!jsonError || !!numberError;
 
-    let errorMessage = null;
-    if (jsonError) errorMessage = jsonError;
-    else if (numberError) errorMessage = numberError;
-    else if (isRequiredAndEmpty) errorMessage = "This field is required.";
+    let errorMessage = requiredError || jsonError || numberError;
 
 
     switch (fieldSchema.type) {
@@ -366,25 +374,17 @@ export function NodeConfigPanel({
                 return true; 
               })
               .map(([key, schema]) => {
-                const isEffectivelyEmpty = (val: any, s: ConfigFieldSchema) => {
-                  if (val === undefined || val === null) return true;
-                  if (typeof val === 'string' && val.trim() === '') return true;
-                  if (s.type === 'json' && typeof val === 'string') {
-                    const trimmed = val.trim();
-                    return (trimmed === '{}' || trimmed === '[]') && !s.allowEmptyJson;
-                  }
-                  return false;
-                };
-                const isRequiredAndStillEmpty = schema.required && isEffectivelyEmpty(node.config[key], schema);
+                const hasError = !!requiredFieldErrors[key] || !!jsonValidationErrors[key] || !!numberValidationErrors[key];
+                const errorMessage = requiredFieldErrors[key] || jsonValidationErrors[key] || numberValidationErrors[key];
                 return (
                 <div key={key} className="space-y-1 mt-2">
                    {schema.type !== 'boolean' && 
-                    <Label htmlFor={`${node.id}-${key}`} className={cn("text-xs font-medium", (isRequiredAndStillEmpty || jsonValidationErrors[key] || numberValidationErrors[key]) && "text-destructive")}>
+                    <Label htmlFor={`${node.id}-${key}`} className={cn("text-xs font-medium", hasError && "text-destructive")}>
                         {schema.label}
                         {schema.required && <span className="text-destructive ml-1">*</span>}
                     </Label>}
                   {renderFormField(key, schema)}
-                  {schema.helperText && !jsonValidationErrors[key] && !numberValidationErrors[key] && !isRequiredAndStillEmpty && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
+                  {schema.helperText && !errorMessage && <p className="text-xs text-muted-foreground/80 mt-0.5">{schema.helperText}</p>}
                 </div>
               )})
           ) : (

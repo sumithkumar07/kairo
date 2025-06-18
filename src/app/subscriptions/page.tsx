@@ -17,7 +17,8 @@ export default function SubscriptionsPage() {
     isLoggedIn, 
     user, 
     signup,
-    daysRemainingInTrial
+    daysRemainingInTrial,
+    trialEndDate
   } = useSubscription();
   
   const tierDisplayName = (tier: typeof currentTier) => {
@@ -25,6 +26,8 @@ export default function SubscriptionsPage() {
     if (tier === 'Pro') return 'Pro Tier';
     return 'Free Tier';
   };
+
+  const isTrialExpired = isLoggedIn && currentTier === 'Free' && trialEndDate && trialEndDate <= new Date();
 
   const tierDetails = {
     Free: {
@@ -71,7 +74,7 @@ export default function SubscriptionsPage() {
 
   if (!isLoggedIn) {
     proTierCtaText = 'Sign Up for 15-Day Pro Trial';
-    proTierCtaAction = undefined; // Action will be link navigation
+    proTierCtaAction = undefined; 
     proTierCtaHref = "/signup";
     proTierCtaIcon = <UserPlus className="mr-2 h-4 w-4" />;
   } else if (currentTier === 'Pro Trial') {
@@ -83,11 +86,14 @@ export default function SubscriptionsPage() {
     proTierCtaAction = undefined;
     proTierCtaDisabled = true;
     proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
-  } else if (isLoggedIn && currentTier === 'Free' && user) {
+  } else if (isLoggedIn && currentTier === 'Free' && !isTrialExpired) {
      proTierCtaText = 'Start 15-Day Pro Trial';
-     // signup effectively starts a trial for the logged-in user in this mock
-     proTierCtaAction = () => signup(user.email); 
+     proTierCtaAction = () => signup(user!.email); 
      proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
+  } else if (isTrialExpired) {
+    proTierCtaText = 'Upgrade to Pro';
+    proTierCtaAction = upgradeToPro;
+    proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
   }
   
   tierDetails.Pro.cta = {
@@ -122,7 +128,7 @@ export default function SubscriptionsPage() {
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
             {isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0 ? 
               `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
-              isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial === 0 ?
+              isTrialExpired ?
               `Your Pro Trial has expired. Please upgrade to continue using Pro features.` :
               `Unlock powerful AI automation features tailored to your needs.`
             }
@@ -174,7 +180,7 @@ export default function SubscriptionsPage() {
                {isLoggedIn && currentTier === 'Free' ? (
                   <Button
                     className="w-full text-base py-6 shadow-md"
-                    variant="default" // Keep this default to show it's the active plan's card
+                    variant="default" 
                     disabled={true}
                   >
                     {tierDetails.Free.cta.text}
@@ -187,7 +193,7 @@ export default function SubscriptionsPage() {
                   >
                     Sign up to activate
                   </Button>
-               ) : ( // Logged in, Pro or Pro Trial
+               ) : ( 
                   <Button
                     className="w-full text-base py-6 shadow-md"
                     variant="outline"
