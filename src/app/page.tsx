@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain, List } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain, List, User } from 'lucide-react';
 import Image from 'next/image';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -18,7 +18,7 @@ export default function HomePage() {
             <Workflow className="h-8 w-8 mr-2" />
             Kairo
           </Link>
-          <nav className="space-x-2 sm:space-x-4">
+          <nav className="space-x-1 sm:space-x-2">
             <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
               <Link href="/workflow">
                  Workflow Editor
@@ -37,10 +37,17 @@ export default function HomePage() {
               </Link>
             </Button>
             {isLoggedIn ? (
-              <Button variant="outline" size="sm" onClick={logout} className="text-sm">
-                <LogOut className="h-4 w-4 mr-1.5" />
-                Logout
-              </Button>
+              <>
+                <Button variant="ghost" asChild size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                  <Link href="/profile">
+                    <User className="h-4 w-4 mr-1 sm:mr-1.5" /> Profile
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" onClick={logout} className="text-sm">
+                  <LogOut className="h-4 w-4 mr-1.5" />
+                  Logout
+                </Button>
+              </>
             ) : (
               <>
                 <Button variant="ghost" asChild size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
