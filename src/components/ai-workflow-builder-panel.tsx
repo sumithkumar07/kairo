@@ -168,7 +168,7 @@ export function AIWorkflowBuilderPanel({
             <Minus className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="icon" className="w-12 text-xs" onClick={onResetView} title="Reset View (Zoom & Pan)">
-            <RefreshCw className="h-3.5 w-3.5 mr-0.5" />
+            <RefreshCw className="h-4 w-4" />
             {(zoomLevel * 100).toFixed(0)}%
           </Button>
           <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
