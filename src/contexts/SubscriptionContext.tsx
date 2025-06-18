@@ -62,10 +62,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const { tier: currentTier, features, isProOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
-  useEffect(() => {
-    // This effect ensures `currentTier`, `features`, etc. are updated reactively
-  }, [isLoggedIn, trialEndDate, hasPurchasedPro, calculateCurrentTierAndFeatures]);
-
 
   const signup = useCallback((email: string) => {
     setIsLoggedIn(true);
