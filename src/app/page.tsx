@@ -1,10 +1,15 @@
 
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Zap, BrainCircuit, BarChart3, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign } from 'lucide-react';
+import { Zap, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard } from 'lucide-react';
 import Image from 'next/image';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 export default function HomePage() {
+  const { isLoggedIn, logout } = useSubscription();
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/20">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -13,20 +18,37 @@ export default function HomePage() {
             <Zap className="h-8 w-8 mr-2" />
             FlowAI Studio
           </Link>
-          <nav className="space-x-4">
-            <Link href="/workflow" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Workflow Editor
-            </Link>
-            <Link href="/subscriptions" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center">
-              <DollarSign className="h-4 w-4 mr-1" />
-              Subscriptions
-            </Link>
-            {/* <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Features
-            </Link>
-            <Link href="#benefits" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Benefits
-            </Link> */}
+          <nav className="space-x-2 sm:space-x-4">
+            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
+              <Link href="/workflow">
+                 Workflow Editor
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
+              <Link href="/subscriptions" className="flex items-center">
+                <DollarSign className="h-4 w-4 mr-1 sm:mr-1.5" />
+                Subscriptions
+              </Link>
+            </Button>
+            {isLoggedIn ? (
+              <Button variant="outline" size="sm" onClick={logout} className="text-sm">
+                <LogOut className="h-4 w-4 mr-1.5" />
+                Logout
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" asChild size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                  <Link href="/login">
+                    <LogIn className="h-4 w-4 mr-1 sm:mr-1.5" /> Log In
+                  </Link>
+                </Button>
+                <Button asChild size="sm" className="text-sm">
+                  <Link href="/signup">
+                    <UserPlus className="h-4 w-4 mr-1 sm:mr-1.5" /> Sign Up
+                  </Link>
+                </Button>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -34,20 +56,26 @@ export default function HomePage() {
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8">
         <section className="text-center py-16 md:py-24">
           <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6">
-            Unleash AI-Powered Automation, <span className="text-primary">Effortlessly</span>
+            Intelligent Automation, <span className="text-primary">Visually Designed</span>
           </h1>
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
             FlowAI Studio empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
           </p>
           <Button asChild size="lg" className="text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-shadow group">
-            <Link href="/workflow">
-              Start Building Your First Workflow <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/workflow">
+                Go to Workflow Editor <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            ) : (
+              <Link href="/signup">
+                Get Started - Free Trial <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
           </Button>
         </section>
 
         <section id="features" className="py-16 md:py-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Everything You Need to Automate</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Powerful Features, Simplified</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center mb-4">
@@ -60,9 +88,9 @@ export default function HomePage() {
                   data-ai-hint="ai brain"
                 />
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3 text-center">AI-Powered Workflow Generation</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Intelligent Design</h3>
               <p className="text-muted-foreground text-sm text-center flex-grow">
-                Describe your automation needs in plain language. Our AI assistant will intelligently draft a workflow, giving you a powerful head start.
+                Describe your automation in plain language. Our AI drafts a workflow, giving you a smart head start.
               </p>
             </div>
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
@@ -76,9 +104,9 @@ export default function HomePage() {
                   data-ai-hint="canvas editor"
                 />
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Intuitive Drag & Drop Canvas</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Visual Editor</h3>
               <p className="text-muted-foreground text-sm text-center flex-grow">
-                Visually construct and modify your workflows. Connect nodes, configure steps, and see your automation take shape in real-time.
+                Visually construct and modify workflows. Connect nodes, configure steps, and see your automation take shape in real-time.
               </p>
             </div>
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
@@ -92,14 +120,14 @@ export default function HomePage() {
                   data-ai-hint="deployment success"
                 />
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Test & Deploy with Confidence</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-3 text-center">Simulate & Deploy</h3>
               <p className="text-muted-foreground text-sm text-center flex-grow">
-                Simulate your workflow's behavior with mock data to ensure everything works as expected. Deploy validated automations to handle real-world tasks reliably.
+                Test your workflow's behavior with mock data. Deploy validated automations to handle real-world tasks reliably.
               </p>
             </div>
           </div>
         </section>
-
+        
         <section id="benefits" className="py-16 md:py-20 bg-muted/30 rounded-xl my-12">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose FlowAI Studio?</h2>
@@ -199,10 +227,16 @@ export default function HomePage() {
                             <span className="text-muted-foreground">Leverage AI for suggestions, explanations, and configuration help.</span>
                         </li>
                     </ul>
-                    <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5">
-                        <Link href="/workflow">
-                            Start Building Now
-                        </Link>
+                     <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5">
+                        {isLoggedIn ? (
+                            <Link href="/workflow">
+                                Open Workflow Editor
+                            </Link>
+                        ) : (
+                            <Link href="/signup">
+                                Sign Up & Build Now
+                            </Link>
+                        )}
                     </Button>
                 </div>
             </div>
@@ -217,4 +251,3 @@ export default function HomePage() {
     </div>
   );
 }
-

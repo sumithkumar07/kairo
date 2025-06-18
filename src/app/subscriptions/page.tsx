@@ -4,12 +4,43 @@
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Zap, ShieldCheck, Star } from 'lucide-react';
+import { CheckCircle, Zap, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 export default function SubscriptionsPage() {
-  const { currentTier, features, upgradeToPro, isProTier } = useSubscription();
+  const { 
+    currentTier, 
+    features, 
+    upgradeToPro, 
+    isProOrTrial, 
+    isLoggedIn, 
+    user, 
+    trialEndDate, 
+    hasPurchasedPro,
+    signup, // For direct trial start
+    daysRemainingInTrial
+  } = useSubscription();
+
+  const handleStartTrial = () => {
+    // Assuming signup with a placeholder email for now if not logged in
+    // In a real app, this would likely redirect to signup or open a signup modal
+    if (!isLoggedIn) {
+      // This is a simplified path; ideally, you'd collect user details.
+      // For the mock, we use a generic email.
+      signup('trialuser@example.com'); 
+    } else if (!hasPurchasedPro && (!trialEndDate || trialEndDate <= new Date())) {
+      // If logged in but free, and trial hasn't started or expired, effectively re-trigger trial logic
+      // This might be redundant if login() already handles it, but good for an explicit button.
+      signup(user?.email || 'existinguser_trial@example.com');
+    }
+  };
+  
+  const tierDisplayName = (tier: typeof currentTier) => {
+    if (tier === 'Pro Trial') return 'Pro Trial';
+    if (tier === 'Pro') return 'Pro Tier';
+    return 'Free Tier';
+  };
 
   const tierDetails = {
     Free: {
@@ -17,13 +48,13 @@ export default function SubscriptionsPage() {
       price: '$0/month',
       description: 'Get started with basic workflow automation and AI assistance.',
       features: [
-        `AI Workflow Generations: ${features.aiWorkflowGenerationsPerDay} per day`,
+        `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
         'Basic Node Library Access',
         'Limited Workflow Execution',
         'Community Support',
       ],
       cta: {
-        text: 'You are on the Free Tier',
+        text: 'Your Current Plan',
         disabled: true,
       },
     },
@@ -38,16 +69,44 @@ export default function SubscriptionsPage() {
         'Unlimited Workflow Executions',
         'Priority Email Support',
       ],
-      cta: {
-        text: isProTier ? 'Currently on Pro Tier' : 'Upgrade to Pro',
-        disabled: isProTier,
-        action: !isProTier ? upgradeToPro : undefined,
+      cta: { // This CTA will be dynamically determined below
+        text: '', 
+        disabled: false,
+        action: undefined as (() => void) | undefined,
       },
     },
   };
 
-  const currentTierInfo = tierDetails[currentTier];
-  const proTierInfo = tierDetails.Pro;
+  let proTierCtaText = 'Upgrade to Pro';
+  let proTierCtaAction: (() => void) | undefined = upgradeToPro;
+  let proTierCtaDisabled = false;
+  let proTierCtaIcon = <Zap className="mr-2" />;
+
+  if (!isLoggedIn) {
+    proTierCtaText = 'Sign Up for 15-Day Pro Trial';
+    proTierCtaAction = handleStartTrial;
+    proTierCtaIcon = <UserPlus className="mr-2" />;
+  } else if (currentTier === 'Pro Trial') {
+    proTierCtaText = 'Activate Full Pro Plan';
+    proTierCtaAction = upgradeToPro;
+    proTierCtaIcon = <ShieldCheck className="mr-2" />;
+  } else if (currentTier === 'Pro') {
+    proTierCtaText = 'You are on the Pro Tier';
+    proTierCtaAction = undefined;
+    proTierCtaDisabled = true;
+    proTierCtaIcon = <ShieldCheck className="mr-2" />;
+  } else if (isLoggedIn && currentTier === 'Free') {
+     proTierCtaText = 'Start 15-Day Pro Trial';
+     proTierCtaAction = handleStartTrial;
+     proTierCtaIcon = <Zap className="mr-2" />;
+  }
+  
+  tierDetails.Pro.cta = {
+    text: proTierCtaText,
+    disabled: proTierCtaDisabled,
+    action: proTierCtaAction,
+  };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
@@ -66,22 +125,45 @@ export default function SubscriptionsPage() {
       </header>
 
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <section className="text-center mb-16">
+        <section className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
             Choose Your FlowAI Plan
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            Unlock powerful AI automation features tailored to your needs.
+            {isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial !== null ? 
+              `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial > 1 ? 's' : ''} remaining.` :
+              `Unlock powerful AI automation features tailored to your needs.`
+            }
           </p>
         </section>
+        
+        {!isLoggedIn && (
+          <Card className="max-w-2xl mx-auto mb-10 p-6 text-center bg-primary/5 border-primary/20 shadow-lg">
+            <CardTitle className="text-xl mb-2 text-primary">Get Started with FlowAI Studio</CardTitle>
+            <CardDescription className="text-muted-foreground mb-4">
+              Sign up to get a 15-day free trial of our Pro features, or log in if you already have an account.
+            </CardDescription>
+            <div className="flex gap-4 justify-center">
+              <Button asChild size="lg">
+                <Link href="/signup"><UserPlus className="mr-2"/>Sign Up for Trial</Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link href="/login"><LogIn className="mr-2"/>Log In</Link>
+              </Button>
+            </div>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Free Tier Card */}
-          <Card className={cn("flex flex-col shadow-lg transition-all duration-300 ease-in-out", !isProTier && "border-2 border-primary ring-4 ring-primary/20")}>
+          <Card className={cn(
+            "flex flex-col shadow-lg transition-all duration-300 ease-in-out", 
+            isLoggedIn && currentTier === 'Free' && "border-2 border-primary ring-4 ring-primary/20"
+          )}>
             <CardHeader className="pb-4">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-2xl font-semibold text-primary">{tierDetails.Free.name}</CardTitle>
-                {!isProTier && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">Current Plan</span>}
+                {isLoggedIn && currentTier === 'Free' && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">Current Plan</span>}
               </div>
               <CardDescription className="text-sm pt-1">{tierDetails.Free.description}</CardDescription>
               <p className="text-3xl font-bold text-foreground pt-2">{tierDetails.Free.price}</p>
@@ -97,18 +179,39 @@ export default function SubscriptionsPage() {
               </ul>
             </CardContent>
             <CardFooter className="mt-auto pt-6">
-              <Button
-                className="w-full text-base py-6 shadow-md"
-                variant={!isProTier ? "default" : "outline"}
-                disabled={tierDetails.Free.cta.disabled}
-              >
-                {tierDetails.Free.cta.text}
-              </Button>
+               {isLoggedIn && currentTier === 'Free' ? (
+                  <Button
+                    className="w-full text-base py-6 shadow-md"
+                    variant="default"
+                    disabled={true}
+                  >
+                    {tierDetails.Free.cta.text}
+                  </Button>
+               ) : !isLoggedIn ? (
+                  <Button
+                    className="w-full text-base py-6 shadow-md"
+                    variant="outline"
+                    disabled={true}
+                  >
+                    Sign up to activate
+                  </Button>
+               ) : ( // Logged in, Pro or Pro Trial
+                  <Button
+                    className="w-full text-base py-6 shadow-md"
+                    variant="outline"
+                    disabled={true}
+                  >
+                    Your plan is {tierDisplayName(currentTier)}
+                  </Button>
+               )}
             </CardFooter>
           </Card>
 
           {/* Pro Tier Card */}
-          <Card className={cn("flex flex-col shadow-lg transition-all duration-300 ease-in-out", isProTier && "border-2 border-primary ring-4 ring-primary/20")}>
+          <Card className={cn(
+            "flex flex-col shadow-lg transition-all duration-300 ease-in-out", 
+            isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial') && "border-2 border-primary ring-4 ring-primary/20"
+          )}>
             <CardHeader className="pb-4 bg-gradient-to-tr from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-t-lg relative">
               <div className="absolute top-3 right-3">
                  <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-400/20 dark:bg-amber-400/10 rounded-full border border-amber-500/30">
@@ -117,15 +220,18 @@ export default function SubscriptionsPage() {
                   </div>
               </div>
                <div className="flex justify-between items-center pt-2">
-                <CardTitle className="text-2xl font-semibold text-primary">{proTierInfo.name}</CardTitle>
-                {isProTier && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">Current Plan</span>}
+                <CardTitle className="text-2xl font-semibold text-primary">{tierDetails.Pro.name}</CardTitle>
+                {isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial') && 
+                  <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">
+                    {currentTier === 'Pro Trial' ? 'Active Trial' : 'Current Plan'}
+                  </span>}
               </div>
-              <CardDescription className="text-sm pt-1">{proTierInfo.description}</CardDescription>
-              <p className="text-3xl font-bold text-foreground pt-2">{proTierInfo.price}</p>
+              <CardDescription className="text-sm pt-1">{tierDetails.Pro.description}</CardDescription>
+              <p className="text-3xl font-bold text-foreground pt-2">{tierDetails.Pro.price}</p>
             </CardHeader>
             <CardContent className="flex-grow">
               <ul className="space-y-2.5 text-sm">
-                {proTierInfo.features.map((feature, index) => (
+                {tierDetails.Pro.features.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <ShieldCheck className="h-4 w-4 text-primary mr-2.5 mt-0.5 shrink-0" />
                     <span className="text-muted-foreground">{feature}</span>
@@ -136,12 +242,12 @@ export default function SubscriptionsPage() {
             <CardFooter className="mt-auto pt-6">
               <Button
                 className="w-full text-base py-6 shadow-md hover:shadow-primary/30"
-                variant={isProTier ? "default" : "secondary"}
-                onClick={proTierInfo.cta.action}
-                disabled={proTierInfo.cta.disabled}
+                variant={(isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial')) ? "default" : "secondary"}
+                onClick={tierDetails.Pro.cta.action}
+                disabled={tierDetails.Pro.cta.disabled}
               >
-                {isProTier ? <ShieldCheck className="mr-2"/> : <Zap className="mr-2" />}
-                {proTierInfo.cta.text}
+                {proTierCtaIcon}
+                {tierDetails.Pro.cta.text}
               </Button>
             </CardFooter>
           </Card>
@@ -161,4 +267,3 @@ export default function SubscriptionsPage() {
     </div>
   );
 }
-
