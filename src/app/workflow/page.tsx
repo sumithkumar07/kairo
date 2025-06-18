@@ -54,7 +54,7 @@ export default function WorkflowPage() {
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [isLoadingAi, setIsLoadingAi] = useState(false);
+  const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false); // For full workflow generation
   const [isAssistantVisible, setIsAssistantVisible] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
@@ -1066,14 +1066,11 @@ export default function WorkflowPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {(isLoadingAi || (isLoadingInitialSuggestion && nodes.length === 0) || (isLoadingSuggestion && selectedNodeId && !isLoadingInitialSuggestion)) && (
+      {isLoadingAiWorkflow && (
         <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
           <p className="ml-4 text-lg text-foreground">
-            {isLoadingAi ? 'AI is generating your workflow...' :
-             (isLoadingInitialSuggestion && nodes.length === 0) ? 'AI is suggesting a first step...' :
-             (isLoadingSuggestion && selectedNodeId) ? 'AI is suggesting next step for selected node...' :
-             'Processing...'}
+            AI is generating your workflow...
           </p>
         </div>
       )}
@@ -1137,14 +1134,14 @@ export default function WorkflowPage() {
             />
              <AIWorkflowAssistantPanel
                 onWorkflowGenerated={handleAiPromptSubmit} 
-                setIsLoadingGlobal={setIsLoadingAi}
+                setIsLoadingGlobal={setIsLoadingAiWorkflow} // Use the specific loading state here
                 isExplainingWorkflow={isExplainingWorkflow}
                 workflowExplanation={workflowExplanation}
                 onClearExplanation={() => {
                     setWorkflowExplanation(null);
                 }}
                 initialCanvasSuggestion={initialCanvasSuggestion}
-                isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
+                isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion} // Combine suggestion loading states
                 onAddSuggestedNode={handleAddSuggestedNode} 
                 isCanvasEmpty={nodes.length === 0}
                 executionLogs={executionLogs}

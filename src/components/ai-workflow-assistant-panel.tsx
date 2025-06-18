@@ -20,12 +20,12 @@ import { cn } from '@/lib/utils';
 
 interface AIWorkflowAssistantPanelProps {
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
-  setIsLoadingGlobal: (isLoading: boolean) => void;
+  setIsLoadingGlobal: (isLoading: boolean) => void; // For full workflow generation overlay
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
   initialCanvasSuggestion: SuggestNextNodeOutput | null;
-  isLoadingSuggestion: boolean;
+  isLoadingSuggestion: boolean; // For suggestions, explanations within this panel
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
   isCanvasEmpty: boolean;
   executionLogs: LogEntry[];
@@ -60,7 +60,7 @@ export function AIWorkflowAssistantPanel({
   onCancelConnection,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [isLoadingLocal, setIsLoadingLocal] = useState(false);
+  const [isLoadingLocalPrompt, setIsLoadingLocalPrompt] = useState(false); // For AI prompt bar in this panel
   const { toast } = useToast();
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -80,8 +80,8 @@ export function AIWorkflowAssistantPanel({
       return;
     }
 
-    setIsLoadingLocal(true);
-    setIsLoadingGlobal(true);
+    setIsLoadingLocalPrompt(true);
+    setIsLoadingGlobal(true); // Trigger full-screen loader for major AI task
     try {
       const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
@@ -98,13 +98,13 @@ export function AIWorkflowAssistantPanel({
         variant: 'destructive',
       });
     } finally {
-      setIsLoadingLocal(false);
+      setIsLoadingLocalPrompt(false);
       setIsLoadingGlobal(false);
     }
   };
 
 
-  const currentIsLoading = isLoadingLocal || isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
+  const currentIsLoadingAnyAI = isLoadingLocalPrompt || isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
 
   const suggestedNodeConfig = initialCanvasSuggestion?.suggestedNode
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
@@ -305,7 +305,7 @@ export function AIWorkflowAssistantPanel({
                 size="sm"
                 onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
                 className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs"
-                disabled={currentIsLoading}
+                disabled={currentIsLoadingAnyAI}
               >
                 Add {suggestedNodeConfig.name} Node
                 <ChevronRight className="ml-auto h-4 w-4" />
@@ -339,16 +339,16 @@ export function AIWorkflowAssistantPanel({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="flex-1 text-sm resize-none min-h-[60px]"
-            disabled={currentIsLoading}
+            disabled={currentIsLoadingAnyAI}
           />
           <Button
             onClick={handleSubmit}
-            disabled={currentIsLoading || !prompt.trim()}
+            disabled={currentIsLoadingAnyAI || !prompt.trim()}
             className="h-auto py-2 self-end min-h-[40px]"
             size="default"
             title="Generate workflow with AI (Ctrl+Enter)"
           >
-            {isLoadingLocal ? (
+            {isLoadingLocalPrompt ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
