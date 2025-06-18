@@ -79,11 +79,11 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center mb-4">
-                 <Image 
-                  src="https://placehold.co/200x125.png" 
-                  alt="AI Workflow Generation" 
-                  width={200} 
-                  height={125} 
+                 <Image
+                  src="https://placehold.co/200x125.png"
+                  alt="AI Workflow Generation"
+                  width={200}
+                  height={125}
                   className="rounded-lg shadow-md"
                   data-ai-hint="ai brain"
                 />
@@ -95,11 +95,11 @@ export default function HomePage() {
             </div>
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
                <div className="flex justify-center mb-4">
-                <Image 
-                  src="https://placehold.co/200x125.png" 
-                  alt="Visual Workflow Editor" 
-                  width={200} 
-                  height={125} 
+                <Image
+                  src="https://placehold.co/200x125.png"
+                  alt="Visual Workflow Editor"
+                  width={200}
+                  height={125}
                   className="rounded-lg shadow-md"
                   data-ai-hint="canvas editor"
                 />
@@ -111,11 +111,11 @@ export default function HomePage() {
             </div>
             <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center mb-4">
-                 <Image 
-                  src="https://placehold.co/200x125.png" 
-                  alt="Test & Deploy" 
-                  width={200} 
-                  height={125} 
+                 <Image
+                  src="https://placehold.co/200x125.png"
+                  alt="Test & Deploy"
+                  width={200}
+                  height={125}
                   className="rounded-lg shadow-md"
                   data-ai-hint="deployment success"
                 />
@@ -127,18 +127,18 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-        
+
         <section id="benefits" className="py-16 md:py-20 bg-muted/30 rounded-xl my-12">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose FlowAI Studio?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="flex flex-col items-center text-center p-4">
                 <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                   <Image 
-                    src="https://placehold.co/100x100.png" 
-                    alt="Accelerate Development" 
-                    width={80} 
-                    height={80} 
+                   <Image
+                    src="https://placehold.co/100x100.png"
+                    alt="Accelerate Development"
+                    width={80}
+                    height={80}
                     className="rounded-md"
                     data-ai-hint="speed rocket"
                   />
@@ -148,11 +148,11 @@ export default function HomePage() {
               </div>
               <div className="flex flex-col items-center text-center p-4">
                 <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                   <Image 
-                    src="https://placehold.co/100x100.png" 
-                    alt="Reduce Complexity" 
-                    width={80} 
-                    height={80} 
+                   <Image
+                    src="https://placehold.co/100x100.png"
+                    alt="Reduce Complexity"
+                    width={80}
+                    height={80}
                     className="rounded-md"
                     data-ai-hint="simplify puzzle"
                   />
@@ -162,11 +162,11 @@ export default function HomePage() {
               </div>
               <div className="flex flex-col items-center text-center p-4">
                 <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                  <Image 
-                    src="https://placehold.co/100x100.png" 
-                    alt="Smart Assistance" 
-                    width={80} 
-                    height={80} 
+                  <Image
+                    src="https://placehold.co/100x100.png"
+                    alt="Smart Assistance"
+                    width={80}
+                    height={80}
                     className="rounded-md"
                     data-ai-hint="ai assistant"
                   />
@@ -176,11 +176,11 @@ export default function HomePage() {
               </div>
               <div className="flex flex-col items-center text-center p-4">
                 <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                    <Image 
-                      src="https://placehold.co/100x100.png" 
-                      alt="AI-Powered Insights" 
-                      width={80} 
-                      height={80} 
+                    <Image
+                      src="https://placehold.co/100x100.png"
+                      alt="AI-Powered Insights"
+                      width={80}
+                      height={80}
                       className="rounded-md"
                       data-ai-hint="analytics brain"
                     />
@@ -191,16 +191,16 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-        
+
         <section className="py-16 text-center">
            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes?</h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-10">
                 <div className="md:w-1/2">
-                     <Image 
-                        src="https://placehold.co/800x500.png" 
-                        alt="Workflow automation example" 
-                        width={500} 
-                        height={312} 
+                     <Image
+                        src="https://placehold.co/800x500.png"
+                        alt="Workflow automation example"
+                        width={500}
+                        height={312}
                         className="rounded-lg shadow-xl mx-auto transform hover:scale-105 transition-transform duration-300"
                         data-ai-hint="automation abstract"
                       />
