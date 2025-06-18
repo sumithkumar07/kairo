@@ -112,41 +112,61 @@ export function AIWorkflowBuilderPanel({
   };
   
   const getSubscriptionButton = () => {
+    let tooltipContent = "Manage your subscription or start a trial.";
+    let buttonContent = <Sparkles className="h-4 w-4 mr-1.5" />;
+    let buttonText = "Subscription";
+    let href: string | undefined = "/subscriptions";
+    let variant: "ghost" | "default" = "ghost";
+    let className = "text-amber-500 hover:bg-amber-500/10 hover:text-amber-600";
+
     if (isLoggedIn && isProOrTrial) {
-      return (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className="cursor-default text-primary hover:bg-primary/10">
-                <Sparkles className="h-4 w-4 mr-1.5" />
-                {currentTier === 'Pro Trial' ? 'Pro Trial Active' : 'Pro Plan Active'}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="text-xs">You are on the {currentTier === 'Pro Trial' ? 'Pro trial' : 'Pro plan'} with all features unlocked!</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
+      tooltipContent = `You are on the ${currentTier === 'Pro Trial' ? 'Pro trial' : 'Pro plan'}. All features unlocked!`;
+      buttonText = currentTier === 'Pro Trial' ? 'Pro Trial Active' : 'Pro Plan Active';
+      href = undefined; // Not a link if already Pro
+      className = "cursor-default text-primary hover:bg-primary/10";
     } else if (!isLoggedIn) {
-      return (
-        <Button asChild variant="ghost" size="sm" title="Sign up for a Pro trial" className="text-amber-500 hover:bg-amber-500/10 hover:text-amber-600">
-          <Link href="/signup">
-            <UserPlus className="h-4 w-4 mr-1.5" />
-            Sign Up for Trial
-          </Link>
-        </Button>
-      );
+      tooltipContent = "Sign up for a 15-day Pro trial to unlock all features.";
+      buttonText = "Sign Up for Trial";
+      href = "/signup";
+      buttonContent = <UserPlus className="h-4 w-4 mr-1.5" />;
     } else { // Logged in but on Free tier
-      return (
-        <Button asChild variant="ghost" size="sm" title="Upgrade to unlock more AI features" className="text-amber-500 hover:bg-amber-500/10 hover:text-amber-600">
-          <Link href="/subscriptions">
-            <Sparkles className="h-4 w-4 mr-1.5" />
-            Upgrade to Pro
-          </Link>
-        </Button>
-      );
+      tooltipContent = "Upgrade to Pro to unlock more AI features and capabilities.";
+      buttonText = "Upgrade to Pro";
+      href = "/subscriptions";
     }
+
+    const buttonElement = (
+      <Button asChild={!!href} variant={variant} size="sm" className={className}>
+        {href ? (
+          <Link href={href}>
+            {buttonContent}
+            {buttonText}
+          </Link>
+        ) : (
+          <span> {/* Use span for non-link buttons to allow TooltipTrigger to work correctly */}
+            {buttonContent}
+            {buttonText}
+          </span>
+        )}
+      </Button>
+    );
+    
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="text-xs">{tooltipContent}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
+  const getExplainWorkflowTooltipContent = () => {
+    if (!hasWorkflow) return "Add nodes to the canvas to enable explanation.";
+    if (!isProOrTrial) {
+      return `Workflow explanation is a Pro feature. ${!isLoggedIn ? 'Sign up for a trial.' : 'Upgrade your plan.'}`;
+    }
+    return "Let AI explain this workflow.";
   };
 
 
@@ -175,7 +195,7 @@ export function AIWorkflowBuilderPanel({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" className="text-xs" onClick={onResetView} title="Reset View (Zoom & Pan)">
+                <Button variant="outline" className="text-xs h-10 px-3 py-2" onClick={onResetView} title="Reset View (Zoom & Pan)">
                   <RefreshCw className="h-4 w-4" />
                   {(zoomLevel * 100).toFixed(0)}%
                 </Button>
@@ -350,27 +370,13 @@ export function AIWorkflowBuilderPanel({
                 </Button>
               </div>
             </TooltipTrigger>
-            {!isProOrTrial && (
-              <TooltipContent side="left">
-                <p className="text-xs">Workflow explanation is a Pro feature. 
-                  {!isLoggedIn && <Link href="/signup" className="text-primary underline ml-1">Start Trial</Link>}
-                  {isLoggedIn && currentTier === 'Free' && <Link href="/subscriptions" className="text-primary underline ml-1">Upgrade Plan</Link>}
-                </p>
-              </TooltipContent>
-            )}
-             {isProOrTrial && hasWorkflow && (
-              <TooltipContent side="left">
-                <p className="text-xs">Let AI Explain this workflow</p>
-              </TooltipContent>
-            )}
-            {isProOrTrial && !hasWorkflow && (
-              <TooltipContent side="left">
-                <p className="text-xs">Add nodes to the canvas to enable explanation.</p>
-              </TooltipContent>
-            )}
+            <TooltipContent side="left">
+              <p className="text-xs">{getExplainWorkflowTooltipContent()}</p>
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
     </main>
   );
 }
+
