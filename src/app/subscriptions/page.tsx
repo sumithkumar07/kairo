@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Zap, ShieldCheck, Star } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils'; // Added import for cn
 
 export default function SubscriptionsPage() {
   const { currentTier, features, upgradeToPro, isProTier } = useSubscription();
