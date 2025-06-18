@@ -7,34 +7,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { CheckCircle, Zap, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { FREE_TIER_FEATURES } from '@/types/subscription'; // Import free tier features
 
 export default function SubscriptionsPage() {
   const { 
     currentTier, 
     features, 
     upgradeToPro, 
-    isProOrTrial, 
     isLoggedIn, 
     user, 
-    trialEndDate, 
-    hasPurchasedPro,
-    signup, // For direct trial start
+    signup,
     daysRemainingInTrial
   } = useSubscription();
-
-  const handleStartTrial = () => {
-    // Assuming signup with a placeholder email for now if not logged in
-    // In a real app, this would likely redirect to signup or open a signup modal
-    if (!isLoggedIn) {
-      // This is a simplified path; ideally, you'd collect user details.
-      // For the mock, we use a generic email.
-      signup('trialuser@example.com'); 
-    } else if (!hasPurchasedPro && (!trialEndDate || trialEndDate <= new Date())) {
-      // If logged in but free, and trial hasn't started or expired, effectively re-trigger trial logic
-      // This might be redundant if login() already handles it, but good for an explicit button.
-      signup(user?.email || 'existinguser_trial@example.com');
-    }
-  };
   
   const tierDisplayName = (tier: typeof currentTier) => {
     if (tier === 'Pro Trial') return 'Pro Trial';
@@ -49,8 +33,9 @@ export default function SubscriptionsPage() {
       description: 'Get started with basic workflow automation and AI assistance.',
       features: [
         `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-        'Basic Node Library Access',
-        'Limited Workflow Execution',
+        `Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Enabled' : 'Limited'}`,
+        `Advanced Nodes Access: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Enabled' : 'Limited'}`,
+        `Max Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
         'Community Support',
       ],
       cta: {
@@ -69,10 +54,11 @@ export default function SubscriptionsPage() {
         'Unlimited Workflow Executions',
         'Priority Email Support',
       ],
-      cta: { // This CTA will be dynamically determined below
+      cta: { 
         text: '', 
         disabled: false,
         action: undefined as (() => void) | undefined,
+        href: undefined as string | undefined,
       },
     },
   };
@@ -80,31 +66,35 @@ export default function SubscriptionsPage() {
   let proTierCtaText = 'Upgrade to Pro';
   let proTierCtaAction: (() => void) | undefined = upgradeToPro;
   let proTierCtaDisabled = false;
-  let proTierCtaIcon = <Zap className="mr-2" />;
+  let proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
+  let proTierCtaHref: string | undefined = undefined;
 
   if (!isLoggedIn) {
     proTierCtaText = 'Sign Up for 15-Day Pro Trial';
-    proTierCtaAction = handleStartTrial;
-    proTierCtaIcon = <UserPlus className="mr-2" />;
+    proTierCtaAction = undefined; // Action will be link navigation
+    proTierCtaHref = "/signup";
+    proTierCtaIcon = <UserPlus className="mr-2 h-4 w-4" />;
   } else if (currentTier === 'Pro Trial') {
     proTierCtaText = 'Activate Full Pro Plan';
     proTierCtaAction = upgradeToPro;
-    proTierCtaIcon = <ShieldCheck className="mr-2" />;
+    proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
   } else if (currentTier === 'Pro') {
     proTierCtaText = 'You are on the Pro Tier';
     proTierCtaAction = undefined;
     proTierCtaDisabled = true;
-    proTierCtaIcon = <ShieldCheck className="mr-2" />;
-  } else if (isLoggedIn && currentTier === 'Free') {
+    proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
+  } else if (isLoggedIn && currentTier === 'Free' && user) {
      proTierCtaText = 'Start 15-Day Pro Trial';
-     proTierCtaAction = handleStartTrial;
-     proTierCtaIcon = <Zap className="mr-2" />;
+     // signup effectively starts a trial for the logged-in user in this mock
+     proTierCtaAction = () => signup(user.email); 
+     proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
   }
   
   tierDetails.Pro.cta = {
     text: proTierCtaText,
     disabled: proTierCtaDisabled,
     action: proTierCtaAction,
+    href: proTierCtaHref,
   };
 
 
@@ -130,8 +120,10 @@ export default function SubscriptionsPage() {
             Choose Your FlowAI Plan
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            {isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial !== null ? 
-              `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial > 1 ? 's' : ''} remaining.` :
+            {isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0 ? 
+              `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
+              isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial === 0 ?
+              `Your Pro Trial has expired. Please upgrade to continue using Pro features.` :
               `Unlock powerful AI automation features tailored to your needs.`
             }
           </p>
@@ -145,10 +137,10 @@ export default function SubscriptionsPage() {
             </CardDescription>
             <div className="flex gap-4 justify-center">
               <Button asChild size="lg">
-                <Link href="/signup"><UserPlus className="mr-2"/>Sign Up for Trial</Link>
+                <Link href="/signup"><UserPlus className="mr-2 h-4 w-4"/>Sign Up for Trial</Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/login"><LogIn className="mr-2"/>Log In</Link>
+                <Link href="/login"><LogIn className="mr-2 h-4 w-4"/>Log In</Link>
               </Button>
             </div>
           </Card>
@@ -182,7 +174,7 @@ export default function SubscriptionsPage() {
                {isLoggedIn && currentTier === 'Free' ? (
                   <Button
                     className="w-full text-base py-6 shadow-md"
-                    variant="default"
+                    variant="default" // Keep this default to show it's the active plan's card
                     disabled={true}
                   >
                     {tierDetails.Free.cta.text}
@@ -240,15 +232,24 @@ export default function SubscriptionsPage() {
               </ul>
             </CardContent>
             <CardFooter className="mt-auto pt-6">
-              <Button
-                className="w-full text-base py-6 shadow-md hover:shadow-primary/30"
-                variant={(isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial')) ? "default" : "secondary"}
-                onClick={tierDetails.Pro.cta.action}
-                disabled={tierDetails.Pro.cta.disabled}
-              >
-                {proTierCtaIcon}
-                {tierDetails.Pro.cta.text}
-              </Button>
+              {tierDetails.Pro.cta.href ? (
+                <Button asChild className="w-full text-base py-6 shadow-md hover:shadow-primary/30">
+                  <Link href={tierDetails.Pro.cta.href}>
+                    {proTierCtaIcon}
+                    {tierDetails.Pro.cta.text}
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  className="w-full text-base py-6 shadow-md hover:shadow-primary/30"
+                  variant={(isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial')) ? "default" : "secondary"}
+                  onClick={tierDetails.Pro.cta.action}
+                  disabled={tierDetails.Pro.cta.disabled}
+                >
+                  {proTierCtaIcon}
+                  {tierDetails.Pro.cta.text}
+                </Button>
+              )}
             </CardFooter>
           </Card>
         </div>

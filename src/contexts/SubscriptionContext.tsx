@@ -23,7 +23,7 @@ interface SubscriptionContextType {
   login: (email: string) => void;
   signup: (email: string) => void;
   logout: () => void;
-  upgradeToPro: () => void; // This now signifies purchasing Pro
+  upgradeToPro: () => void; 
   isProOrTrial: boolean;
   daysRemainingInTrial: number | null;
 }
@@ -53,8 +53,8 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         tier = 'Pro Trial';
         activeFeatures = PRO_TIER_FEATURES;
         isProEquivalent = true;
-        const diffTime = Math.abs(trialEndDate.getTime() - new Date().getTime());
-        daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffTime = trialEndDate.getTime() - new Date().getTime(); // Ensure future date for positive diff
+        daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       }
     }
     return { tier, features: activeFeatures, isProOrTrial: isProEquivalent, daysRemainingInTrial: daysLeft };
@@ -62,10 +62,8 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const { tier: currentTier, features, isProOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
-  // Effect to re-calculate if dependencies change (e.g., after login/logout)
   useEffect(() => {
     // This effect ensures `currentTier`, `features`, etc. are updated reactively
-    // The actual values are derived in calculateCurrentTierAndFeatures and used directly
   }, [isLoggedIn, trialEndDate, hasPurchasedPro, calculateCurrentTierAndFeatures]);
 
 
@@ -83,8 +81,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback((email: string) => {
     setIsLoggedIn(true);
     setUser({ email });
-    // For this mock: if user logs in and has no purchase/active trial, grant a new trial.
-    // A real app would fetch subscription status from a backend.
     if (!hasPurchasedPro && (!trialEndDate || trialEndDate <= new Date())) {
       const newTrialEndDate = new Date();
       newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
@@ -101,8 +97,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const logout = useCallback(() => {
     setIsLoggedIn(false);
     setUser(null);
-    setTrialEndDate(null);
-    setHasPurchasedPro(false); // User loses Pro status on logout in this mock
+    // Keep trialEndDate and hasPurchasedPro to simulate user data persistence
+    // For a full reset, you might clear these too, or handle it server-side.
+    // setTrialEndDate(null); 
+    // setHasPurchasedPro(false);
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
     router.push('/');
   }, [toast, router]);
@@ -114,7 +112,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     setHasPurchasedPro(true);
-    setTrialEndDate(null); // End trial upon purchasing Pro
+    setTrialEndDate(null); 
     toast({ title: 'Upgrade Successful!', description: 'You now have full access to Pro features.' });
   }, [isLoggedIn, toast, router]);
 

@@ -96,7 +96,7 @@ export function AIWorkflowBuilderPanel({
   onDeleteSelectedConnection,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
-  const { currentTier, features, isProOrTrial, isLoggedIn } = useSubscription();
+  const { currentTier, isProOrTrial, isLoggedIn } = useSubscription();
 
   const handleExplainWorkflowClick = () => {
     if (!isProOrTrial) {
@@ -112,7 +112,7 @@ export function AIWorkflowBuilderPanel({
   };
   
   const getSubscriptionButton = () => {
-    if (isProOrTrial && isLoggedIn) {
+    if (isLoggedIn && isProOrTrial) {
       return (
         <TooltipProvider delayDuration={100}>
           <Tooltip>
