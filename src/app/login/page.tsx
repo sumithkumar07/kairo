@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,12 +10,20 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Zap, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const { login, isLoggedIn } = useSubscription();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.push('/workflow');
+    }
+  }, [isLoggedIn, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +35,6 @@ export default function LoginPage() {
       });
       return;
     }
-    // Basic email validation
     if (!/\S+@\S+\.\S+/.test(email)) {
       toast({
         title: 'Invalid Email',
@@ -37,31 +44,21 @@ export default function LoginPage() {
       return;
     }
     login(email);
-    // In a real app, you'd navigate or handle success differently.
-    // Router navigation is handled within the login context function.
   };
 
   if (isLoggedIn) {
+    // This part will likely not be visible due to the useEffect redirect,
+    // but it's good practice to have a fallback or loading state.
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/30 p-4">
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Already Logged In</CardTitle>
-            <CardDescription>You are already logged in to FlowAI Studio.</CardDescription>
+            <CardTitle className="text-2xl">Redirecting...</CardTitle>
+            <CardDescription>You are already logged in.</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-muted-foreground mb-6">
-              You can proceed to the editor or manage your account.
-            </p>
+             <LogIn className="h-12 w-12 text-primary mx-auto animate-pulse" />
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <Button asChild className="w-full">
-              <Link href="/workflow">Go to Workflow Editor</Link>
-            </Button>
-             <Button asChild variant="outline" className="w-full">
-              <Link href="/">Back to Home</Link>
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     );
@@ -100,6 +97,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="email"
                 />
               </div>
               <div className="space-y-1.5">
@@ -111,6 +109,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                 />
               </div>
             </CardContent>

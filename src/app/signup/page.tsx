@@ -1,15 +1,16 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { Zap, UserPlus } from 'lucide-react';
+import { Zap, UserPlus, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function SignupPage() {
   const { signup, isLoggedIn } = useSubscription();
@@ -17,6 +18,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.push('/workflow');
+    }
+  }, [isLoggedIn, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,31 +61,19 @@ export default function SignupPage() {
         return;
     }
     signup(email);
-    // In a real app, you'd navigate or handle success differently.
-    // Router navigation is handled within the signup context function.
   };
   
   if (isLoggedIn) {
-    return (
+     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/30 p-4">
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Already Logged In</CardTitle>
-            <CardDescription>You are already logged in to FlowAI Studio.</CardDescription>
+            <CardTitle className="text-2xl">Redirecting...</CardTitle>
+            <CardDescription>You are already logged in.</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-muted-foreground mb-6">
-              You can proceed to the editor or manage your account.
-            </p>
+            <UserPlus className="h-12 w-12 text-primary mx-auto animate-pulse" />
           </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <Button asChild className="w-full">
-              <Link href="/workflow">Go to Workflow Editor</Link>
-            </Button>
-             <Button asChild variant="outline" className="w-full">
-              <Link href="/">Back to Home</Link>
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     );
@@ -116,6 +112,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="email"
                 />
               </div>
               <div className="space-y-1.5">
@@ -127,6 +124,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                 />
               </div>
               <div className="space-y-1.5">
@@ -138,6 +136,7 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                 />
               </div>
             </CardContent>
