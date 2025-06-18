@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import { Zap, UserPlus, LogIn } from 'lucide-react';
+import { Workflow, UserPlus, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -84,7 +84,7 @@ export default function SignupPage() {
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
-            <Zap className="h-8 w-8 mr-2" />
+            <Workflow className="h-8 w-8 mr-2" />
             Kairo
           </Link>
           <nav className="space-x-4">

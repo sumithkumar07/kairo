@@ -4,7 +4,7 @@
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Zap, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
+import { CheckCircle, Workflow, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { FREE_TIER_FEATURES } from '@/types/subscription'; // Import free tier features
@@ -69,7 +69,7 @@ export default function SubscriptionsPage() {
   let proTierCtaText = 'Upgrade to Pro';
   let proTierCtaAction: (() => void) | undefined = upgradeToPro;
   let proTierCtaDisabled = false;
-  let proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
+  let proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
   let proTierCtaHref: string | undefined = undefined;
 
   if (!isLoggedIn) {
@@ -89,11 +89,11 @@ export default function SubscriptionsPage() {
   } else if (isLoggedIn && currentTier === 'Free' && !isTrialExpired) {
      proTierCtaText = 'Start 15-Day Pro Trial';
      proTierCtaAction = () => signup(user!.email); 
-     proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
+     proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
   } else if (isTrialExpired) {
     proTierCtaText = 'Upgrade to Pro';
     proTierCtaAction = upgradeToPro;
-    proTierCtaIcon = <Zap className="mr-2 h-4 w-4" />;
+    proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
   }
   
   tierDetails.Pro.cta = {
@@ -109,7 +109,7 @@ export default function SubscriptionsPage() {
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
-            <Zap className="h-8 w-8 mr-2" />
+            <Workflow className="h-8 w-8 mr-2" />
             Kairo
           </Link>
           <nav>
