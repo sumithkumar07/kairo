@@ -120,6 +120,18 @@ export function WorkflowNodeItem({
       </TooltipProvider>
     );
   };
+  
+  let nodeStyleClasses = categoryStyling.nodeBorder;
+  if (node.lastExecutionStatus === 'error') {
+    nodeStyleClasses = 'ring-2 ring-destructive border-destructive/80 shadow-destructive/20';
+  } else if (hasWarning) {
+    nodeStyleClasses = 'ring-1 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/10';
+  } else if (node.lastExecutionStatus === 'success') {
+    nodeStyleClasses = 'ring-1 ring-green-500/80 border-green-500/70 shadow-green-500/10';
+  } else if (node.lastExecutionStatus === 'partial_success') {
+    nodeStyleClasses = 'ring-1 ring-yellow-500/80 border-yellow-500/70 shadow-yellow-500/10';
+  }
+
 
   return (
     <Card
@@ -138,15 +150,8 @@ export function WorkflowNodeItem({
         'flex flex-col overflow-hidden bg-card', 
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         'border',
-        hasWarning && node.lastExecutionStatus !== 'error' ? 'ring-2 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/20' : 
-        node.lastExecutionStatus === 'error' ? 'ring-2 ring-destructive border-destructive/80 shadow-destructive/20' : 
-        node.lastExecutionStatus === 'success' ? 'ring-1 ring-green-500 border-green-500/70 shadow-green-500/10' : 
-        node.lastExecutionStatus === 'partial_success' ? 'ring-1 ring-yellow-500 border-yellow-500/70 shadow-yellow-500/10' : 
-        categoryStyling.nodeBorder,
-        isSelected && !hasWarning && node.lastExecutionStatus !== 'error' && 'ring-2 ring-primary shadow-lg shadow-primary/30', 
-        isSelected && 'ring-offset-2 ring-offset-background', 
-        isSelected && hasWarning && node.lastExecutionStatus !== 'error' && 'ring-yellow-400 shadow-yellow-400/40',
-        isSelected && node.lastExecutionStatus === 'error' && 'ring-destructive shadow-destructive/40'
+        nodeStyleClasses, // Apply base style (category, warning, or error)
+        isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/30', // Selection ring on top
       )}
       style={{
         left: node.position.x,
