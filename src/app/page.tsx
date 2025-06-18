@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Zap, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle } from 'lucide-react';
+import { Zap, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain } from 'lucide-react';
 import Image from 'next/image';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -112,57 +112,29 @@ export default function HomePage() {
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose FlowAI Studio?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                   <Image
-                    src="https://placehold.co/100x100.png"
-                    alt="Accelerate Development"
-                    width={80}
-                    height={80}
-                    className="rounded-md"
-                    data-ai-hint="speed rocket"
-                  />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
+                   <GaugeCircle className="h-16 w-16 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Accelerate Development</h3>
                 <p className="text-muted-foreground text-sm">Go from idea to automation significantly faster than traditional coding.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                   <Image
-                    src="https://placehold.co/100x100.png"
-                    alt="Reduce Complexity"
-                    width={80}
-                    height={80}
-                    className="rounded-md"
-                    data-ai-hint="simplify puzzle"
-                  />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
+                   <Puzzle className="h-16 w-16 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Reduce Complexity</h3>
                 <p className="text-muted-foreground text-sm">Abstract away intricate coding tasks with a visual, node-based approach.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                  <Image
-                    src="https://placehold.co/100x100.png"
-                    alt="Smart Assistance"
-                    width={80}
-                    height={80}
-                    className="rounded-md"
-                    data-ai-hint="ai assistant"
-                  />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
+                  <Lightbulb className="h-16 w-16 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Smart Assistance</h3>
                 <p className="text-muted-foreground text-sm">Leverage AI for workflow generation, suggestions, and explanations.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
-                    <Image
-                      src="https://placehold.co/100x100.png"
-                      alt="AI-Powered Insights"
-                      width={80}
-                      height={80}
-                      className="rounded-md"
-                      data-ai-hint="analytics brain"
-                    />
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
+                    <Brain className="h-16 w-16 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">AI-Powered Insights</h3>
                 <p className="text-muted-foreground text-sm">Gain deeper understanding with AI-driven explanations and suggestions for optimization.</p>
@@ -230,4 +202,3 @@ export default function HomePage() {
     </div>
   );
 }
-
