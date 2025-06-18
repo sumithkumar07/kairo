@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 
 export const metadata: Metadata = {
-  title: 'Kairo Studio',
+  title: 'Kairo',
   description: 'AI-powered workflow automation and design.',
 };
 
