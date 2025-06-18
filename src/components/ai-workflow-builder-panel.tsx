@@ -112,7 +112,7 @@ export function AIWorkflowBuilderPanel({
   };
   
   const getSubscriptionButton = () => {
-    let tooltipContent = "Manage your subscription or start a trial.";
+    let tooltipContent: string;
     let buttonContent = <Sparkles className="h-4 w-4 mr-1.5" />;
     let buttonText = "Subscription";
     let href: string | undefined = "/subscriptions";
@@ -122,14 +122,14 @@ export function AIWorkflowBuilderPanel({
     if (isLoggedIn && isProOrTrial) {
       tooltipContent = `You are on the ${currentTier === 'Pro Trial' ? 'Pro trial' : 'Pro plan'}. All features unlocked!`;
       buttonText = currentTier === 'Pro Trial' ? 'Pro Trial Active' : 'Pro Plan Active';
-      href = undefined; // Not a link if already Pro
+      href = undefined; 
       className = "cursor-default text-primary hover:bg-primary/10";
     } else if (!isLoggedIn) {
       tooltipContent = "Sign up for a 15-day Pro trial to unlock all features.";
       buttonText = "Sign Up for Trial";
       href = "/signup";
       buttonContent = <UserPlus className="h-4 w-4 mr-1.5" />;
-    } else { // Logged in but on Free tier
+    } else { 
       tooltipContent = "Upgrade to Pro to unlock more AI features and capabilities.";
       buttonText = "Upgrade to Pro";
       href = "/subscriptions";
@@ -143,7 +143,7 @@ export function AIWorkflowBuilderPanel({
             {buttonText}
           </Link>
         ) : (
-          <span> {/* Use span for non-link buttons to allow TooltipTrigger to work correctly */}
+          <span> 
             {buttonContent}
             {buttonText}
           </span>
@@ -166,7 +166,7 @@ export function AIWorkflowBuilderPanel({
     if (!isProOrTrial) {
       return `Workflow explanation is a Pro feature. ${!isLoggedIn ? 'Sign up for a trial.' : 'Upgrade your plan.'}`;
     }
-    return "Let AI explain this workflow.";
+    return "Let AI explain this workflow (Ctrl+E).";
   };
 
 
@@ -184,7 +184,6 @@ export function AIWorkflowBuilderPanel({
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            {/* Zoom Controls */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
@@ -195,9 +194,9 @@ export function AIWorkflowBuilderPanel({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" className="text-xs h-10 px-3 py-2" onClick={onResetView} title="Reset View (Zoom & Pan)">
+                <Button variant="outline" className="h-10 px-3 py-2" onClick={onResetView} title="Reset View (Zoom & Pan)">
                   <RefreshCw className="h-4 w-4" />
-                  {(zoomLevel * 100).toFixed(0)}%
+                  <span className="text-xs">{(zoomLevel * 100).toFixed(0)}%</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent><p>Reset View</p></TooltipContent>
@@ -213,7 +212,6 @@ export function AIWorkflowBuilderPanel({
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
             
-            {/* Undo/Redo */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
@@ -228,56 +226,55 @@ export function AIWorkflowBuilderPanel({
                   <Redo2 />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Redo (Ctrl + Y)</p></TooltipContent>
+              <TooltipContent><p>Redo (Ctrl + Y / Shift+Ctrl+Z)</p></TooltipContent>
             </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
 
-            {/* File Operations */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onClearCanvas} title="Clear Canvas (Delete all nodes and connections)" disabled={!hasWorkflow}>
+                <Button variant="outline" size="sm" onClick={onClearCanvas} disabled={!hasWorkflow}>
                   <Trash2 className="h-4 w-4 mr-1.5" />
                   Clear
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Clear Canvas</p></TooltipContent>
+              <TooltipContent><p>Clear Canvas (Delete all nodes and connections)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onImportWorkflow} title="Import Workflow from JSON">
+                <Button variant="outline" size="sm" onClick={onImportWorkflow}>
                   <UploadCloud className="h-4 w-4 mr-1.5" />
                   Import
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Import Workflow</p></TooltipContent>
+              <TooltipContent><p>Import Workflow from JSON</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onExportWorkflow} title="Export Workflow to JSON" disabled={!hasWorkflow}>
+                <Button variant="outline" size="sm" onClick={onExportWorkflow} disabled={!hasWorkflow}>
                   <DownloadCloud className="h-4 w-4 mr-1.5" />
                   Export
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Export Workflow</p></TooltipContent>
+              <TooltipContent><p>Export Workflow to JSON</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow Locally (Ctrl+S)">
+                <Button variant="outline" size="sm" onClick={onSaveWorkflow}>
                   <Save className="h-4 w-4 mr-1.5" />
                   Save
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Save Workflow (Ctrl + S)</p></TooltipContent>
+              <TooltipContent><p>Save Workflow Locally (Ctrl + S)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow from Local (Ctrl+O)">
+                <Button variant="outline" size="sm" onClick={onLoadWorkflow}>
                   <FolderOpen className="h-4 w-4 mr-1.5" />
                   Load
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Load Workflow (Ctrl + O)</p></TooltipContent>
+              <TooltipContent><p>Load Workflow from Local (Ctrl + O)</p></TooltipContent>
             </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
@@ -337,7 +334,6 @@ export function AIWorkflowBuilderPanel({
         </div>
       )}
 
-      {/* Floating Action Buttons for AI */}
       <div className="absolute bottom-8 right-8 flex flex-col gap-3 z-10">
          <TooltipProvider delayDuration={100}>
           <Tooltip>
@@ -347,6 +343,7 @@ export function AIWorkflowBuilderPanel({
                 size="icon"
                 className="rounded-full shadow-lg w-12 h-12 bg-primary hover:bg-primary/90"
                 onClick={onToggleAssistant}
+                title="Toggle AI Assistant Panel"
               >
                 <Bot className="h-6 w-6" />
               </Button>
