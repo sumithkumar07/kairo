@@ -340,6 +340,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Layers, 
     description: 'Executes an encapsulated group of nodes as a sub-flow. Supports retries and on-error webhook for the entire group execution.',
     category: 'group',
+    isAdvanced: true,
     defaultConfig: {
       flowGroupNodes: '[]', 
       flowGroupConnections: '[]', 
@@ -417,6 +418,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: GitFork, 
     description: 'Executes multiple branches of nodes concurrently, optionally limiting concurrency. Collects results from all branches. Supports retries for the whole block and on-error webhook if it fails.',
     category: 'control', 
+    isAdvanced: true,
     defaultConfig: {
       branches: '[]',
       concurrencyLimit: 0,
@@ -928,4 +930,5 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
+
 

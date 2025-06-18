@@ -96,6 +96,7 @@ export interface AvailableNodeType {
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[]; 
   outputHandles?: string[];
+  isAdvanced?: boolean; // Added for Pro tier feature gating
 }
 
 export interface LogEntry {
@@ -115,4 +116,5 @@ export interface WorkflowExecutionResult {
   serverLogs: ServerLogOutput[];
   finalWorkflowData: Record<string, any>; // Contains node outputs and their lastExecutionStatus
 }
+
 

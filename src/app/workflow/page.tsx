@@ -7,6 +7,7 @@ import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workf
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 
 import { useToast } from '@/hooks/use-toast';
@@ -67,6 +68,7 @@ export default function WorkflowPage() {
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
   const { toast } = useToast();
+  const { isProOrTrial, isLoggedIn } = useSubscription();
   const nextNodeIdRef = useRef(1);
 
   const [isConnecting, setIsConnecting] = useState(false);
@@ -813,6 +815,16 @@ export default function WorkflowPage() {
   }, [mapAiWorkflowToInternal, toast, resetHistoryForNewWorkflow]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
+    if (nodeType.isAdvanced && !isProOrTrial) {
+      toast({
+        title: 'Pro Feature',
+        description: `Node type "${nodeType.name}" is a Pro feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+        variant: 'default',
+        duration: 5000,
+      });
+      return;
+    }
+
     const newNodeId = `${nodeType.type}_${nextNodeIdRef.current++}`;
     const newNode: WorkflowNode = {
       id: newNodeId,
@@ -836,7 +848,7 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     saveHistory();
-  }, [saveHistory]);
+  }, [saveHistory, isProOrTrial, toast, isLoggedIn]);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
     const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
@@ -844,6 +856,17 @@ export default function WorkflowPage() {
       toast({ title: "Error", description: `Cannot add suggested node: Type "${suggestedNodeTypeString}" not found.`, variant: "destructive" });
       return;
     }
+
+    if (nodeTypeToAdd.isAdvanced && !isProOrTrial) {
+      toast({
+        title: 'Pro Feature Suggested',
+        description: `The AI suggested "${nodeTypeToAdd.name}", which is a Pro feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'} to use it.`,
+        variant: 'default',
+        duration: 6000,
+      });
+      return;
+    }
+
 
     let position: { x: number; y: number };
     if (selectedNode) {
@@ -870,7 +893,7 @@ export default function WorkflowPage() {
     toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-  }, [selectedNode, addNodeToCanvas, toast, nodes]);
+  }, [selectedNode, addNodeToCanvas, toast, nodes, isProOrTrial, isLoggedIn]);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     setNodes(prevNodes => produce(prevNodes, draft => {
@@ -984,6 +1007,15 @@ export default function WorkflowPage() {
   }, [selectedNode]);
 
   const handleGetWorkflowExplanation = useCallback(async () => {
+    if (!isProOrTrial) {
+      toast({
+        title: 'Pro Feature',
+        description: `Workflow explanation is a Pro feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+        variant: 'default',
+        duration: 5000,
+      });
+      return;
+    }
     if (nodes.length === 0) {
       toast({ title: 'Empty Workflow', description: 'Add nodes to the canvas to get an explanation.', variant: 'default' });
       return;
@@ -1004,7 +1036,7 @@ export default function WorkflowPage() {
     } finally {
       setIsExplainingWorkflow(false);
     }
-  }, [nodes, connections, toast]);
+  }, [nodes, connections, toast, isProOrTrial, isLoggedIn]);
 
 
   const handleToggleSimulationMode = useCallback((newMode: boolean) => {
@@ -1298,3 +1330,4 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
