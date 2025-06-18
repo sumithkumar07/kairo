@@ -528,6 +528,7 @@ export function NodeConfigPanel({
           
           <div className="p-3 border rounded-md bg-muted/20 shadow-sm space-y-2">
             <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                {(envPlaceholders.length > 0 || secretPlaceholders.length > 0) && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
                 <KeyRound className="h-3.5 w-3.5" />
                 Required Placeholders
             </Label>

@@ -152,68 +152,120 @@ export function AIWorkflowBuilderPanel({
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
-      <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">FlowAI Studio</h1>
-          <p className="text-xs text-muted-foreground">
-            Build, simulate, and deploy AI-driven automations. Current Tier: 
-            <span className={cn("font-semibold ml-1", isProOrTrial ? "text-primary" : "text-amber-500")}>
-              {currentTier}
-            </span>
-          </p>
+      <TooltipProvider delayDuration={200}>
+        <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">FlowAI Studio</h1>
+            <p className="text-xs text-muted-foreground">
+              Build, simulate, and deploy AI-driven automations. Current Tier: 
+              <span className={cn("font-semibold ml-1", isProOrTrial ? "text-primary" : "text-amber-500")}>
+                {currentTier}
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {/* Zoom Controls */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
+                  <Minus />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Zoom Out (Ctrl + -)</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" className="text-xs" onClick={onResetView} title="Reset View (Zoom & Pan)">
+                  <RefreshCw className="h-4 w-4" />
+                  {(zoomLevel * 100).toFixed(0)}%
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Reset View</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
+                  <Plus />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Zoom In (Ctrl + =)</p></TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1.5" />
+            
+            {/* Undo/Redo */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+                  <Undo2 />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Undo (Ctrl + Z)</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
+                  <Redo2 />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Redo (Ctrl + Y)</p></TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1.5" />
+
+            {/* File Operations */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onClearCanvas} title="Clear Canvas (Delete all nodes and connections)" disabled={!hasWorkflow}>
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Clear
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Clear Canvas</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onImportWorkflow} title="Import Workflow from JSON">
+                  <UploadCloud className="h-4 w-4 mr-1.5" />
+                  Import
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Import Workflow</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onExportWorkflow} title="Export Workflow to JSON" disabled={!hasWorkflow}>
+                  <DownloadCloud className="h-4 w-4 mr-1.5" />
+                  Export
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Export Workflow</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow Locally (Ctrl+S)">
+                  <Save className="h-4 w-4 mr-1.5" />
+                  Save
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Save Workflow (Ctrl + S)</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow from Local (Ctrl+O)">
+                  <FolderOpen className="h-4 w-4 mr-1.5" />
+                  Load
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Load Workflow (Ctrl + O)</p></TooltipContent>
+            </Tooltip>
+
+            <Separator orientation="vertical" className="h-6 mx-1.5" />
+            
+            {getSubscriptionButton()}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          {/* Zoom Controls */}
-          <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
-            <Minus className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" className="text-xs" onClick={onResetView} title="Reset View (Zoom & Pan)">
-            <RefreshCw className="h-4 w-4" />
-            {(zoomLevel * 100).toFixed(0)}%
-          </Button>
-          <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
-            <Plus className="h-4 w-4" />
-          </Button>
-
-          <Separator orientation="vertical" className="h-6 mx-1.5" />
-          
-          {/* Undo/Redo */}
-          <Button variant="outline" size="icon" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
-            <Redo2 className="h-4 w-4" />
-          </Button>
-
-          <Separator orientation="vertical" className="h-6 mx-1.5" />
-
-          {/* File Operations */}
-           <Button variant="outline" size="sm" onClick={onClearCanvas} title="Clear Canvas (Delete all nodes and connections)" disabled={!hasWorkflow}>
-            <Trash2 className="h-4 w-4 mr-1.5" />
-            Clear
-          </Button>
-          <Button variant="outline" size="sm" onClick={onImportWorkflow} title="Import Workflow from JSON">
-            <UploadCloud className="h-4 w-4 mr-1.5" />
-            Import
-          </Button>
-          <Button variant="outline" size="sm" onClick={onExportWorkflow} title="Export Workflow to JSON" disabled={!hasWorkflow}>
-            <DownloadCloud className="h-4 w-4 mr-1.5" />
-            Export
-          </Button>
-          <Button variant="outline" size="sm" onClick={onSaveWorkflow} title="Save Workflow Locally (Ctrl+S)">
-            <Save className="h-4 w-4 mr-1.5" />
-            Save
-          </Button>
-           <Button variant="outline" size="sm" onClick={onLoadWorkflow} title="Load Workflow from Local (Ctrl+O)">
-            <FolderOpen className="h-4 w-4 mr-1.5" />
-            Load
-          </Button>
-
-          <Separator orientation="vertical" className="h-6 mx-1.5" />
-          
-          {getSubscriptionButton()}
-        </div>
-      </div>
+      </TooltipProvider>
 
       {hasWorkflow || isConnecting ? (
         <WorkflowCanvas
@@ -267,15 +319,21 @@ export function AIWorkflowBuilderPanel({
 
       {/* Floating Action Buttons for AI */}
       <div className="absolute bottom-8 right-8 flex flex-col gap-3 z-10">
-         <Button
-          variant="default"
-          size="icon"
-          className="rounded-full shadow-lg w-12 h-12 bg-primary hover:bg-primary/90"
-          onClick={onToggleAssistant}
-          title="Toggle AI Assistant Panel"
-        >
-          <Bot className="h-6 w-6" />
-        </Button>
+         <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="default"
+                size="icon"
+                className="rounded-full shadow-lg w-12 h-12 bg-primary hover:bg-primary/90"
+                onClick={onToggleAssistant}
+              >
+                <Bot className="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left"><p>Toggle AI Assistant Panel</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -286,7 +344,6 @@ export function AIWorkflowBuilderPanel({
                   className="rounded-full shadow-lg w-12 h-12 bg-card hover:bg-accent"
                   onClick={handleExplainWorkflowClick}
                   disabled={!hasWorkflow || isExplainingWorkflow || !isProOrTrial}
-                  title={!isProOrTrial ? `Upgrade to Pro ${isLoggedIn ? '' : 'or start a trial'} for AI Explanations` : "Let AI Explain this workflow"}
                 >
                   {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> : 
                    !isProOrTrial ? <ShieldQuestion className="h-5 w-5 text-muted-foreground" /> : <MessageSquareText className="h-5 w-5" />}
