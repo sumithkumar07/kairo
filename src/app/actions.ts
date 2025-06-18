@@ -1752,8 +1752,9 @@ export async function executeWorkflow(
   let workflowInitialData = initialData || {}; 
 
   const modeMessage = isSimulationMode ? "[ENGINE] Starting MAIN workflow execution in SIMULATION MODE for" : "[ENGINE] Starting MAIN workflow execution for";
-  console.log(`${modeMessage.replace('[ENGINE]', '[ENGINE - SERVER]')} ${workflow.nodes.length} nodes.`);
-  serverLogs.push({ timestamp: new Date().toISOString(), message: `${modeMessage} ${workflow.nodes.length} nodes.`, type: 'info' });
+  const startLogMessage = `${modeMessage} ${workflow.nodes.length} nodes.`;
+  console.log(`${startLogMessage.replace('[ENGINE]', '[ENGINE - SERVER]')}`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: startLogMessage, type: 'info' });
   
   if (!isSimulationMode && initialData) {
       console.log(`[ENGINE - SERVER] MAIN workflow received initialData for live run: ${Object.keys(initialData).join(', ')}`);
@@ -1776,12 +1777,14 @@ export async function executeWorkflow(
     workflowInitialData 
   );
   
-  if (result.flowError) {
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] MAIN workflow execution finished with a critical flow error: ${result.flowError}`, type: 'error' });
-  } else {
-    serverLogs.push({ timestamp: new Date().toISOString(), message: "[ENGINE] MAIN workflow execution finished.", type: 'info' }); 
-  }
-  console.log("[ENGINE - SERVER] MAIN workflow execution finished. Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
+  const endLogMessage = `[ENGINE] MAIN workflow execution finished. ${result.flowError ? `Result: CRITICAL FLOW ERROR: ${result.flowError}` : 'Result: Execution cycle completed.'}`;
+  console.log(`${endLogMessage.replace('[ENGINE]', '[ENGINE - SERVER]')}`);
+  serverLogs.push({ timestamp: new Date().toISOString(), message: endLogMessage, type: result.flowError ? 'error' : 'info' });
+  
+  console.log("[ENGINE - SERVER] Final workflowData (first 1000 chars):", JSON.stringify(result.finalWorkflowData, null, 2).substring(0,1000));
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
 
+
+
+    
