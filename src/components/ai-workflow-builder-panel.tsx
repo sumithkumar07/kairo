@@ -175,7 +175,7 @@ export function AIWorkflowBuilderPanel({
       <TooltipProvider delayDuration={200}>
         <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">FlowAI Studio</h1>
+            <h1 className="text-xl font-semibold text-foreground">Kairo Studio</h1>
             <p className="text-xs text-muted-foreground">
               Build, simulate, and deploy AI-driven automations. Current Tier: 
               <span className={cn("font-semibold ml-1", isProOrTrial ? "text-primary" : "text-amber-500")}>
@@ -233,7 +233,7 @@ export function AIWorkflowBuilderPanel({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onClearCanvas} disabled={!hasWorkflow}>
+                <Button variant="outline" size="sm" onClick={onClearCanvas} disabled={!hasWorkflow} title="Clear Canvas (Delete all nodes and connections)">
                   <Trash2 className="h-4 w-4 mr-1.5" />
                   Clear
                 </Button>
@@ -376,4 +376,3 @@ export function AIWorkflowBuilderPanel({
     </main>
   );
 }
-

@@ -49,7 +49,7 @@ export default function SubscriptionsPage() {
     Pro: {
       name: 'Pro Tier',
       price: '$29/month (Example Price)',
-      description: 'Unlock the full power of FlowAI Studio with unlimited features and priority support.',
+      description: 'Unlock the full power of Kairo with unlimited features and priority support.',
       features: [
         `AI Workflow Generations: Unlimited`,
         'AI Workflow Explanations & Advanced Suggestions',
@@ -110,7 +110,7 @@ export default function SubscriptionsPage() {
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
             <Zap className="h-8 w-8 mr-2" />
-            FlowAI Studio
+            Kairo
           </Link>
           <nav>
             <Link href="/workflow" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
@@ -123,7 +123,7 @@ export default function SubscriptionsPage() {
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <section className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
-            Choose Your FlowAI Plan
+            Choose Your Kairo Plan
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
             {isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0 ? 
@@ -137,7 +137,7 @@ export default function SubscriptionsPage() {
         
         {!isLoggedIn && (
           <Card className="max-w-2xl mx-auto mb-10 p-6 text-center bg-primary/5 border-primary/20 shadow-lg">
-            <CardTitle className="text-xl mb-2 text-primary">Get Started with FlowAI Studio</CardTitle>
+            <CardTitle className="text-xl mb-2 text-primary">Get Started with Kairo</CardTitle>
             <CardDescription className="text-muted-foreground mb-4">
               Sign up to get a 15-day free trial of our Pro features, or log in if you already have an account.
             </CardDescription>
@@ -268,7 +268,7 @@ export default function SubscriptionsPage() {
 
       <footer className="text-center py-10 border-t mt-12">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} FlowAI Studio. Automate intelligently.
+          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
         </p>
       </footer>
     </div>

@@ -85,7 +85,7 @@ export default function SignupPage() {
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
             <Zap className="h-8 w-8 mr-2" />
-            FlowAI Studio
+            Kairo
           </Link>
           <nav className="space-x-4">
             <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
@@ -98,7 +98,7 @@ export default function SignupPage() {
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Create Your Account</CardTitle>
+            <CardTitle className="text-2xl">Create Your Kairo Account</CardTitle>
             <CardDescription>Sign up to start your 15-day Pro trial.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -156,7 +156,7 @@ export default function SignupPage() {
       </main>
       <footer className="text-center py-10 border-t mt-12">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} FlowAI Studio. Automate intelligently.
+          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
         </p>
       </footer>
     </div>

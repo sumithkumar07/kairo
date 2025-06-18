@@ -47,8 +47,6 @@ export default function LoginPage() {
   };
 
   if (isLoggedIn) {
-    // This part will likely not be visible due to the useEffect redirect,
-    // but it's good practice to have a fallback or loading state.
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/30 p-4">
         <Card className="w-full max-w-md shadow-xl">
@@ -70,7 +68,7 @@ export default function LoginPage() {
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
             <Zap className="h-8 w-8 mr-2" />
-            FlowAI Studio
+            Kairo
           </Link>
           <nav className="space-x-4">
             <Link href="/signup" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
@@ -83,8 +81,8 @@ export default function LoginPage() {
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome Back!</CardTitle>
-            <CardDescription>Log in to continue to FlowAI Studio.</CardDescription>
+            <CardTitle className="text-2xl">Welcome Back to Kairo!</CardTitle>
+            <CardDescription>Log in to continue to your Kairo workspace.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -129,7 +127,7 @@ export default function LoginPage() {
       </main>
        <footer className="text-center py-10 border-t mt-12">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} FlowAI Studio. Automate intelligently.
+          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
         </p>
       </footer>
     </div>

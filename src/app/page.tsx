@@ -16,7 +16,7 @@ export default function HomePage() {
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
             <Zap className="h-8 w-8 mr-2" />
-            FlowAI Studio
+            Kairo
           </Link>
           <nav className="space-x-2 sm:space-x-4">
             <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
@@ -56,10 +56,10 @@ export default function HomePage() {
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8">
         <section className="text-center py-16 md:py-24">
           <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6">
-            Intelligent Automation, <span className="text-primary">Visually Designed</span>
+            Intelligent Automation, <span className="text-primary">Visually Designed with Kairo</span>
           </h1>
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
-            FlowAI Studio empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
+            Kairo empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
           </p>
           <Button asChild size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-shadow">
             {isLoggedIn ? (
@@ -109,7 +109,7 @@ export default function HomePage() {
 
         <section id="benefits" className="py-16 md:py-20 bg-muted/30 rounded-xl my-12">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose FlowAI Studio?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose Kairo?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="flex flex-col items-center text-center p-4">
                 <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
@@ -144,12 +144,12 @@ export default function HomePage() {
         </section>
 
         <section className="py-16 text-center">
-           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes?</h2>
+           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes with Kairo?</h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-10">
                 <div className="md:w-1/2">
                      <Image
                         src="https://placehold.co/800x500.png"
-                        alt="Workflow automation example"
+                        alt="Workflow automation example with Kairo"
                         width={500}
                         height={312}
                         className="rounded-lg shadow-xl mx-auto transform hover:scale-105 transition-transform duration-300"
@@ -158,7 +158,7 @@ export default function HomePage() {
                 </div>
                 <div className="md:w-1/2 md:text-left">
                     <p className="text-lg text-muted-foreground mb-6">
-                        FlowAI Studio empowers you to connect various services, process data, and automate repetitive tasks with unparalleled ease. From simple API calls to complex multi-step AI-driven processes, build it all without writing extensive code.
+                        Kairo empowers you to connect various services, process data, and automate repetitive tasks with unparalleled ease. From simple API calls to complex multi-step AI-driven processes, build it all without writing extensive code.
                     </p>
                     <ul className="space-y-2 mb-6 text-left">
                         <li className="flex items-start">
@@ -196,10 +196,9 @@ export default function HomePage() {
 
       <footer className="text-center py-10 border-t mt-12">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} FlowAI Studio. Automate intelligently.
+          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
         </p>
       </footer>
     </div>
   );
 }
-
