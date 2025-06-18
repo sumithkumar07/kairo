@@ -39,15 +39,40 @@ export async function POST(
         requestBody = await request.json();
       } catch (e) {
         console.warn('[API Webhook] Could not parse JSON body:', e);
-        // Potentially allow body to be null or handle as text if parsing fails
+        // Attempt to read as text if JSON parsing fails but content-type was json
+        try {
+            const textBody = await request.text();
+            requestBody = textBody.trim() === '' ? null : textBody;
+        } catch (textErr) {
+            console.warn('[API Webhook] Could not read body as text after JSON parse failure:', textErr);
+            requestBody = null;
+        }
       }
     } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
-        const formData = await request.formData();
-        requestBody = Object.fromEntries(formData.entries());
-    } else if (contentType && (contentType.startsWith('text/') || !contentType)) { // Handle plain text or no content-type
-        requestBody = await request.text();
-        // If text is empty, it might be intentional, treat as null or empty string for body
-        if (requestBody === '') requestBody = null; 
+        try {
+            const formData = await request.formData();
+            requestBody = Object.fromEntries(formData.entries());
+        } catch (e) {
+            console.warn('[API Webhook] Could not parse form-urlencoded body:', e);
+            requestBody = null;
+        }
+    } else if (contentType && contentType.startsWith('text/')) { 
+        try {
+            const textBody = await request.text();
+            requestBody = textBody.trim() === '' ? null : textBody;
+        } catch (e) {
+            console.warn('[API Webhook] Could not read text body:', e);
+            requestBody = null;
+        }
+    } else if (!contentType) { // No content-type, try to read as text
+        try {
+            const textBody = await request.text();
+            // If body is empty, it's fine, otherwise assign.
+            requestBody = textBody.trim() === '' ? null : textBody;
+        } catch (e) {
+            console.warn('[API Webhook] Could not read body as text (no content-type specified):', e);
+            requestBody = null; // Default to null if reading fails
+        }
     }
 
 
