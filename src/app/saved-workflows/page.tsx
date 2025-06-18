@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit3, Workflow, Eye, FileJson, ExternalLink } from 'lucide-react';
+import { Trash2, Edit3, Workflow, Eye, FileJson, ExternalLink, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -31,6 +31,7 @@ interface SavedWorkflowItem {
 export default function SavedWorkflowsPage() {
   const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowItem[]>([]);
   const [workflowToDelete, setWorkflowToDelete] = useState<SavedWorkflowItem | null>(null);
+  const [loadingWorkflowName, setLoadingWorkflowName] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -78,15 +79,18 @@ export default function SavedWorkflowsPage() {
   };
 
   const handleLoadAndEditWorkflow = (workflowName: string) => {
+    setLoadingWorkflowName(workflowName);
     const workflowKey = `${WORKFLOW_PREFIX}${workflowName}`;
     const workflowJson = localStorage.getItem(workflowKey);
+
     if (workflowJson) {
-      localStorage.setItem(CURRENT_WORKFLOW_KEY, workflowJson); // Set it as the current workflow for the editor
+      localStorage.setItem(CURRENT_WORKFLOW_KEY, workflowJson); 
       toast({ title: 'Workflow Loaded', description: `"${workflowName}" is now active in the editor.` });
-      router.push('/workflow'); // Navigate to the main workflow editor
+      router.push('/workflow'); 
     } else {
       toast({ title: 'Error Loading Workflow', description: `Could not find data for workflow "${workflowName}". It might have been deleted or corrupted.`, variant: 'destructive' });
-      loadSavedWorkflows(); // Refresh the list in case of inconsistencies
+      loadSavedWorkflows(); 
+      setLoadingWorkflowName(null);
     }
   };
 
@@ -159,8 +163,14 @@ export default function SavedWorkflowsPage() {
                     className="flex-1 h-9 text-sm" 
                     onClick={() => handleLoadAndEditWorkflow(wf.name)}
                     title={`Load "${wf.name}" into the editor`}
+                    disabled={loadingWorkflowName === wf.name}
                   >
-                    <ExternalLink className="mr-2 h-3.5 w-3.5" /> Load & Edit
+                    {loadingWorkflowName === wf.name ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    {loadingWorkflowName === wf.name ? 'Loading...' : 'Load & Edit'}
                   </Button>
                   <Button
                     variant="destructive"
@@ -168,6 +178,7 @@ export default function SavedWorkflowsPage() {
                     className="h-9 w-9"
                     onClick={() => setWorkflowToDelete(wf)}
                     title={`Delete workflow "${wf.name}"`}
+                    disabled={!!loadingWorkflowName}
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Delete {wf.name}</span>
