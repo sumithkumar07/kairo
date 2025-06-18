@@ -354,11 +354,38 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
 async function handleOnErrorWebhook(
     node: WorkflowNode,
     errorMessage: string,
-    webhookConfig: OnErrorWebhookConfig,
+    webhookConfigInput: OnErrorWebhookConfig | string, 
     workflowData: Record<string, any>, 
     serverLogs: ServerLogOutput[]
 ) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
+    
+    let webhookConfig: OnErrorWebhookConfig;
+    if (typeof webhookConfigInput === 'string') {
+        try {
+            webhookConfig = JSON.parse(webhookConfigInput);
+        } catch (e: any) {
+            const parseErrorMsg = `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Invalid JSON in onErrorWebhook config. Error: ${e.message}. Config: ${webhookConfigInput.substring(0, 200)}`;
+            serverLogs.push({ timestamp: new Date().toISOString(), message: parseErrorMsg, type: 'error' });
+            console.error(parseErrorMsg);
+            return;
+        }
+    } else if (typeof webhookConfigInput === 'object' && webhookConfigInput !== null) {
+        webhookConfig = webhookConfigInput;
+    } else {
+        const invalidInputMsg = `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Invalid onErrorWebhook configuration provided (not a string or object).`;
+        serverLogs.push({ timestamp: new Date().toISOString(), message: invalidInputMsg, type: 'error' });
+        console.error(invalidInputMsg);
+        return;
+    }
+
+    if (!webhookConfig.url || typeof webhookConfig.url !== 'string') {
+        const noUrlMsg = `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: URL is missing or invalid in onErrorWebhook configuration.`;
+        serverLogs.push({ timestamp: new Date().toISOString(), message: noUrlMsg, type: 'error' });
+        console.error(noUrlMsg);
+        return;
+    }
+
     const serverLogMessage = `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Attempting to send on-error webhook to ${webhookConfig.url}`;
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node ${nodeIdentifier}: Error occurred. Attempting to send on-error webhook to ${webhookConfig.url}`, type: 'info' });
     console.log(serverLogMessage);
@@ -372,20 +399,17 @@ async function handleOnErrorWebhook(
     };
 
     try {
-        const resolvedHeaders: Record<string, string> = {};
-        if (webhookConfig.headers) {
-            for (const key in webhookConfig.headers) {
-                resolvedHeaders[key] = resolveValue(webhookConfig.headers[key], workflowData, serverLogs, errorContext);
-            }
-        }
-        if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
-            resolvedHeaders['Content-Type'] = 'application/json';
+        // Headers and BodyTemplate are expected to have placeholders resolved by the time they reach here
+        // because the entire onErrorWebhook config string was resolved by resolveValue.
+        const headersToSend = webhookConfig.headers || {};
+        if (!headersToSend['Content-Type'] && webhookConfig.bodyTemplate) {
+            headersToSend['Content-Type'] = 'application/json';
         }
 
         let bodyToSend: string | undefined;
         if (webhookConfig.bodyTemplate) {
-            const resolvedBodyTemplate = resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext);
-            bodyToSend = JSON.stringify(resolvedBodyTemplate);
+            // bodyTemplate here is already the resolved object after placeholder resolution
+            bodyToSend = JSON.stringify(webhookConfig.bodyTemplate);
             console.log(`[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Sending body (first 200 chars): ${bodyToSend.substring(0,200)}`);
         } else {
             console.log(`[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: No bodyTemplate provided. Sending empty body.`);
@@ -393,7 +417,7 @@ async function handleOnErrorWebhook(
 
         const webhookResponse = await fetch(webhookConfig.url, {
             method: webhookConfig.method || 'POST',
-            headers: resolvedHeaders,
+            headers: headersToSend,
             body: bodyToSend,
         });
 
@@ -659,7 +683,7 @@ async function executeFlowInternal(
       const backoffFactor = retryConfig?.backoffFactor || 1; 
       const retryOnStatusCodes: number[] | undefined = retryConfig?.retryOnStatusCodes;
       const retryOnErrorKeywords: string[] | undefined = retryConfig?.retryOnErrorKeywords?.map(k => String(k).toLowerCase());
-      const onErrorWebhookConfig: OnErrorWebhookConfig | undefined = resolvedConfig.onErrorWebhook;
+      const onErrorWebhookConfigInput: OnErrorWebhookConfig | string | undefined = resolvedConfig.onErrorWebhook;
 
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -689,6 +713,7 @@ async function executeFlowInternal(
                   requestQuery: liveTriggerData.requestQuery 
                 };
               } else {
+                // Fallback to simulation if in live mode but no initialData (e.g., manual run from UI)
                 if (!isSimulationMode) {
                   serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] ${nodeIdentifier}: LIVE MODE but no initialData provided for this trigger. FALLING BACK TO SIMULATION DATA. Path Suffix: '${resolvedConfig.pathSuffix}'.`, type: 'info' });
                   console.warn(`[NODE WEBHOOKTRIGGER - SERVER] ${nodeIdentifier}: LIVE MODE but no initialData, FALLING BACK TO SIMULATION for this trigger.`);
@@ -713,6 +738,7 @@ async function executeFlowInternal(
                   serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] ${nodeIdentifier}: LIVE TRIGGER. Using data provided for file event.`, type: 'info' });
                   currentAttemptOutput = { ...currentAttemptOutput, fileEvent: liveFsTriggerData.fileEvent };
               } else {
+                  // Fallback to simulation if in live mode but no initialData
                   if (!isSimulationMode) {
                       serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] ${nodeIdentifier}: LIVE MODE but no initialData provided for this trigger. FALLING BACK TO SIMULATION DATA.`, type: 'info' });
                       console.warn(`[NODE FILESYSTEMTRIGGER - SERVER] ${nodeIdentifier}: LIVE MODE but no initialData, FALLING BACK TO SIMULATION for this trigger.`);
@@ -1647,8 +1673,8 @@ async function executeFlowInternal(
             console.error(`[ENGINE/${flowLabel} - SERVER] ${permFailureMsg}`);
             serverLogs.push({ timestamp: new Date().toISOString(), message: permFailureMsg, type: 'error' });
             
-            if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
-              await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
+            if (onErrorWebhookConfigInput && (typeof onErrorWebhookConfigInput === 'object' || typeof onErrorWebhookConfigInput === 'string')) {
+              await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfigInput, dataForResolution, serverLogs);
             }
             break; 
           }
@@ -1685,8 +1711,8 @@ async function executeFlowInternal(
             const permFailureNoRetryMsg = `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED PERMANENTLY (retry conditions not met). Error: ${errorDetails}`;
             console.error(`[ENGINE/${flowLabel} - SERVER] ${permFailureNoRetryMsg}`);
             serverLogs.push({ timestamp: new Date().toISOString(), message: permFailureNoRetryMsg, type: 'error' });
-             if (onErrorWebhookConfig && onErrorWebhookConfig.url) {
-               await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfig, dataForResolution, serverLogs);
+             if (onErrorWebhookConfigInput && (typeof onErrorWebhookConfigInput === 'object' || typeof onErrorWebhookConfigInput === 'string')) {
+               await handleOnErrorWebhook(node, errorDetails, onErrorWebhookConfigInput, dataForResolution, serverLogs);
              }
             break; 
           }
