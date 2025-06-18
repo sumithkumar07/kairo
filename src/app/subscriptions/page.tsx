@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Zap, ShieldCheck, Star } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils'; // Added import for cn
+import { cn } from '@/lib/utils';
 
 export default function SubscriptionsPage() {
   const { currentTier, features, upgradeToPro, isProTier } = useSubscription();
@@ -77,13 +77,13 @@ export default function SubscriptionsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Free Tier Card */}
-          <Card className={cn("flex flex-col shadow-lg", !isProTier && "border-2 border-primary ring-4 ring-primary/20")}>
+          <Card className={cn("flex flex-col shadow-lg transition-all duration-300 ease-in-out", !isProTier && "border-2 border-primary ring-4 ring-primary/20")}>
             <CardHeader className="pb-4">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-2xl font-semibold text-primary">{tierDetails.Free.name}</CardTitle>
-                {!isProTier && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full">Current Plan</span>}
+                {!isProTier && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">Current Plan</span>}
               </div>
-              <CardDescription className="text-sm">{tierDetails.Free.description}</CardDescription>
+              <CardDescription className="text-sm pt-1">{tierDetails.Free.description}</CardDescription>
               <p className="text-3xl font-bold text-foreground pt-2">{tierDetails.Free.price}</p>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -96,9 +96,9 @@ export default function SubscriptionsPage() {
                 ))}
               </ul>
             </CardContent>
-            <CardFooter className="mt-auto">
+            <CardFooter className="mt-auto pt-6">
               <Button
-                className="w-full text-base py-6"
+                className="w-full text-base py-6 shadow-md"
                 variant={!isProTier ? "default" : "outline"}
                 disabled={tierDetails.Free.cta.disabled}
               >
@@ -108,16 +108,19 @@ export default function SubscriptionsPage() {
           </Card>
 
           {/* Pro Tier Card */}
-          <Card className={cn("flex flex-col shadow-lg", isProTier && "border-2 border-primary ring-4 ring-primary/20")}>
-            <CardHeader className="pb-4 bg-gradient-to-tr from-primary/10 to-accent/10 rounded-t-lg">
-               <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <Star className="h-6 w-6 text-amber-400" />
-                    <CardTitle className="text-2xl font-semibold text-primary">{proTierInfo.name}</CardTitle>
-                </div>
-                {isProTier && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full">Current Plan</span>}
+          <Card className={cn("flex flex-col shadow-lg transition-all duration-300 ease-in-out", isProTier && "border-2 border-primary ring-4 ring-primary/20")}>
+            <CardHeader className="pb-4 bg-gradient-to-tr from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-t-lg relative">
+              <div className="absolute top-3 right-3">
+                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-400/20 dark:bg-amber-400/10 rounded-full border border-amber-500/30">
+                    <Star className="h-3.5 w-3.5" />
+                    Best Value
+                  </div>
               </div>
-              <CardDescription className="text-sm">{proTierInfo.description}</CardDescription>
+               <div className="flex justify-between items-center pt-2">
+                <CardTitle className="text-2xl font-semibold text-primary">{proTierInfo.name}</CardTitle>
+                {isProTier && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">Current Plan</span>}
+              </div>
+              <CardDescription className="text-sm pt-1">{proTierInfo.description}</CardDescription>
               <p className="text-3xl font-bold text-foreground pt-2">{proTierInfo.price}</p>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -130,13 +133,14 @@ export default function SubscriptionsPage() {
                 ))}
               </ul>
             </CardContent>
-            <CardFooter className="mt-auto">
+            <CardFooter className="mt-auto pt-6">
               <Button
-                className="w-full text-base py-6"
+                className="w-full text-base py-6 shadow-md hover:shadow-primary/30"
                 variant={isProTier ? "default" : "secondary"}
                 onClick={proTierInfo.cta.action}
                 disabled={proTierInfo.cta.disabled}
               >
+                {isProTier ? <ShieldCheck className="mr-2"/> : <Zap className="mr-2" />}
                 {proTierInfo.cta.text}
               </Button>
             </CardFooter>
@@ -144,7 +148,7 @@ export default function SubscriptionsPage() {
         </div>
          <section className="text-center mt-16">
             <p className="text-muted-foreground text-sm">
-                Need a custom solution or enterprise features? <Link href="/contact" className="text-primary hover:underline">Contact Us</Link>.
+                Need a custom solution or enterprise features? <Link href="/contact" className="text-primary hover:underline font-medium">Contact Us</Link>.
             </p>
         </section>
       </main>
@@ -157,3 +161,4 @@ export default function SubscriptionsPage() {
     </div>
   );
 }
+
