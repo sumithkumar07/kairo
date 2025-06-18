@@ -61,7 +61,7 @@ export default function HomePage() {
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
             FlowAI Studio empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
           </p>
-          <Button asChild size="lg" className="text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-shadow group">
+          <Button asChild size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-shadow">
             {isLoggedIn ? (
               <Link href="/workflow">
                 Go to Workflow Editor <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -133,7 +133,7 @@ export default function HomePage() {
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose FlowAI Studio?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
                    <Image 
                     src="https://placehold.co/100x100.png" 
                     alt="Accelerate Development" 
@@ -147,7 +147,7 @@ export default function HomePage() {
                 <p className="text-muted-foreground text-sm">Go from idea to automation significantly faster than traditional coding.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
                    <Image 
                     src="https://placehold.co/100x100.png" 
                     alt="Reduce Complexity" 
@@ -161,7 +161,7 @@ export default function HomePage() {
                 <p className="text-muted-foreground text-sm">Abstract away intricate coding tasks with a visual, node-based approach.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
                   <Image 
                     src="https://placehold.co/100x100.png" 
                     alt="Smart Assistance" 
@@ -175,18 +175,18 @@ export default function HomePage() {
                 <p className="text-muted-foreground text-sm">Leverage AI for workflow generation, suggestions, and explanations.</p>
               </div>
               <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow">
+                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow">
                     <Image 
                       src="https://placehold.co/100x100.png" 
-                      alt="Boost Efficiency" 
+                      alt="AI-Powered Insights" 
                       width={80} 
                       height={80} 
                       className="rounded-md"
-                      data-ai-hint="efficiency gears"
+                      data-ai-hint="analytics brain"
                     />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Boost Efficiency</h3>
-                <p className="text-muted-foreground text-sm">Automate repetitive processes and free up your team for high-value work.</p>
+                <h3 className="text-lg font-semibold text-foreground mb-1">AI-Powered Insights</h3>
+                <p className="text-muted-foreground text-sm">Gain deeper understanding with AI-driven explanations and suggestions for optimization.</p>
               </div>
             </div>
           </div>
@@ -251,3 +251,4 @@ export default function HomePage() {
     </div>
   );
 }
+
