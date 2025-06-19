@@ -125,33 +125,33 @@ export default function HomePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose Kairo?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
-                   <GaugeCircle className="h-16 w-16 text-primary" />
+              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col items-center text-center">
+                <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
+                   <GaugeCircle className="h-12 w-12 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Accelerate Development</h3>
-                <p className="text-muted-foreground text-sm">Go from idea to automation significantly faster than traditional coding.</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Accelerate Development</h3>
+                <p className="text-muted-foreground text-sm flex-grow">Go from idea to automation significantly faster than traditional coding.</p>
               </div>
-              <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
-                   <Puzzle className="h-16 w-16 text-primary" />
+              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col items-center text-center">
+                <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
+                   <Puzzle className="h-12 w-12 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Reduce Complexity</h3>
-                <p className="text-muted-foreground text-sm">Abstract away intricate coding tasks with a visual, node-based approach.</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Reduce Complexity</h3>
+                <p className="text-muted-foreground text-sm flex-grow">Abstract away intricate coding tasks with a visual, node-based approach.</p>
               </div>
-              <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
-                  <Lightbulb className="h-16 w-16 text-primary" />
+              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col items-center text-center">
+                <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
+                  <Lightbulb className="h-12 w-12 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">Smart Assistance</h3>
-                <p className="text-muted-foreground text-sm">Leverage AI for workflow generation, suggestions, and explanations.</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Smart Assistance</h3>
+                <p className="text-muted-foreground text-sm flex-grow">Leverage AI for workflow generation, suggestions, and explanations.</p>
               </div>
-              <div className="flex flex-col items-center text-center p-4">
-                <div className="p-3 bg-primary/10 rounded-lg mb-4 shadow hover:shadow-lg transition-shadow flex items-center justify-center h-[104px] w-[104px]">
-                    <Brain className="h-16 w-16 text-primary" />
+              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out flex flex-col items-center text-center">
+                <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
+                    <Brain className="h-12 w-12 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">AI-Powered Insights</h3>
-                <p className="text-muted-foreground text-sm">Gain deeper understanding with AI-driven explanations and suggestions for optimization.</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">AI-Powered Insights</h3>
+                <p className="text-muted-foreground text-sm flex-grow">Gain deeper understanding with AI-driven explanations and suggestions for optimization.</p>
               </div>
             </div>
           </div>
@@ -159,33 +159,30 @@ export default function HomePage() {
 
         <section className="py-16 text-center">
            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes with Kairo?</h2>
-            <div className="flex flex-col md:flex-row items-center justify-center gap-10">
-                <div className="md:w-1/2">
-                     {/* Removed Image component from here */}
-                </div>
-                <div className="md:w-1/2 md:text-left">
-                    <p className="text-lg text-muted-foreground mb-6">
-                        Kairo empowers you to connect various services, process data, and automate repetitive tasks with unparalleled ease. From simple API calls to complex multi-step AI-driven processes, build it all without writing extensive code.
-                    </p>
-                    <ul className="space-y-2 mb-6 text-left">
-                        <li className="flex items-start">
-                            <CheckCircle className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
-                            <span className="text-muted-foreground">Generate complete workflows from natural language prompts.</span>
-                        </li>
-                        <li className="flex items-start">
-                            <CheckCircle className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
-                            <span className="text-muted-foreground">Visually connect and configure diverse nodes for any task.</span>
-                        </li>
-                        <li className="flex items-start">
-                            <CheckCircle className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
-                            <span className="text-muted-foreground">Simulate execution to test and debug before going live.</span>
-                        </li>
-                         <li className="flex items-start">
-                            <CheckCircle className="h-5 w-5 text-primary mr-2 mt-0.5 shrink-0" />
-                            <span className="text-muted-foreground">Leverage AI for suggestions, explanations, and configuration help.</span>
-                        </li>
-                    </ul>
-                     <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5 group">
+            <div className="max-w-3xl mx-auto">
+                <p className="text-lg text-muted-foreground mb-6 text-center">
+                    Kairo empowers you to connect various services, process data, and automate repetitive tasks with unparalleled ease. From simple API calls to complex multi-step AI-driven processes, build it all without writing extensive code.
+                </p>
+                <ul className="space-y-3 mb-8 text-left mx-auto max-w-xl">
+                    <li className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-primary mr-2.5 mt-0.5 shrink-0" />
+                        <span className="text-muted-foreground">Generate complete workflows from natural language prompts.</span>
+                    </li>
+                    <li className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-primary mr-2.5 mt-0.5 shrink-0" />
+                        <span className="text-muted-foreground">Visually connect and configure diverse nodes for any task.</span>
+                    </li>
+                    <li className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-primary mr-2.5 mt-0.5 shrink-0" />
+                        <span className="text-muted-foreground">Simulate execution to test and debug before going live.</span>
+                    </li>
+                     <li className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-primary mr-2.5 mt-0.5 shrink-0" />
+                        <span className="text-muted-foreground">Leverage AI for suggestions, explanations, and configuration help.</span>
+                    </li>
+                </ul>
+                <div className="text-center mt-8">
+                    <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5 group">
                         {isLoggedIn ? (
                             <Link href="/workflow">
                                 Open Workflow Editor
@@ -212,6 +209,8 @@ export default function HomePage() {
     </div>
   );
 }
+    
+
     
 
     
