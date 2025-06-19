@@ -36,7 +36,7 @@ const ExplainWorkflowInputSchema = z.object({
 export type ExplainWorkflowInput = z.infer<typeof ExplainWorkflowInputSchema>;
 
 const ExplainWorkflowOutputSchema = z.object({
-  explanation: z.string().describe('A concise, natural language summary of the workflow\'s purpose, main steps, and general data flow.'),
+  explanation: z.string().describe('A concise, natural language summary of the workflow\'s purpose, main steps, and general data flow. The explanation should be clear, easy for a non-technical user to understand, yet accurate for a technical user.'),
 });
 export type ExplainWorkflowOutput = z.infer<typeof ExplainWorkflowOutputSchema>;
 
@@ -48,11 +48,12 @@ const workflowExplainerPrompt = ai.definePrompt({
   name: 'workflowExplainerPrompt',
   input: {schema: ExplainWorkflowInputSchema},
   output: {schema: ExplainWorkflowOutputSchema},
-  prompt: `You are an expert AI technical analyst. Your task is to analyze the provided workflow structure (nodes and connections) and generate a concise, high-level natural language summary.
+  prompt: `You are an expert AI technical analyst. Your task is to analyze the provided workflow structure (nodes and connections) and generate a high-level natural language summary.
+The summary should be clear, concise, and easy for a non-technical user to understand, while still being accurate for a technical user.
 
 Focus on:
-- The overall purpose or goal of the workflow if it can be inferred.
-- The main sequence of actions or stages.
+- The overall purpose or goal of the workflow if it can be inferred (the "why").
+- The main sequence of actions or stages (the "how" at a high level).
 - How data generally flows between key nodes.
 - Any significant branching, looping, or parallel processing.
 
@@ -95,3 +96,4 @@ const explainWorkflowFlow = ai.defineFlow(
     return output;
   }
 );
+

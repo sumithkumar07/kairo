@@ -17,7 +17,7 @@ const EnhanceUserPromptInputSchema = z.object({
 export type EnhanceUserPromptInput = z.infer<typeof EnhanceUserPromptInputSchema>;
 
 const EnhanceUserPromptOutputSchema = z.object({
-  enhancedPrompt: z.string().describe('The enhanced prompt, which should be clearer, more detailed, and better structured for an AI workflow generation system. It should elaborate on steps, infer potential data flows, and clarify any ambiguities from the original prompt.'),
+  enhancedPrompt: z.string().describe('The enhanced prompt, which should be clearer, more detailed, and better structured for an AI workflow generation system. It should elaborate on steps, infer potential data flows, and clarify any ambiguities from the original prompt. The enhanced prompt should sound natural, as if a helpful expert refined the user\'s original idea.'),
 });
 export type EnhanceUserPromptOutput = z.infer<typeof EnhanceUserPromptOutputSchema>;
 
@@ -30,7 +30,7 @@ const promptEnhancer = ai.definePrompt({
   input: {schema: EnhanceUserPromptInputSchema},
   output: {schema: EnhanceUserPromptOutputSchema},
   prompt: `You are an expert AI assistant specializing in understanding and refining user requests for workflow automation.
-Your goal is to take a user's potentially brief or ambiguous prompt and transform it into a clear, detailed, and well-structured prompt that an AI workflow generator can easily understand and act upon.
+Your goal is to take a user's potentially brief or ambiguous prompt and transform it into a clear, detailed, and well-structured prompt that an AI workflow generator can easily understand and act upon. The enhanced prompt should sound natural, as if a helpful expert refined the user's original idea.
 
 Consider the following when enhancing the prompt:
 - **Explicitness:** Ensure all intended steps are clearly stated. If the user says "process a file and email results," what does "process" mean? What kind of file? What specific results should be emailed?
@@ -66,3 +66,4 @@ const enhanceUserPromptFlow = ai.defineFlow(
     return output;
   }
 );
+
