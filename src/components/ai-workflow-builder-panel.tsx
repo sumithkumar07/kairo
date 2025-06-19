@@ -23,7 +23,7 @@ interface AIWorkflowBuilderPanelProps {
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
   onSaveWorkflow: () => void;
-  onSaveWorkflowAs: () => void; 
+  onSaveWorkflowAs: () => void;
   onLoadWorkflow: () => void;
   onExportWorkflow: () => void;
   onImportWorkflow: () => void;
@@ -37,7 +37,7 @@ interface AIWorkflowBuilderPanelProps {
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: () => void;
+  onCanvasClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void; // Updated signature
   onCanvasPanStart: (event: React.MouseEvent) => void;
   canvasOffset: { x: number; y: number };
   isPanningForCursor: boolean;
@@ -46,13 +46,13 @@ interface AIWorkflowBuilderPanelProps {
   zoomLevel: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
-  onResetView: () => void; 
+  onResetView: () => void;
   onExplainWorkflow: () => void;
   isExplainingWorkflow: boolean;
-  onUndo: () => void; 
-  canUndo: boolean; 
-  onRedo: () => void; 
-  canRedo: boolean; 
+  onUndo: () => void;
+  canUndo: boolean;
+  onRedo: () => void;
+  canRedo: boolean;
   toast: ReturnType<typeof useToast>['toast'];
   onDeleteSelectedConnection: () => void;
 }
@@ -68,7 +68,7 @@ export function AIWorkflowBuilderPanel({
   onCanvasDrop,
   onToggleAssistant,
   onSaveWorkflow,
-  onSaveWorkflowAs, 
+  onSaveWorkflowAs,
   onLoadWorkflow,
   onExportWorkflow,
   onImportWorkflow,
@@ -105,14 +105,14 @@ export function AIWorkflowBuilderPanel({
       toast({
         title: 'Pro Feature',
         description: `Workflow explanation is available on the Pro plan. ${!isLoggedIn ? 'Sign up or log in to start a trial.' : 'Please upgrade to use this feature.'}`,
-        variant: 'default', 
+        variant: 'default',
         duration: 5000,
       });
       return;
     }
     onExplainWorkflow();
   };
-  
+
   const getSubscriptionButton = () => {
     let tooltipContent: string;
     let buttonContent = <Sparkles className="h-4 w-4 mr-1.5" />;
@@ -124,14 +124,14 @@ export function AIWorkflowBuilderPanel({
     if (isLoggedIn && isProOrTrial) {
       tooltipContent = `You are on the ${currentTier === 'Pro Trial' ? 'Pro trial' : 'Pro plan'}. All features unlocked!`;
       buttonText = currentTier === 'Pro Trial' ? 'Pro Trial Active' : 'Pro Plan Active';
-      href = undefined; 
+      href = undefined;
       className = "cursor-default text-primary hover:bg-primary/10";
     } else if (!isLoggedIn) {
       tooltipContent = "Sign up for a 15-day Pro trial to unlock all features.";
       buttonText = "Sign Up for Trial";
       href = "/signup";
       buttonContent = <UserPlus className="h-4 w-4 mr-1.5" />;
-    } else { 
+    } else {
       tooltipContent = "Upgrade to Pro to unlock more AI features and capabilities.";
       buttonText = "Upgrade to Pro";
       href = "/subscriptions";
@@ -145,14 +145,14 @@ export function AIWorkflowBuilderPanel({
             {buttonText}
           </Link>
         ) : (
-          <span> 
+          <span>
             {buttonContent}
             {buttonText}
           </span>
         )}
       </Button>
     );
-    
+
     return (
       <Tooltip>
         <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
@@ -179,7 +179,7 @@ export function AIWorkflowBuilderPanel({
           <div>
             <h1 className="text-xl font-semibold text-foreground">Kairo</h1>
             <p className="text-xs text-muted-foreground">
-              Build, simulate, and deploy AI-driven automations. Current Tier: 
+              Build, simulate, and deploy AI-driven automations. Current Tier:
               <span className={cn("font-semibold ml-1", isProOrTrial ? "text-primary" : "text-amber-500")}>
                 {currentTier}
               </span>
@@ -213,7 +213,7 @@ export function AIWorkflowBuilderPanel({
             </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
-            
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
@@ -314,7 +314,7 @@ export function AIWorkflowBuilderPanel({
 
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
-            
+
             {getSubscriptionButton()}
           </div>
         </div>
@@ -390,7 +390,7 @@ export function AIWorkflowBuilderPanel({
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div> 
+              <div>
                 <Button
                   variant="outline"
                   size="icon"
@@ -399,7 +399,7 @@ export function AIWorkflowBuilderPanel({
                   disabled={!hasWorkflow || isExplainingWorkflow || !isProOrTrial}
                   title={getExplainWorkflowTooltipContent()}
                 >
-                  {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> : 
+                  {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> :
                    !isProOrTrial ? <ShieldQuestion className="h-5 w-5 text-muted-foreground" /> : <MessageSquareText className="h-5 w-5" />}
                 </Button>
               </div>

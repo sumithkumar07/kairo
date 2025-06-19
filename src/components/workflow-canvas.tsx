@@ -14,9 +14,9 @@ interface WorkflowCanvasProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
   selectedNodeId: string | null;
-  selectedConnectionId: string | null; 
+  selectedConnectionId: string | null;
   onNodeClick: (nodeId: string) => void;
-  onConnectionClick: (connectionId: string) => void; 
+  onConnectionClick: (connectionId: string) => void;
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   isConnecting: boolean;
@@ -28,12 +28,12 @@ interface WorkflowCanvasProps {
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: () => void; 
-  onCanvasPanStart: (event: React.MouseEvent) => void; 
-  canvasOffset: { x: number; y: number }; 
-  isPanningForCursor: boolean; 
-  connectionStartNodeId: string | null; 
-  connectionStartHandleId: string | null; 
+  onCanvasClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void; // Updated signature
+  onCanvasPanStart: (event: React.MouseEvent) => void;
+  canvasOffset: { x: number; y: number };
+  isPanningForCursor: boolean;
+  connectionStartNodeId: string | null;
+  connectionStartHandleId: string | null;
   zoomLevel: number;
   onDeleteSelectedConnection: () => void;
 }
@@ -54,8 +54,8 @@ export function WorkflowCanvas({
   connectionPreview,
   onCanvasClick,
   onCanvasPanStart,
-  canvasOffset, 
-  isPanningForCursor, 
+  canvasOffset,
+  isPanningForCursor,
   connectionStartNodeId,
   connectionStartHandleId,
   zoomLevel,
@@ -78,7 +78,7 @@ export function WorkflowCanvas({
     event.dataTransfer.dropEffect = 'move';
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
-      
+
       onUpdateConnectionPreview({
         x: (event.clientX - canvasRect.left + canvasRef.current.scrollLeft) / zoomLevel - canvasOffset.x,
         y: (event.clientY - canvasRect.top + canvasRef.current.scrollTop) / zoomLevel - canvasOffset.y,
@@ -93,7 +93,7 @@ export function WorkflowCanvas({
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const scrollLeft = canvasRef.current.scrollLeft;
     const scrollTop = canvasRef.current.scrollTop;
-    
+
     let dropXView = (event.clientX - canvasRect.left + scrollLeft) / zoomLevel;
     let dropYView = (event.clientY - canvasRect.top + scrollTop) / zoomLevel;
 
@@ -103,12 +103,12 @@ export function WorkflowCanvas({
     const draggedNodeData = event.dataTransfer.getData('application/json');
     const draggedNodeId = event.dataTransfer.getData('application/nodeId');
 
-    if (draggedNodeData) { 
+    if (draggedNodeData) {
       const nodeType = JSON.parse(draggedNodeData) as AvailableNodeType;
-      const finalX = dropXContent - (NODE_WIDTH / 2); 
+      const finalX = dropXContent - (NODE_WIDTH / 2);
       const finalY = dropYContent - (NODE_HEIGHT / 2);
       onCanvasDrop(nodeType, { x: Math.max(0, finalX), y: Math.max(0, finalY) });
-    } else if (draggedNodeId && draggingNodeOffset) { 
+    } else if (draggedNodeId && draggingNodeOffset) {
       const finalX = dropXContent - draggingNodeOffset.x;
       const finalY = dropYContent - draggingNodeOffset.y;
       onNodeDragStop(draggedNodeId, { x: Math.max(0, finalX), y: Math.max(0, finalY) });
@@ -120,51 +120,50 @@ export function WorkflowCanvas({
   const handleNodeDragStartInternal = useCallback((event: React.DragEvent<HTMLDivElement>, nodeId: string) => {
     event.dataTransfer.setData('application/nodeId', nodeId);
     event.dataTransfer.effectAllowed = 'move';
-    
+
     const nodeElement = document.getElementById(`node-${nodeId}`);
     if (nodeElement) {
-        const nodeRect = nodeElement.getBoundingClientRect(); 
+        const nodeRect = nodeElement.getBoundingClientRect();
         if (canvasRef.current) {
             setDraggingNodeOffset({
-                x: (event.clientX - nodeRect.left) / zoomLevel, 
+                x: (event.clientX - nodeRect.left) / zoomLevel,
                 y: (event.clientY - nodeRect.top) / zoomLevel,
             });
         }
     }
-  }, [zoomLevel]); 
-  
+  }, [zoomLevel]);
+
   const getHandlePosition = (node: WorkflowNode, handleId: string, isOutput: boolean): { x: number, y: number } => {
     const nodeTypeConfig = getNodeTypeConfig(node.type);
     const handles = isOutput ? nodeTypeConfig?.outputHandles : nodeTypeConfig?.inputHandles;
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
-    
+
     const y = node.position.y + (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
     const x = isOutput ? node.position.x + NODE_WIDTH : node.position.x;
     return { x, y };
   };
 
   const handleLocalCanvasMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    const targetIsCanvas = event.target === event.currentTarget || 
+    const targetIsCanvas = event.target === event.currentTarget ||
                            (event.target as HTMLElement).classList.contains('pannable-content-wrapper') ||
-                           (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg'); 
+                           (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg');
 
     const clickedOnConnectionTarget = (event.target as HTMLElement).closest('[data-connection-click-target="true"], [data-delete-connection-button="true"]');
 
-
     if (targetIsCanvas && !clickedOnConnectionTarget) {
-      if (event.button === 0) { 
-        onCanvasClick(); 
-        onCanvasPanStart(event); 
+      if (event.button === 0) {
+        onCanvasClick(event); // Pass event
+        onCanvasPanStart(event);
       }
     } else if (!targetIsCanvas && !clickedOnConnectionTarget) {
         const isNodeOrHandle = (event.target as HTMLElement).closest('.workflow-node-item, [data-handle-id]');
         if (!isNodeOrHandle) {
-          onCanvasClick(); 
+          onCanvasClick(event); // Pass event
         }
     }
   };
-  
+
   const handleMouseMoveOnCanvas = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -194,18 +193,18 @@ export function WorkflowCanvas({
         onMouseDown={handleLocalCanvasMouseDown}
         onMouseMove={handleMouseMoveOnCanvas}
       >
-        <div 
+        <div
           className="absolute top-0 left-0 w-full h-full pannable-content-wrapper"
-          style={{ 
+          style={{
             transform: `translate(${canvasOffset.x * zoomLevel}px, ${canvasOffset.y * zoomLevel}px) scale(${zoomLevel})`,
             transformOrigin: 'top left',
-            minWidth: 'inherit', 
+            minWidth: 'inherit',
             minHeight: 'inherit',
           }}
         >
-          <svg 
-            className="absolute top-0 left-0 w-full h-full pointer-events-none" 
-            style={{ minWidth: 'inherit', minHeight: 'inherit' }} 
+          <svg
+            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+            style={{ minWidth: 'inherit', minHeight: 'inherit' }}
           >
             <defs>
               <marker id="arrow" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
@@ -225,7 +224,7 @@ export function WorkflowCanvas({
 
               const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
               const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
-              
+
               const isSelected = conn.id === selectedConnectionId;
               const strokeColor = isSelected ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
               const strokeWidth = isSelected ? 2.5 : 1.5;
@@ -240,11 +239,11 @@ export function WorkflowCanvas({
               return (
                 <g key={conn.id}>
                   <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none" markerEnd={marker} />
-                  <path 
-                    data-connection-click-target="true" 
-                    d={pathD} 
-                    stroke="transparent" 
-                    strokeWidth="10" 
+                  <path
+                    data-connection-click-target="true"
+                    d={pathD}
+                    stroke="transparent"
+                    strokeWidth="10"
                     fill="none"
                     className="cursor-pointer pointer-events-stroke"
                     onClick={(e) => { e.stopPropagation(); onConnectionClick(conn.id || ''); }}
@@ -271,7 +270,7 @@ export function WorkflowCanvas({
 
             const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
             const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
-            
+
             const midX = (sourcePos.x + targetPos.x) / 2;
             const midY = (sourcePos.y + targetPos.y) / 2;
 
@@ -309,7 +308,7 @@ export function WorkflowCanvas({
               onDragStartInternal={handleNodeDragStartInternal}
               onHandleClick={(nodeId, handleId, handleType, handlePosition) => {
                 const absoluteHandlePosition = {
-                    x: handlePosition.x, 
+                    x: handlePosition.x,
                     y: handlePosition.y
                 };
                 if (handleType === 'output' && !isConnecting) {
@@ -321,11 +320,11 @@ export function WorkflowCanvas({
               isConnecting={isConnecting}
               connectionStartNodeId={connectionStartNodeId}
               connectionStartHandleId={connectionStartHandleId}
-              connections={connections} 
+              connections={connections}
             />
           ))}
         </div>
-        
+
         {nodes.length === 0 && !isConnecting && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <p className="text-muted-foreground text-lg">
@@ -337,4 +336,3 @@ export function WorkflowCanvas({
     </ScrollArea>
   );
 }
-

@@ -39,7 +39,7 @@ import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH }
 import { produce } from 'immer';
 import { MousePointer2 } from 'lucide-react';
 
-const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; 
+const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
 const WORKFLOW_PREFIX = 'kairoWorkflow_';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
@@ -62,7 +62,7 @@ export default function WorkflowPage() {
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false); 
+  const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false);
   const [isAssistantVisible, setIsAssistantVisible] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
@@ -78,7 +78,7 @@ export default function WorkflowPage() {
 
   const [suggestedNextNodeInfo, setSuggestedNextNodeInfo] = useState<{ suggestion: SuggestNextNodeOutput; forNodeId: string } | null>(null);
   const [initialCanvasSuggestion, setInitialCanvasSuggestion] = useState<SuggestNextNodeOutput | null>(null);
-  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false); 
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const [isLoadingInitialSuggestion, setIsLoadingInitialSuggestion] = useState(false);
   const [initialSuggestionAttempted, setInitialSuggestionAttempted] = useState(false);
 
@@ -97,8 +97,8 @@ export default function WorkflowPage() {
   const [showClearCanvasConfirmDialog, setShowClearCanvasConfirmDialog] = useState(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1); 
-  
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
 
@@ -111,21 +111,21 @@ export default function WorkflowPage() {
     setHistory(prevHistory => {
       const newHistoryRaw = prevHistory.slice(0, historyIndex + 1);
       const currentEntry: HistoryEntry = {
-        nodes: nodes, 
+        nodes: nodes,
         connections: connections,
         selectedNodeId: selectedNodeId,
         selectedConnectionId: selectedConnectionId,
         canvasOffset: canvasOffset,
         zoomLevel: zoomLevel,
       };
-      
+
       if (newHistoryRaw.length > 0 && JSON.stringify(newHistoryRaw[newHistoryRaw.length -1]) === JSON.stringify(currentEntry) ) {
         return prevHistory;
       }
 
       const newHistoryWithCurrent = [...newHistoryRaw, currentEntry];
       const limitedHistory = newHistoryWithCurrent.slice(-MAX_HISTORY_STEPS);
-      
+
       setHistoryIndex(limitedHistory.length - 1);
       return limitedHistory;
     });
@@ -143,8 +143,8 @@ export default function WorkflowPage() {
     setHistory([initialEntry]);
     setHistoryIndex(0);
     setInitialSuggestionAttempted(false);
-  }, []); 
-  
+  }, []);
+
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
@@ -185,10 +185,10 @@ export default function WorkflowPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const lastHistoryState = history[historyIndex];
-      
+
       let changed = false;
       if (!lastHistoryState) {
-        if (nodes.length > 0 || connections.length > 0) changed = true; 
+        if (nodes.length > 0 || connections.length > 0) changed = true;
       } else {
         if (JSON.stringify(lastHistoryState.nodes) !== JSON.stringify(nodes) ||
             JSON.stringify(lastHistoryState.connections) !== JSON.stringify(connections) ||
@@ -197,7 +197,7 @@ export default function WorkflowPage() {
           changed = true;
         }
       }
-      
+
       const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
       if (savedWorkflowJson) {
         try {
@@ -209,11 +209,11 @@ export default function WorkflowPage() {
             changed = true;
           }
         } catch (e) { /* ignore parsing error for this check */ }
-      } else if (isSimulationMode !== true || nodes.length > 0 || connections.length > 0 ) { 
+      } else if (isSimulationMode !== true || nodes.length > 0 || connections.length > 0 ) {
          changed = true;
       }
 
-      if (changed) { 
+      if (changed) {
         const workflowToSave = {
             nodes,
             connections,
@@ -227,7 +227,7 @@ export default function WorkflowPage() {
     }
   }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, history, historyIndex]);
 
-  const handleLoadWorkflow = useCallback((showToast = true) => {
+  const handleLoadWorkflow = useCallback((showToastMessage = true) => {
     if (typeof window !== 'undefined') {
       const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
       if (savedWorkflowJson) {
@@ -252,14 +252,14 @@ export default function WorkflowPage() {
           setWorkflowExplanation(null);
           setInitialCanvasSuggestion(null);
           setSuggestedNextNodeInfo(null);
-          
+
           resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
-          if (showToast) {
+          if (showToastMessage) {
             toast({ title: 'Workflow Loaded', description: 'Your current working workflow has been loaded.' });
           }
         } catch (error: any) {
            console.error("Error loading workflow from local storage:", error);
-           if (showToast) {
+           if (showToastMessage) {
             toast({ title: 'Load Error', description: `Failed to load workflow: ${error.message}`, variant: 'destructive'});
            }
            localStorage.removeItem(CURRENT_WORKFLOW_KEY);
@@ -267,7 +267,7 @@ export default function WorkflowPage() {
            resetHistoryForNewWorkflow([], []);
         }
       } else {
-        if (showToast) {
+        if (showToastMessage) {
           toast({ title: 'No Saved Workflow', description: 'No current working workflow found in local storage.', variant: 'default' });
         }
         setNodes([]); setConnections([]); setCanvasOffset({x:0,y:0}); setZoomLevel(1);
@@ -281,16 +281,16 @@ export default function WorkflowPage() {
       const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
       localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(workflowToSave));
       toast({ title: 'Current Workflow Saved', description: 'Your current work has been saved locally.' });
-      saveHistory(); 
+      saveHistory();
     }
   }, [nodes, connections, toast, canvasOffset, zoomLevel, isSimulationMode, saveHistory]);
-  
+
   const handleSaveWorkflowAs = useCallback(() => {
     if (nodes.length === 0 && connections.length === 0) {
       toast({ title: 'Empty Workflow', description: 'Cannot save an empty workflow with a name.', variant: 'default' });
       return;
     }
-    setSaveAsName(''); 
+    setSaveAsName('');
     setShowSaveAsDialog(true);
   }, [nodes, connections, toast]);
 
@@ -301,7 +301,7 @@ export default function WorkflowPage() {
     }
 
     const workflowKey = `${WORKFLOW_PREFIX}${saveAsName}`;
-    
+
     const indexJson = localStorage.getItem(SAVED_WORKFLOWS_INDEX_KEY);
     let names: string[] = [];
     if (indexJson) {
@@ -309,7 +309,7 @@ export default function WorkflowPage() {
     }
 
     if (names.includes(saveAsName) || localStorage.getItem(workflowKey)) {
-      
+
       const overwrite = confirm(`A workflow named "${saveAsName}" already exists. Overwrite it?`);
       if (!overwrite) {
         setShowSaveAsDialog(false);
@@ -327,7 +327,7 @@ export default function WorkflowPage() {
 
     toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
     setShowSaveAsDialog(false);
-    saveHistory(); 
+    saveHistory();
   }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
 
@@ -519,7 +519,7 @@ export default function WorkflowPage() {
   const handleZoomIn = useCallback(() => {
     setZoomLevel(prev => {
       const newZoom = Math.min(MAX_ZOOM, prev + ZOOM_STEP);
-      if (newZoom !== prev) saveHistory(); 
+      if (newZoom !== prev) saveHistory();
       return newZoom;
     });
   }, [saveHistory]);
@@ -527,7 +527,7 @@ export default function WorkflowPage() {
   const handleZoomOut = useCallback(() => {
     setZoomLevel(prev => {
       const newZoom = Math.max(MIN_ZOOM, prev - ZOOM_STEP);
-      if (newZoom !== prev) saveHistory(); 
+      if (newZoom !== prev) saveHistory();
       return newZoom;
     });
   }, [saveHistory]);
@@ -540,15 +540,15 @@ export default function WorkflowPage() {
   }, [saveHistory, toast]);
 
   useEffect(() => {
-    handleLoadWorkflow(false); 
+    handleLoadWorkflow(false);
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
     } else {
-      setIsAssistantVisible(false); 
+      setIsAssistantVisible(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   useEffect(() => {
     const isInputField = (target: EventTarget | null): boolean => {
@@ -560,14 +560,14 @@ export default function WorkflowPage() {
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
-      if (isCtrlOrMeta && event.key.toLowerCase() === 's') { 
-        event.preventDefault(); 
+      if (isCtrlOrMeta && event.key.toLowerCase() === 's') {
+        event.preventDefault();
         if (event.shiftKey) {
             handleSaveWorkflowAs();
         } else {
-            handleManualSaveWorkflow(); 
+            handleManualSaveWorkflow();
         }
-        return; 
+        return;
       }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleLoadWorkflow(true); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
@@ -634,7 +634,7 @@ export default function WorkflowPage() {
       if (isPanning) {
         setIsPanning(false);
         document.body.style.cursor = 'default';
-        saveHistory(); 
+        saveHistory();
       }
     };
 
@@ -654,7 +654,7 @@ export default function WorkflowPage() {
 
   useEffect(() => {
     let isActive = true;
-  
+
     const fetchSuggestionsLogic = async () => {
       if (selectedNodeId) {
         if (isActive) {
@@ -671,7 +671,7 @@ export default function WorkflowPage() {
           let context = `Workflow in progress. Current node: "${currentNode.name}" (Type: ${currentNode.type}).`;
           if (currentNode.aiExplanation) context += ` AI Explanation (summary): ${currentNode.aiExplanation.substring(0, 150)}...`;
           else if (currentNode.description) context += ` Description: ${currentNode.description.substring(0,150)}...`;
-  
+
           const suggestionResult = await suggestNextWorkflowNode({
             currentNodeType: currentNode.type,
             workflowContext: context,
@@ -683,21 +683,21 @@ export default function WorkflowPage() {
         } finally {
           if (isActive) setIsLoadingSuggestion(false);
         }
-      } else { 
+      } else {
         if (isActive) {
-          setSuggestedNextNodeInfo(null); 
-          if(isLoadingSuggestion) setIsLoadingSuggestion(false); 
+          setSuggestedNextNodeInfo(null);
+          if(isLoadingSuggestion) setIsLoadingSuggestion(false);
         }
-  
+
         const shouldFetchInitial =
-          isAssistantVisible && 
+          isAssistantVisible &&
           nodes.length === 0 &&
           !selectedConnectionId &&
           !workflowExplanation &&
-          !initialCanvasSuggestion && 
-          !isLoadingInitialSuggestion && 
-          !initialSuggestionAttempted; 
-  
+          !initialCanvasSuggestion &&
+          !isLoadingInitialSuggestion &&
+          !initialSuggestionAttempted;
+
         if (shouldFetchInitial) {
           if (isActive) {
             setIsLoadingInitialSuggestion(true);
@@ -720,7 +720,7 @@ export default function WorkflowPage() {
         }
       }
     };
-  
+
     if (isAssistantVisible) {
       fetchSuggestionsLogic();
     } else {
@@ -731,16 +731,16 @@ export default function WorkflowPage() {
         if (isLoadingInitialSuggestion) setIsLoadingInitialSuggestion(false);
       }
     }
-  
+
     return () => { isActive = false; };
   }, [
-    isAssistantVisible, 
-    selectedNodeId, 
-    nodes, 
-    selectedConnectionId, 
-    workflowExplanation, 
-    initialCanvasSuggestion, 
-    isLoadingInitialSuggestion, 
+    isAssistantVisible,
+    selectedNodeId,
+    nodes,
+    selectedConnectionId,
+    workflowExplanation,
+    initialCanvasSuggestion,
+    isLoadingInitialSuggestion,
     initialSuggestionAttempted,
   ]);
 
@@ -807,7 +807,7 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-    
+
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
     resetHistoryForNewWorkflow(newNodes, newConnections);
@@ -879,11 +879,11 @@ export default function WorkflowPage() {
       let newY = 50;
       if (nodes.length > 0) {
         newX = Math.max(...nodes.map(n => n.position.x)) + NODE_WIDTH + 60;
-        if (newX > 1000) { 
+        if (newX > 1000) {
           newX = 50;
           newY = Math.max(...nodes.map(n => n.position.y)) + NODE_HEIGHT + 40;
         } else {
-          newY = nodes[nodes.length -1].position.y; 
+          newY = nodes[nodes.length -1].position.y;
         }
       }
       position = { x: newX, y: newY };
@@ -938,7 +938,7 @@ export default function WorkflowPage() {
     setIsConnecting(true);
     setConnectionStartNodeId(startNodeId);
     setConnectionStartHandleId(startHandleId);
-    setConnectionPreviewPosition(startHandlePos); 
+    setConnectionPreviewPosition(startHandlePos);
     setSelectedNodeId(null);
     setSelectedConnectionId(null);
     setWorkflowExplanation(null);
@@ -952,6 +952,7 @@ export default function WorkflowPage() {
   }, [isConnecting]);
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (!event) return;
     const target = event.target;
     if (target instanceof HTMLElement) {
         if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
@@ -979,8 +980,8 @@ export default function WorkflowPage() {
         return;
     }
 
-    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>); 
-    if (!isConnecting) { 
+    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>);
+    if (!isConnecting) {
       setIsPanning(true);
       panStartRef.current = { x: event.clientX, y: event.clientY };
       document.body.style.cursor = 'grabbing';
@@ -1023,14 +1024,14 @@ export default function WorkflowPage() {
       return;
     }
     setIsExplainingWorkflow(true);
-    setWorkflowExplanation(null); 
-    setSelectedNodeId(null); 
+    setWorkflowExplanation(null);
+    setSelectedNodeId(null);
     setSelectedConnectionId(null);
-    setInitialCanvasSuggestion(null); 
+    setInitialCanvasSuggestion(null);
     try {
       const explanation = await getWorkflowExplanation({ nodes, connections });
       setWorkflowExplanation(explanation);
-      setIsAssistantVisible(true); 
+      setIsAssistantVisible(true);
       localStorage.setItem(ASSISTANT_PANEL_VISIBLE_KEY, JSON.stringify(true));
     } catch (error: any) {
       toast({ title: 'Error Explaining Workflow', description: error.message, variant: 'destructive' });
@@ -1051,9 +1052,9 @@ export default function WorkflowPage() {
 
   const handleClearLogs = useCallback(() => {
     setExecutionLogs([]);
-    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }))); 
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
     toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared and node statuses reset.' });
-    saveHistory(); 
+    saveHistory();
   }, [toast, saveHistory]);
 
   const handleConfirmClearCanvas = useCallback(() => {
@@ -1066,7 +1067,7 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-    
+
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
     resetHistoryForNewWorkflow([], []);
@@ -1116,7 +1117,7 @@ export default function WorkflowPage() {
               throw new Error('Invalid workflow file structure.');
             }
 
-            const importedNodes = (importedData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus']})); 
+            const importedNodes = (importedData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus']}));
             setNodes(importedNodes);
             setConnections(importedData.connections || []);
             nextNodeIdRef.current = importedData.nextNodeId || Math.max(0, ...importedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1;
@@ -1130,11 +1131,11 @@ export default function WorkflowPage() {
             setWorkflowExplanation(null);
             setInitialCanvasSuggestion(null);
             setSuggestedNextNodeInfo(null);
-            
+
             resetHistoryForNewWorkflow(importedNodes, importedData.connections || []);
 
             toast({ title: 'Workflow Imported', description: 'Workflow loaded from file and set as current.' });
-            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData)); 
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData));
           } catch (error: any) {
             toast({ title: 'Import Error', description: `Failed to import workflow: ${error.message}`, variant: 'destructive' });
           }
@@ -1174,9 +1175,9 @@ export default function WorkflowPage() {
           onConnectionClick={handleConnectionClick}
           onNodeDragStop={(nodeId, position) => {
             updateNodePosition(nodeId, position);
-            saveHistory(); 
+            saveHistory();
           }}
-          onCanvasDrop={addNodeToCanvas} 
+          onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
           onSaveWorkflow={handleManualSaveWorkflow}
           onSaveWorkflowAs={handleSaveWorkflowAs}
@@ -1186,7 +1187,7 @@ export default function WorkflowPage() {
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
           onStartConnection={handleStartConnection}
-          onCompleteConnection={handleCompleteConnection} 
+          onCompleteConnection={handleCompleteConnection}
           onUpdateConnectionPreview={handleUpdateConnectionPreview}
           connectionPreview={{
             startNodeId: connectionStartNodeId,
@@ -1200,8 +1201,8 @@ export default function WorkflowPage() {
           connectionStartNodeId={connectionStartNodeId}
           connectionStartHandleId={connectionStartHandleId}
           zoomLevel={zoomLevel}
-          onZoomIn={handleZoomIn} 
-          onZoomOut={handleZoomOut} 
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
           onResetView={handleResetView}
           onExplainWorkflow={handleGetWorkflowExplanation}
           isExplainingWorkflow={isExplainingWorkflow}
@@ -1210,7 +1211,7 @@ export default function WorkflowPage() {
           onRedo={handleRedo}
           canRedo={canRedo}
           toast={toast}
-          onDeleteSelectedConnection={handleDeleteSelectedConnection} 
+          onDeleteSelectedConnection={handleDeleteSelectedConnection}
         />
 
         {isAssistantVisible && (
@@ -1218,24 +1219,24 @@ export default function WorkflowPage() {
             <AIWorkflowAssistantPanel
               nodes={nodes}
               connections={connections}
-              onWorkflowGenerated={handleAiPromptSubmit} 
-              setIsLoadingGlobal={setIsLoadingAiWorkflow} 
+              onWorkflowGenerated={handleAiPromptSubmit}
+              setIsLoadingGlobal={setIsLoadingAiWorkflow}
               isExplainingWorkflow={isExplainingWorkflow}
               workflowExplanation={workflowExplanation}
               onClearExplanation={() => {
                   setWorkflowExplanation(null);
               }}
               initialCanvasSuggestion={initialCanvasSuggestion}
-              isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion} 
-              onAddSuggestedNode={handleAddSuggestedNode} 
+              isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
+              onAddSuggestedNode={handleAddSuggestedNode}
               isCanvasEmpty={nodes.length === 0}
               executionLogs={executionLogs}
-              onClearLogs={handleClearLogs} 
+              onClearLogs={handleClearLogs}
               isWorkflowRunning={isWorkflowRunning}
               selectedNodeId={selectedNodeId}
               selectedConnectionId={selectedConnectionId}
-              onDeleteSelectedConnection={handleDeleteSelectedConnection} 
-              onDeselectConnection={() => setSelectedConnectionId(null)} 
+              onDeleteSelectedConnection={handleDeleteSelectedConnection}
+              onDeselectConnection={() => setSelectedConnectionId(null)}
               isConnecting={isConnecting}
               onCancelConnection={handleCancelConnection}
               onRunWorkflow={handleRunWorkflow}
@@ -1247,16 +1248,16 @@ export default function WorkflowPage() {
                 <NodeConfigPanel
                   node={selectedNode}
                   nodeType={selectedNodeType}
-                  onConfigChange={handleNodeConfigChange} 
-                  onNodeNameChange={handleNodeNameChange} 
-                  onNodeDescriptionChange={handleNodeDescriptionChange} 
-                  onDeleteNode={handleDeleteNode} 
+                  onConfigChange={handleNodeConfigChange}
+                  onNodeNameChange={handleNodeNameChange}
+                  onNodeDescriptionChange={handleNodeDescriptionChange}
+                  onDeleteNode={handleDeleteNode}
                   suggestedNextNodeInfo={suggestedNextNodeInfo}
-                  isLoadingSuggestion={isLoadingSuggestion} 
-                  onAddSuggestedNode={handleAddSuggestedNode} 
+                  isLoadingSuggestion={isLoadingSuggestion}
+                  onAddSuggestedNode={handleAddSuggestedNode}
                 />
               ) : (
-               null 
+               null
               )}
             </div>
           </aside>
