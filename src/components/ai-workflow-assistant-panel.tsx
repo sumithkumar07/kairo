@@ -126,7 +126,7 @@ export function AIWorkflowAssistantPanel({
         workflowContext = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
       }
       
-      const historyForAI = chatHistory.slice(-5).map(ch => ({sender: ch.sender, message: ch.message}));
+      const historyForAI = chatHistory.slice(-6, -1).map(ch => ({sender: ch.sender, message: ch.message})); // Get previous 5 messages
 
       const chatResult = await assistantChat({ userMessage: currentChatInput, workflowContext, chatHistory: historyForAI });
       
@@ -139,8 +139,8 @@ export function AIWorkflowAssistantPanel({
       setChatHistory(prev => [...prev, aiMessage]);
 
       if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
-        setIsChatLoading(false); // Stop chat loading before starting global loading
-        setIsLoadingGlobal(true); // Show loader on main canvas
+        setIsChatLoading(false); 
+        setIsLoadingGlobal(true); 
         try {
           const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
           onWorkflowGenerated(generatedWorkflow);
@@ -172,25 +172,27 @@ export function AIWorkflowAssistantPanel({
         } finally {
           setIsLoadingGlobal(false);
         }
+      } else {
+        // Not a workflow generation request, or prompt was missing, so it's treated as simple chat.
+        // Chat interaction is complete.
+        setIsChatLoading(false);
       }
-    } catch (error: any) {
+    } catch (error: any) { // Error from the `assistantChat` call itself
       console.error('AI chat error:', error);
+      const errorMessageText = error.message || 'Sorry, I encountered an error communicating with the AI.';
       const errorMessage: ChatMessage = {
         id: crypto.randomUUID(),
         sender: 'ai',
-        message: error.message || 'Sorry, I encountered an error.',
+        message: errorMessageText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setChatHistory(prev => [...prev, errorMessage]);
       toast({
         title: 'Error Chatting with AI',
-        description: error.message || 'An unknown error occurred.',
+        description: errorMessageText,
         variant: 'destructive',
       });
-    } finally {
-      if (! (chatHistory[chatHistory.length-1]?.message.startsWith("Workflow generated") && chatHistory[chatHistory.length-1]?.sender === 'ai' ) ) {
-        setIsChatLoading(false); // Ensure chat loading is stopped if not handled by generation path
-      }
+      setIsChatLoading(false); // Ensure chat loading stops on error.
     }
   };
 
@@ -551,3 +553,4 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
+
