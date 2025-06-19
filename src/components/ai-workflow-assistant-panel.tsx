@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { enhanceAndGenerateWorkflow } from '@/app/actions';
+import { assistantChat } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2 } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -22,8 +22,8 @@ import { Switch } from '@/components/ui/switch';
 interface AIWorkflowAssistantPanelProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
-  onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
-  setIsLoadingGlobal: (isLoading: boolean) => void; 
+  onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void; // This is for the main builder's prompt
+  setIsLoadingGlobal: (isLoading: boolean) => void; // This is for the main builder's prompt
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
@@ -45,16 +45,23 @@ interface AIWorkflowAssistantPanelProps {
   isSimulationMode: boolean;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  message: string;
+  timestamp: string;
+}
+
 export function AIWorkflowAssistantPanel({
   nodes,
   connections,
-  onWorkflowGenerated,
-  setIsLoadingGlobal,
+  onWorkflowGenerated, // Retained for main prompt, not used by internal chat
+  setIsLoadingGlobal, // Retained for main prompt, not used by internal chat
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
   initialCanvasSuggestion,
-  isLoadingSuggestion,
+  isLoadingSuggestion, 
   onAddSuggestedNode,
   isCanvasEmpty,
   executionLogs,
@@ -70,10 +77,12 @@ export function AIWorkflowAssistantPanel({
   onToggleSimulationMode,
   isSimulationMode,
 }: AIWorkflowAssistantPanelProps) {
-  const [prompt, setPrompt] = useState('');
-  const [isLoadingLocalPrompt, setIsLoadingLocalPrompt] = useState(false); 
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const { toast } = useToast();
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (logsScrollAreaRef.current) {
@@ -81,47 +90,80 @@ export function AIWorkflowAssistantPanel({
     }
   }, [executionLogs]);
 
-  const handleSubmit = async () => {
-    if (!prompt.trim()) {
+  useEffect(() => {
+    if (chatScrollAreaRef.current) {
+      chatScrollAreaRef.current.scrollTop = chatScrollAreaRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
+
+  const handleChatSubmit = async () => {
+    if (!chatInput.trim()) {
       toast({
-        title: 'Prompt is empty',
-        description: 'Please describe the workflow you want to generate.',
+        title: 'Message is empty',
+        description: 'Please enter a message to send to the AI.',
         variant: 'destructive',
       });
       return;
     }
 
-    setIsLoadingLocalPrompt(true);
-    setIsLoadingGlobal(true); 
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      sender: 'user',
+      message: chatInput,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setChatHistory(prev => [...prev, userMessage]);
+    const currentChatInput = chatInput;
+    setChatInput('');
+    setIsChatLoading(true);
+    
     try {
-      const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
-      onWorkflowGenerated(result);
-      toast({
-        title: 'Workflow Generated!',
-        description: 'The AI has processed your prompt and generated a workflow.',
-      });
+      // Prepare context for the AI chat
+      let workflowContext = "User is on the main workflow canvas.";
+      if (selectedNodeId) {
+        const node = nodes.find(n => n.id === selectedNodeId);
+        if (node) workflowContext = `User has node "${node.name}" (Type: ${node.type}) selected. Description: ${node.description || 'N/A'}. Config (first 100 chars): ${JSON.stringify(node.config).substring(0,100)}`;
+      } else if (nodes.length > 0) {
+        workflowContext = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
+      }
       
+      const historyForAI = chatHistory.slice(-5).map(ch => ({sender: ch.sender, message: ch.message})); // Send last 5 messages for context
+
+      const result = await assistantChat({ userMessage: currentChatInput, workflowContext, chatHistory: historyForAI });
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        sender: 'ai',
+        message: result.aiResponse,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatHistory(prev => [...prev, aiMessage]);
     } catch (error: any) {
-      console.error('AI generation error:', error);
+      console.error('AI chat error:', error);
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        sender: 'ai',
+        message: error.message || 'Sorry, I encountered an error.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
       toast({
-        title: 'Error Generating Workflow',
-        description: error.message || 'An unknown error occurred while contacting the AI.',
+        title: 'Error Chatting with AI',
+        description: error.message || 'An unknown error occurred.',
         variant: 'destructive',
       });
     } finally {
-      setIsLoadingLocalPrompt(false);
-      setIsLoadingGlobal(false);
+      setIsChatLoading(false);
     }
   };
 
-
-  const currentIsLoadingAnyAI = isLoadingLocalPrompt || isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
-
+  const currentIsLoadingAnyAIButChat = isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
   const suggestedNodeConfig = initialCanvasSuggestion?.suggestedNode
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
     : null;
 
-  
+  // Render logic for explanations, connection details, etc. remains largely the same,
+  // but the main prompt area will be replaced by the chat interface.
+
   if (workflowExplanation || isExplainingWorkflow) {
     return (
       <div className="flex flex-col h-full">
@@ -148,13 +190,12 @@ export function AIWorkflowAssistantPanel({
         </ScrollArea>
         <div className="p-3 border-t bg-background/50 mt-auto">
           <Button variant="outline" onClick={onClearExplanation} className="w-full h-9 text-sm">
-            <XCircle className="mr-2 h-4 w-4" /> Back to AI Prompt
+            <XCircle className="mr-2 h-4 w-4" /> Back to Assistant
           </Button>
         </div>
       </div>
     );
   }
-
   
   if (selectedConnectionId && !selectedNodeId && !workflowExplanation && !isConnecting) {
     const connection = connections.find(c => c.id === selectedConnectionId);
@@ -251,7 +292,6 @@ export function AIWorkflowAssistantPanel({
     );
   }
   
-  
   if (isConnecting) {
     const sourceNode = nodes.find(n => n.id === selectedNodeId); 
     return (
@@ -314,12 +354,11 @@ export function AIWorkflowAssistantPanel({
     );
   }
 
-
-  
-  if (selectedNodeId) { 
+  if (selectedNodeId) { // If a node is selected, NodeConfigPanel is shown, so assistant panel is minimal
     return null; 
   }
 
+  // Default assistant view: Chat interface + Controls + Logs
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
@@ -343,10 +382,10 @@ export function AIWorkflowAssistantPanel({
               />
             </div>
           </div>
-          <CardDescription className="text-xs pt-0.5">Controls, AI prompt, and execution logs.</CardDescription>
+          <CardDescription className="text-xs pt-0.5">Controls, AI chat, and execution logs.</CardDescription>
         </CardHeader>
       </div>
-      <Button onClick={onRunWorkflow} disabled={currentIsLoadingAnyAI} className="w-full h-9 text-sm rounded-none border-x-0 border-t-0">
+      <Button onClick={onRunWorkflow} disabled={currentIsLoadingAnyAIButChat || isChatLoading} className="w-full h-9 text-sm rounded-none border-x-0 border-t-0">
         {isWorkflowRunning ? (
           <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
         ) : (
@@ -355,18 +394,9 @@ export function AIWorkflowAssistantPanel({
         {isWorkflowRunning ? 'Executing...' : `Run Workflow ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
       </Button>
 
-
-      <ScrollArea className="flex-shrink-0"> 
-        <div className="p-4 space-y-5">
-          {isCanvasEmpty && isLoadingSuggestion && (
-            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>AI is thinking of a good starting point...</span>
-            </Card>
-          )}
-
-          {isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
-            <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md">
+      <ScrollArea className="flex-1 p-4 space-y-3" viewportRef={chatScrollAreaRef}>
+        {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
+           <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
               <p className="font-semibold flex items-center gap-2 text-sm">
                 <Wand2 className="h-4 w-4 text-primary" />
                 Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
@@ -376,51 +406,67 @@ export function AIWorkflowAssistantPanel({
                 size="sm"
                 onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
                 className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs"
-                disabled={currentIsLoadingAnyAI}
+                disabled={currentIsLoadingAnyAIButChat || isChatLoading}
               >
                 Add {suggestedNodeConfig.name} Node
                 <ChevronRight className="ml-auto h-4 w-4" />
               </Button>
             </Card>
+        )}
+         {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
+            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>AI is thinking of a good starting point...</span>
+            </Card>
           )}
-          
-          {isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
-             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md">
-              AI could not suggest a starting point. Try describing your workflow in the prompt below or drag a node from the library.
+         {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
+             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md mb-3">
+              AI could not suggest a starting point. Try describing your workflow in the prompt at the top, or ask me anything below!
             </div>
           )}
-
-
-          {!isCanvasEmpty && !workflowExplanation && !selectedNodeId && !selectedConnectionId && !isConnecting && (
-             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md"> 
-              Hi! I&apos;m your AI assistant. Describe what you want to automate, or select a node/connection for more options.
+        {chatHistory.map((chat) => (
+          <div key={chat.id} className={cn("flex mb-2", chat.sender === 'user' ? "justify-end" : "justify-start")}>
+            <div className={cn(
+              "p-2.5 rounded-lg max-w-[85%] text-sm break-words shadow",
+              chat.sender === 'user' ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+            )}>
+              <p className="whitespace-pre-wrap">{chat.message}</p>
+              <p className="text-xs opacity-70 mt-1 text-right">{chat.timestamp}</p>
             </div>
-          )}
-        </div>
+          </div>
+        ))}
+        {isChatLoading && (
+          <div className="flex justify-start mb-2">
+            <div className="p-2.5 rounded-lg bg-muted text-foreground max-w-[85%] text-sm flex items-center gap-2 shadow">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" /> AI is typing...
+            </div>
+          </div>
+        )}
       </ScrollArea>
       
-      <div className="p-3 border-t bg-background/60 space-y-2 flex flex-col flex-1 mt-auto">
-        <Label htmlFor="ai-prompt-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" /> Describe your workflow to the AI
+      <div className="p-3 border-t bg-background/80 space-y-1.5 flex flex-col mt-auto">
+        <Label htmlFor="ai-chat-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
+          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Chat with Kairo
         </Label>
-        
-        <div className="flex gap-2 flex-1 items-stretch">
+        <div className="flex gap-2 items-end">
           <Textarea
-            id="ai-prompt-textarea"
-            placeholder="e.g., 'When a new file is uploaded to a folder, read its content, summarize it with AI, and then send the summary to a Slack channel...'"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="flex-1 text-sm resize-none min-h-[60px]"
-            disabled={currentIsLoadingAnyAI}
+            id="ai-chat-textarea"
+            placeholder="Ask about Kairo, workflow design, or nodes..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]"
+            rows={1}
+            disabled={isChatLoading || currentIsLoadingAnyAIButChat}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); } }}
           />
           <Button
-            onClick={handleSubmit}
-            disabled={currentIsLoadingAnyAI || !prompt.trim()}
-            className="h-auto py-2 self-end min-h-[40px]"
+            onClick={handleChatSubmit}
+            disabled={isChatLoading || currentIsLoadingAnyAIButChat || !chatInput.trim()}
+            className="h-auto py-2.5 self-end min-h-[40px]"
             size="default"
-            title="Generate workflow with AI (Ctrl+Enter)"
+            title="Send message (Enter)"
           >
-            {isLoadingLocalPrompt ? (
+            {isChatLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />

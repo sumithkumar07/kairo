@@ -21,6 +21,11 @@ import {
   type ExplainWorkflowInput,
   type ExplainWorkflowOutput,
 } from '@/ai/flows/explain-workflow-flow';
+import {
+  assistantChat as genkitAssistantChat,
+  type AssistantChatInput,
+  type AssistantChatOutput,
+} from '@/ai/flows/assistant-chat-flow';
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig, WorkflowExecutionResult } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
@@ -548,6 +553,27 @@ export async function getWorkflowExplanation(
     throw new Error("Failed to get workflow explanation from AI due to an unknown error.");
   }
 }
+
+export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
+  try {
+    console.log("[SERVER ACTION] Assistant chat with input:", JSON.stringify(input.userMessage, null, 2));
+    const result = await genkitAssistantChat(input);
+    console.log("[SERVER ACTION] Assistant chat response (first 200 chars):", result.aiResponse.substring(0,200));
+    if (!result || typeof result.aiResponse !== 'string') {
+      console.error("[SERVER ACTION] AI returned an invalid chat response structure. Result:", result);
+      return { aiResponse: "I'm sorry, I encountered an issue processing your message."};
+    }
+    return result;
+  } catch (error) {
+    console.error("[SERVER ACTION] Error in assistantChat:", error);
+    let errorMessage = "I'm sorry, I couldn't process your message right now.";
+    if (error instanceof Error) {
+      errorMessage = `Error in chat: ${error.message}`;
+    }
+    return { aiResponse: errorMessage };
+  }
+}
+
 
 function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnection[], flowLabel: string): { executionOrder: WorkflowNode[], error?: string } {
   const adj: Record<string, string[]> = {};
