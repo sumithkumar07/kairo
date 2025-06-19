@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { assistantChat } from '@/app/actions';
+import { assistantChat, generateWorkflow } from '@/app/actions'; // Import generateWorkflow
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -22,8 +22,8 @@ import { Switch } from '@/components/ui/switch';
 interface AIWorkflowAssistantPanelProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
-  onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void; // This is for the main builder's prompt
-  setIsLoadingGlobal: (isLoading: boolean) => void; // This is for the main builder's prompt
+  onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void; 
+  setIsLoadingGlobal: (isLoading: boolean) => void; 
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
@@ -55,8 +55,8 @@ interface ChatMessage {
 export function AIWorkflowAssistantPanel({
   nodes,
   connections,
-  onWorkflowGenerated, // Retained for main prompt, not used by internal chat
-  setIsLoadingGlobal, // Retained for main prompt, not used by internal chat
+  onWorkflowGenerated,
+  setIsLoadingGlobal,
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
@@ -118,7 +118,6 @@ export function AIWorkflowAssistantPanel({
     setIsChatLoading(true);
     
     try {
-      // Prepare context for the AI chat
       let workflowContext = "User is on the main workflow canvas.";
       if (selectedNodeId) {
         const node = nodes.find(n => n.id === selectedNodeId);
@@ -127,16 +126,53 @@ export function AIWorkflowAssistantPanel({
         workflowContext = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
       }
       
-      const historyForAI = chatHistory.slice(-5).map(ch => ({sender: ch.sender, message: ch.message})); // Send last 5 messages for context
+      const historyForAI = chatHistory.slice(-5).map(ch => ({sender: ch.sender, message: ch.message}));
 
-      const result = await assistantChat({ userMessage: currentChatInput, workflowContext, chatHistory: historyForAI });
+      const chatResult = await assistantChat({ userMessage: currentChatInput, workflowContext, chatHistory: historyForAI });
+      
       const aiMessage: ChatMessage = {
         id: crypto.randomUUID(),
         sender: 'ai',
-        message: result.aiResponse,
+        message: chatResult.aiResponse,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setChatHistory(prev => [...prev, aiMessage]);
+
+      if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
+        setIsChatLoading(false); // Stop chat loading before starting global loading
+        setIsLoadingGlobal(true); // Show loader on main canvas
+        try {
+          const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
+          onWorkflowGenerated(generatedWorkflow);
+          const successMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sender: 'ai',
+            message: "Workflow generated and placed on the canvas!",
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setChatHistory(prev => [...prev, successMessage]);
+          toast({
+            title: 'Workflow Generated!',
+            description: 'The AI has generated a workflow from your chat request.',
+          });
+        } catch (genError: any) {
+          console.error('Error generating workflow from chat command:', genError);
+          const genFailMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sender: 'ai',
+            message: `Sorry, I tried to generate the workflow, but encountered an error: ${genError.message}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setChatHistory(prev => [...prev, genFailMessage]);
+          toast({
+            title: 'Workflow Generation Failed',
+            description: genError.message || 'An error occurred during workflow generation.',
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLoadingGlobal(false);
+        }
+      }
     } catch (error: any) {
       console.error('AI chat error:', error);
       const errorMessage: ChatMessage = {
@@ -152,7 +188,9 @@ export function AIWorkflowAssistantPanel({
         variant: 'destructive',
       });
     } finally {
-      setIsChatLoading(false);
+      if (! (chatHistory[chatHistory.length-1]?.message.startsWith("Workflow generated") && chatHistory[chatHistory.length-1]?.sender === 'ai' ) ) {
+        setIsChatLoading(false); // Ensure chat loading is stopped if not handled by generation path
+      }
     }
   };
 
@@ -161,8 +199,6 @@ export function AIWorkflowAssistantPanel({
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
     : null;
 
-  // Render logic for explanations, connection details, etc. remains largely the same,
-  // but the main prompt area will be replaced by the chat interface.
 
   if (workflowExplanation || isExplainingWorkflow) {
     return (
@@ -420,8 +456,8 @@ export function AIWorkflowAssistantPanel({
             </Card>
           )}
          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
-             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md mb-3">
-              AI could not suggest a starting point. Try describing your workflow in the prompt at the top, or ask me anything below!
+            <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md mb-3">
+              AI could not suggest a starting point. Try describing your workflow in the prompt below or drag a node from the library.
             </div>
           )}
         {chatHistory.map((chat) => (
@@ -446,12 +482,12 @@ export function AIWorkflowAssistantPanel({
       
       <div className="p-3 border-t bg-background/80 space-y-1.5 flex flex-col mt-auto">
         <Label htmlFor="ai-chat-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
-          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Chat with Kairo
+          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Chat with Kairo (or describe a workflow to generate)
         </Label>
         <div className="flex gap-2 items-end">
           <Textarea
             id="ai-chat-textarea"
-            placeholder="Ask about Kairo, workflow design, or nodes..."
+            placeholder="Ask about Kairo, or describe a workflow to generate..."
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]"

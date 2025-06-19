@@ -556,9 +556,9 @@ export async function getWorkflowExplanation(
 
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
   try {
-    console.log("[SERVER ACTION] Assistant chat with input:", JSON.stringify(input.userMessage, null, 2));
+    console.log("[SERVER ACTION] Assistant chat with input (user message):", JSON.stringify(input.userMessage, null, 2));
     const result = await genkitAssistantChat(input);
-    console.log("[SERVER ACTION] Assistant chat response (first 200 chars):", result.aiResponse.substring(0,200));
+    console.log("[SERVER ACTION] Assistant chat response (AI response first 200 chars):", (result.aiResponse || '').substring(0,200));
     if (!result || typeof result.aiResponse !== 'string') {
       console.error("[SERVER ACTION] AI returned an invalid chat response structure. Result:", result);
       return { aiResponse: "I'm sorry, I encountered an issue processing your message."};
@@ -1855,3 +1855,4 @@ export async function executeWorkflow(
 
 
     
+

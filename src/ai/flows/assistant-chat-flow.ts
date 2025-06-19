@@ -2,6 +2,7 @@
 'use server';
 /**
  * @fileOverview An AI flow to handle conversational chat with the Kairo assistant.
+ * It can also identify if a user's message is a request to generate a workflow.
  *
  * - assistantChat - A function that takes a user's message and returns an AI response.
  * - AssistantChatInput - The input type for the assistantChat function.
@@ -22,7 +23,9 @@ const AssistantChatInputSchema = z.object({
 export type AssistantChatInput = z.infer<typeof AssistantChatInputSchema>;
 
 const AssistantChatOutputSchema = z.object({
-  aiResponse: z.string().describe("The AI assistant's response to the user's message."),
+  aiResponse: z.string().describe("The AI assistant's textual response to the user's message."),
+  isWorkflowGenerationRequest: z.boolean().optional().describe("True if the AI believes the user's message is a request to generate a new workflow. If true, `workflowGenerationPrompt` should be populated."),
+  workflowGenerationPrompt: z.string().optional().describe("If `isWorkflowGenerationRequest` is true, this field contains the extracted or refined prompt that should be used for actual workflow generation by the main generation service."),
 });
 export type AssistantChatOutput = z.infer<typeof AssistantChatOutputSchema>;
 
@@ -36,24 +39,24 @@ const chatPrompt = ai.definePrompt({
   output: {schema: AssistantChatOutputSchema},
   prompt: `You are Kairo, a friendly and helpful AI assistant for a workflow automation tool.
 The user is interacting with you in a chat window within the Kairo application.
-Your primary role is to answer questions about:
-- How to use Kairo.
-- Features of Kairo.
-- Specific workflow nodes (types: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown) and their configurations.
-- General concepts of workflow automation.
-- Best practices for designing workflows.
-- Troubleshooting common issues.
 
-You can also provide:
-- Brief suggestions for how to approach a problem with Kairo.
-- Clarifications on workflow logic.
+Your primary role is to:
+1. Answer questions about Kairo (how to use it, its features, specific nodes, workflow automation concepts, best practices, troubleshooting).
+2. Provide brief suggestions or high-level steps for how to approach a problem with Kairo.
+3. If the user's message is a clear and detailed request to *create* or *generate* a new workflow (e.g., "Generate a workflow that does X, Y, and Z" or "Create an automation for [detailed description]"), then:
+    - Set `isWorkflowGenerationRequest` to true.
+    - Extract or refine the user's request into a clear prompt suitable for a dedicated workflow generation AI. Put this prompt into the `workflowGenerationPrompt` field.
+    - Your `aiResponse` should be a brief confirmation, like: "Okay, I can try to generate that workflow for you. Here's the prompt I'll use: '[The prompt you put in workflowGenerationPrompt]'. I'm starting the generation now..." OR "Understood. I'll generate a workflow based on your description: '[The prompt you put in workflowGenerationPrompt]}'."
+4. For all other interactions (questions, requests for explanation, vague requests that are not detailed enough for full workflow generation), provide a helpful textual answer in the `aiResponse` field. In these cases, `isWorkflowGenerationRequest` should be false or omitted, and `workflowGenerationPrompt` should be empty or omitted.
 
 IMPORTANT:
-- DO NOT attempt to generate full JSON workflow definitions in this chat. The user has a separate "Generate Workflow" feature for that.
-- If the user asks you to "create a workflow for X" or "build this for me", politely guide them to use the dedicated "Generate Workflow" feature or to build it manually using the visual editor. You can offer high-level steps or suggest node types if appropriate, but not the full JSON.
-- If the user's query seems like a command to generate a full workflow, respond by saying something like: "To generate a new workflow, please use the 'Describe your workflow to the AI...' prompt bar at the top of the main canvas area. I can help you understand how to build it or answer questions about specific parts!"
-- Keep your responses concise and helpful.
-- If you don't know the answer, say so.
+- When you decide to generate a workflow (`isWorkflowGenerationRequest: true`), the `workflowGenerationPrompt` field MUST contain the actual detailed prompt for the generator. Your `aiResponse` should ONLY be a short confirmation message.
+- DO NOT output workflow JSON or complex structures directly in the `aiResponse` field. The separate `workflowGenerationPrompt` field and subsequent system actions handle the actual generation.
+- If a user asks you to create a workflow but their request is too vague (e.g., "Make me a workflow"), ask clarifying questions in `aiResponse` and set `isWorkflowGenerationRequest` to false.
+- Keep your chat responses concise and helpful.
+- If you don't know the answer to a question, say so.
+
+Workflow Node Types available in Kairo: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown.
 
 {{#if chatHistory}}
 Previous Conversation:
@@ -68,7 +71,7 @@ Current Workflow Context: {{{workflowContext}}}
 
 User's Current Message: {{{userMessage}}}
 
-AI Response:
+Your response (as a JSON object conforming to AssistantChatOutputSchema):
 `,
 });
 
@@ -83,7 +86,14 @@ const assistantChatFlow = ai.defineFlow(
     if (!output) {
       return { aiResponse: "I'm sorry, I wasn't able to generate a response. Could you try rephrasing?" };
     }
+    // Ensure that if it's a generation request, the prompt field is also populated.
+    if (output.isWorkflowGenerationRequest && !output.workflowGenerationPrompt) {
+        console.warn("AI indicated workflow generation but didn't provide a prompt. Treating as chat.");
+        return {
+            aiResponse: output.aiResponse || "It seems I was about to generate something, but I'm missing the details. Could you clarify what workflow you'd like?",
+            isWorkflowGenerationRequest: false
+        };
+    }
     return output;
   }
 );
-
