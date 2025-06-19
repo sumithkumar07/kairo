@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { CheckCircle, Workflow, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { FREE_TIER_FEATURES } from '@/types/subscription'; // Import free tier features
+import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription'; // Import features constants
 
 export default function SubscriptionsPage() {
   const { 
@@ -36,8 +36,8 @@ export default function SubscriptionsPage() {
       description: 'Get started with basic workflow automation and AI assistance.',
       features: [
         `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-        `Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Enabled' : 'Limited'}`,
-        `Advanced Nodes Access: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Enabled' : 'Limited'}`,
+        `Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Limited'}`, // Adjusted text for clarity
+        `Advanced Nodes Access: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'None'}`, // Adjusted text
         `Max Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
         'Community Support',
       ],
@@ -51,10 +51,10 @@ export default function SubscriptionsPage() {
       price: '$29/month (Example Price)',
       description: 'Unlock the full power of Kairo with unlimited features and priority support.',
       features: [
-        `AI Workflow Generations: Unlimited`,
-        'AI Workflow Explanations & Advanced Suggestions',
-        'Full Node Library Access (including advanced nodes)',
-        'Unlimited Workflow Executions',
+        `AI Workflow Generations: ${PRO_TIER_FEATURES.aiWorkflowGenerationsPerDay === 'unlimited' ? 'Unlimited' : PRO_TIER_FEATURES.aiWorkflowGenerationsPerDay}`,
+        `Workflow Explanations: ${PRO_TIER_FEATURES.canExplainWorkflow ? 'Full AI Explanations & Advanced Suggestions' : 'Limited'}`,
+        `Advanced Nodes Access: ${PRO_TIER_FEATURES.accessToAdvancedNodes ? 'Full Node Library Access' : 'Limited'}`,
+        `Max Workflows: ${PRO_TIER_FEATURES.maxWorkflows === 'unlimited' ? 'Unlimited' : PRO_TIER_FEATURES.maxWorkflows}`,
         'Priority Email Support',
       ],
       cta: { 
@@ -82,7 +82,7 @@ export default function SubscriptionsPage() {
     proTierCtaText = 'Activate Full Pro Plan';
     proTierCtaAction = upgradeToPro;
     proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
-    proTierCtaDisabled = false; // Explicitly ensure button is enabled for Pro Trial users
+    proTierCtaDisabled = false; 
     proTierCtaHref = undefined;
   } else if (currentTier === 'Pro') {
     proTierCtaText = 'You are on the Pro Tier';
@@ -96,16 +96,13 @@ export default function SubscriptionsPage() {
      proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
      proTierCtaDisabled = false;
      proTierCtaHref = undefined;
-  } else if (isTrialExpired) { // This handles the case: isLoggedIn && currentTier === 'Free' && isTrialExpired
+  } else if (isTrialExpired) { 
     proTierCtaText = 'Upgrade to Pro';
     proTierCtaAction = upgradeToPro;
     proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
     proTierCtaDisabled = false;
     proTierCtaHref = undefined;
   }
-  // If none of the above specific conditions for a logged-in user match, 
-  // the initialized values for proTierCtaText, proTierCtaAction, etc. (which defaults to 'Upgrade to Pro') will be used.
-  // This typically covers the case: isLoggedIn && currentTier === 'Free' && isTrialExpired.
   
   tierDetails.Pro.cta = {
     text: proTierCtaText,
