@@ -77,24 +77,35 @@ export default function SubscriptionsPage() {
     proTierCtaAction = undefined; 
     proTierCtaHref = "/signup";
     proTierCtaIcon = <UserPlus className="mr-2 h-4 w-4" />;
+    proTierCtaDisabled = false;
   } else if (currentTier === 'Pro Trial') {
     proTierCtaText = 'Activate Full Pro Plan';
     proTierCtaAction = upgradeToPro;
     proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
+    proTierCtaDisabled = false; // Explicitly ensure button is enabled for Pro Trial users
+    proTierCtaHref = undefined;
   } else if (currentTier === 'Pro') {
     proTierCtaText = 'You are on the Pro Tier';
     proTierCtaAction = undefined;
     proTierCtaDisabled = true;
     proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
+    proTierCtaHref = undefined;
   } else if (isLoggedIn && currentTier === 'Free' && !isTrialExpired) {
      proTierCtaText = 'Start 15-Day Pro Trial';
      proTierCtaAction = () => signup(user!.email); 
      proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
-  } else if (isTrialExpired) {
+     proTierCtaDisabled = false;
+     proTierCtaHref = undefined;
+  } else if (isTrialExpired) { // This handles the case: isLoggedIn && currentTier === 'Free' && isTrialExpired
     proTierCtaText = 'Upgrade to Pro';
     proTierCtaAction = upgradeToPro;
     proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
+    proTierCtaDisabled = false;
+    proTierCtaHref = undefined;
   }
+  // If none of the above specific conditions for a logged-in user match, 
+  // the initialized values for proTierCtaText, proTierCtaAction, etc. (which defaults to 'Upgrade to Pro') will be used.
+  // This typically covers the case: isLoggedIn && currentTier === 'Free' && isTrialExpired.
   
   tierDetails.Pro.cta = {
     text: proTierCtaText,
