@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { assistantChat, generateWorkflow } from '@/app/actions'; // Import generateWorkflow
+import { assistantChat, generateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +52,9 @@ interface ChatMessage {
   timestamp: string;
 }
 
+const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
+const CHAT_CONTEXT_MESSAGE_LIMIT = 6; // Number of previous messages to send to AI
+
 export function AIWorkflowAssistantPanel({
   nodes,
   connections,
@@ -84,6 +87,31 @@ export function AIWorkflowAssistantPanel({
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
+  // Load chat history from localStorage on initial mount
+  useEffect(() => {
+    const storedHistory = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    if (storedHistory) {
+      try {
+        setChatHistory(JSON.parse(storedHistory));
+      } catch (error) {
+        console.error("Failed to parse chat history from localStorage:", error);
+        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY); // Clear corrupted data
+      }
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Save chat history to localStorage whenever it changes
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(chatHistory));
+    } else {
+      // If chat history is empty (e.g., after clearing or initially),
+      // remove it from localStorage to avoid loading an empty array later.
+      localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
+    }
+  }, [chatHistory]);
+
+
   useEffect(() => {
     if (logsScrollAreaRef.current) {
       logsScrollAreaRef.current.scrollTop = logsScrollAreaRef.current.scrollHeight;
@@ -96,6 +124,12 @@ export function AIWorkflowAssistantPanel({
     }
   }, [chatHistory]);
 
+  const handleClearChat = () => {
+    setChatHistory([]);
+    // localStorage persistence is handled by the useEffect hook listening to chatHistory
+    toast({ title: 'Chat Cleared', description: 'The conversation history has been cleared.' });
+  };
+
   const handleChatSubmit = async () => {
     if (!chatInput.trim()) {
       toast({
@@ -106,14 +140,20 @@ export function AIWorkflowAssistantPanel({
       return;
     }
 
+    const userMessageContent = chatInput;
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       sender: 'user',
-      message: chatInput,
+      message: userMessageContent,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
+    
+    // Prepare history for AI *before* adding the current user message to the state
+    // This ensures the AI gets the context leading up to the user's current message
+    const messagesForAIContext = chatHistory.slice(-CHAT_CONTEXT_MESSAGE_LIMIT);
+    const historyForAI = messagesForAIContext.map(ch => ({ sender: ch.sender, message: ch.message }));
+
     setChatHistory(prev => [...prev, userMessage]);
-    const currentChatInput = chatInput;
     setChatInput('');
     setIsChatLoading(true);
     
@@ -126,9 +166,7 @@ export function AIWorkflowAssistantPanel({
         workflowContext = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
       }
       
-      const historyForAI = chatHistory.slice(-6, -1).map(ch => ({sender: ch.sender, message: ch.message})); // Get previous 5 messages
-
-      const chatResult = await assistantChat({ userMessage: currentChatInput, workflowContext, chatHistory: historyForAI });
+      const chatResult = await assistantChat({ userMessage: userMessageContent, workflowContext, chatHistory: historyForAI });
       
       const aiMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -139,7 +177,6 @@ export function AIWorkflowAssistantPanel({
       setChatHistory(prev => [...prev, aiMessage]);
 
       if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
-        setIsChatLoading(false); 
         setIsLoadingGlobal(true); 
         try {
           const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
@@ -172,10 +209,6 @@ export function AIWorkflowAssistantPanel({
         } finally {
           setIsLoadingGlobal(false);
         }
-      } else {
-        // Not a workflow generation request, or prompt was missing, so it's treated as simple chat.
-        // Chat interaction is complete.
-        setIsChatLoading(false);
       }
     } catch (error: any) { // Error from the `assistantChat` call itself
       console.error('AI chat error:', error);
@@ -192,7 +225,8 @@ export function AIWorkflowAssistantPanel({
         description: errorMessageText,
         variant: 'destructive',
       });
-      setIsChatLoading(false); // Ensure chat loading stops on error.
+    } finally {
+      setIsChatLoading(false); // Ensure chat loading stops regardless of outcome
     }
   };
 
@@ -406,18 +440,24 @@ export function AIWorkflowAssistantPanel({
               <Lightbulb className="h-4 w-4 text-primary" />
               AI Workflow Assistant
             </CardTitle>
-            <div className="flex items-center space-x-2" title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"}>
-              <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label htmlFor="simulation-mode-switch" className="text-xs text-muted-foreground cursor-pointer select-none">
-                Simulate
-              </Label>
-              <Switch
-                id="simulation-mode-switch"
-                checked={isSimulationMode}
-                onCheckedChange={onToggleSimulationMode}
-                aria-label="Toggle simulation mode"
-                className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0.5"
-              />
+            <div className="flex items-center space-x-2">
+                <Button variant="ghost" size="xs" onClick={handleClearChat} title="Clear chat history" className="h-7 px-1.5 text-xs">
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span className="ml-1 hidden sm:inline">Clear Chat</span>
+                </Button>
+                <div title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"} className="flex items-center space-x-1">
+                    <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label htmlFor="simulation-mode-switch" className="text-xs text-muted-foreground cursor-pointer select-none">
+                        Simulate
+                    </Label>
+                    <Switch
+                        id="simulation-mode-switch"
+                        checked={isSimulationMode}
+                        onCheckedChange={onToggleSimulationMode}
+                        aria-label="Toggle simulation mode"
+                        className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0.5"
+                    />
+                </div>
             </div>
           </div>
           <CardDescription className="text-xs pt-0.5">Controls, AI chat, and execution logs.</CardDescription>
@@ -553,4 +593,3 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
-
