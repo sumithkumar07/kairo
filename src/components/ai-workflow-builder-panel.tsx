@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -23,7 +23,7 @@ interface AIWorkflowBuilderPanelProps {
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
   onSaveWorkflow: () => void;
-  onSaveWorkflowAs: () => void; // New prop
+  onSaveWorkflowAs: () => void; 
   onLoadWorkflow: () => void;
   onExportWorkflow: () => void;
   onImportWorkflow: () => void;
@@ -68,7 +68,7 @@ export function AIWorkflowBuilderPanel({
   onCanvasDrop,
   onToggleAssistant,
   onSaveWorkflow,
-  onSaveWorkflowAs, // New prop
+  onSaveWorkflowAs, 
   onLoadWorkflow,
   onExportWorkflow,
   onImportWorkflow,
@@ -298,6 +298,19 @@ export function AIWorkflowBuilderPanel({
               </TooltipTrigger>
               <TooltipContent><p>View all saved workflows</p></TooltipContent>
             </Tooltip>
+            {isLoggedIn && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href="/profile">
+                      <User className="mr-1.5 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>View your profile</p></TooltipContent>
+              </Tooltip>
+            )}
 
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
