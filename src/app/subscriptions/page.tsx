@@ -269,6 +269,7 @@ export default function SubscriptionsPage() {
       <footer className="text-center py-10 border-t mt-12">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
+          <Link href="/contact" className="ml-2 text-primary hover:underline font-medium">Contact Us</Link>
         </p>
       </footer>
     </div>
