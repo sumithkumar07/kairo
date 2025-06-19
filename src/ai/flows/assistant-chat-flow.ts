@@ -40,8 +40,8 @@ const AssistantChatInputSchema = z.object({
     sender: z.enum(['user', 'ai']),
     message: z.string(),
   })).optional().describe("Previous messages in the conversation to maintain context."),
-  currentWorkflowNodes: z.array(MinimalWorkflowNodeSchema).optional().describe("The current list of nodes on the workflow canvas. Used for analysis if the user asks for help with their workflow."),
-  currentWorkflowConnections: z.array(MinimalWorkflowConnectionSchema).optional().describe("The current list of connections on the workflow canvas. Used for analysis."),
+  currentWorkflowNodes: z.array(MinimalWorkflowNodeSchema).optional().describe("The current list of nodes on the workflow canvas. Used for analysis if the user asks for help with their workflow. This data is provided as a structured JSON array in your input."),
+  currentWorkflowConnections: z.array(MinimalWorkflowConnectionSchema).optional().describe("The current list of connections on the workflow canvas. Used for analysis. This data is provided as a structured JSON array in your input."),
 });
 export type AssistantChatInput = z.infer<typeof AssistantChatInputSchema>;
 
@@ -70,8 +70,8 @@ Your primary roles are:
     - Set \`isWorkflowGenerationRequest\` to true.
     - Extract or refine the user's request into a clear prompt suitable for a dedicated workflow generation AI. Put this prompt into the \`workflowGenerationPrompt\` field.
     - Your \`aiResponse\` should be an encouraging and clear confirmation, like: 'Certainly! I can start drafting that workflow for you. I\\'ll use this description: "[The prompt you put in workflowGenerationPrompt]". It will appear on the canvas shortly.'
-4.  **Analyze & Assist with Current Workflow**: If \`currentWorkflowNodes\` and \`currentWorkflowConnections\` are provided AND the user's message implies they need help with their current workflow (e.g., "Is my workflow okay?", "What's wrong here?", "Fix my workflow", "Help me with this flow"), then:
-    - Analyze the provided nodes and connections for common issues.
+4.  **Analyze & Assist with Current Workflow**: If \`currentWorkflowNodes\` and \`currentWorkflowConnections\` are provided in your input data AND the user's message implies they need help with their current workflow (e.g., "Is my workflow okay?", "What's wrong here?", "Fix my workflow", "Help me with this flow"), then:
+    - Analyze the provided nodes (from \`currentWorkflowNodes\`) and connections (from \`currentWorkflowConnections\`) for common issues.
     - Potential issues to look for:
         - **Connectivity**:
             - Nodes (especially non-trigger types) that have no incoming connections to their required input handles.
@@ -107,15 +107,6 @@ Previous Conversation:
 Current Workflow Context: {{{workflowContext}}}
 {{/if}}
 
-{{#if currentWorkflowNodes}}
-Current Workflow on Canvas:
-Nodes:
-{{{jsonEncode currentWorkflowNodes}}}
-Connections:
-{{{jsonEncode currentWorkflowConnections}}}
-(Analyze these if the user's message implies they need help with their current setup.)
-{{/if}}
-
 User's Current Message: {{{userMessage}}}
 
 Your response (as a JSON object conforming to AssistantChatOutputSchema):
@@ -144,4 +135,5 @@ const assistantChatFlow = ai.defineFlow(
     return output;
   }
 );
+
 
