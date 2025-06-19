@@ -167,7 +167,7 @@ export default function HomePage() {
                         width={500}
                         height={312}
                         className="rounded-lg shadow-xl mx-auto transform hover:scale-105 transition-transform duration-300"
-                        data-ai-hint="workflow diagram"
+                        data-ai-hint="abstract logo"
                       />
                 </div>
                 <div className="md:w-1/2 md:text-left">
@@ -221,4 +221,5 @@ export default function HomePage() {
 }
 
     
+
 
