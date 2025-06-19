@@ -88,7 +88,7 @@ function resolveValue(
     let dataFound = false;
     let dataAtPath: any;
 
-    
+    // Check additionalContexts first (e.g., errorContext for webhooks, item for forEach)
     if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
       dataAtPath = additionalContexts[firstPart];
       let currentPathForLog = firstPart;
@@ -122,7 +122,7 @@ function resolveValue(
       }
     }
 
-    
+    // Then check environment variables
     if (!dataFound && firstPart === 'env' && pathParts.length >= 2) {
       const envVarName = pathParts.slice(1).join('.');
       const envVarValue = process.env[envVarName];
@@ -138,7 +138,7 @@ function resolveValue(
       continue; 
     }
     
-    
+    // Then check credentials (with env fallback)
     if (!dataFound && firstPart === 'credential' && pathParts.length >= 2) {
         const credentialName = pathParts.slice(1).join('.');
         const infoMsg = `[ENGINE] Placeholder '{{credential.${credentialName}}}' encountered. Credential Manager system not yet implemented.`;
@@ -160,8 +160,7 @@ function resolveValue(
         continue;
     }
 
-
-    
+    // Finally, check workflowData (node outputs)
     if (!dataFound) {
         if (!workflowData.hasOwnProperty(firstPart)) {
             const warningMsg = `[ENGINE] No data found for node ID or context key '${firstPart}' in current workflow data scope when resolving placeholder '${placeholder}'. Full placeholder: '${value}'. Available node IDs/keys in current scope: ${Object.keys(workflowData).join(', ') || 'none'}. Placeholder remains unresolved.`;
@@ -256,6 +255,8 @@ function resolveNodeConfig(
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Kept raw config for key 'retry'.`, type: 'info' });
         continue;
       }
+      // For onErrorWebhook, we resolve its sub-properties if it's an object.
+      // The actual template resolution happens inside handleOnErrorWebhook
       if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
          resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
          serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_CONFIG] Recursively resolved config for key 'onErrorWebhook'.`, type: 'info' });
@@ -268,6 +269,7 @@ function resolveNodeConfig(
                                                  (typeof item === 'object' && item !== null ? resolveNodeConfig(item, workflowData, serverLogs, additionalContexts) : item)
                                            ));
       } else if (typeof value === 'object' && value !== null) {
+        // This will handle nested objects within config, except for the special keys handled above
         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
       } else {
         resolvedConfig[key] = value; 
@@ -361,6 +363,8 @@ async function handleOnErrorWebhook(
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
     
     let webhookConfig: OnErrorWebhookConfig;
+    // The webhookConfigInput is what was resolved from the node's initial config.
+    // Placeholders like {{env.X}} would be resolved, but {{failed_node_id}} etc. would still be strings.
     if (typeof webhookConfigInput === 'string') {
         try {
             webhookConfig = JSON.parse(webhookConfigInput);
@@ -386,9 +390,8 @@ async function handleOnErrorWebhook(
         return;
     }
 
-    const serverLogMessage = `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Attempting to send on-error webhook to ${webhookConfig.url}`;
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node ${nodeIdentifier}: Error occurred. Attempting to send on-error webhook to ${webhookConfig.url}`, type: 'info' });
-    console.log(serverLogMessage);
+    console.log(`[ON_ERROR_WEBHOOK - SERVER] Node ${nodeIdentifier}: Sending on-error webhook to ${webhookConfig.url}`);
 
     const errorContext = {
         'failed_node_id': node.id,
@@ -399,42 +402,63 @@ async function handleOnErrorWebhook(
     };
 
     try {
-        // Headers and BodyTemplate are expected to have placeholders resolved by the time they reach here
-        // because the entire onErrorWebhook config string was resolved by resolveValue.
-        const headersToSend = webhookConfig.headers || {};
-        if (!headersToSend['Content-Type'] && webhookConfig.bodyTemplate) {
-            headersToSend['Content-Type'] = 'application/json';
+        // Resolve headers using errorContext
+        const resolvedHeaders: Record<string, string> = {};
+        if (webhookConfig.headers && typeof webhookConfig.headers === 'object') {
+            for (const [key, value] of Object.entries(webhookConfig.headers)) {
+                if (typeof value === 'string') {
+                    resolvedHeaders[key] = resolveValue(value, workflowData, serverLogs, errorContext);
+                } else {
+                    resolvedHeaders[key] = String(value); // Keep non-string values as is
+                }
+            }
+        }
+        if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
+            resolvedHeaders['Content-Type'] = 'application/json';
         }
 
+        // Resolve bodyTemplate using errorContext
         let bodyToSend: string | undefined;
-        if (webhookConfig.bodyTemplate) {
-            // bodyTemplate here is already the resolved object after placeholder resolution
-            bodyToSend = JSON.stringify(webhookConfig.bodyTemplate);
-            console.log(`[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Sending body (first 200 chars): ${bodyToSend.substring(0,200)}`);
+        if (webhookConfig.bodyTemplate && typeof webhookConfig.bodyTemplate === 'object') {
+            const resolvedBodyTemplate: Record<string, any> = {};
+            for (const [key, value] of Object.entries(webhookConfig.bodyTemplate)) {
+                 if (typeof value === 'string') {
+                    resolvedBodyTemplate[key] = resolveValue(value, workflowData, serverLogs, errorContext);
+                } else {
+                    resolvedBodyTemplate[key] = value; // Keep non-string values as is
+                }
+            }
+            bodyToSend = JSON.stringify(resolvedBodyTemplate);
+            console.log(`[ON_ERROR_WEBHOOK - SERVER] Node ${nodeIdentifier}: Sending resolved body (first 200 chars): ${bodyToSend.substring(0,200)}`);
+        } else if (typeof webhookConfig.bodyTemplate === 'string') {
+             // If bodyTemplate itself was a string placeholder, resolve it
+            bodyToSend = resolveValue(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext);
+            console.log(`[ON_ERROR_WEBHOOK - SERVER] Node ${nodeIdentifier}: Sending resolved string bodyTemplate (first 200 chars): ${String(bodyToSend).substring(0,200)}`);
         } else {
-            console.log(`[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: No bodyTemplate provided. Sending empty body.`);
+            console.log(`[ON_ERROR_WEBHOOK - SERVER] Node ${nodeIdentifier}: No bodyTemplate or invalid format. Sending empty body.`);
         }
+
 
         const webhookResponse = await fetch(webhookConfig.url, {
             method: webhookConfig.method || 'POST',
-            headers: headersToSend,
+            headers: resolvedHeaders,
             body: bodyToSend,
         });
 
         if (webhookResponse.ok) {
             const successMsg = `[ENGINE] Node ${nodeIdentifier}: On-error webhook sent successfully to ${webhookConfig.url}. Status: ${webhookResponse.status}`;
             serverLogs.push({ timestamp: new Date().toISOString(), message: successMsg, type: 'success' });
-            console.log(`[ON_ERROR_WEBHOOK] ${successMsg}`);
+            console.log(`[ON_ERROR_WEBHOOK - SERVER] ${successMsg}`);
         } else {
             const webhookErrorText = await webhookResponse.text();
             const failMsg = `[ENGINE] Node ${nodeIdentifier}: Failed to send on-error webhook to ${webhookConfig.url}. Status: ${webhookResponse.status}. Response: ${webhookErrorText.substring(0, 200)}`;
             serverLogs.push({ timestamp: new Date().toISOString(), message: failMsg, type: 'error' });
-            console.error(`[ON_ERROR_WEBHOOK] ${failMsg}`);
+            console.error(`[ON_ERROR_WEBHOOK - SERVER] ${failMsg}`);
         }
     } catch (err: any) {
         const exceptionMsg = `[ENGINE] Node ${nodeIdentifier}: Exception while sending on-error webhook to ${webhookConfig.url}. Error: ${err.message}`;
         serverLogs.push({ timestamp: new Date().toISOString(), message: exceptionMsg, type: 'error' });
-        console.error(`[ON_ERROR_WEBHOOK] ${exceptionMsg}`, err);
+        console.error(`[ON_ERROR_WEBHOOK - SERVER] ${exceptionMsg}`, err);
     }
 }
 
@@ -714,6 +738,7 @@ async function executeFlowInternal(
                 };
               } else {
                 // Fallback to simulation if in live mode but no initialData (e.g., manual run from UI)
+                // or if explicitly in simulation mode.
                 if (!isSimulationMode) {
                   serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] ${nodeIdentifier}: LIVE MODE but no initialData provided for this trigger. FALLING BACK TO SIMULATION DATA. Path Suffix: '${resolvedConfig.pathSuffix}'.`, type: 'info' });
                   console.warn(`[NODE WEBHOOKTRIGGER - SERVER] ${nodeIdentifier}: LIVE MODE but no initialData, FALLING BACK TO SIMULATION for this trigger.`);
@@ -739,6 +764,7 @@ async function executeFlowInternal(
                   currentAttemptOutput = { ...currentAttemptOutput, fileEvent: liveFsTriggerData.fileEvent };
               } else {
                   // Fallback to simulation if in live mode but no initialData
+                  // or if explicitly in simulation mode.
                   if (!isSimulationMode) {
                       serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE FILESYSTEMTRIGGER] ${nodeIdentifier}: LIVE MODE but no initialData provided for this trigger. FALLING BACK TO SIMULATION DATA.`, type: 'info' });
                       console.warn(`[NODE FILESYSTEMTRIGGER - SERVER] ${nodeIdentifier}: LIVE MODE but no initialData, FALLING BACK TO SIMULATION for this trigger.`);
