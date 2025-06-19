@@ -192,14 +192,16 @@ export default function HomePage() {
                             <span className="text-muted-foreground">Leverage AI for suggestions, explanations, and configuration help.</span>
                         </li>
                     </ul>
-                     <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5">
+                     <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-shadow border-primary/50 hover:border-primary text-primary hover:bg-primary/5 group">
                         {isLoggedIn ? (
                             <Link href="/workflow">
                                 Open Workflow Editor
+                                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                             </Link>
                         ) : (
                             <Link href="/signup">
                                 Sign Up & Build Now
+                                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                             </Link>
                         )}
                     </Button>
