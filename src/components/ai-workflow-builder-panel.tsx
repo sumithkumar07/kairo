@@ -177,7 +177,7 @@ export function AIWorkflowBuilderPanel({
       <TooltipProvider delayDuration={200}>
         <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Kairo Studio</h1>
+            <h1 className="text-xl font-semibold text-foreground">Kairo</h1>
             <p className="text-xs text-muted-foreground">
               Build, simulate, and deploy AI-driven automations. Current Tier: 
               <span className={cn("font-semibold ml-1", isProOrTrial ? "text-primary" : "text-amber-500")}>
