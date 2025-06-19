@@ -363,8 +363,6 @@ async function handleOnErrorWebhook(
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id}, Type: ${node.type})`;
     
     let webhookConfig: OnErrorWebhookConfig;
-    // The webhookConfigInput is what was resolved from the node's initial config.
-    // Placeholders like {{env.X}} would be resolved, but {{failed_node_id}} etc. would still be strings.
     if (typeof webhookConfigInput === 'string') {
         try {
             webhookConfig = JSON.parse(webhookConfigInput);
@@ -402,14 +400,13 @@ async function handleOnErrorWebhook(
     };
 
     try {
-        // Resolve headers using errorContext
         const resolvedHeaders: Record<string, string> = {};
         if (webhookConfig.headers && typeof webhookConfig.headers === 'object') {
             for (const [key, value] of Object.entries(webhookConfig.headers)) {
                 if (typeof value === 'string') {
                     resolvedHeaders[key] = resolveValue(value, workflowData, serverLogs, errorContext);
                 } else {
-                    resolvedHeaders[key] = String(value); // Keep non-string values as is
+                    resolvedHeaders[key] = String(value);
                 }
             }
         }
@@ -417,21 +414,13 @@ async function handleOnErrorWebhook(
             resolvedHeaders['Content-Type'] = 'application/json';
         }
 
-        // Resolve bodyTemplate using errorContext
         let bodyToSend: string | undefined;
         if (webhookConfig.bodyTemplate && typeof webhookConfig.bodyTemplate === 'object') {
-            const resolvedBodyTemplate: Record<string, any> = {};
-            for (const [key, value] of Object.entries(webhookConfig.bodyTemplate)) {
-                 if (typeof value === 'string') {
-                    resolvedBodyTemplate[key] = resolveValue(value, workflowData, serverLogs, errorContext);
-                } else {
-                    resolvedBodyTemplate[key] = value; // Keep non-string values as is
-                }
-            }
-            bodyToSend = JSON.stringify(resolvedBodyTemplate);
+            // Use resolveNodeConfig for deep resolution of bodyTemplate
+            const resolvedBodyTemplateObject = resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext);
+            bodyToSend = JSON.stringify(resolvedBodyTemplateObject);
             console.log(`[ON_ERROR_WEBHOOK - SERVER] Node ${nodeIdentifier}: Sending resolved body (first 200 chars): ${bodyToSend.substring(0,200)}`);
         } else if (typeof webhookConfig.bodyTemplate === 'string') {
-             // If bodyTemplate itself was a string placeholder, resolve it
             bodyToSend = resolveValue(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext);
             console.log(`[ON_ERROR_WEBHOOK - SERVER] Node ${nodeIdentifier}: Sending resolved string bodyTemplate (first 200 chars): ${String(bodyToSend).substring(0,200)}`);
         } else {
