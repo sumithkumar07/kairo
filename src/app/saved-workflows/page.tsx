@@ -21,9 +21,9 @@ import { useRouter } from 'next/navigation';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 import type { ExampleWorkflow } from '@/types/workflow';
 
-const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex'; // Array of names
-const WORKFLOW_PREFIX = 'kairoWorkflow_'; // e.g., kairoWorkflow_MyFlow
-const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; // Key for the main editor's state
+const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex'; 
+const WORKFLOW_PREFIX = 'kairoWorkflow_'; 
+const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; 
 
 interface SavedWorkflowItem {
   name: string;
@@ -46,7 +46,7 @@ export default function SavedWorkflowsPage() {
       } catch (e) {
         console.error("Error parsing saved workflows index:", e);
         setSavedWorkflows([]);
-        localStorage.removeItem(SAVED_WORKFLOWS_INDEX_KEY); // Clear corrupted index
+        localStorage.removeItem(SAVED_WORKFLOWS_INDEX_KEY); 
       }
     } else {
       setSavedWorkflows([]);
@@ -97,7 +97,6 @@ export default function SavedWorkflowsPage() {
 
   const handleLoadExampleWorkflow = (example: ExampleWorkflow) => {
     setLoadingExampleName(example.name);
-    // Ensure nodes have a default lastExecutionStatus
     const nodesWithStatus = example.nodes.map(node => ({
       ...node,
       lastExecutionStatus: node.lastExecutionStatus || 'pending'
@@ -108,7 +107,7 @@ export default function SavedWorkflowsPage() {
       nextNodeId: Math.max(0, ...nodesWithStatus.map(n => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1,
       canvasOffset: { x: 0, y: 0 },
       zoomLevel: 1,
-      isSimulationMode: true, // Examples default to simulation mode
+      isSimulationMode: true, 
     };
     localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(workflowToLoad));
     toast({ title: 'Example Loaded', description: `Example "${example.name}" is now active in the editor.` });
@@ -151,7 +150,7 @@ export default function SavedWorkflowsPage() {
         </section>
 
         {savedWorkflows.length === 0 ? (
-          <div className="text-center py-10 bg-card shadow-lg rounded-lg">
+          <div className="text-center py-10 bg-card shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
             <FileJson className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-70" />
             <p className="text-xl text-muted-foreground font-semibold">No saved workflows yet.</p>
             <p className="text-sm text-muted-foreground mt-2 mb-6">
@@ -166,7 +165,7 @@ export default function SavedWorkflowsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {savedWorkflows.map((wf) => (
-              <Card key={wf.name} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-200 ease-in-out">
+              <Card key={wf.name} className="flex flex-col shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 ease-in-out">
                 <CardHeader className="pb-3">
                   <CardTitle className="truncate text-lg" title={wf.name}>
                     <Workflow className="inline h-5 w-5 mr-2.5 text-primary/80 align-text-bottom" />
@@ -218,14 +217,14 @@ export default function SavedWorkflowsPage() {
             Explore these pre-built examples to get started or find inspiration.
           </p>
           {EXAMPLE_WORKFLOWS.length === 0 ? (
-            <div className="text-center py-10 bg-card shadow-lg rounded-lg">
+            <div className="text-center py-10 bg-card shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
               <FileJson className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-70" />
               <p className="text-xl text-muted-foreground font-semibold">No example workflows available.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EXAMPLE_WORKFLOWS.map((example) => (
-                <Card key={example.name} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-200 ease-in-out">
+                <Card key={example.name} className="flex flex-col shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 ease-in-out">
                   <CardHeader className="pb-3">
                     <CardTitle className="truncate text-lg" title={example.name}>
                       <BookOpenCheck className="inline h-5 w-5 mr-2.5 text-primary/80 align-text-bottom" />
@@ -286,4 +285,3 @@ export default function SavedWorkflowsPage() {
     </div>
   );
 }
-

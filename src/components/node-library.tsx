@@ -80,7 +80,7 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearchTerm(inputValue);
-    }, 300); // Debounce delay: 300ms
+    }, 300); 
 
     return () => {
       clearTimeout(handler);
@@ -145,11 +145,11 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
                       draggable={!isLocked}
                       onDragStart={(e) => handleDragStart(e, nodeType)}
                       className={cn(
-                        "p-3 border rounded-lg flex flex-col gap-1.5 shadow-sm relative",
+                        "p-3 border rounded-lg flex flex-col gap-1.5 shadow-sm relative transition-all duration-150 ease-in-out",
                         itemStyling.borderColor,
                         isLocked 
                           ? 'bg-muted/30 cursor-not-allowed opacity-60' 
-                          : `${itemStyling.bgColor} cursor-grab hover:shadow-md hover:ring-1 hover:ring-primary/50`
+                          : `${itemStyling.bgColor} cursor-grab hover:shadow-md hover:ring-1 hover:ring-primary/50 hover:scale-[1.03]`
                       )}
                       title={tooltipContent} 
                     >
@@ -181,4 +181,3 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
 
 export const NodeLibrary = memo(NodeLibraryComponent);
 NodeLibrary.displayName = 'NodeLibrary';
-

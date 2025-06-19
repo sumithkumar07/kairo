@@ -96,7 +96,7 @@ export default function SignupPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl">
+        <Card className="w-full max-w-md shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create Your Kairo Account</CardTitle>
             <CardDescription>Sign up to start your 15-day Pro trial.</CardDescription>

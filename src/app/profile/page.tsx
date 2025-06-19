@@ -18,7 +18,7 @@ export default function ProfilePage() {
     trialEndDate, 
     daysRemainingInTrial,
     isProOrTrial,
-    forceEndTrial // Get the new function
+    forceEndTrial 
   } = useSubscription();
   const router = useRouter();
 
@@ -67,38 +67,44 @@ export default function ProfilePage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-lg shadow-xl">
+        <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
           <CardHeader className="text-center border-b pb-4">
             <User className="h-16 w-16 text-primary mx-auto mb-3 p-2 bg-primary/10 rounded-full" />
             <CardTitle className="text-2xl">User Profile</CardTitle>
             <CardDescription>Manage your account details and subscription.</CardDescription>
           </CardHeader>
           
-          <CardContent className="space-y-6 pt-6">
-            <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-md">
-              <Mail className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Email Address</p>
-                <p className="font-medium">{user.email}</p>
+          <CardContent className="space-y-5 pt-6">
+            <div className="p-4 border rounded-lg bg-muted/40 shadow-sm">
+              <div className="flex items-center space-x-3">
+                <Mail className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Email Address</p>
+                  <p className="font-medium text-foreground break-all">{user.email}</p>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-md">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Subscription Tier</p>
-                <p className="font-medium">{currentTier}</p>
+            <div className="p-4 border rounded-lg bg-muted/40 shadow-sm">
+              <div className="flex items-center space-x-3">
+                <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Subscription Tier</p>
+                  <p className="font-medium text-foreground">{currentTier}</p>
+                </div>
               </div>
             </div>
 
             {isProOrTrial && trialEndDate && currentTier === 'Pro Trial' && (
-              <div className="flex items-center space-x-3 p-3 bg-accent/10 rounded-md border border-accent/30">
-                <CalendarDays className="h-5 w-5 text-accent-foreground/80" />
-                <div>
-                  <p className="text-xs text-accent-foreground/70">Pro Trial Ends</p>
-                  <p className="font-medium text-accent-foreground/90">
-                    {trialEndDate.toLocaleDateString()} ({daysRemainingInTrial !== null ? `${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining` : 'Calculating...'})
-                  </p>
+              <div className="p-4 border border-accent/40 rounded-lg bg-accent/10 shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <CalendarDays className="h-5 w-5 text-accent-foreground/80 shrink-0" />
+                  <div>
+                    <p className="text-xs text-accent-foreground/70">Pro Trial Ends</p>
+                    <p className="font-medium text-accent-foreground/90">
+                      {trialEndDate.toLocaleDateString()} ({daysRemainingInTrial !== null ? `${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining` : 'Calculating...'})
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -122,7 +128,6 @@ export default function ProfilePage() {
              <Button onClick={logout} variant="outline" className="w-full">
               <LogOut className="mr-2 h-4 w-4" /> Logout
             </Button>
-            {/* Developer Helper Button */}
             {isLoggedIn && (currentTier === 'Pro Trial' || currentTier === 'Pro') && (
               <Button
                 variant="destructive"

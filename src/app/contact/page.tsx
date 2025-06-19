@@ -3,8 +3,8 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Workflow, Mail, MessageSquareHeart, Building } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Workflow, Mail, MessageSquareHeart, Building, Home } from 'lucide-react';
 
 export default function ContactPage() {
   return (
@@ -26,7 +26,7 @@ export default function ContactPage() {
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-lg shadow-xl">
+        <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
           <CardHeader className="text-center border-b pb-6">
             <Mail className="h-16 w-16 text-primary mx-auto mb-4 p-2 bg-primary/10 rounded-full" />
             <CardTitle className="text-3xl">Contact Kairo</CardTitle>
@@ -73,8 +73,9 @@ export default function ContactPage() {
                 <Building className="h-5 w-5 text-primary/80" />
                 <span>Enterprise</span>
              </div>
-            <Button asChild variant="outline" className="mt-2">
+            <Button asChild variant="outline" className="mt-2 group">
               <Link href="/">
+                <Home className="mr-2 h-4 w-4 group-hover:animate-pulse" />
                 Back to Home
               </Link>
             </Button>

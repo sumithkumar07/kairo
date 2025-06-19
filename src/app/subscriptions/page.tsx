@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { CheckCircle, Workflow, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription'; // Import features constants
+import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription'; 
 
 export default function SubscriptionsPage() {
   const { 
@@ -36,8 +36,8 @@ export default function SubscriptionsPage() {
       description: 'Get started with basic workflow automation and AI assistance.',
       features: [
         `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-        `Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Limited'}`, // Adjusted text for clarity
-        `Advanced Nodes Access: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'None'}`, // Adjusted text
+        `Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Limited'}`, 
+        `Advanced Nodes Access: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'None'}`, 
         `Max Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
         'Community Support',
       ],
@@ -144,7 +144,7 @@ export default function SubscriptionsPage() {
         </section>
         
         {!isLoggedIn && (
-          <Card className="max-w-2xl mx-auto mb-10 p-6 text-center bg-primary/5 border-primary/20 shadow-lg">
+          <Card className="max-w-2xl mx-auto mb-10 p-6 text-center bg-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
             <CardTitle className="text-xl mb-2 text-primary">Get Started with Kairo</CardTitle>
             <CardDescription className="text-muted-foreground mb-4">
               Sign up to get a 15-day free trial of our Pro features, or log in if you already have an account.
@@ -163,7 +163,7 @@ export default function SubscriptionsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Free Tier Card */}
           <Card className={cn(
-            "flex flex-col shadow-lg transition-all duration-300 ease-in-out", 
+            "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
             isLoggedIn && currentTier === 'Free' && "border-2 border-primary ring-4 ring-primary/20"
           )}>
             <CardHeader className="pb-4">
@@ -215,7 +215,7 @@ export default function SubscriptionsPage() {
 
           {/* Pro Tier Card */}
           <Card className={cn(
-            "flex flex-col shadow-lg transition-all duration-300 ease-in-out", 
+            "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
             isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial') && "border-2 border-primary ring-4 ring-primary/20"
           )}>
             <CardHeader className="pb-4 bg-gradient-to-tr from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-t-lg relative">
