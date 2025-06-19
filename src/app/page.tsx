@@ -162,7 +162,7 @@ export default function HomePage() {
             <div className="flex flex-col md:flex-row items-center justify-center gap-10">
                 <div className="md:w-1/2">
                      <Image
-                        src="https://placehold.co/800x500.png"
+                        src="https://placehold.co/500x312.png"
                         alt="Workflow automation example with Kairo"
                         width={500}
                         height={312}
@@ -221,3 +221,4 @@ export default function HomePage() {
 }
 
     
+
