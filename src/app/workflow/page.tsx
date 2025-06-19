@@ -11,7 +11,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText, SaveAll } from 'lucide-react';
+import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText, SaveAll, List } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -1267,7 +1267,7 @@ export default function WorkflowPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Node?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this node and its connections? This action cannot be undone from the history.
+              Are you sure you want to delete this node and its connections? This action can be undone using the Undo feature (Ctrl+Z).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1283,7 +1283,7 @@ export default function WorkflowPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Clear Entire Canvas?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete all nodes and connections? This action cannot be undone from the history.
+              Are you sure you want to delete all nodes and connections? This action can be undone using the Undo feature (Ctrl+Z).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1330,4 +1330,5 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
 
