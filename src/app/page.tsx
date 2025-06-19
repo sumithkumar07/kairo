@@ -161,14 +161,7 @@ export default function HomePage() {
            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes with Kairo?</h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-10">
                 <div className="md:w-1/2">
-                     <Image
-                        src="https://placehold.co/200x200.png"
-                        alt="Kairo Logo Placeholder"
-                        width={200}
-                        height={200}
-                        className="rounded-lg shadow-xl mx-auto transform hover:scale-105 transition-transform duration-300"
-                        data-ai-hint="kairo logo"
-                      />
+                     {/* Removed Image component from here */}
                 </div>
                 <div className="md:w-1/2 md:text-left">
                     <p className="text-lg text-muted-foreground mb-6">
@@ -219,6 +212,8 @@ export default function HomePage() {
     </div>
   );
 }
+    
+
     
 
     
