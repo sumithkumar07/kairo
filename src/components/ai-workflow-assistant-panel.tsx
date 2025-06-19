@@ -383,16 +383,17 @@ export function AIWorkflowAssistantPanel({
               </Button>
             </Card>
           )}
+          
+          {isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
+             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md">
+              AI could not suggest a starting point. Try describing your workflow in the prompt below or drag a node from the library.
+            </div>
+          )}
+
 
           {!isCanvasEmpty && !workflowExplanation && !selectedNodeId && !selectedConnectionId && !isConnecting && (
              <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md"> 
               Hi! I&apos;m your AI assistant. Describe what you want to automate, or select a node/connection for more options.
-            </div>
-          )}
-
-          {isCanvasEmpty && !initialCanvasSuggestion && !isLoadingSuggestion && (
-             <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md">
-              Your canvas is empty! Describe your desired workflow to the AI below.
             </div>
           )}
         </div>
