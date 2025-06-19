@@ -20,7 +20,8 @@ export default function HomePage() {
           </Link>
           <nav className="space-x-1 sm:space-x-2">
             <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/workflow">
+              <Link href="/workflow" className="flex items-center">
+                 <LayoutDashboard className="h-4 w-4 mr-1 sm:mr-1.5" />
                  Workflow Editor
               </Link>
             </Button>
@@ -216,3 +217,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
