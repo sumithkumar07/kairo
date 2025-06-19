@@ -85,13 +85,13 @@ const assistantChatFlow = ai.defineFlow(
   async (input) => {
     const {output} = await chatPrompt(input);
     if (!output) {
-      return { aiResponse: "I'm sorry, I wasn't able to generate a response. Could you try rephrasing?" };
+      return { aiResponse: "I'm having a little trouble understanding that. Could you perhaps rephrase your message or try asking in a different way?" };
     }
     // Ensure that if it's a generation request, the prompt field is also populated.
     if (output.isWorkflowGenerationRequest && !output.workflowGenerationPrompt) {
         console.warn("AI indicated workflow generation but didn't provide a prompt. Treating as chat.");
         return {
-            aiResponse: output.aiResponse || "It seems I was about to generate something, but I'm missing the details. Could you clarify what workflow you'd like?",
+            aiResponse: output.aiResponse || "I was about to help generate a workflow, but I seem to be missing the specific details. Could you please tell me a bit more about the workflow you'd like to create?",
             isWorkflowGenerationRequest: false
         };
     }
