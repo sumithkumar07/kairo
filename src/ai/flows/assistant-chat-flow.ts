@@ -58,8 +58,7 @@ IMPORTANT:
 {{#if chatHistory}}
 Previous Conversation:
 {{#each chatHistory}}
-{{#if (eq sender "user")}}User: {{message}}{{/if}}
-{{#if (eq sender "ai")}}AI: {{message}}{{/if}}
+{{this.sender}}: {{this.message}}
 {{/each}}
 {{/if}}
 
@@ -87,3 +86,4 @@ const assistantChatFlow = ai.defineFlow(
     return output;
   }
 );
+
