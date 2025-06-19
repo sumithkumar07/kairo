@@ -8,17 +8,19 @@ import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2 } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import type { LogEntry } from '@/types/workflow';
+import type { LogEntry, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 
 
 interface AIWorkflowAssistantPanelProps {
+  nodes: WorkflowNode[];
+  connections: WorkflowConnection[];
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
   setIsLoadingGlobal: (isLoading: boolean) => void; // For full workflow generation overlay
   isExplainingWorkflow: boolean;
@@ -40,6 +42,8 @@ interface AIWorkflowAssistantPanelProps {
 }
 
 export function AIWorkflowAssistantPanel({
+  nodes,
+  connections,
   onWorkflowGenerated,
   setIsLoadingGlobal,
   isExplainingWorkflow,
@@ -146,25 +150,46 @@ export function AIWorkflowAssistantPanel({
 
   // If a connection is selected, show connection management UI
   if (selectedConnectionId && !selectedNodeId && !workflowExplanation && !isConnecting) {
+    const connection = connections.find(c => c.id === selectedConnectionId);
+    const sourceNode = connection ? nodes.find(n => n.id === connection.sourceNodeId) : null;
+    const targetNode = connection ? nodes.find(n => n.id === connection.targetNodeId) : null;
+
      return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <MousePointer2 className="h-4 w-4 text-primary" />
+            <LinkIcon className="h-4 w-4 text-primary" />
             Connection Selected
           </h2>
            <p className="text-xs text-muted-foreground">Manage the selected connection.</p>
         </div>
-        <div className="p-6 text-center flex flex-col items-center justify-center flex-1 space-y-3">
-            <p className="text-sm text-muted-foreground">
-                Connection ID: <code className="text-xs bg-muted p-1 rounded">{selectedConnectionId.substring(0,8)}...</code>
+        <div className="p-4 text-sm flex flex-col flex-1 space-y-3">
+            <p className="text-xs text-muted-foreground">
+                ID: <code className="text-xs bg-muted p-1 rounded">{selectedConnectionId.substring(0,8)}...</code>
             </p>
-            <div className="flex gap-2">
-                <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection} title="Delete selected connection (Delete/Backspace)">
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete Connection
+            {sourceNode && connection && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Source:</span> {sourceNode.name || 'Unnamed Node'} ({sourceNode.id.substring(0,8)}...)
+                <br />
+                <span className="ml-2 text-muted-foreground/80">&bull; Handle: {connection.sourceHandle || 'default'}</span>
+              </p>
+            )}
+            {targetNode && connection && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Target:</span> {targetNode.name || 'Unnamed Node'} ({targetNode.id.substring(0,8)}...)
+                <br />
+                <span className="ml-2 text-muted-foreground/80">&bull; Handle: {connection.targetHandle || 'default'}</span>
+              </p>
+            )}
+             {!connection && (
+                <p className="text-xs text-destructive">Connection details not found.</p>
+            )}
+            <div className="flex gap-2 pt-2">
+                <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection} title="Delete selected connection (Delete/Backspace)" className="h-8 text-xs">
+                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Connection
                 </Button>
-                <Button variant="outline" size="sm" onClick={onDeselectConnection} title="Deselect connection (Esc)">
-                    <XCircle className="mr-2 h-4 w-4" /> Deselect
+                <Button variant="outline" size="sm" onClick={onDeselectConnection} title="Deselect connection (Esc)" className="h-8 text-xs">
+                    <XCircle className="mr-2 h-3.5 w-3.5" /> Deselect
                 </Button>
             </div>
         </div>
@@ -211,6 +236,8 @@ export function AIWorkflowAssistantPanel({
   
   // If currently making a connection
   if (isConnecting) {
+    const sourceNode = connections.length > 0 ? nodes.find(n => n.id === connections[connections.length-1]?.sourceNodeId) : null; // Heuristic: try last connection
+    // This part for sourceNode is speculative, better to pass connectionStartNodeId if available
     return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
@@ -218,7 +245,9 @@ export function AIWorkflowAssistantPanel({
             <MousePointer2 className="h-4 w-4 text-primary" />
             Creating Connection
           </h2>
-           <p className="text-xs text-muted-foreground">Connect nodes on the canvas.</p>
+           <p className="text-xs text-muted-foreground">
+             {sourceNode ? `From: ${sourceNode.name} ` : `Click to connect an output to an input.`}
+           </p>
         </div>
         <div className="p-6 text-center flex flex-col items-center justify-center flex-1">
             <p className="text-sm text-muted-foreground mb-4">

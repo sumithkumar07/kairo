@@ -1220,6 +1220,8 @@ export default function WorkflowPage() {
               onToggleSimulationMode={handleToggleSimulationMode} 
             />
              <AIWorkflowAssistantPanel
+                nodes={nodes}
+                connections={connections}
                 onWorkflowGenerated={handleAiPromptSubmit} 
                 setIsLoadingGlobal={setIsLoadingAiWorkflow} 
                 isExplainingWorkflow={isExplainingWorkflow}
