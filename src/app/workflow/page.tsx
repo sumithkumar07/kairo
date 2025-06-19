@@ -33,13 +33,13 @@ import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
-import { ExecutionLogPanel } from '@/components/execution-log-panel';
+
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { produce } from 'immer';
 import { MousePointer2 } from 'lucide-react';
 
-const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; // Renamed from LOCAL_STORAGE_KEY
+const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; 
 const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
 const WORKFLOW_PREFIX = 'kairoWorkflow_';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
@@ -290,7 +290,7 @@ export default function WorkflowPage() {
       toast({ title: 'Empty Workflow', description: 'Cannot save an empty workflow with a name.', variant: 'default' });
       return;
     }
-    setSaveAsName(''); // Clear previous name
+    setSaveAsName(''); 
     setShowSaveAsDialog(true);
   }, [nodes, connections, toast]);
 
@@ -309,7 +309,7 @@ export default function WorkflowPage() {
     }
 
     if (names.includes(saveAsName) || localStorage.getItem(workflowKey)) {
-      // Simple overwrite confirmation for this example, could be more robust
+      
       const overwrite = confirm(`A workflow named "${saveAsName}" already exists. Overwrite it?`);
       if (!overwrite) {
         setShowSaveAsDialog(false);
@@ -1132,7 +1132,7 @@ export default function WorkflowPage() {
             resetHistoryForNewWorkflow(importedNodes, importedData.connections || []);
 
             toast({ title: 'Workflow Imported', description: 'Workflow loaded from file and set as current.' });
-            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData)); // Also save as current
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData)); 
           } catch (error: any) {
             toast({ title: 'Import Error', description: `Failed to import workflow: ${error.message}`, variant: 'destructive' });
           }
@@ -1213,37 +1213,33 @@ export default function WorkflowPage() {
 
         {isAssistantVisible && (
           <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
-            <ExecutionLogPanel
-              onRunWorkflow={handleRunWorkflow} 
+            <AIWorkflowAssistantPanel
+              nodes={nodes}
+              connections={connections}
+              onWorkflowGenerated={handleAiPromptSubmit} 
+              setIsLoadingGlobal={setIsLoadingAiWorkflow} 
+              isExplainingWorkflow={isExplainingWorkflow}
+              workflowExplanation={workflowExplanation}
+              onClearExplanation={() => {
+                  setWorkflowExplanation(null);
+              }}
+              initialCanvasSuggestion={initialCanvasSuggestion}
+              isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion} 
+              onAddSuggestedNode={handleAddSuggestedNode} 
+              isCanvasEmpty={nodes.length === 0}
+              executionLogs={executionLogs}
+              onClearLogs={handleClearLogs} 
               isWorkflowRunning={isWorkflowRunning}
+              selectedNodeId={selectedNodeId}
+              selectedConnectionId={selectedConnectionId}
+              onDeleteSelectedConnection={handleDeleteSelectedConnection} 
+              onDeselectConnection={() => setSelectedConnectionId(null)} 
+              isConnecting={isConnecting}
+              onCancelConnection={handleCancelConnection}
+              onRunWorkflow={handleRunWorkflow}
+              onToggleSimulationMode={handleToggleSimulationMode}
               isSimulationMode={isSimulationMode}
-              onToggleSimulationMode={handleToggleSimulationMode} 
             />
-             <AIWorkflowAssistantPanel
-                nodes={nodes}
-                connections={connections}
-                onWorkflowGenerated={handleAiPromptSubmit} 
-                setIsLoadingGlobal={setIsLoadingAiWorkflow} 
-                isExplainingWorkflow={isExplainingWorkflow}
-                workflowExplanation={workflowExplanation}
-                onClearExplanation={() => {
-                    setWorkflowExplanation(null);
-                }}
-                initialCanvasSuggestion={initialCanvasSuggestion}
-                isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion} 
-                onAddSuggestedNode={handleAddSuggestedNode} 
-                isCanvasEmpty={nodes.length === 0}
-                executionLogs={executionLogs}
-                onClearLogs={handleClearLogs} 
-                isWorkflowRunning={isWorkflowRunning}
-                selectedNodeId={selectedNodeId}
-                selectedConnectionId={selectedConnectionId}
-                onDeleteSelectedConnection={handleDeleteSelectedConnection} 
-                onDeselectConnection={() => setSelectedConnectionId(null)} 
-                isConnecting={isConnecting}
-                onCancelConnection={handleCancelConnection}
-              />
-
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
                 <NodeConfigPanel
@@ -1332,5 +1328,3 @@ export default function WorkflowPage() {
     </div>
   );
 }
-
-

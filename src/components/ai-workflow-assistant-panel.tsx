@@ -8,26 +8,27 @@ import { enhanceAndGenerateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { LogEntry, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 
 
 interface AIWorkflowAssistantPanelProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
   onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void;
-  setIsLoadingGlobal: (isLoading: boolean) => void; // For full workflow generation overlay
+  setIsLoadingGlobal: (isLoading: boolean) => void; 
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
   initialCanvasSuggestion: SuggestNextNodeOutput | null;
-  isLoadingSuggestion: boolean; // For suggestions, explanations within this panel
+  isLoadingSuggestion: boolean; 
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
   isCanvasEmpty: boolean;
   executionLogs: LogEntry[];
@@ -39,6 +40,9 @@ interface AIWorkflowAssistantPanelProps {
   onDeselectConnection: () => void;
   isConnecting: boolean;
   onCancelConnection: () => void;
+  onRunWorkflow: () => void;
+  onToggleSimulationMode: (isSimulating: boolean) => void;
+  isSimulationMode: boolean;
 }
 
 export function AIWorkflowAssistantPanel({
@@ -62,9 +66,12 @@ export function AIWorkflowAssistantPanel({
   onDeselectConnection,
   isConnecting,
   onCancelConnection,
+  onRunWorkflow,
+  onToggleSimulationMode,
+  isSimulationMode,
 }: AIWorkflowAssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [isLoadingLocalPrompt, setIsLoadingLocalPrompt] = useState(false); // For AI prompt bar in this panel
+  const [isLoadingLocalPrompt, setIsLoadingLocalPrompt] = useState(false); 
   const { toast } = useToast();
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +92,7 @@ export function AIWorkflowAssistantPanel({
     }
 
     setIsLoadingLocalPrompt(true);
-    setIsLoadingGlobal(true); // Trigger full-screen loader for major AI task
+    setIsLoadingGlobal(true); 
     try {
       const result = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
       onWorkflowGenerated(result);
@@ -93,7 +100,7 @@ export function AIWorkflowAssistantPanel({
         title: 'Workflow Generated!',
         description: 'The AI has processed your prompt and generated a workflow.',
       });
-      // setPrompt(''); // Keep prompt for refinement
+      
     } catch (error: any) {
       console.error('AI generation error:', error);
       toast({
@@ -114,7 +121,7 @@ export function AIWorkflowAssistantPanel({
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
     : null;
 
-  // If explaining workflow, show only explanation and clear button
+  
   if (workflowExplanation || isExplainingWorkflow) {
     return (
       <div className="flex flex-col h-full">
@@ -148,7 +155,7 @@ export function AIWorkflowAssistantPanel({
     );
   }
 
-  // If a connection is selected, show connection management UI
+  
   if (selectedConnectionId && !selectedNodeId && !workflowExplanation && !isConnecting) {
     const connection = connections.find(c => c.id === selectedConnectionId);
     const sourceNode = connection ? nodes.find(n => n.id === connection.sourceNodeId) : null;
@@ -157,42 +164,52 @@ export function AIWorkflowAssistantPanel({
      return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <LinkIcon className="h-4 w-4 text-primary" />
-            Connection Selected
-          </h2>
-           <p className="text-xs text-muted-foreground">Manage the selected connection.</p>
+          <div className="flex justify-between items-center">
+            <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-primary" />
+              Connection Selected
+            </h2>
+            <Button variant="ghost" size="xs" onClick={onDeselectConnection} title="Deselect connection (Esc)" className="h-7 px-1.5 text-xs">
+              <XCircle className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Details of the selected connection.</p>
         </div>
-        <div className="p-4 text-sm flex flex-col flex-1 space-y-3">
-            <p className="text-xs text-muted-foreground">
-                ID: <code className="text-xs bg-muted p-1 rounded">{selectedConnectionId.substring(0,8)}...</code>
-            </p>
-            {sourceNode && connection && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 text-sm space-y-3">
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Source:</span> {sourceNode.name || 'Unnamed Node'} ({sourceNode.id.substring(0,8)}...)
-                <br />
-                <span className="ml-2 text-muted-foreground/80">&bull; Handle: {connection.sourceHandle || 'default'}</span>
+                  ID: <code className="text-xs bg-muted p-1 rounded">{selectedConnectionId.substring(0,12)}...</code>
               </p>
-            )}
-            {targetNode && connection && (
-              <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Target:</span> {targetNode.name || 'Unnamed Node'} ({targetNode.id.substring(0,8)}...)
-                <br />
-                <span className="ml-2 text-muted-foreground/80">&bull; Handle: {connection.targetHandle || 'default'}</span>
-              </p>
-            )}
-             {!connection && (
-                <p className="text-xs text-destructive">Connection details not found.</p>
-            )}
-            <div className="flex gap-2 pt-2">
-                <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection} title="Delete selected connection (Delete/Backspace)" className="h-8 text-xs">
-                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Connection
-                </Button>
-                <Button variant="outline" size="sm" onClick={onDeselectConnection} title="Deselect connection (Esc)" className="h-8 text-xs">
-                    <XCircle className="mr-2 h-3.5 w-3.5" /> Deselect
-                </Button>
-            </div>
-        </div>
+              {sourceNode && connection && (
+                <div className="p-2.5 border rounded-md bg-muted/30 space-y-0.5">
+                  <p className="text-xs font-medium text-foreground">Source Node:</p>
+                  <p className="text-xs text-muted-foreground">
+                    Name: <span className="font-semibold text-foreground/90">{sourceNode.name || 'Unnamed Node'}</span> <code className="text-xs bg-muted p-0.5 rounded">({sourceNode.id.substring(0,8)}...)</code>
+                  </p>
+                   <p className="text-xs text-muted-foreground">Type: <span className="font-semibold text-foreground/90">{sourceNode.type}</span></p>
+                  <p className="text-xs text-muted-foreground">Handle: <span className="font-semibold text-foreground/90">{connection.sourceHandle || 'default_output'}</span></p>
+                </div>
+              )}
+              {targetNode && connection && (
+                <div className="p-2.5 border rounded-md bg-muted/30 space-y-0.5">
+                  <p className="text-xs font-medium text-foreground">Target Node:</p>
+                  <p className="text-xs text-muted-foreground">
+                    Name: <span className="font-semibold text-foreground/90">{targetNode.name || 'Unnamed Node'}</span> <code className="text-xs bg-muted p-0.5 rounded">({targetNode.id.substring(0,8)}...)</code>
+                  </p>
+                  <p className="text-xs text-muted-foreground">Type: <span className="font-semibold text-foreground/90">{targetNode.type}</span></p>
+                  <p className="text-xs text-muted-foreground">Handle: <span className="font-semibold text-foreground/90">{connection.targetHandle || 'default_input'}</span></p>
+                </div>
+              )}
+              {!connection && (
+                  <p className="text-xs text-destructive">Connection details not found.</p>
+              )}
+              <div className="pt-2">
+                  <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection} title="Delete selected connection (Delete/Backspace)" className="w-full h-8 text-xs">
+                      <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Connection
+                  </Button>
+              </div>
+          </div>
+        </ScrollArea>
         <Accordion type="single" collapsible className="w-full border-t mt-auto">
           <AccordionItem value="logs" className="border-b-0">
             <AccordionTrigger className="px-4 py-2.5 text-xs font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
@@ -234,10 +251,9 @@ export function AIWorkflowAssistantPanel({
     );
   }
   
-  // If currently making a connection
+  
   if (isConnecting) {
-    const sourceNode = connections.length > 0 ? nodes.find(n => n.id === connections[connections.length-1]?.sourceNodeId) : null; // Heuristic: try last connection
-    // This part for sourceNode is speculative, better to pass connectionStartNodeId if available
+    const sourceNode = nodes.find(n => n.id === selectedNodeId); 
     return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
@@ -246,7 +262,7 @@ export function AIWorkflowAssistantPanel({
             Creating Connection
           </h2>
            <p className="text-xs text-muted-foreground">
-             {sourceNode ? `From: ${sourceNode.name} ` : `Click to connect an output to an input.`}
+             {sourceNode ? `From: ${sourceNode.name} ` : `Click an output handle to start, then an input handle to connect.`}
            </p>
         </div>
         <div className="p-6 text-center flex flex-col items-center justify-center flex-1">
@@ -299,20 +315,46 @@ export function AIWorkflowAssistantPanel({
   }
 
 
-  // Default view: AI prompt and initial suggestions (unless a node is selected)
-  if (selectedNodeId) { // NodeConfigPanel is expected to be rendered by the parent if selectedNodeId is set
+  
+  if (selectedNodeId) { 
     return null; 
   }
 
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
-        <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-primary" />
-          AI Workflow Assistant
-        </h2>
-        <p className="text-xs text-muted-foreground">Describe your automation needs to the AI.</p>
+        <CardHeader className="p-0">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-primary" />
+              AI Workflow Assistant
+            </CardTitle>
+            <div className="flex items-center space-x-2" title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"}>
+              <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <Label htmlFor="simulation-mode-switch" className="text-xs text-muted-foreground cursor-pointer select-none">
+                Simulate
+              </Label>
+              <Switch
+                id="simulation-mode-switch"
+                checked={isSimulationMode}
+                onCheckedChange={onToggleSimulationMode}
+                aria-label="Toggle simulation mode"
+                className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0.5"
+              />
+            </div>
+          </div>
+          <CardDescription className="text-xs pt-0.5">Controls, AI prompt, and execution logs.</CardDescription>
+        </CardHeader>
       </div>
+      <Button onClick={onRunWorkflow} disabled={currentIsLoadingAnyAI} className="w-full h-9 text-sm rounded-none border-x-0 border-t-0">
+        {isWorkflowRunning ? (
+          <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Play className="mr-2 h-4 w-4" />
+        )}
+        {isWorkflowRunning ? 'Executing...' : `Run Workflow ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
+      </Button>
+
 
       <ScrollArea className="flex-shrink-0"> 
         <div className="p-4 space-y-5">
@@ -426,4 +468,3 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
-
