@@ -53,7 +53,7 @@ interface ChatMessage {
 }
 
 const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
-const CHAT_CONTEXT_MESSAGE_LIMIT = 6; // Number of previous messages to send to AI
+const CHAT_CONTEXT_MESSAGE_LIMIT = 6; 
 
 export function AIWorkflowAssistantPanel({
   nodes,
@@ -87,7 +87,6 @@ export function AIWorkflowAssistantPanel({
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Load chat history from localStorage on initial mount
   useEffect(() => {
     const storedHistory = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
     if (storedHistory) {
@@ -95,18 +94,15 @@ export function AIWorkflowAssistantPanel({
         setChatHistory(JSON.parse(storedHistory));
       } catch (error) {
         console.error("Failed to parse chat history from localStorage:", error);
-        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY); // Clear corrupted data
+        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY); 
       }
     }
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []); 
 
-  // Save chat history to localStorage whenever it changes
   useEffect(() => {
     if (chatHistory.length > 0) {
       localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(chatHistory));
     } else {
-      // If chat history is empty (e.g., after clearing or initially),
-      // remove it from localStorage to avoid loading an empty array later.
       localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
     }
   }, [chatHistory]);
@@ -126,7 +122,6 @@ export function AIWorkflowAssistantPanel({
 
   const handleClearChat = () => {
     setChatHistory([]);
-    // localStorage persistence is handled by the useEffect hook listening to chatHistory
     toast({ title: 'Chat Cleared', description: 'The conversation history has been cleared.' });
   };
 
@@ -148,8 +143,6 @@ export function AIWorkflowAssistantPanel({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     
-    // Prepare history for AI *before* adding the current user message to the state
-    // This ensures the AI gets the context leading up to the user's current message
     const messagesForAIContext = chatHistory.slice(-CHAT_CONTEXT_MESSAGE_LIMIT);
     const historyForAI = messagesForAIContext.map(ch => ({ sender: ch.sender, message: ch.message }));
 
@@ -158,15 +151,40 @@ export function AIWorkflowAssistantPanel({
     setIsChatLoading(true);
     
     try {
-      let workflowContext = "User is on the main workflow canvas.";
+      let workflowContextForAI = "User is on the main workflow canvas.";
       if (selectedNodeId) {
         const node = nodes.find(n => n.id === selectedNodeId);
-        if (node) workflowContext = `User has node "${node.name}" (Type: ${node.type}) selected. Description: ${node.description || 'N/A'}. Config (first 100 chars): ${JSON.stringify(node.config).substring(0,100)}`;
+        if (node) workflowContextForAI = `User has node "${node.name}" (Type: ${node.type}) selected. Description: ${node.description || 'N/A'}. Config (first 100 chars): ${JSON.stringify(node.config).substring(0,100)}`;
       } else if (nodes.length > 0) {
-        workflowContext = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
+        workflowContextForAI = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
       }
       
-      const chatResult = await assistantChat({ userMessage: userMessageContent, workflowContext, chatHistory: historyForAI });
+      // Prepare current workflow data for the AI
+      const currentWorkflowNodesForAI = nodes.map(n => ({
+        id: n.id,
+        type: n.type,
+        name: n.name,
+        description: n.description,
+        config: n.config, // Sending full config, AI prompt instructs it on how to infer
+        inputHandles: n.inputHandles,
+        outputHandles: n.outputHandles,
+        aiExplanation: n.aiExplanation
+      }));
+
+      const currentWorkflowConnectionsForAI = connections.map(c => ({
+        sourceNodeId: c.sourceNodeId,
+        sourceHandle: c.sourceHandle,
+        targetNodeId: c.targetNodeId,
+        targetHandle: c.targetHandle,
+      }));
+
+      const chatResult = await assistantChat({ 
+        userMessage: userMessageContent, 
+        workflowContext: workflowContextForAI, 
+        chatHistory: historyForAI,
+        currentWorkflowNodes: currentWorkflowNodesForAI,
+        currentWorkflowConnections: currentWorkflowConnectionsForAI
+      });
       
       const aiMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -210,7 +228,7 @@ export function AIWorkflowAssistantPanel({
           setIsLoadingGlobal(false);
         }
       }
-    } catch (error: any) { // Error from the `assistantChat` call itself
+    } catch (error: any) { 
       console.error('AI chat error:', error);
       const errorMessageText = error.message || 'Sorry, I encountered an error communicating with the AI.';
       const errorMessage: ChatMessage = {
@@ -226,7 +244,7 @@ export function AIWorkflowAssistantPanel({
         variant: 'destructive',
       });
     } finally {
-      setIsChatLoading(false); // Ensure chat loading stops regardless of outcome
+      setIsChatLoading(false); 
     }
   };
 
@@ -426,11 +444,10 @@ export function AIWorkflowAssistantPanel({
     );
   }
 
-  if (selectedNodeId) { // If a node is selected, NodeConfigPanel is shown, so assistant panel is minimal
+  if (selectedNodeId) { 
     return null; 
   }
 
-  // Default assistant view: Chat interface + Controls + Logs
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
@@ -593,3 +610,4 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
+
