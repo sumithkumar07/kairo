@@ -952,9 +952,11 @@ export default function WorkflowPage() {
   }, [isConnecting]);
 
   const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
-        return;
+    const target = event.target;
+    if (target instanceof HTMLElement) {
+        if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
+            return;
+        }
     }
 
     setSelectedNodeId(null);
