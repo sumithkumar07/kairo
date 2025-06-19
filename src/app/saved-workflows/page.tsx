@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Edit3, Workflow, Eye, FileJson, ExternalLink, Loader2 } from 'lucide-react';
+import { Trash2, Edit3, Workflow, Eye, FileJson, ExternalLink, Loader2, BookOpenCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -18,6 +18,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
+import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
+import type { ExampleWorkflow } from '@/types/workflow';
 
 const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex'; // Array of names
 const WORKFLOW_PREFIX = 'kairoWorkflow_'; // e.g., kairoWorkflow_MyFlow
@@ -25,13 +27,13 @@ const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow'; // Key for the main editor'
 
 interface SavedWorkflowItem {
   name: string;
-  // lastModified?: string; // Could add this if storing more metadata
 }
 
 export default function SavedWorkflowsPage() {
   const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowItem[]>([]);
   const [workflowToDelete, setWorkflowToDelete] = useState<SavedWorkflowItem | null>(null);
   const [loadingWorkflowName, setLoadingWorkflowName] = useState<string | null>(null);
+  const [loadingExampleName, setLoadingExampleName] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -69,7 +71,6 @@ export default function SavedWorkflowsPage() {
         localStorage.setItem(SAVED_WORKFLOWS_INDEX_KEY, JSON.stringify(names));
       } catch (e) {
         console.error("Error updating saved workflows index:", e);
-        // Potentially re-throw or handle more gracefully
       }
     }
     
@@ -93,6 +94,27 @@ export default function SavedWorkflowsPage() {
       setLoadingWorkflowName(null);
     }
   };
+
+  const handleLoadExampleWorkflow = (example: ExampleWorkflow) => {
+    setLoadingExampleName(example.name);
+    // Ensure nodes have a default lastExecutionStatus
+    const nodesWithStatus = example.nodes.map(node => ({
+      ...node,
+      lastExecutionStatus: node.lastExecutionStatus || 'pending'
+    }));
+    const workflowToLoad = {
+      nodes: nodesWithStatus,
+      connections: example.connections,
+      nextNodeId: Math.max(0, ...nodesWithStatus.map(n => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1,
+      canvasOffset: { x: 0, y: 0 },
+      zoomLevel: 1,
+      isSimulationMode: true, // Examples default to simulation mode
+    };
+    localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(workflowToLoad));
+    toast({ title: 'Example Loaded', description: `Example "${example.name}" is now active in the editor.` });
+    router.push('/workflow');
+  };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
@@ -121,7 +143,7 @@ export default function SavedWorkflowsPage() {
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <section className="mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4 text-center">
-            Saved Workflows
+            Your Workflows
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground text-center">
             Manage your saved automation workflows. Load them into the editor or delete them.
@@ -133,7 +155,7 @@ export default function SavedWorkflowsPage() {
             <FileJson className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-70" />
             <p className="text-xl text-muted-foreground font-semibold">No saved workflows yet.</p>
             <p className="text-sm text-muted-foreground mt-2 mb-6">
-              Go to the <Link href="/workflow" className="text-primary hover:underline font-medium">Workflow Editor</Link> to create and save your first workflow.
+              Go to the <Link href="/workflow" className="text-primary hover:underline font-medium">Workflow Editor</Link> to create and save your first workflow using "Save As...".
             </p>
             <Button asChild>
                 <Link href="/workflow">
@@ -150,7 +172,6 @@ export default function SavedWorkflowsPage() {
                     <Workflow className="inline h-5 w-5 mr-2.5 text-primary/80 align-text-bottom" />
                     {wf.name}
                   </CardTitle>
-                  {/* Future: <CardDescription>Last modified: {wf.lastModified || "N/A"}</CardDescription> */}
                 </CardHeader>
                 <CardContent className="flex-grow py-2">
                   <p className="text-xs text-muted-foreground italic">
@@ -163,7 +184,7 @@ export default function SavedWorkflowsPage() {
                     className="flex-1 h-9 text-sm" 
                     onClick={() => handleLoadAndEditWorkflow(wf.name)}
                     title={`Load "${wf.name}" into the editor`}
-                    disabled={loadingWorkflowName === wf.name}
+                    disabled={loadingWorkflowName === wf.name || !!loadingExampleName}
                   >
                     {loadingWorkflowName === wf.name ? (
                       <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -178,7 +199,7 @@ export default function SavedWorkflowsPage() {
                     className="h-9 w-9"
                     onClick={() => setWorkflowToDelete(wf)}
                     title={`Delete workflow "${wf.name}"`}
-                    disabled={!!loadingWorkflowName}
+                    disabled={!!loadingWorkflowName || !!loadingExampleName}
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Delete {wf.name}</span>
@@ -188,6 +209,56 @@ export default function SavedWorkflowsPage() {
             ))}
           </div>
         )}
+
+        <section className="mt-16">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4 text-center">
+            Example Workflows
+          </h2>
+          <p className="max-w-2xl mx-auto text-lg text-muted-foreground text-center mb-8">
+            Explore these pre-built examples to get started or find inspiration.
+          </p>
+          {EXAMPLE_WORKFLOWS.length === 0 ? (
+            <div className="text-center py-10 bg-card shadow-lg rounded-lg">
+              <FileJson className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-70" />
+              <p className="text-xl text-muted-foreground font-semibold">No example workflows available.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {EXAMPLE_WORKFLOWS.map((example) => (
+                <Card key={example.name} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-200 ease-in-out">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="truncate text-lg" title={example.name}>
+                      <BookOpenCheck className="inline h-5 w-5 mr-2.5 text-primary/80 align-text-bottom" />
+                      {example.name}
+                    </CardTitle>
+                    <CardDescription className="text-xs h-10 line-clamp-2">{example.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow py-2">
+                    <p className="text-xs text-muted-foreground italic">
+                      Number of nodes: {example.nodes.length}
+                    </p>
+                  </CardContent>
+                  <CardFooter className="border-t pt-4 mt-auto">
+                    <Button 
+                      variant="secondary" 
+                      className="w-full h-9 text-sm" 
+                      onClick={() => handleLoadExampleWorkflow(example)}
+                      title={`Load example: "${example.name}"`}
+                      disabled={loadingExampleName === example.name || !!loadingWorkflowName}
+                    >
+                      {loadingExampleName === example.name ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Eye className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      {loadingExampleName === example.name ? 'Loading...' : 'Load Example'}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       <footer className="text-center py-10 border-t mt-12">
@@ -215,3 +286,4 @@ export default function SavedWorkflowsPage() {
     </div>
   );
 }
+
