@@ -180,8 +180,15 @@ const assistantChatFlow = ai.defineFlow(
     outputSchema: AssistantChatOutputSchema,
   },
   async (input): Promise<AssistantChatOutput> => {
+    console.log("assistantChatFlow: Received input:", JSON.stringify(input, null, 2).substring(0, 500) + "...");
     try {
       const result = await chatPrompt(input); // This directly returns AssistantChatOutput | undefined
+      
+      try {
+        console.log("assistantChatFlow: Raw AI result object:", JSON.stringify(result, null, 2));
+      } catch (stringifyError: any) {
+        console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be:", result);
+      }
 
       if (!result || typeof result.aiResponse !== 'string') {
         try {
@@ -247,6 +254,5 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
 
     
