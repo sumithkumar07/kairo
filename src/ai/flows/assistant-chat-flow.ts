@@ -186,7 +186,7 @@ The JSON object should look like this:
   "workflowGenerationPrompt": null,
   "actionRequest": null
 }
-`,
+`
 });
 
 const assistantChatFlow = ai.defineFlow(
@@ -231,12 +231,12 @@ const assistantChatFlow = ai.defineFlow(
       if (typeof finalAiResponse !== 'string') {
         const originalResponseType = typeof finalAiResponse;
         console.warn(`assistantChatFlow: Original 'aiResponse' was not a string (type: ${originalResponseType}). Attempting to salvage action if possible. Full result:`, result);
-        if (isGenRequest && genPrompt) {
+        if (isGenRequest && genPrompt && typeof genPrompt === 'string' && genPrompt.trim() !== '') {
           finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
-        } else if (actionReq) {
+        } else if (actionReq && typeof actionReq === 'string' && actionReq.trim() !== '') {
           finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
         } else {
-          console.warn("assistantChatFlow: 'aiResponse' was not a string and no other primary action could be salvaged. Returning structural error message.");
+          console.warn("assistantChatFlow: 'aiResponse' was not a string and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
           return {
             aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
             isWorkflowGenerationRequest: false, 
