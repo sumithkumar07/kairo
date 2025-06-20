@@ -150,7 +150,7 @@ Your primary roles are:
                     *   If no obvious candidate node is found, or if the user says "No" to a suggestion: "I have your [credentials]. Which node in your current workflow should use this?"
                 3.  **Once a target node is confirmed or specified by the user for the credentials**: Proceed to step 4.
                 4.  Explain re-generation: "To apply this specific change to the '[Target Node Name]' node, I'll need to generate an updated workflow. This will replace the current workflow on the canvas."
-                5.  **Ask for a new, complete prompt describing the desired final state, explicitly including the change**: "Could you please provide a new, detailed prompt that describes the entire workflow as you now want it to be, ensuring you specify how the '[Target Node Name]' should use [the new prompt/the provided credentials with placeholders like {{credential.MyYouTubeClientID}} and {{credential.MyYouTubeClientSecret}}? For example: 'A workflow triggered by a webhook, then fetches trending YouTube videos using Client ID {{credential.YouTubeClientID}} and Secret {{credential.YouTubeClientSecret}}, and finally logs the video titles.'"
+                5.  **Ask for a new, complete prompt describing the desired final state, explicitly including the change**: "Could you please provide a new, detailed prompt that describes the entire workflow as you now want it to be, ensuring you specify how the '[Target Node Name]' should use [the new prompt/the provided credentials with placeholders like \`{{credential.MyYouTubeClientID}}\` and \`{{credential.MyYouTubeClientSecret}}\`]? For example: 'A workflow triggered by a webhook, then fetches trending YouTube videos using Client ID \`{{credential.YouTubeClientID}}\` and Secret \`{{credential.YouTubeClientSecret}}\`, and finally logs the video titles.'"
                 6.  If the user provides this new, complete prompt in their current message or a follow-up:
                     *   Set "isWorkflowGenerationRequest" to "true".
                     *   Populate "workflowGenerationPrompt" with this new user-provided prompt.
@@ -381,3 +381,5 @@ const assistantChatFlow = ai.defineFlow(
 );
 
 
+
+    
