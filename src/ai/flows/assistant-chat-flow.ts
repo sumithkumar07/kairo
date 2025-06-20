@@ -162,9 +162,16 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 Your response (as a JSON object conforming to AssistantChatOutputSchema):
-\`
-`}
-);
+\`\`\`json
+{
+  "aiResponse": "...",
+  "isWorkflowGenerationRequest": false,
+  "workflowGenerationPrompt": null,
+  "actionRequest": null
+}
+\`\`\`
+`,
+});
 
 const assistantChatFlow = ai.defineFlow(
   {
@@ -174,18 +181,18 @@ const assistantChatFlow = ai.defineFlow(
   },
   async (input): Promise<AssistantChatOutput> => {
     try {
-      const {output} = await chatPrompt(input);
+      const {output} = await prompt(input);
 
       if (!output || typeof output.aiResponse !== 'string') {
-        console.warn("assistantChatFlow: AI prompt did not return a valid output or aiResponse. Output:", output);
+        console.warn("assistantChatFlow: AI prompt did not return a valid output or aiResponse. Output:", JSON.stringify(output, null, 2));
         return {
           aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment?",
           isWorkflowGenerationRequest: false,
         };
       }
 
-      if (output.isWorkflowGenerationRequest && !output.workflowGenerationPrompt) {
-          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a workflowGenerationPrompt. Treating as chat response.");
+      if (output.isWorkflowGenerationRequest && (!output.workflowGenerationPrompt || output.workflowGenerationPrompt.trim() === '')) {
+          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid workflowGenerationPrompt. Treating as chat response. AI Response was:", output.aiResponse);
           return {
               aiResponse: output.aiResponse,
               isWorkflowGenerationRequest: false,
@@ -193,9 +200,40 @@ const assistantChatFlow = ai.defineFlow(
       }
       return output!;
     } catch (error: any) {
-      console.error("assistantChatFlow: Unhandled error during flow execution:", error);
+      console.error("assistantChatFlow: Unhandled error during flow execution:", error); // Log the actual error object
+      let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
+
+      // Check for Gemini-specific error structure (candidates and finishReason)
+      if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
+        const firstCandidate = error.candidates[0];
+        if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
+          switch (firstCandidate.finishReason) {
+            case 'SAFETY':
+              userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+              break;
+            case 'RECITATION':
+              userErrorMessage = "I'm unable to complete that request due to content restrictions related to recitation. Please try a different approach.";
+              break;
+            case 'MAX_TOKENS':
+              userErrorMessage = "The request was too long or the response would be too long. Please try a shorter message or request.";
+              break;
+            default:
+              userErrorMessage = "I'm sorry, I couldn't complete that request due to an unexpected reason (" + firstCandidate.finishReason + "). Please try rephrasing.";
+          }
+        }
+      } else if (error.message) { // General error message check
+        if (error.message.includes('429') || /quota/i.test(error.message) || /rate limit/i.test(error.message)) {
+          userErrorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
+        } else if (error.message.includes('API key not valid') || error.message.includes('permission denied') || error.message.includes('forbidden') || (error.status && (error.status === 401 || error.status === 403))) {
+           userErrorMessage = "There's an issue with the AI service configuration. Please contact support if this persists.";
+        } else if (/blocked/i.test(error.message) || /safety/i.test(error.message)) {
+          // This is a fallback if the detailed `finishReason: 'SAFETY'` wasn't available
+          userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+        }
+      }
+
       return {
-        aiResponse: "An unexpected error occurred while I was thinking. Please try your request again.",
+        aiResponse: userErrorMessage,
         isWorkflowGenerationRequest: false,
       };
     }
