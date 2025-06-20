@@ -5,89 +5,98 @@
 
 @layer base {
   :root {
-    /* New Dark Theme (Default) */
-    --background: 220 20% 10%; /* Dark Slate Blue/Charcoal */
-    --foreground: 210 30% 95%; /* Light Grey/Off-white */
+    /* Light Theme (Default - Based on PRD for FlowAI) */
+    --background: 220 25% 95%; /* Light Grey #F0F2F5 */
+    --foreground: 240 10% 10%; /* Dark text for light background */
 
-    --card: 220 20% 15%; /* Slightly Lighter Dark */
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    --primary: 197 77% 52%; /* Vibrant Blue #29ABE2 */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+
+    --secondary: 220 15% 90%; /* Lighter grey for secondary elements */
+    --secondary-foreground: 240 10% 20%; /* Darker text for secondary */
+
+    --muted: 220 15% 94%; /* Slightly off-white/grey for muted backgrounds */
+    --muted-foreground: 240 5% 45%; /* Greyer text for muted */
+
+    --accent: 88 52% 59%; /* Muted Green #8BC34A */
+    --accent-foreground: 240 10% 10%; /* Dark text on accent */
+
+    --destructive: 0 75% 55%; /* Vivid Red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 88%; /* Light border for cards, inputs */
+    --input: 0 0% 100%; /* White input backgrounds */
+    --ring: 197 77% 58%; /* Primary color for focus rings */
+    
+    --chart-1: 197 70% 50%; /* Primary */
+    --chart-2: 88 50% 55%;  /* Accent */
+    --chart-3: 220 60% 60%; /* A lighter blue/grey */
+    --chart-4: 40 80% 60%;  /* Gold/Orange */
+    --chart-5: 330 75% 60%; /* Pink/Magenta */
+    --radius: 0.5rem;
+
+    /* Light Sidebar variables (aligned with PRD theme) */
+    --sidebar-background: 220 20% 97%; /* Slightly off-white, brighter than main bg */
+    --sidebar-foreground: 240 10% 15%;
+    --sidebar-primary: 197 77% 52%; /* Vibrant Blue */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 88 45% 88%; /* Lighter shade of Accent Green for backgrounds */
+    --sidebar-accent-foreground: 88 50% 30%; /* Darker green for text on light green */
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 197 77% 58%;
+  }
+
+  .dark {
+    /* Original Dark Theme from previous state */
+    --background: 220 20% 10%; 
+    --foreground: 210 30% 95%; 
+
+    --card: 220 20% 15%; 
     --card-foreground: 210 30% 95%;
 
     --popover: 220 20% 12%; 
     --popover-foreground: 210 30% 95%;
 
-    --primary: 280 70% 60%; /* Electric Purple */
+    --primary: 280 70% 60%; 
     --primary-foreground: 210 30% 98%; 
 
-    --secondary: 200 70% 55%; /* Cool Cyan/Blue */
+    --secondary: 200 70% 55%; 
     --secondary-foreground: 210 30% 98%;
 
-    --muted: 220 15% 25%; /* Darker Grey */
+    --muted: 220 15% 25%; 
     --muted-foreground: 210 20% 70%;
 
-    --accent: 170 70% 45%; /* Bright Teal/Mint Green */
+    --accent: 170 70% 45%; 
     --accent-foreground: 210 30% 98%;
 
-    --destructive: 0 75% 55%; /* Vivid Red */
+    --destructive: 0 75% 55%; 
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 30%; /* Darker Border */
-    --input: 220 15% 18%; /* Dark Input */
-    --ring: 280 70% 65%; /* Primary color for focus rings */
+    --border: 220 15% 30%; 
+    --input: 220 15% 18%; 
+    --ring: 280 70% 65%; 
     
-    --chart-1: 280 70% 60%; /* Primary */
-    --chart-2: 200 70% 55%; /* Secondary */
-    --chart-3: 170 70% 45%; /* Accent */
-    --chart-4: 40 80% 60%; /* Gold/Orange */
-    --chart-5: 330 75% 60%; /* Pink/Magenta */
-    --radius: 0.5rem;
+    --chart-1: 280 70% 60%; 
+    --chart-2: 200 70% 55%; 
+    --chart-3: 170 70% 45%; 
+    --chart-4: 40 80% 60%; 
+    --chart-5: 330 75% 60%; 
 
-    /* Dark Sidebar variables */
-    --sidebar-background: 220 20% 12%; /* Slightly darker than main card */
+    /* Dark Sidebar variables (original) */
+    --sidebar-background: 220 20% 12%; 
     --sidebar-foreground: 210 30% 90%;
-    --sidebar-primary: 280 70% 60%; /* Electric Purple */
+    --sidebar-primary: 280 70% 60%; 
     --sidebar-primary-foreground: 210 30% 98%;
-    --sidebar-accent: 170 60% 30%; /* Darker shade of Teal */
-    --sidebar-accent-foreground: 170 70% 80%; /* Lighter teal for text on dark teal */
+    --sidebar-accent: 170 60% 30%; 
+    --sidebar-accent-foreground: 170 70% 80%; 
     --sidebar-border: 220 15% 28%;
     --sidebar-ring: 280 70% 65%;
-  }
-
-  .light {
-    /* Original Light Theme as a fallback/option */
-    --background: 220 25% 95%; 
-    --foreground: 240 10% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
-    --primary: 197 77% 53%; 
-    --primary-foreground: 0 0% 100%; 
-    --secondary: 220 15% 90%; 
-    --secondary-foreground: 240 10% 20%;
-    --muted: 220 15% 94%; 
-    --muted-foreground: 240 5% 45%;
-    --accent: 88 52% 59%; 
-    --accent-foreground: 240 10% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 10% 88%; 
-    --input: 0 0% 100%; 
-    --ring: 197 77% 58%;
-    
-    --chart-1: 197 70% 50%;
-    --chart-2: 220 70% 55%;
-    --chart-3: 88 60% 50%;
-    --chart-4: 40 80% 60%;
-    --chart-5: 0 75% 60%;
-
-    --sidebar-background: 220 25% 95%;
-    --sidebar-foreground: 240 10% 15%;
-    --sidebar-primary: 197 77% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 88 50% 90%;
-    --sidebar-accent-foreground: 88 50% 30%;
-    --sidebar-border: 220 10% 90%;
-    --sidebar-ring: 197 77% 58%;
   }
 }
 
@@ -101,42 +110,45 @@
   }
 }
 
-/* Dot Grid Background for Dark Theme */
+/* Dot Grid Background - Default (Light Theme) */
 .dot-grid-background {
   background-color: hsl(var(--background));
-  background-image: radial-gradient(hsl(var(--muted) / 0.1) 0.7px, transparent 0.7px); /* Very subtle dots */
+  background-image: radial-gradient(hsl(var(--muted-foreground) / 0.1) 0.8px, transparent 0.8px); /* More subtle dots for light bg */
   background-size: 20px 20px; 
 }
 
-.light .dot-grid-background {
+/* Dot Grid Background for Dark Theme */
+.dark .dot-grid-background {
   background-color: hsl(var(--background));
-  background-image: radial-gradient(hsl(var(--muted) / 0.2) 0.8px, transparent 0.8px);
-  background-size: 18px 18px;
+  background-image: radial-gradient(hsl(var(--muted) / 0.1) 0.7px, transparent 0.7px);
+  background-size: 20px 20px;
 }
 
-/* Custom scrollbar styles for dark theme */
+
+/* Custom scrollbar styles - Default (Light Theme) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--card) / 0.5); /* Use card color for track */
+  background: hsl(var(--card) / 0.5); 
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.4); /* Muted foreground for thumb */
+  background: hsl(var(--muted-foreground) / 0.3); /* Lighter thumb for light theme */
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.6);
-}
-
-.light ::-webkit-scrollbar-track {
-  background: hsl(var(--background) / 0.5);
-}
-.light ::-webkit-scrollbar-thumb {
   background: hsl(var(--muted-foreground) / 0.5);
 }
-.light ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.7);
+
+/* Custom scrollbar styles for Dark Theme */
+.dark ::-webkit-scrollbar-track {
+  background: hsl(var(--card) / 0.5);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
 }

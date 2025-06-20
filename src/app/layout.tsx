@@ -3,7 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
-import { cn } from '@/lib/utils'; // Import cn
+import { cn } from '@/lib/utils'; 
 
 export const metadata: Metadata = {
   title: 'Kairo',
@@ -16,7 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Default to dark theme by not adding .light class
+    // Default to light theme by not adding .dark class initially.
+    // System preference for dark mode can be handled by adding 'dark' class here conditionally or via a theme provider.
+    // For now, it defaults to the PRD light theme defined in :root.
     <html lang="en" suppressHydrationWarning={true} className=""> 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
