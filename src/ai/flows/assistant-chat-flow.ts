@@ -163,8 +163,8 @@ User's Current Message: {{{userMessage}}}
 
 Your response (as a JSON object conforming to AssistantChatOutputSchema):
 \`
-`
-});
+`}
+);
 
 const assistantChatFlow = ai.defineFlow(
   {
@@ -201,5 +201,3 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
-    
