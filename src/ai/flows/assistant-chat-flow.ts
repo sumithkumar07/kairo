@@ -182,7 +182,7 @@ const assistantChatFlow = ai.defineFlow(
   async (input): Promise<AssistantChatOutput> => {
     console.log("assistantChatFlow: Received input:", JSON.stringify(input, null, 2).substring(0, 500) + "...");
     try {
-      const result = await chatPrompt(input); // This directly returns AssistantChatOutput | undefined
+      const result = await chatPrompt(input); 
       
       try {
         console.log("assistantChatFlow: Raw AI result object:", JSON.stringify(result, null, 2));
@@ -205,47 +205,68 @@ const assistantChatFlow = ai.defineFlow(
       if (result.isWorkflowGenerationRequest && (!result.workflowGenerationPrompt || result.workflowGenerationPrompt.trim() === '')) {
           console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid workflowGenerationPrompt. Treating as chat response. AI Response was:", result.aiResponse);
           return {
-              aiResponse: result.aiResponse, // Keep the AI's textual response
-              isWorkflowGenerationRequest: false, // but don't try to generate a workflow
+              aiResponse: result.aiResponse, 
+              isWorkflowGenerationRequest: false, 
           };
       }
-      return result; // This is AssistantChatOutput
+      return result; 
     } catch (error: any) {
-      console.error("assistantChatFlow: Unhandled error during flow execution:", error); // Log the actual error object
+      console.error("assistantChatFlow: Error caught during flow execution. Raw error:", error);
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
+      let detailedLogMessage = "Raw error logged above.";
 
-      // Check for Gemini-specific error structure (candidates and finishReason)
-      if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
-        const firstCandidate = error.candidates[0];
-        if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
-          switch (firstCandidate.finishReason) {
-            case 'SAFETY':
-              userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
-              break;
-            case 'RECITATION':
-              userErrorMessage = "I'm unable to complete that request due to content restrictions related to recitation. Please try a different approach.";
-              break;
-            case 'MAX_TOKENS':
-              userErrorMessage = "The request was too long or the response would be too long. Please try a shorter message or request.";
-              break;
-            default:
-              userErrorMessage = "I'm sorry, I couldn't complete that request due to an unexpected reason (" + firstCandidate.finishReason + "). Please try rephrasing.";
+      if (error && typeof error === 'object') {
+        if (error.name) detailedLogMessage += ` Name: ${error.name}.`;
+        if (error.message) detailedLogMessage += ` Message: ${error.message}.`;
+        // Avoid logging full stack to client-side logs if too verbose, but good for server
+        // if (error.stack) detailedLogMessage += ` Stack: ${error.stack.substring(0, 200)}...`;
+
+
+        if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
+          const firstCandidate = error.candidates[0];
+          if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
+            switch (firstCandidate.finishReason) {
+              case 'SAFETY':
+                userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+                break;
+              case 'RECITATION':
+                userErrorMessage = "I'm unable to complete that request due to content restrictions related to recitation. Please try a different approach.";
+                break;
+              case 'MAX_TOKENS':
+                userErrorMessage = "The request was too long or the response would be too long. Please try a shorter message or request.";
+                break;
+              default:
+                userErrorMessage = "I'm sorry, I couldn't complete that request due to an unexpected reason (" + firstCandidate.finishReason + "). Please try rephrasing.";
+            }
+          }
+        } else if (error.name === 'ZodError' && error.errors) {
+            userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it.";
+            detailedLogMessage += ` Zod validation errors: ${JSON.stringify(error.errors)}`;
+            console.error("assistantChatFlow: Zod validation error from AI output:", error.errors);
+        } else if (error.message) { 
+          if (error.message.includes('429') || /quota/i.test(error.message) || /rate limit/i.test(error.message)) {
+            userErrorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
+          } else if (error.message.includes('API key not valid') || error.message.includes('permission denied') || error.message.includes('forbidden') || (error.status && (error.status === 401 || error.status === 403))) {
+             userErrorMessage = "There's an issue with the AI service configuration. Please contact support if this persists.";
+          } else if (/blocked/i.test(error.message) || /safety/i.test(error.message)) {
+            userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+          } else if (error.name === 'SyntaxError' && error.message.toLowerCase().includes('json')) {
+            userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again.";
+            detailedLogMessage += ' Possible JSON parsing error from AI output.';
           }
         }
-      } else if (error.message) { // General error message check
-        if (error.message.includes('429') || /quota/i.test(error.message) || /rate limit/i.test(error.message)) {
+      } else if (typeof error === 'string') {
+        detailedLogMessage += ` Error is a string: "${error}"`;
+        if (/quota|rate limit|429/i.test(error)) {
           userErrorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
-        } else if (error.message.includes('API key not valid') || error.message.includes('permission denied') || error.message.includes('forbidden') || (error.status && (error.status === 401 || error.status === 403))) {
+        } else if (/API key not valid|permission denied|forbidden|401|403/i.test(error)) {
            userErrorMessage = "There's an issue with the AI service configuration. Please contact support if this persists.";
-        } else if (/blocked/i.test(error.message) || /safety/i.test(error.message)) {
-          // This is a fallback if the detailed `finishReason: 'SAFETY'` wasn't available
+        } else if (/blocked|safety/i.test(error)) {
           userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
         }
-      } else if (error.name === 'ZodError') { // Check for Zod validation errors
-          userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it.";
-          console.error("assistantChatFlow: Zod validation error from AI output:", error.errors);
       }
-
+      
+      console.error(`assistantChatFlow: Processed error for user. Details: ${detailedLogMessage}`);
 
       return {
         aiResponse: userErrorMessage,
@@ -254,5 +275,3 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
-    
