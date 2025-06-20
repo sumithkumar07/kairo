@@ -71,7 +71,7 @@ const chatPrompt = ai.definePrompt({
   input: {schema: AssistantChatInputSchema},
   output: {schema: AssistantChatOutputSchema},
   config: {
-    safetySettings: [ // Highly permissive for debugging
+    safetySettings: [ 
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
       { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
@@ -204,13 +204,9 @@ const assistantChatFlow = ai.defineFlow(
     console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
     let result: AssistantChatOutput | undefined | null;
     try {
-      // Simplified ai.generate call, relying on default model from ai instance
-      const genkitResult = await ai.generate({
-        prompt: chatPrompt.prompt, 
-        input, 
-        output: {format: 'json', schema: AssistantChatOutputSchema}
-      });
-      result = genkitResult.output;
+      // Call the defined prompt function directly
+      const genkitResponse = await chatPrompt(input);
+      result = genkitResponse.output; // The output schema is already handled by the prompt definition
 
       if (result === undefined || result === null) {
         console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty (possibly due to strict safety filters not caught by error handler, model issues, or network problems), unparseable by Genkit before Zod validation, or an API error occurred that didn't throw a catchable exception but resulted in no data.");
@@ -244,7 +240,7 @@ const assistantChatFlow = ai.defineFlow(
           finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
         } else if (actionReq) {
           finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
-        } else if (result.aiResponse === null) { // Explicitly handle if AI intended null (schema now allows it)
+        } else if (result.aiResponse === null) { 
           finalAiResponse = "How can I help you further?"; 
           console.log("assistantChatFlow: 'aiResponse' was null, defaulting to conversational prompt.");
         } else {
@@ -325,7 +321,10 @@ const assistantChatFlow = ai.defineFlow(
             userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: ESAFE)";
           } else if ((error.name === 'SyntaxError' && (errorMessageLower.includes('json') || errorMessageLower.includes('unexpected token') || errorMessageLower.includes('parse error'))) || errorMessageLower.includes('parse error on line')) {
             userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again. (Code: EJSON)";
-          } else {
+          } else if (errorMessageLower.includes('invalid_argument') && errorMessageLower.includes('at least one message is required')) {
+            userErrorMessage = `An error occurred: ${String(error.message)}. This might indicate an issue with the prompt content or structure. Please try again. (Code: EMSGREQ)`;
+          }
+           else {
             userErrorMessage = `An error occurred: ${String(error.message).substring(0,100)}. Please try again. (Code: EGEN)`;
           }
         } else if ((error as any).status || (error as any).code) {
@@ -347,10 +346,17 @@ const assistantChatFlow = ai.defineFlow(
           userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: SSAFE)";
         } else if (errorStringLower.includes('json') || errorStringLower.includes('unexpected token') || errorStringLower.includes('parse error')) {
              userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again. (Code: SJSON)";
+        } else if (errorStringLower.includes('invalid_argument') && errorStringLower.includes('at least one message is required')) {
+            userErrorMessage = `An error occurred: ${error}. This might indicate an issue with the prompt content or structure. Please try again. (Code: SMSGREQ)`;
         } else {
           userErrorMessage = `An error occurred: ${error.substring(0,100)}. Please try again. (Code: SGEN)`;
         }
       }
+      
+      if (error && error.message && error.message.includes('INVALID_ARGUMENT') && error.message.includes('at least one message is required')) {
+          console.error("assistantChatFlow: Caught 'INVALID_ARGUMENT: at least one message is required' error. This likely means the prompt resolved to an empty message for the LLM.");
+      }
+
 
       return {
         aiResponse: userErrorMessage,
