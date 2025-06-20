@@ -210,7 +210,6 @@ const assistantChatFlow = ai.defineFlow(
     console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
     let result: AssistantChatOutput | undefined | null;
     try {
-      // Call the defined prompt function directly
       const genkitResponse = await chatPrompt(input);
       result = genkitResponse.output; 
 
@@ -381,5 +380,7 @@ const assistantChatFlow = ai.defineFlow(
 );
 
 
+
+    
 
     
