@@ -1,4 +1,4 @@
-
+md
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI.
@@ -20,7 +20,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 3.  Install dependencies: `npm install` or `yarn install`.
 4.  **Set up Environment Variables**:
     *   Create a `.env.local` file in the root directory by copying `.env` (if it's empty, just create the file).
-    *   Refer to the "Important Considerations for Live Mode & Deployment" section below for essential variables needed for live features.
+    *   Refer to the "Important Considerations for Live Mode & Deployment" section below for essential variables needed for live features. **Pay special attention to `GOOGLE_API_KEY` for AI features.**
 5.  Run the development server: `npm run dev` or `yarn dev`.
 6.  Open [http://localhost:9002](http://localhost:9002) (or your configured port) in your browser.
 
@@ -30,13 +30,16 @@ The main workflow editor is accessible at the `/workflow` route. Explore the hom
 
 When you switch a workflow from "Simulation Mode" to "Live Mode", or deploy this application, certain features will require environment variables to be properly configured.
 
-### Essential EnvironmentVariables
+### Essential Environment Variables
 
 Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment:
 
-*   **Genkit AI Features (`aiTask` node, AI suggestions, etc.):**
-    *   If deploying to a Google Cloud environment (like Cloud Run, App Engine), Application Default Credentials (ADC) might be automatically picked up by Genkit for Google AI models.
-    *   Otherwise, you may need to set `GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`.
+*   **Genkit AI Features (`aiTask` node, AI suggestions, AI Assistant Chat, etc.):**
+    *   **`GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`**
+        *   **CRITICAL for AI functionality.** You **MUST** provide a valid Google Cloud API key here.
+        *   This key needs to be associated with a Google Cloud Project where the "Generative Language API" (sometimes referred to as "Vertex AI API" or similar, e.g., `generativelanguage.googleapis.com`) is enabled.
+        *   If Genkit is deployed to a Google Cloud environment (like Cloud Run, App Engine) that has Application Default Credentials (ADC) correctly configured with permissions for the Generative Language API, this variable might not be strictly necessary as Genkit might pick up ADC. However, for local development or non-Google Cloud deployments, this environment variable is the primary way to authenticate.
+        *   **Troubleshooting AI Assistant Errors:** If the AI Assistant frequently responds with "There's an issue with the AI service configuration. Please contact support if this persists." or "An unexpected error occurred...", a missing, invalid, or incorrectly configured `GOOGLE_API_KEY` (or the API not being enabled in your GCP project) is the most common cause. Double-check your key and project settings.
 *   **Database Queries (`databaseQuery` node in Live Mode):**
     *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`
         *   Replace with your actual PostgreSQL connection string.
@@ -63,4 +66,3 @@ Create a `.env.local` file in the project root for local development, or set the
 *   **Security Token:** If a `securityToken` (e.g., `{{credential.MyWebhookSecret}}`) is configured in the `webhookTrigger` node, the incoming live request must include an `X-Webhook-Token` header with the matching resolved secret value.
 
 By keeping these points in mind, you can more effectively test and utilize the live mode capabilities of Kairo.
-```
