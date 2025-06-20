@@ -55,7 +55,7 @@ const AssistantChatInputSchema = z.object({
 export type AssistantChatInput = z.infer<typeof AssistantChatInputSchema>;
 
 const AssistantChatOutputSchema = z.object({
-  aiResponse: z.string(), // Keep it strict to string
+  aiResponse: z.string(),
   isWorkflowGenerationRequest: z.boolean().optional(),
   workflowGenerationPrompt: z.string().optional(),
   actionRequest: z.enum(["explain_workflow", "suggest_next_node", "analyze_workflow_efficiency"]).optional(),
@@ -80,14 +80,15 @@ const chatPrompt = ai.definePrompt({
   },
   prompt: `You are Kairo, a very friendly, patient, and highly skilled AI assistant for a workflow automation tool.
 Your primary goal is to empower the user and make their workflow creation process smoother and more enjoyable.
+Your primary mode of operation should be to identify if the user's message implies a request for a specific action (like generating a new workflow, modifying the current one, explaining something, or suggesting a node). If such an intent is clear, you MUST prioritize setting the appropriate flags in your JSON output (isWorkflowGenerationRequest, workflowGenerationPrompt, actionRequest) and provide a concise aiResponse confirming the action. Engage in general conversation or ask clarifying questions ONLY if the user's intent is genuinely ambiguous or they are asking a general question.
 
 Your primary roles are:
 1.  **Answer questions about Kairo**: How to use it, its features, specific nodes, workflow automation concepts, best practices, troubleshooting.
     - If a user asks how to get a specific API key or fill a placeholder like "{{credential.SERVICE_API_KEY}}" (that might have been mentioned in a node's AI-generated explanation or config), explain the general process: they usually need to go to the service's website (e.g., platform.openai.com for OpenAI), sign up/log in, find the API key section in their account settings, and generate a new key. Then, they should add this key to Kairo's Credential Manager (if applicable in the Kairo version they are using) or set it as an environment variable (e.g., SERVICE_API_KEY=their_key_here). Remind them that the node's original "aiExplanation" field often contains specific hints for common services. Do not invent exact, detailed steps for every possible API key, but provide this general, actionable guidance.
 2.  **Provide suggestions**: Offer brief suggestions or high-level steps for how to approach a problem with Kairo.
 3.  **Generate NEW Workflows**:
-    - If the user's message is a clear and detailed request to *create* or *generate* a **new** workflow (e.g., "Generate a workflow that does X, Y, and Z"):
-        - Set "isWorkflowGenerationRequest" to true.
+    - If the user's message clearly expresses an intent to *create* or *generate* a **new** workflow (e.g., "Generate a workflow that does X, Y, and Z", "I need a flow to do A then B", "Make me a workflow for P"): 
+        - Immediately set "isWorkflowGenerationRequest" to true.
         - Extract or refine the user's request into a clear prompt suitable for a dedicated workflow generation AI. Put this prompt into the "workflowGenerationPrompt" field.
         - Your "aiResponse" should be an encouraging and clear confirmation, like: "Certainly! I can start drafting that workflow for you. I'll use this description: '[The prompt you put in workflowGenerationPrompt]'. It will appear on the canvas shortly, replacing any existing workflow."
     - If the user's message is a request to generate a new workflow but is **somewhat vague** (e.g., "Automate my social media posts", "Process customer feedback"):
@@ -129,10 +130,14 @@ Your primary roles are:
             - **AI Action**:
                 1.  Acknowledge the request.
                 2.  Offer to help: "I can help you with that. To add a 'Log Message' node after 'Node X', I'll need to generate an updated workflow. This will replace the current one."
-                3.  **Attempt to formulate a new, complete prompt describing the existing workflow plus the requested addition.** For example: "Based on your current setup which seems to [briefly describe flow up to Node X, and what happens after Node X if anything], I can describe the new workflow as: '[A workflow that starts with Trigger A, then goes to Node X, then logs a message with the output of Node X, then proceeds to Node Z].'"
+                3.  Attempt to formulate a new, complete prompt describing the existing workflow plus the requested addition. For example: "Based on your current setup which seems to [briefly describe flow up to Node X, and what happens after Node X if anything], I can describe the new workflow as: '[A workflow that starts with Trigger A, then goes to Node X, then logs a message with the output of Node X, then proceeds to Node Z].'"
                 4.  Ask for confirmation: "Shall I proceed with generating this updated workflow based on that description?"
-                5.  If the user confirms (in a follow-up message): Set "isWorkflowGenerationRequest" to "true", populate "workflowGenerationPrompt" with the AI-formulated prompt (or the user's confirmation if they edited it), and set "aiResponse" to a confirmation message.
-                6.  If the user declines or the AI cannot confidently formulate the prompt: Fall back to explaining how the user can do this via the UI or ask for a full user-provided prompt. Set "isWorkflowGenerationRequest" to false.
+                5.  **Handling Confirmations for Workflow Modifications**: If you have previously proposed a modification and asked for confirmation (e.g., "Shall I proceed with generating this updated workflow?"), and the user's current message is a clear affirmative (e.g., "Yes", "Go ahead", "Okay", "Sounds good", "Proceed"), you MUST then:
+                    - Set "isWorkflowGenerationRequest" to true.
+                    - Use the "workflowGenerationPrompt" that you previously formulated and were seeking confirmation for.
+                    - Set "aiResponse" to a clear confirmation message like: "Alright, generating the updated workflow now. It will appear on the canvas shortly."
+                    - Do NOT ask for the prompt again if you just received confirmation for one you proposed.
+                6.  If the user declines the proposed modification or the AI cannot confidently formulate the prompt: Fall back to explaining how the user can do this via the UI or ask for a full user-provided prompt. Set "isWorkflowGenerationRequest" to false.
         - **Targeted Configuration Change (including Credentials) via Re-generation**:
             (e.g., User says "Set the prompt for 'AI Task Alpha' to 'Summarize this text now.'" OR "My YouTube Client ID is X, Secret is Y, use it for the YouTube node.")
             - **AI Action**:
@@ -206,7 +211,7 @@ const assistantChatFlow = ai.defineFlow(
     try {
       // Call the defined prompt function directly
       const genkitResponse = await chatPrompt(input);
-      result = genkitResponse.output; // The output schema is already handled by the prompt definition
+      result = genkitResponse.output; 
 
       if (result === undefined || result === null) {
         console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty (possibly due to strict safety filters not caught by error handler, model issues, or network problems), unparseable by Genkit before Zod validation, or an API error occurred that didn't throw a catchable exception but resulted in no data.");
@@ -231,8 +236,19 @@ const assistantChatFlow = ai.defineFlow(
 
       if (typeof result.aiResponse === 'string') {
         finalAiResponse = result.aiResponse;
+      } else if (result.aiResponse === null) { // Schema now allows null
+        console.warn(`assistantChatFlow: AI result.aiResponse was null. Full result:`, JSON.stringify(result, null, 2));
+        if (isGenRequest && genPrompt) {
+          finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
+        } else if (actionReq) {
+          finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
+        } else {
+          finalAiResponse = "How can I help you further?"; 
+          console.log("assistantChatFlow: 'aiResponse' was null, and no other action. Defaulting to conversational prompt.");
+        }
+        console.log(`assistantChatFlow: Defaulted 'aiResponse' to: "${finalAiResponse}" because original was null.`);
       } else { 
-        // aiResponse is not a string (could be null, undefined, or other type)
+        // aiResponse is not a string AND not null (could be undefined, object, number etc.)
         const originalResponseType = typeof result.aiResponse;
         console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Full result:`, JSON.stringify(result, null, 2));
         
@@ -240,9 +256,6 @@ const assistantChatFlow = ai.defineFlow(
           finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
         } else if (actionReq) {
           finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
-        } else if (result.aiResponse === null) { 
-          finalAiResponse = "How can I help you further?"; 
-          console.log("assistantChatFlow: 'aiResponse' was null, defaulting to conversational prompt.");
         } else {
           console.warn("assistantChatFlow: 'aiResponse' was not string/null and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
           return {
@@ -365,3 +378,5 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
+
