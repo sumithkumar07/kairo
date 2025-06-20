@@ -200,10 +200,12 @@ const assistantChatFlow = ai.defineFlow(
     try {
       const result = await chatPrompt(input); 
       
+      // Log the raw result from AI for better debugging if issues persist
       if (result === undefined || result === null) { 
         console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty, unparseable by Genkit before Zod validation, or due to strict safety filters.");
       } else {
         try {
+          // Log the raw result from the AI model
           console.log("assistantChatFlow: Raw AI result object (attempting to stringify):", JSON.stringify(result, null, 2));
         } catch (stringifyError: any) {
           console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be (displaying directly):", result);
@@ -218,26 +220,49 @@ const assistantChatFlow = ai.defineFlow(
         };
       }
       
-      if (typeof result.aiResponse !== 'string') {
-        console.warn(`assistantChatFlow: AI prompt result was an object, but 'aiResponse' was not a string. Type of aiResponse: ${typeof result.aiResponse}. Full result:`, result);
-        return {
-          aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
-          isWorkflowGenerationRequest: false, 
-          workflowGenerationPrompt: typeof result.workflowGenerationPrompt === 'string' ? result.workflowGenerationPrompt : undefined,
-          actionRequest: result.actionRequest as any,
-        };
-      }
+      let finalAiResponse = result.aiResponse;
+      // Ensure isWorkflowGenerationRequest is properly coerced to boolean if it comes as string "true" or "false"
+      const isGenRequest = typeof result.isWorkflowGenerationRequest === 'string' 
+                            ? result.isWorkflowGenerationRequest.toLowerCase() === 'true' 
+                            : !!result.isWorkflowGenerationRequest;
+      const genPrompt = typeof result.workflowGenerationPrompt === 'string' ? result.workflowGenerationPrompt : undefined;
+      const actionReq = typeof result.actionRequest === 'string' ? result.actionRequest as any : undefined;
 
-      if (result.isWorkflowGenerationRequest && (!result.workflowGenerationPrompt || result.workflowGenerationPrompt.trim() === '')) {
-          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as chat response. AI Response was:", result.aiResponse);
+      if (typeof finalAiResponse !== 'string') {
+        const originalResponseType = typeof finalAiResponse;
+        console.warn(`assistantChatFlow: Original 'aiResponse' was not a string (type: ${originalResponseType}). Attempting to salvage action if possible. Full result:`, result);
+        if (isGenRequest && genPrompt) {
+          finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
+        } else if (actionReq) {
+          finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
+        } else {
+          console.warn("assistantChatFlow: 'aiResponse' was not a string and no other primary action could be salvaged. Returning structural error message.");
           return {
-              aiResponse: result.aiResponse, 
+            aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
+            isWorkflowGenerationRequest: false, 
+            workflowGenerationPrompt: undefined,
+            actionRequest: undefined,
+          };
+        }
+        console.log(`assistantChatFlow: Salvaged 'aiResponse' to: "${finalAiResponse}" because original was type ${originalResponseType}.`);
+      }
+      
+      if (isGenRequest && (!genPrompt || genPrompt.trim() === '')) {
+          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as chat response. Original/Salvaged AI Response was:", finalAiResponse);
+          return {
+              aiResponse: finalAiResponse || "I was about to generate a workflow, but I'm missing the details. Could you clarify what you'd like me to create?", 
               isWorkflowGenerationRequest: false, 
+              workflowGenerationPrompt: undefined,
               actionRequest: undefined 
           };
       }
       
-      return result; 
+      return {
+        aiResponse: finalAiResponse,
+        isWorkflowGenerationRequest: isGenRequest,
+        workflowGenerationPrompt: isGenRequest ? genPrompt : undefined,
+        actionRequest: actionReq,
+      };
     } catch (error: any) {
       console.error("assistantChatFlow: Error caught during flow execution. Raw error:", error);
       
@@ -321,4 +346,3 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
