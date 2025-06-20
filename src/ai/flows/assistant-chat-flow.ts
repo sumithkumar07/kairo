@@ -66,7 +66,7 @@ Your primary goal is to empower the user and make their workflow creation proces
 
 Your primary roles are:
 1.  **Answer questions about Kairo**: How to use it, its features, specific nodes, workflow automation concepts, best practices, troubleshooting.
-    - If a user asks how to get a specific API key or fill a placeholder like {{credential.SERVICE_API_KEY}} (that might have been mentioned in a node's AI-generated explanation or config), explain the general process: they usually need to go to the service's website (e.g., platform.openai.com for OpenAI), sign up/log in, find the API key section in their account settings, and generate a new key. Then, they should add this key to Kairo's Credential Manager (if applicable in the Kairo version they are using) or set it as an environment variable (e.g., SERVICE_API_KEY=their_key_here). Remind them that the node's original "aiExplanation" field often contains specific hints for common services. Do not invent exact, detailed steps for every possible API key, but provide this general, actionable guidance.
+    - If a user asks how to get a specific API key or fill a placeholder like "{{credential.SERVICE_API_KEY}}" (that might have been mentioned in a node's AI-generated explanation or config), explain the general process: they usually need to go to the service's website (e.g., platform.openai.com for OpenAI), sign up/log in, find the API key section in their account settings, and generate a new key. Then, they should add this key to Kairo's Credential Manager (if applicable in the Kairo version they are using) or set it as an environment variable (e.g., SERVICE_API_KEY=their_key_here). Remind them that the node's original "aiExplanation" field often contains specific hints for common services. Do not invent exact, detailed steps for every possible API key, but provide this general, actionable guidance.
 2.  **Provide suggestions**: Offer brief suggestions or high-level steps for how to approach a problem with Kairo.
 3.  **Generate NEW Workflows**: If the user's message is a clear and detailed request to *create* or *generate* a **new** workflow (e.g., "Generate a workflow that does X, Y, and Z"), then:
     - Set "isWorkflowGenerationRequest" to true.
@@ -79,7 +79,7 @@ Your primary roles are:
             - Nodes (especially non-trigger types) that have no incoming connections to their required input handles. *Suggest connecting a relevant preceding node or adding a new node to provide the missing input. Ask what data this node needs or which node should provide it.*
             - Nodes with critical output handles (e.g., main data output) that are not connected to anything. *Suggest connecting this output to a subsequent node (e.g., a "logMessage" node for debugging, or another processing node) or ask the user what should happen with this data.*
         - **Configuration**:
-            - Nodes missing obviously essential configuration based on their type (e.g., an "httpRequest" node typically needs a "url"; an "aiTask" needs a "prompt"; a "sendEmail" needs "to", "subject", "body"). Do not validate the *values*, just the presence of common keys if missing. *If a key is missing, clearly state which node and which key. Ask the user for the value or guide them on where to find it (e.g., 'Your "Fetch User Data" (httpRequest) node is missing its URL. What API endpoint should it call?'). If a placeholder like {{credential.API_KEY_NAME}} or {{env.VAR_NAME}} is present but the user seems stuck, reiterate how to set up credentials/environment variables, referencing the general guidance from your role description. **Specifically, if a node known to require a credential (like an API key for an AI task, or Client ID/Secret for YouTube nodes) seems to be missing it in its config, state this clearly. For example: 'Your "Fetch Trending Videos" (youtubeFetchTrending) node needs an API Key. You should configure it using a placeholder like "{{credential.YouTubeApiKey}}" or "{{env.YOUTUBE_API_KEY}}". You can usually get this key from the Google Cloud Console. Once you have it, add it to Kairo's Credential Manager (if available) as "YouTubeApiKey" or set an environment variable "YOUTUBE_API_KEY" with its value. Do you know where to find this API key, or would you like more general guidance on setting it up?'** *
+            - Nodes missing obviously essential configuration based on their type (e.g., an "httpRequest" node typically needs a "url"; an "aiTask" needs a "prompt"; a "sendEmail" needs "to", "subject", "body"). Do not validate the *values*, just the presence of common keys if missing. *If a key is missing, clearly state which node and which key. Ask the user for the value or guide them on where to find it (e.g., 'Your "Fetch User Data" (httpRequest) node is missing its URL. What API endpoint should it call?'). If a placeholder like "{{credential.API_KEY_NAME}}" or "{{env.VAR_NAME}}" is present but the user seems stuck, reiterate how to set up credentials/environment variables, referencing the general guidance from your role description. **Specifically, if a node known to require a credential (like an API key for an AI task, or Client ID/Secret for YouTube nodes) seems to be missing it in its config, state this clearly. For example: 'Your "Fetch Trending Videos" (youtubeFetchTrending) node needs an API Key. You should configure it using a placeholder like "{{credential.YouTubeApiKey}}" or "{{env.YOUTUBE_API_KEY}}". You can usually get this key from the Google Cloud Console. Once you have it, add it to Kairo's Credential Manager (if available) as "YouTubeApiKey" or set an environment variable "YOUTUBE_API_KEY" with its value. Do you know where to find this API key, or would you like more general guidance on setting it up?'** *
             - A node with a "_flow_run_condition" in its config that seems to point to a non-existent source or a non-boolean value (e.g., "_flow_run_condition: \"{{some_node.text_output}}\"" instead of \"{{some_node.boolean_result}}\"). *Suggest checking the source of the condition; it should resolve to true or false.*
         - **Data Flow (Basic Checks)**:
             - A node trying to use a placeholder like "{{another_node.output}}" where "another_node" does not exist, or is not connected in a way that it would provide data *before* this node, or "output" isn't a valid handle for "another_node". *Suggest checking the node ID, the handle name, and the connection flow.*
@@ -140,7 +140,7 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 Your response (as a JSON object conforming to AssistantChatOutputSchema):
-\`
+\``
 });
 
 const assistantChatFlow = ai.defineFlow(
@@ -149,19 +149,30 @@ const assistantChatFlow = ai.defineFlow(
     inputSchema: AssistantChatInputSchema,
     outputSchema: AssistantChatOutputSchema,
   },
-  async (input) => {
-    const {output} = await chatPrompt(input);
-    if (!output) {
-      return { aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing your message or asking in a different way?" };
-    }
-    // Ensure that if it's a generation request, the prompt field is also populated.
-    if (output.isWorkflowGenerationRequest && !output.workflowGenerationPrompt) {
-        console.warn("AI indicated workflow generation but didn't provide a prompt. Treating as chat.");
+  async (input): Promise<AssistantChatOutput> => {
+    try {
+      const {output} = await chatPrompt(input);
+
+      if (!output || typeof output.aiResponse !== 'string') {
+        console.warn("assistantChatFlow: AI prompt did not return a valid output or aiResponse. Output:", output);
         return {
-            aiResponse: output.aiResponse || "I was about to help generate a workflow, but I seem to be missing the specific details. Could you please tell me more about what the workflow should do?",
-            isWorkflowGenerationRequest: false
+          aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment?",
         };
+      }
+
+      if (output.isWorkflowGenerationRequest && !output.workflowGenerationPrompt) {
+          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a workflowGenerationPrompt. Treating as chat response.");
+          return {
+              aiResponse: output.aiResponse, 
+              isWorkflowGenerationRequest: false,
+          };
+      }
+      return output;
+    } catch (error: any) {
+      console.error("assistantChatFlow: Unhandled error during flow execution:", error);
+      return {
+        aiResponse: "An unexpected error occurred while I was thinking. Please try your request again.",
+      };
     }
-    return output;
   }
 );
