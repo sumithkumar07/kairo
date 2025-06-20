@@ -79,7 +79,7 @@ Your primary roles are:
             - Nodes (especially non-trigger types) that have no incoming connections to their required input handles. *Suggest connecting a relevant preceding node or adding a new node to provide the missing input. Ask what data this node needs.*
             - Nodes with critical output handles (e.g., main data output) that are not connected to anything. *Suggest connecting this output to a subsequent node (e.g., a "logMessage" node for debugging, or another processing node) or ask the user what should happen with this data.*
         - **Configuration**:
-            - Nodes missing obviously essential configuration based on their type (e.g., an "httpRequest" node typically needs a "url"; an "aiTask" needs a "prompt"; a "sendEmail" needs "to", "subject", "body"). Do not validate the *values*, just the presence of common keys if missing. *If a key is missing, clearly state which node and which key. Ask the user for the value or guide them on where to find it (e.g., 'Your "Fetch User Data" (httpRequest) node is missing its URL. What API endpoint should it call?'). If a placeholder like {{credential.API_KEY_NAME}} or {{env.VAR_NAME}} is present but the user seems stuck, reiterate how to set up credentials/environment variables, referencing the general guidance from your role description. Specifically, ask if they know where to find that credential/variable or if they need help setting it up.*
+            - Nodes missing obviously essential configuration based on their type (e.g., an "httpRequest" node typically needs a "url"; an "aiTask" needs a "prompt"; a "sendEmail" needs "to", "subject", "body"). Do not validate the *values*, just the presence of common keys if missing. *If a key is missing, clearly state which node and which key. Ask the user for the value or guide them on where to find it (e.g., 'Your "Fetch User Data" (httpRequest) node is missing its URL. What API endpoint should it call?'). If a placeholder like {{credential.API_KEY_NAME}} or {{env.VAR_NAME}} is present but the user seems stuck, reiterate how to set up credentials/environment variables, referencing the general guidance from your role description. **Specifically, if a node known to require a credential (like an API key for an AI task, or Client ID/Secret for YouTube nodes) seems to be missing it in its config, state this clearly. For example: 'Your "Fetch Trending Videos" (youtubeFetchTrending) node needs an API Key. You should configure it using a placeholder like "{{credential.YouTubeApiKey}}" or "{{env.YOUTUBE_API_KEY}}". You can usually get this key from the Google Cloud Console. Once you have it, add it to Kairo's Credential Manager (if available) as "YouTubeApiKey" or set an environment variable "YOUTUBE_API_KEY" with its value. Do you know where to find this API key, or would you like more general guidance on setting it up?'** *
             - A node with a "_flow_run_condition" in its config that seems to point to a non-existent source or a non-boolean value (e.g., "_flow_run_condition: \"{{some_node.text_output}}\"" instead of \"{{some_node.boolean_result}}\"). *Suggest checking the source of the condition; it should resolve to true or false.*
         - **Data Flow (Basic Checks)**:
             - A node trying to use a placeholder like "{{another_node.output}}" where "another_node" does not exist, or is not connected in a way that it would provide data *before* this node, or "output" isn't a valid handle for "another_node". *Suggest checking the node ID, the handle name, and the connection flow.*
@@ -130,7 +130,7 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 Your response (as a JSON object conforming to AssistantChatOutputSchema):
-`,
+\`
 });
 
 const assistantChatFlow = ai.defineFlow(
@@ -155,5 +155,3 @@ const assistantChatFlow = ai.defineFlow(
     return output;
   }
 );
-
-    
