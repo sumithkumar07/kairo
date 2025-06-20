@@ -26,6 +26,10 @@ import {
   type AssistantChatInput,
   type AssistantChatOutput,
 } from '@/ai/flows/assistant-chat-flow';
+import {
+  testApiKey as genkitTestApiKey,
+  type TestApiKeyOutput,
+} from '@/ai/flows/test-api-key-flow'; // Import the test API key flow
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig, WorkflowExecutionResult } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
@@ -557,11 +561,26 @@ export async function getWorkflowExplanation(
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
   try {
     console.log("[SERVER ACTION] Assistant chat with input (user message):", JSON.stringify(input.userMessage, null, 2));
+    // Log the API key presence directly before the call in the server action
+    console.log('[SERVER ACTION - assistantChat] GOOGLE_API_KEY check. Available: ', process.env.GOOGLE_API_KEY ? `Yes (starts with: ${process.env.GOOGLE_API_KEY.substring(0, 5)})` : 'No / Empty');
+    
     const result = await genkitAssistantChat(input);
     console.log("[SERVER ACTION] Assistant chat response (AI response first 200 chars):", (result.aiResponse || '').substring(0,200));
-    if (!result || typeof result.aiResponse !== 'string') {
-      console.error("[SERVER ACTION] AI returned an invalid chat response structure. Result:", result);
-      return { aiResponse: "I'm sorry, I encountered an issue processing your message."};
+    
+    // Stricter check: if result is received but aiResponse is not a string, it's an issue.
+    if (result && typeof result.aiResponse !== 'string') {
+      console.error("[SERVER ACTION] AI returned a result, but 'aiResponse' was not a string. Result:", JSON.stringify(result, null, 2));
+       return { 
+        aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
+        isWorkflowGenerationRequest: false,
+      };
+    }
+     if (!result) { // This catches null or undefined from the genkit flow itself
+      console.error("[SERVER ACTION] AI call (genkitAssistantChat) returned null or undefined result.");
+      return {
+        aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment? (Code: E_NULL_AI_RESULT)",
+        isWorkflowGenerationRequest: false,
+      };
     }
     return result;
   } catch (error) {
@@ -570,7 +589,25 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
     if (error instanceof Error) {
       errorMessage = `Error in chat: ${error.message}`;
     }
-    return { aiResponse: errorMessage };
+    return { aiResponse: errorMessage, isWorkflowGenerationRequest: false };
+  }
+}
+
+// New server action for testing the API key
+export async function testApiKeyAction(): Promise<TestApiKeyOutput> {
+  console.log("[SERVER ACTION] testApiKeyAction: Initiating API key test.");
+  // Log API key presence here as well, as this is a direct test point
+  console.log('[SERVER ACTION - testApiKeyAction] GOOGLE_API_KEY check. Available: ', process.env.GOOGLE_API_KEY ? `Yes (starts with: ${process.env.GOOGLE_API_KEY.substring(0, 5)})` : 'No / Empty');
+  try {
+    const result = await genkitTestApiKey();
+    console.log("[SERVER ACTION] testApiKeyAction: Test completed. Result:", result);
+    return result;
+  } catch (error: any) {
+    console.error("[SERVER ACTION] testApiKeyAction: Error during test:", error);
+    return {
+      success: false,
+      message: `Error in testApiKeyAction: ${error.message || 'Unknown error'}`,
+    };
   }
 }
 
@@ -1855,4 +1892,5 @@ export async function executeWorkflow(
 
 
     
+
 

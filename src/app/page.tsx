@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain, List, User } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain, List, User, KeyRound } from 'lucide-react';
 import Image from 'next/image';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils'; // Ensure cn is imported
@@ -36,6 +36,12 @@ export default function HomePage() {
               <Link href="/subscriptions" className="flex items-center">
                 <DollarSign className="h-4 w-4 mr-1 sm:mr-1.5" />
                 Subscriptions
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
+              <Link href="/test-apikey" className="flex items-center">
+                <KeyRound className="h-4 w-4 mr-1 sm:mr-1.5" />
+                Test API Key
               </Link>
             </Button>
             {isLoggedIn ? (
