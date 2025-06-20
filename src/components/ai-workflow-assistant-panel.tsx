@@ -8,7 +8,7 @@ import { assistantChat, generateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User } from 'lucide-react'; // Added Bot, User
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -159,13 +159,12 @@ export function AIWorkflowAssistantPanel({
         workflowContextForAI = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
       }
       
-      // Prepare current workflow data for the AI
       const currentWorkflowNodesForAI = nodes.map(n => ({
         id: n.id,
         type: n.type,
         name: n.name,
         description: n.description,
-        config: n.config, // Sending full config, AI prompt instructs it on how to infer
+        config: n.config, 
         inputHandles: n.inputHandles,
         outputHandles: n.outputHandles,
         aiExplanation: n.aiExplanation
@@ -489,54 +488,69 @@ export function AIWorkflowAssistantPanel({
         {isWorkflowRunning ? 'Executing...' : `Run Workflow ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
       </Button>
 
-      <ScrollArea className="flex-1 p-4 space-y-3" viewportRef={chatScrollAreaRef}>
-        {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
-           <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
-              <p className="font-semibold flex items-center gap-2 text-sm">
-                <Wand2 className="h-4 w-4 text-primary" />
-                Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
-              </p>
-              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
-              <Button
-                size="sm"
-                onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
-                className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs"
-                disabled={currentIsLoadingAnyAIButChat || isChatLoading}
-              >
-                Add {suggestedNodeConfig.name} Node
-                <ChevronRight className="ml-auto h-4 w-4" />
-              </Button>
-            </Card>
-        )}
-         {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
-            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>AI is thinking of a good starting point...</span>
-            </Card>
+      <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
+        <div className="space-y-3">
+          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
+            <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
+                <p className="font-semibold flex items-center gap-2 text-sm">
+                  <Wand2 className="h-4 w-4 text-primary" />
+                  Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
+                </p>
+                <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
+                <Button
+                  size="sm"
+                  onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
+                  className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs"
+                  disabled={currentIsLoadingAnyAIButChat || isChatLoading}
+                >
+                  Add {suggestedNodeConfig.name} Node
+                  <ChevronRight className="ml-auto h-4 w-4" />
+                </Button>
+              </Card>
           )}
-         {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
-            <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md mb-3">
-              AI could not suggest a starting point. Try describing your workflow in the prompt below or drag a node from the library.
+          {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
+              <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>AI is thinking of a good starting point...</span>
+              </Card>
+            )}
+          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
+              <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md mb-3">
+                AI could not suggest a starting point. Try describing your workflow in the prompt below or drag a node from the library.
+              </div>
+            )}
+          {chatHistory.map((chat) => (
+            chat.sender === 'user' ? (
+              <div key={chat.id} className="flex items-end justify-end gap-2.5 mb-3">
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 bg-primary text-primary-foreground rounded-xl rounded-ee-none shadow">
+                  <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>
+                  <span className="text-xs text-primary-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                </div>
+                <User className="h-7 w-7 text-foreground rounded-full p-1 bg-muted shadow-sm shrink-0" />
+              </div>
+            ) : (
+              <div key={chat.id} className="flex items-end gap-2.5 mb-3">
+                <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-border bg-muted rounded-xl rounded-es-none shadow">
+                  <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
+                  <span className="text-xs text-muted-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                </div>
+              </div>
+            )
+          ))}
+          {isChatLoading && (
+             <div className="flex items-end gap-2.5 mb-3">
+              <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
+              <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-xl rounded-es-none shadow items-center"> {/* Adjusted padding */}
+                <div className="flex space-x-1.5 items-center justify-center"> {/* Centered dots */}
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.3s]"></span>
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.15s]"></span>
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse"></span>
+                </div>
+              </div>
             </div>
           )}
-        {chatHistory.map((chat) => (
-          <div key={chat.id} className={cn("flex mb-2", chat.sender === 'user' ? "justify-end" : "justify-start")}>
-            <div className={cn(
-              "p-2.5 rounded-lg max-w-[85%] text-sm break-words shadow",
-              chat.sender === 'user' ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-            )}>
-              <p className="whitespace-pre-wrap">{chat.message}</p>
-              <p className="text-xs opacity-70 mt-1 text-right">{chat.timestamp}</p>
-            </div>
-          </div>
-        ))}
-        {isChatLoading && (
-          <div className="flex justify-start mb-2">
-            <div className="p-2.5 rounded-lg bg-muted text-foreground max-w-[85%] text-sm flex items-center gap-2 shadow">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" /> AI is typing...
-            </div>
-          </div>
-        )}
+        </div>
       </ScrollArea>
       
       <div className="p-3 border-t bg-background/80 space-y-1.5 flex flex-col mt-auto">
@@ -610,4 +624,3 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
-
