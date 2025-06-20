@@ -28,7 +28,7 @@ const MinimalWorkflowNodeSchema = z.object({
   type: z.string(),
   name: z.string().optional(),
   description: z.string().optional(),
-  config: z.any().optional().describe("Node's configuration object. The AI should infer common required fields based on node type (e.g., \"url\" for \"httpRequest\", \"prompt\" for \"aiTask\")."),
+  config: z.any().optional().describe("Node's configuration object. The AI should infer common required fields based on node type (e.g., \"url\" for \"httpRequest\", \"prompt\" for \"aiTask\"). Consider general structure like 'url', 'method', 'body', 'headers' for 'httpRequest'; 'prompt', 'model' for 'aiTask'; 'queryText', 'queryParams' for 'databaseQuery'; 'to', 'subject', 'body' for 'sendEmail'; 'pathSuffix' for 'webhookTrigger', 'condition' for 'conditionalLogic', 'inputArrayPath' for 'forEach', etc."),
   inputHandles: z.array(z.string()).optional().describe("List of input handle names."),
   outputHandles: z.array(z.string()).optional().describe("List of output handle names."),
   aiExplanation: z.string().optional().describe("AI-generated explanation for this node, if available."),
@@ -63,7 +63,71 @@ const AssistantChatOutputSchema = z.object({
 export type AssistantChatOutput = z.infer<typeof AssistantChatOutputSchema>;
 
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
-  return assistantChatFlow(input);
+  const genkitResponse = await chatPrompt(input);
+  let result = genkitResponse.output;
+
+  if (!result) {
+    console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty (possibly due to strict safety filters not caught by error handler, model issues, or network problems), unparseable by Genkit before Zod validation, or an API error occurred that didn't throw a catchable exception but resulted in no data.");
+    return {
+      aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment? (Code: E_NULL_AI_RESULT)",
+      isWorkflowGenerationRequest: false,
+    };
+  }
+  
+  try {
+    console.log("assistantChatFlow: Raw AI result object (attempting to stringify):", JSON.stringify(result, null, 2));
+  } catch (stringifyError: any) {
+    console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be (displaying directly):", result);
+  }
+
+  let finalAiResponse: string;
+  const isGenRequest = typeof result.isWorkflowGenerationRequest === 'string'
+                        ? result.isWorkflowGenerationRequest.toLowerCase() === 'true'
+                        : !!result.isWorkflowGenerationRequest;
+  const genPrompt = typeof result.workflowGenerationPrompt === 'string' && result.workflowGenerationPrompt.trim() !== '' ? result.workflowGenerationPrompt : undefined;
+  const actionReq = typeof result.actionRequest === 'string' && result.actionRequest.trim() !== '' ? result.actionRequest as any : undefined;
+
+  if (typeof result.aiResponse === 'string') {
+    finalAiResponse = result.aiResponse;
+  } else { 
+    // aiResponse is not a string (could be null, undefined, object, number etc.) - this is a structural issue from AI
+    const originalResponseType = typeof result.aiResponse;
+    console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Full result:`, JSON.stringify(result, null, 2));
+    
+    if (isGenRequest && genPrompt) {
+      finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
+    } else if (actionReq) {
+      finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
+    } else {
+      // No other primary action can be salvaged, so this is a genuine structural error.
+      console.warn("assistantChatFlow: 'aiResponse' was not string and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
+      return {
+        aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
+        isWorkflowGenerationRequest: false,
+        workflowGenerationPrompt: undefined,
+        actionRequest: undefined,
+      };
+    }
+    console.log(`assistantChatFlow: Salvaged/Defaulted 'aiResponse' to: "${finalAiResponse}" because original was type ${originalResponseType}.`);
+  }
+
+  // If AI flags for generation but doesn't provide a prompt, it's an issue.
+  if (isGenRequest && !genPrompt) {
+      console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as chat response. Original/Salvaged AI Response was:", finalAiResponse);
+      return {
+          aiResponse: finalAiResponse || "I was about to generate a workflow, but I'm missing the details. Could you clarify what you'd like me to create?",
+          isWorkflowGenerationRequest: false,
+          workflowGenerationPrompt: undefined,
+          actionRequest: actionReq, // Keep actionReq if it was set, might be a multi-step where prompt was forgotten
+      };
+  }
+
+  return {
+    aiResponse: finalAiResponse, 
+    isWorkflowGenerationRequest: isGenRequest,
+    workflowGenerationPrompt: isGenRequest ? genPrompt : undefined,
+    actionRequest: actionReq,
+  };
 }
 
 const chatPrompt = ai.definePrompt({
@@ -97,15 +161,22 @@ Your primary roles are:
         - Set "isWorkflowGenerationRequest" to false.
         - In \`aiResponse\`, ask for more details about what kind of workflow they want.
         - Example: User: "Make a workflow." AI: "Sure, I can help with that! What kind of workflow are you looking to create? What should it do?"
-4.  **Analyze & Assist with CURRENT Workflow OR Request Specific Actions**:
-    - If "currentWorkflowNodes" and "currentWorkflowConnections" are provided in your input data AND the user's message implies they need help with their current workflow (e.g., "Is my workflow okay?", "What's wrong here?", "Fix my workflow", "Help me with this flow", "How can I improve this workflow?", "Find issues in my flow"):
+4.  **Analyze & Assist with CURRENT Workflow, "Fix" Issues, OR Request Specific Actions**:
+    - If "currentWorkflowNodes" and "currentWorkflowConnections" are provided in your input data AND the user's message implies they need help with their current workflow (e.g., "Is my workflow okay?", "What's wrong here?", "Help me with this flow", "How can I improve this workflow?", "Find issues in my flow", "Can you fix the problems here?"):
         - Analyze the provided nodes and connections for:
             1.  **Connectivity Issues**: Unconnected nodes, or nodes with required input handles that are not connected.
-            2.  **Missing Essential Configuration**: Critical fields missing for a node's operation (e.g., "url" for "httpRequest", "prompt" for "aiTask", "queryText" for "databaseQuery", "pathSuffix" for "webhookTrigger").
+            2.  **Missing Essential Configuration**: Critical fields missing for a node's operation (e.g., "url" for "httpRequest", "prompt" for "aiTask", "queryText" for "databaseQuery", "pathSuffix" for "webhookTrigger"). Infer common required fields based on node type.
             3.  **Basic Error Handling Gaps**: Identify nodes that can produce errors (like "httpRequest", "aiTask", "databaseQuery") where their "status" or "error_message" output handles are not connected to any subsequent node, or not used in a "conditionalLogic" node. Suggest adding error handling (e.g., "Consider adding a Conditional Logic node after 'Node X' to check its 'status' output and handle potential errors.").
             4.  **Potential Inefficiencies (High-Level)**: Briefly check for obvious redundancies (e.g., two HTTP Request nodes fetching the exact same URL right after each other without an apparent reason).
-        - Formulate your findings in "aiResponse": Describe the problem clearly (mention specific node names or IDs) and suggest a specific, actionable solution, or ask specific, guiding questions.
-        - For this analysis, your "aiResponse" should be purely textual. Do NOT set "isWorkflowGenerationRequest" to true unless the user explicitly asks to generate a *new* workflow.
+        - Formulate your findings.
+        - **If the user also asks to "fix" the identified issues**:
+            - Describe the issues found.
+            - **Attempt to formulate a new, complete \`workflowGenerationPrompt\` that describes the entire existing workflow but with the identified issues corrected.** Be specific about the corrections (e.g., "add a 'Log Message' node after 'Node X' to log its output", "set the 'url' for 'HTTP Request Node Y' to 'https://api.example.com/default' if a URL was missing").
+            - In your "aiResponse", propose this: "I found these issues: [list issues]. I can try to fix this by generating an updated workflow. The new workflow would be described as: '[The new, complete prompt you formulated]'. Shall I proceed?"
+            - **Do NOT set \`isWorkflowGenerationRequest: true\` yet. Wait for user confirmation.**
+        - **Else (if user only asked for analysis/help, not an explicit fix)**:
+            - Formulate your findings in "aiResponse": Describe the problem clearly (mention specific node names or IDs) and suggest a specific, actionable solution, or ask specific, guiding questions.
+            - For this analysis, your "aiResponse" should be purely textual. Do NOT set "isWorkflowGenerationRequest" to true unless the user explicitly asks to generate a *new* workflow later.
     - If "currentWorkflowNodes" are provided AND the user asks a "how-to" question about configuring a *specific node type* that exists in their workflow (e.g., "How do I set the HTTP Request node to use POST?", "What fields do I need for the Send Email node?"):
         - Identify the relevant node type from the user's question.
         - Provide clear, step-by-step textual instructions on how to configure that node type's common/relevant fields in the Kairo UI. Mention key configuration field names.
@@ -123,7 +194,10 @@ Your primary roles are:
         - Set "actionRequest" to "analyze_workflow_efficiency".
         - Set "aiResponse" to a confirmation, e.g., "Okay, I'll perform a deeper analysis of your workflow for efficiency and robustness. One moment..."
         - Do NOT attempt to generate the analysis yourself in "aiResponse" if "actionRequest" is set.
-5.  **Modify/Edit/Redesign CURRENT Workflow**: If "currentWorkflowNodes" and "currentWorkflowConnections" are provided AND the user's message indicates a desire to *change*, *update*, *edit*, or *redesign* the current workflow:
+    - **If the user asks to "run the workflow"**:
+        - Set "aiResponse" to "I can't directly run the workflow from here. You can use the 'Run Workflow' button in the UI to execute it. If you'd like me to analyze it for issues before you run it, or help fix any problems, just let me know!"
+        - Do NOT set any other flags.
+5.  **Modify/Edit/Redesign CURRENT Workflow (or Confirming a Fix)**: If "currentWorkflowNodes" and "currentWorkflowConnections" are provided AND the user's message indicates a desire to *change*, *update*, *edit*, or *redesign* the current workflow, OR if they are confirming a fix you previously proposed:
     - **Assess Change Type & Complexity**:
         - **Simple UI-Guidable Informational/Config Changes**: (e.g., "rename node Y to 'New Name'").
             - **AI Action**: Explain this change can be made directly in the Kairo UI. Provide clear, step-by-step textual instructions. Set "isWorkflowGenerationRequest" to false.
@@ -133,12 +207,7 @@ Your primary roles are:
                 2.  Offer to help: "I can help you with that. To add a 'Log Message' node after 'Node X', I'll need to generate an updated workflow. This will replace the current one."
                 3.  Attempt to formulate a new, complete prompt describing the existing workflow plus the requested addition. For example: "Based on your current setup which seems to [briefly describe flow up to Node X, and what happens after Node X if anything], I can describe the new workflow as: '[A workflow that starts with Trigger A, then goes to Node X, then logs a message with the output of Node X, then proceeds to Node Z].'"
                 4.  Ask for confirmation: "Shall I proceed with generating this updated workflow based on that description?"
-                5.  **Handling Confirmations for Workflow Modifications**: If you have previously proposed a modification and asked for confirmation (e.g., "Shall I proceed with generating this updated workflow?"), and the user's current message is a clear affirmative (e.g., "Yes", "Go ahead", "Okay", "Sounds good", "Proceed"), you MUST then:
-                    - Set "isWorkflowGenerationRequest" to true.
-                    - Use the "workflowGenerationPrompt" that you previously formulated and were seeking confirmation for.
-                    - Set "aiResponse" to a clear confirmation message like: "Alright, generating the updated workflow now. It will appear on the canvas shortly."
-                    - Do NOT ask for the prompt again if you just received confirmation for one you proposed.
-                6.  If the user declines the proposed modification or the AI cannot confidently formulate the prompt: Fall back to explaining how the user can do this via the UI or ask for a full user-provided prompt. Set "isWorkflowGenerationRequest" to false.
+                5.  If the user declines the proposed modification or the AI cannot confidently formulate the prompt: Fall back to explaining how the user can do this via the UI or ask for a full user-provided prompt. Set "isWorkflowGenerationRequest" to false.
         - **Targeted Configuration Change (including Credentials) via Re-generation**:
             (e.g., User says "Set the prompt for 'AI Task Alpha' to 'Summarize this text now.'" OR "My YouTube Client ID is X, Secret is Y, use it for the YouTube node.")
             - **AI Action**:
@@ -159,6 +228,12 @@ Your primary roles are:
             - **AI Action**: Explain that for such changes, re-generating the workflow is the best approach. Ask the user for a new, complete prompt describing the desired final state. If the user provides this new prompt, set "isWorkflowGenerationRequest" to true, populate "workflowGenerationPrompt", and set "aiResponse" to a confirmation.
         - **Vague Change Request**: (e.g., "this isn't right, change it", "make it better").
             - **AI Action**: Ask clarifying questions to understand what specific changes the user wants. Try to guide them towards either simple UI-guided changes, a more specific targeted change request, or a clear prompt for regeneration. Set "isWorkflowGenerationRequest" to false.
+        - **Handling Confirmations for Workflow Modifications (e.g., user says "Yes" after AI proposed a fix or modification)**: If you have previously proposed a modification (e.g., "Shall I proceed with generating this updated workflow based on [AI-formulated prompt]?") and the user's current message is a clear affirmative (e.g., "Yes", "Go ahead", "Okay", "Sounds good", "Proceed"):
+            - You MUST then:
+                - Set "isWorkflowGenerationRequest" to true.
+                - Use the "workflowGenerationPrompt" that you previously formulated and were seeking confirmation for.
+                - Set "aiResponse" to a clear confirmation message like: "Alright, generating the updated workflow now. It will appear on the canvas shortly."
+            - Do NOT ask for the prompt again if you just received confirmation for one you proposed.
 
 If none of the above roles (new workflow generation, current workflow analysis, specific action request, or workflow modification) clearly apply to the user's message, or if you are unsure, your primary goal is to engage in helpful conversation. In this case:
 - "aiResponse" MUST contain your textual reply.
@@ -182,7 +257,7 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
-- **The "aiResponse" field in the JSON output MUST always be a simple string value (or null if no direct textual response is appropriate but other actions are being signaled).** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
+- **The "aiResponse" field in the JSON output MUST always be a simple string value.** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
 - Do NOT include any explanatory text or markdown formatting (like \`\`\`json ... \`\`\`) before or after the JSON object.
 - When "isWorkflowGenerationRequest: true", "workflowGenerationPrompt" MUST contain the detailed prompt for the generator. "aiResponse" should ONLY be a short confirmation.
 - When "actionRequest" is set (e.g., to "explain_workflow"), "aiResponse" should be a short confirmation that you are initiating that action. The actual result of the action (like the explanation text) will come from a separate service call made by the application.
@@ -210,7 +285,7 @@ const assistantChatFlow = ai.defineFlow(
     console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
     let result: AssistantChatOutput | undefined | null;
     try {
-      const genkitResponse = await chatPrompt(input);
+      const genkitResponse = await chatPrompt(input); 
       result = genkitResponse.output; 
 
       if (result === undefined || result === null) {
@@ -236,19 +311,8 @@ const assistantChatFlow = ai.defineFlow(
 
       if (typeof result.aiResponse === 'string') {
         finalAiResponse = result.aiResponse;
-      } else if (result.aiResponse === null) { 
-        console.warn(`assistantChatFlow: AI result.aiResponse was null. Full result:`, JSON.stringify(result, null, 2));
-        if (isGenRequest && genPrompt) {
-          finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
-        } else if (actionReq) {
-          finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
-        } else {
-          finalAiResponse = "How can I help you further?"; 
-          console.log("assistantChatFlow: 'aiResponse' was null, and no other action. Defaulting to conversational prompt.");
-        }
-        console.log(`assistantChatFlow: Defaulted 'aiResponse' to: "${finalAiResponse}" because original was null.`);
       } else { 
-        // aiResponse is not a string AND not null (could be undefined, object, number etc.)
+        // aiResponse is not a string
         const originalResponseType = typeof result.aiResponse;
         console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Full result:`, JSON.stringify(result, null, 2));
         
@@ -257,7 +321,7 @@ const assistantChatFlow = ai.defineFlow(
         } else if (actionReq) {
           finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
         } else {
-          console.warn("assistantChatFlow: 'aiResponse' was not string/null and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
+          console.warn("assistantChatFlow: 'aiResponse' was not string and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
           return {
             aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
             isWorkflowGenerationRequest: false,
@@ -384,3 +448,6 @@ const assistantChatFlow = ai.defineFlow(
     
 
     
+
+    
+
