@@ -161,16 +161,17 @@ Current Workflow Context: {{{workflowContext}}}
 
 User's Current Message: {{{userMessage}}}
 
-Your response (as a JSON object conforming to AssistantChatOutputSchema):
-\`\`\`json
+IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
+Do NOT include any explanatory text or markdown formatting (like \`\`\`json or \`\`\`) before or after the JSON object.
+The JSON object should look like this:
 {
-  "aiResponse": "...",
+  "aiResponse": "The AI's textual answer to the user.",
   "isWorkflowGenerationRequest": false,
   "workflowGenerationPrompt": null,
   "actionRequest": null
 }
-\`\`\`
-`});
+`,
+});
 
 const assistantChatFlow = ai.defineFlow(
   {
@@ -180,10 +181,14 @@ const assistantChatFlow = ai.defineFlow(
   },
   async (input): Promise<AssistantChatOutput> => {
     try {
-      const result = await chatPrompt(input);
+      const result = await chatPrompt(input); // This directly returns AssistantChatOutput | undefined
 
       if (!result || typeof result.aiResponse !== 'string') {
-        console.warn("assistantChatFlow: AI prompt did not return a valid result or aiResponse. Result object:", JSON.stringify(result, null, 2));
+        try {
+            console.warn("assistantChatFlow: AI prompt did not return a valid result or aiResponse. Result object (stringified):", JSON.stringify(result, null, 2));
+        } catch (stringifyError: any) {
+            console.warn("assistantChatFlow: AI prompt returned an invalid result that could not be stringified. Raw result might be complex or circular. Error during stringify:", stringifyError.message);
+        }
         return {
           aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment?",
           isWorkflowGenerationRequest: false,
@@ -193,11 +198,11 @@ const assistantChatFlow = ai.defineFlow(
       if (result.isWorkflowGenerationRequest && (!result.workflowGenerationPrompt || result.workflowGenerationPrompt.trim() === '')) {
           console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid workflowGenerationPrompt. Treating as chat response. AI Response was:", result.aiResponse);
           return {
-              aiResponse: result.aiResponse,
-              isWorkflowGenerationRequest: false,
+              aiResponse: result.aiResponse, // Keep the AI's textual response
+              isWorkflowGenerationRequest: false, // but don't try to generate a workflow
           };
       }
-      return result;
+      return result; // This is AssistantChatOutput
     } catch (error: any) {
       console.error("assistantChatFlow: Unhandled error during flow execution:", error); // Log the actual error object
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
@@ -228,11 +233,12 @@ const assistantChatFlow = ai.defineFlow(
         } else if (/blocked/i.test(error.message) || /safety/i.test(error.message)) {
           // This is a fallback if the detailed `finishReason: 'SAFETY'` wasn't available
           userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
-        } else if (error.name === 'ZodError') { // Check for Zod validation errors
+        }
+      } else if (error.name === 'ZodError') { // Check for Zod validation errors
           userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it.";
           console.error("assistantChatFlow: Zod validation error from AI output:", error.errors);
-        }
       }
+
 
       return {
         aiResponse: userErrorMessage,
@@ -241,3 +247,6 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
+
+    
