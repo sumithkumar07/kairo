@@ -70,6 +70,14 @@ const chatPrompt = ai.definePrompt({
   name: 'assistantChatPrompt',
   input: {schema: AssistantChatInputSchema},
   output: {schema: AssistantChatOutputSchema},
+  config: { // Added safety settings
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    ],
+  },
   prompt: `You are Kairo, a very friendly, patient, and highly skilled AI assistant for a workflow automation tool.
 Your primary goal is to empower the user and make their workflow creation process smoother and more enjoyable.
 
@@ -189,33 +197,52 @@ const assistantChatFlow = ai.defineFlow(
   async (input): Promise<AssistantChatOutput> => {
     console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
     try {
-      const result = await chatPrompt(input);
+      const result = await chatPrompt(input); // result should be AssistantChatOutput | undefined
       
-      try {
-        console.log("assistantChatFlow: Raw AI result object:", JSON.stringify(result, null, 2));
-      } catch (stringifyError: any) {
-        console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be:", result);
+      // Enhanced logging for the raw result
+      if (result === undefined || result === null) { // Check specifically for undefined or null
+        console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty, unparseable by Genkit before Zod validation, or due to strict safety filters.");
+      } else {
+        // Log the result object if it exists, even if it's not perfect
+        try {
+          console.log("assistantChatFlow: Raw AI result object (attempting to stringify):", JSON.stringify(result, null, 2));
+        } catch (stringifyError: any) {
+          // This catch is for JSON.stringify errors, not for the main flow
+          console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be (displaying directly):", result);
+        }
       }
 
-      if (!result || typeof result.aiResponse !== 'string') {
-        try {
-            console.warn("assistantChatFlow: AI prompt did not return a valid result or aiResponse. Result object (stringified):", JSON.stringify(result, null, 2));
-        } catch (stringifyError: any) {
-            console.warn("assistantChatFlow: AI prompt returned an invalid result that could not be stringified. Raw result might be complex or circular. Error during stringify:", stringifyError.message);
-        }
+      // Primary checks for a valid 'result' and 'aiResponse'
+      if (!result) { // This covers if result is undefined or null
+        console.warn("assistantChatFlow: AI prompt did not return a usable result object (it was undefined or null). Returning generic error message to user.");
         return {
           aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment?",
           isWorkflowGenerationRequest: false,
         };
       }
+      
+      // Check if aiResponse exists and is a string AFTER confirming 'result' itself exists
+      if (typeof result.aiResponse !== 'string') {
+        console.warn(`assistantChatFlow: AI prompt result was an object, but 'aiResponse' was not a string. Type of aiResponse: ${typeof result.aiResponse}. Full result:`, result);
+        return {
+          aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
+          isWorkflowGenerationRequest: false, 
+          workflowGenerationPrompt: typeof result.workflowGenerationPrompt === 'string' ? result.workflowGenerationPrompt : undefined,
+          actionRequest: result.actionRequest as any,
+        };
+      }
 
+      // This check remains important: if it's a generation request, the prompt must be there.
       if (result.isWorkflowGenerationRequest && (!result.workflowGenerationPrompt || result.workflowGenerationPrompt.trim() === '')) {
-          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid workflowGenerationPrompt. Treating as chat response. AI Response was:", result.aiResponse);
+          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as chat response. AI Response was:", result.aiResponse);
           return {
               aiResponse: result.aiResponse, 
               isWorkflowGenerationRequest: false, 
+              actionRequest: undefined 
           };
       }
+      
+      // If all checks pass, 'result' should conform to AssistantChatOutputSchema
       return result; 
     } catch (error: any) {
       console.error("assistantChatFlow: Error caught during flow execution. Raw error:", error);
@@ -300,3 +327,4 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
