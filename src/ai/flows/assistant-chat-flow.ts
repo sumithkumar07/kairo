@@ -162,7 +162,7 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 Your response (as a JSON object conforming to AssistantChatOutputSchema):
-\`}
+\`
 });
 
 const assistantChatFlow = ai.defineFlow(
@@ -190,7 +190,7 @@ const assistantChatFlow = ai.defineFlow(
               isWorkflowGenerationRequest: false,
           };
       }
-      return output;
+      return output!;
     } catch (error: any) {
       console.error("assistantChatFlow: Unhandled error during flow execution:", error);
       return {
