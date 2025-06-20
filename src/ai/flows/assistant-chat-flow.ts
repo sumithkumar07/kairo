@@ -15,6 +15,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+// Debug: Check if API key is available in this server environment
+console.log(
+  '[ASSISTANT CHAT FLOW] GOOGLE_API_KEY check. Available: ',
+  process.env.GOOGLE_API_KEY ? `Yes (starts with: ${process.env.GOOGLE_API_KEY.substring(0, 5)})` : 'No / Empty'
+);
+
+
 // Minimal Schemas for workflow context analysis by the chat AI
 const MinimalWorkflowNodeSchema = z.object({
   id: z.string(),
@@ -180,9 +187,9 @@ const assistantChatFlow = ai.defineFlow(
     outputSchema: AssistantChatOutputSchema,
   },
   async (input): Promise<AssistantChatOutput> => {
-    console.log("assistantChatFlow: Received input:", JSON.stringify(input, null, 2).substring(0, 500) + "...");
+    console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
     try {
-      const result = await chatPrompt(input); 
+      const result = await chatPrompt(input);
       
       try {
         console.log("assistantChatFlow: Raw AI result object:", JSON.stringify(result, null, 2));
@@ -212,16 +219,25 @@ const assistantChatFlow = ai.defineFlow(
       return result; 
     } catch (error: any) {
       console.error("assistantChatFlow: Error caught during flow execution. Raw error:", error);
+      
+      // Attempt to stringify the error for detailed logging, if it's an object
+      let errorDetailsForLog = "Raw error logged above.";
+      if (typeof error === 'object' && error !== null) {
+        try {
+          errorDetailsForLog = JSON.stringify(error, Object.getOwnPropertyNames(error));
+        } catch (e) {
+          // If stringify fails (e.g., circular structure), grab some common properties
+          errorDetailsForLog = `Name: ${error.name}, Message: ${error.message}, Stack: ${error.stack ? error.stack.substring(0, 200) + '...' : 'N/A'}`;
+        }
+      } else if (typeof error !== 'string') {
+        errorDetailsForLog = String(error);
+      }
+      console.error(`assistantChatFlow: Processed error for user. Full Error Details: ${errorDetailsForLog}`);
+
+
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
-      let detailedLogMessage = "Raw error logged above.";
-
+      
       if (error && typeof error === 'object') {
-        if (error.name) detailedLogMessage += ` Name: ${error.name}.`;
-        if (error.message) detailedLogMessage += ` Message: ${error.message}.`;
-        // Avoid logging full stack to client-side logs if too verbose, but good for server
-        // if (error.stack) detailedLogMessage += ` Stack: ${error.stack.substring(0, 200)}...`;
-
-
         if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
           const firstCandidate = error.candidates[0];
           if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
@@ -241,33 +257,43 @@ const assistantChatFlow = ai.defineFlow(
           }
         } else if (error.name === 'ZodError' && error.errors) {
             userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it.";
-            detailedLogMessage += ` Zod validation errors: ${JSON.stringify(error.errors)}`;
             console.error("assistantChatFlow: Zod validation error from AI output:", error.errors);
-        } else if (error.message) { 
-          if (error.message.includes('429') || /quota/i.test(error.message) || /rate limit/i.test(error.message)) {
-            userErrorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
-          } else if (error.message.includes('API key not valid') || error.message.includes('permission denied') || error.message.includes('forbidden') || (error.status && (error.status === 401 || error.status === 403))) {
-             userErrorMessage = "There's an issue with the AI service configuration. Please contact support if this persists.";
-          } else if (/blocked/i.test(error.message) || /safety/i.test(error.message)) {
-            userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
-          } else if (error.name === 'SyntaxError' && error.message.toLowerCase().includes('json')) {
-            userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again.";
-            detailedLogMessage += ' Possible JSON parsing error from AI output.';
+        } else if (error.message) { // Generic error message check
+          const errorMessageLower = String(error.message).toLowerCase();
+          if (errorMessageLower.includes('api key') || errorMessageLower.includes('permission denied') || errorMessageLower.includes('forbidden') || String(error.status) === '401' || String(error.status) === '403' || String(error.code) === '401' || String(error.code) === '403') {
+             userErrorMessage = "There's an issue with the AI service configuration. Please check your API key and project settings, then try again. (Code: ECONF)";
+          } else if (errorMessageLower.includes('quota') || errorMessageLower.includes('rate limit') || String(error.status) === '429' || String(error.code) === '429') {
+            userErrorMessage = "The AI service is currently experiencing high demand or you've reached a usage limit. Please try again in a few moments. (Code: ELIMIT)";
+          } else if (errorMessageLower.includes('blocked') || errorMessageLower.includes('safety') || errorMessageLower.includes('harmful')) {
+            userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: ESAFE)";
+          } else if (error.name === 'SyntaxError' && errorMessageLower.includes('json')) {
+            userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again. (Code: EJSON)";
+          } else {
+            // For other errors that have a message, provide a slightly more detailed generic error
+            userErrorMessage = `An error occurred: ${String(error.message).substring(0,100)}. Please try again. (Code: EGEN)`;
           }
+        } else if (error.status || error.code) { // If no message, but has status/code
+           if (String(error.status) === '401' || String(error.status) === '403' || String(error.code) === '401' || String(error.code) === '403') {
+               userErrorMessage = "There's an issue with the AI service configuration (authentication/permission). Please check your API key and project settings. (Code: EAUTH)";
+           } else if (String(error.status) === '429' || String(error.code) === '429') {
+               userErrorMessage = "The AI service is busy or usage limits were reached. Please try again later. (Code: ERATE)";
+           } else {
+               userErrorMessage = `An unexpected error occurred. Status: ${error.status || 'N/A'}, Code: ${error.code || 'N/A'}. (Code: ESTAT)`;
+           }
         }
-      } else if (typeof error === 'string') {
-        detailedLogMessage += ` Error is a string: "${error}"`;
-        if (/quota|rate limit|429/i.test(error)) {
-          userErrorMessage = "The AI service is currently experiencing high demand. Please try again in a few moments.";
-        } else if (/API key not valid|permission denied|forbidden|401|403/i.test(error)) {
-           userErrorMessage = "There's an issue with the AI service configuration. Please contact support if this persists.";
-        } else if (/blocked|safety/i.test(error)) {
-          userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+      } else if (typeof error === 'string') { // Error is a simple string
+        const errorStringLower = error.toLowerCase();
+        if (errorStringLower.includes('api key') || errorStringLower.includes('permission denied') || errorStringLower.includes('forbidden') || errorStringLower.includes('401') || errorStringLower.includes('403')) {
+           userErrorMessage = "There's an issue with the AI service configuration. Please check your API key and project settings. (Code: SCONF)";
+        } else if (errorStringLower.includes('quota') || errorStringLower.includes('rate limit') || errorStringLower.includes('429')) {
+          userErrorMessage = "The AI service is currently experiencing high demand or usage limits. Please try again in a few moments. (Code: SLIMIT)";
+        } else if (errorStringLower.includes('blocked') || errorStringLower.includes('safety') || errorStringLower.includes('harmful')) {
+          userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: SSAFE)";
+        } else {
+          userErrorMessage = `An error occurred: ${error.substring(0,100)}. Please try again. (Code: SGEN)`;
         }
       }
       
-      console.error(`assistantChatFlow: Processed error for user. Details: ${detailedLogMessage}`);
-
       return {
         aiResponse: userErrorMessage,
         isWorkflowGenerationRequest: false,
@@ -275,3 +301,4 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
