@@ -125,7 +125,7 @@ const assistantChatFlow = ai.defineFlow(
     outputSchema: AssistantChatOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
+    const {output} = await chatPrompt(input);
     if (!output) {
       return { aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing your message or asking in a different way?" };
     }
