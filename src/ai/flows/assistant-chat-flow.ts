@@ -55,7 +55,7 @@ const AssistantChatInputSchema = z.object({
 export type AssistantChatInput = z.infer<typeof AssistantChatInputSchema>;
 
 const AssistantChatOutputSchema = z.object({
-  aiResponse: z.string().describe("The AI assistant's textual response to the user's message. This could be a general chat response, a confirmation for workflow generation, an analysis of the current workflow with suggestions/questions, or guidance on how to modify the workflow."),
+  aiResponse: z.string().nullable().describe("The AI assistant's textual response to the user's message. This could be a general chat response, a confirmation for workflow generation, an analysis of the current workflow with suggestions/questions, or guidance on how to modify the workflow. Must be a string or null."),
   isWorkflowGenerationRequest: z.boolean().optional().describe("True if the AI believes the user's message is a request to generate a new workflow (or regenerate an existing one based on a new prompt). If true, \"workflowGenerationPrompt\" should be populated."),
   workflowGenerationPrompt: z.string().optional().describe("If \"isWorkflowGenerationRequest\" is true, this field contains the extracted or refined prompt that should be used for actual workflow generation by the main generation service. This new workflow will replace the current one."),
   actionRequest: z.enum(["explain_workflow", "suggest_next_node", "analyze_workflow_efficiency"]).optional().describe("If the AI determines the user is asking for a specific action like 'explain the current workflow', 'suggest a next node', or 'analyze workflow efficiency/robustness', this field will be set. The client application should then trigger the appropriate dedicated service/flow."),
@@ -161,15 +161,6 @@ If none of the above roles (new workflow generation, current workflow analysis, 
 - "workflowGenerationPrompt" MUST be null or omitted.
 - "actionRequest" MUST be null or omitted.
 
-IMPORTANT:
-- You are a static analyzer and conversational assistant. You do NOT execute the workflow yourself.
-- When "isWorkflowGenerationRequest: true", "workflowGenerationPrompt" MUST contain the detailed prompt for the generator. "aiResponse" should ONLY be a short confirmation.
-- When "actionRequest" is set (e.g., to "explain_workflow"), "aiResponse" should be a short confirmation that you are initiating that action. The actual result of the action (like the explanation text) will come from a separate service call made by the application.
-- **The "aiResponse" field in the JSON output MUST always be a simple string value.** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
-- DO NOT output workflow JSON in "aiResponse".
-- Keep responses helpful, concise. If unknown, say so.
-- Mention Kairo node types if relevant (e.g., "'httpRequest' node for external service calls"). Available Kairo node types: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown.
-
 {{#if chatHistory}}
 Previous Conversation:
 {{#each chatHistory}}
@@ -184,10 +175,17 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
-Do NOT include any explanatory text or markdown formatting (like \`\`\`json or \`\`\`) before or after the JSON object.
+- **The "aiResponse" field in the JSON output MUST always be a simple string value (or null if no direct textual response is appropriate but other actions are being signaled).** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
+- Do NOT include any explanatory text or markdown formatting (like \`\`\`json or \`\`\`) before or after the JSON object.
+- When "isWorkflowGenerationRequest: true", "workflowGenerationPrompt" MUST contain the detailed prompt for the generator. "aiResponse" should ONLY be a short confirmation (or null if the confirmation is handled by the client based on the flags).
+- When "actionRequest" is set (e.g., to "explain_workflow"), "aiResponse" should be a short confirmation that you are initiating that action (or null if the confirmation is handled by the client). The actual result of the action (like the explanation text) will come from a separate service call made by the application.
+- DO NOT output workflow JSON in "aiResponse".
+- Keep responses helpful, concise. If unknown, say so.
+- Mention Kairo node types if relevant (e.g., "'httpRequest' node for external service calls"). Available Kairo node types: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown.
+
 The JSON object should look like this:
 {
-  "aiResponse": "The AI's textual answer to the user.",
+  "aiResponse": "The AI's textual answer to the user, or null.",
   "isWorkflowGenerationRequest": false,
   "workflowGenerationPrompt": null,
   "actionRequest": null
@@ -227,6 +225,17 @@ const assistantChatFlow = ai.defineFlow(
       }
       
       let finalAiResponse = result.aiResponse;
+
+      if (finalAiResponse === null) {
+        console.warn(`assistantChatFlow: AI result.aiResponse was null.`);
+        // If aiResponse is null, we need to ensure other actions might still proceed.
+        // Or set a default message if no other action is taken.
+        // This will be handled by the logic below.
+      } else if (typeof finalAiResponse !== 'string') {
+         console.warn(`assistantChatFlow: AI result.aiResponse is NOT a string. Type: ${typeof finalAiResponse}, Value (preview): ${String(finalAiResponse).substring(0,100)}`);
+      }
+
+
       // Ensure isWorkflowGenerationRequest is properly coerced to boolean if it comes as string "true" or "false"
       const isGenRequest = typeof result.isWorkflowGenerationRequest === 'string' 
                             ? result.isWorkflowGenerationRequest.toLowerCase() === 'true' 
@@ -234,7 +243,18 @@ const assistantChatFlow = ai.defineFlow(
       const genPrompt = typeof result.workflowGenerationPrompt === 'string' ? result.workflowGenerationPrompt : undefined;
       const actionReq = typeof result.actionRequest === 'string' ? result.actionRequest as any : undefined;
 
-      if (typeof finalAiResponse !== 'string') {
+      if (finalAiResponse === null) {
+        // If aiResponse is null, check if other actions are present
+        if (isGenRequest && genPrompt && typeof genPrompt === 'string' && genPrompt.trim() !== '') {
+          finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
+        } else if (actionReq && typeof actionReq === 'string' && actionReq.trim() !== '') {
+          finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
+        } else {
+          // No other action, and aiResponse was null. Provide a default.
+          finalAiResponse = "I've processed your request. Is there anything else I can help with?";
+          console.warn("assistantChatFlow: aiResponse was null and no other action salvaged. Setting default response.");
+        }
+      } else if (typeof finalAiResponse !== 'string') {
         const originalResponseType = typeof finalAiResponse;
         console.warn(`assistantChatFlow: Original 'aiResponse' was not a string (type: ${originalResponseType}). Attempting to salvage action if possible. Full result:`, result);
         if (isGenRequest && genPrompt && typeof genPrompt === 'string' && genPrompt.trim() !== '') {
@@ -288,26 +308,26 @@ const assistantChatFlow = ai.defineFlow(
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
       
       if (error && typeof error === 'object') {
-        if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
+        if ((error.name === 'ZodError' || Array.isArray(error.errors)) && error.errors) { // Catch ZodError or Zod-like errors
+            userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it. (Code: EZOD)";
+            console.error("assistantChatFlow: Zod or Zod-like validation error from AI output:", error.errors);
+        } else if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
           const firstCandidate = error.candidates[0];
           if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
             switch (firstCandidate.finishReason) {
               case 'SAFETY':
-                userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+                userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: EFIN-SAFE)";
                 break;
               case 'RECITATION':
-                userErrorMessage = "I'm unable to complete that request due to content restrictions related to recitation. Please try a different approach.";
+                userErrorMessage = "I'm unable to complete that request due to content restrictions related to recitation. Please try a different approach. (Code: EFIN-REC)";
                 break;
               case 'MAX_TOKENS':
-                userErrorMessage = "The request was too long or the response would be too long. Please try a shorter message or request.";
+                userErrorMessage = "The request was too long or the response would be too long. Please try a shorter message or request. (Code: EFIN-MAX)";
                 break;
               default:
-                userErrorMessage = "I'm sorry, I couldn't complete that request due to an unexpected reason (" + firstCandidate.finishReason + "). Please try rephrasing.";
+                userErrorMessage = "I'm sorry, I couldn't complete that request due to an unexpected reason (" + firstCandidate.finishReason + "). Please try rephrasing. (Code: EFIN-OTHER)";
             }
           }
-        } else if (error.name === 'ZodError' && error.errors) {
-            userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it.";
-            console.error("assistantChatFlow: Zod validation error from AI output:", error.errors);
         } else if (error.message) { 
           const errorMessageLower = String(error.message).toLowerCase();
           if (errorMessageLower.includes('api key') || errorMessageLower.includes('permission denied') || errorMessageLower.includes('forbidden') || String(error.status) === '401' || String(error.status) === '403' || String(error.code) === '401' || String(error.code) === '403') {
