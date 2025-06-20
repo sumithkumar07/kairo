@@ -170,8 +170,7 @@ Your response (as a JSON object conforming to AssistantChatOutputSchema):
   "actionRequest": null
 }
 \`\`\`
-`,
-});
+`});
 
 const assistantChatFlow = ai.defineFlow(
   {
@@ -181,24 +180,24 @@ const assistantChatFlow = ai.defineFlow(
   },
   async (input): Promise<AssistantChatOutput> => {
     try {
-      const {output} = await prompt(input);
+      const result = await chatPrompt(input);
 
-      if (!output || typeof output.aiResponse !== 'string') {
-        console.warn("assistantChatFlow: AI prompt did not return a valid output or aiResponse. Output:", JSON.stringify(output, null, 2));
+      if (!result || typeof result.aiResponse !== 'string') {
+        console.warn("assistantChatFlow: AI prompt did not return a valid result or aiResponse. Result object:", JSON.stringify(result, null, 2));
         return {
           aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment?",
           isWorkflowGenerationRequest: false,
         };
       }
 
-      if (output.isWorkflowGenerationRequest && (!output.workflowGenerationPrompt || output.workflowGenerationPrompt.trim() === '')) {
-          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid workflowGenerationPrompt. Treating as chat response. AI Response was:", output.aiResponse);
+      if (result.isWorkflowGenerationRequest && (!result.workflowGenerationPrompt || result.workflowGenerationPrompt.trim() === '')) {
+          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid workflowGenerationPrompt. Treating as chat response. AI Response was:", result.aiResponse);
           return {
-              aiResponse: output.aiResponse,
+              aiResponse: result.aiResponse,
               isWorkflowGenerationRequest: false,
           };
       }
-      return output!;
+      return result;
     } catch (error: any) {
       console.error("assistantChatFlow: Unhandled error during flow execution:", error); // Log the actual error object
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
@@ -229,6 +228,9 @@ const assistantChatFlow = ai.defineFlow(
         } else if (/blocked/i.test(error.message) || /safety/i.test(error.message)) {
           // This is a fallback if the detailed `finishReason: 'SAFETY'` wasn't available
           userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing.";
+        } else if (error.name === 'ZodError') { // Check for Zod validation errors
+          userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it.";
+          console.error("assistantChatFlow: Zod validation error from AI output:", error.errors);
         }
       }
 
