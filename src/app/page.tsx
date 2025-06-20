@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain, List, User } from 'lucide-react';
 import Image from 'next/image';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { cn } from '@/lib/utils'; // Ensure cn is imported
 
 export default function HomePage() {
   const { isLoggedIn, logout } = useSubscription();
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/20 text-foreground">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
@@ -75,7 +76,7 @@ export default function HomePage() {
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
             Kairo empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
           </p>
-          <Button asChild size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-all duration-300 ease-in-out hover:scale-105">
+          <Button asChild size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-all duration-300 ease-in-out hover:scale-105 bg-primary hover:bg-primary/90 text-primary-foreground">
             {isLoggedIn ? (
               <Link href="/workflow">
                 Go to Workflow Editor <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -91,7 +92,7 @@ export default function HomePage() {
         <section id="features" className="py-16 md:py-20">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Powerful Features, Simplified</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
-            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div className="p-6 bg-card rounded-xl shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center items-center mb-4 h-[125px]">
                  <BrainCircuit className="h-20 w-20 text-primary" />
               </div>
@@ -100,7 +101,7 @@ export default function HomePage() {
                 Describe your automation in plain language. Our AI drafts a workflow, giving you a smart head start.
               </p>
             </div>
-            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div className="p-6 bg-card rounded-xl shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
                <div className="flex justify-center items-center mb-4 h-[125px]">
                 <GitFork className="h-20 w-20 text-primary" />
               </div>
@@ -109,7 +110,7 @@ export default function HomePage() {
                 Visually construct and modify workflows. Connect nodes, configure steps, and see your automation take shape in real-time.
               </p>
             </div>
-            <div className="p-6 bg-card rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div className="p-6 bg-card rounded-xl shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center items-center mb-4 h-[125px]">
                  <Rocket className="h-20 w-20 text-primary" />
               </div>
@@ -125,28 +126,28 @@ export default function HomePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose Kairo?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
+              <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
                    <GaugeCircle className="h-12 w-12 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Accelerate Development</h3>
                 <p className="text-muted-foreground text-sm flex-grow">Go from idea to automation significantly faster than traditional coding.</p>
               </div>
-              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
+              <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
                    <Puzzle className="h-12 w-12 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Reduce Complexity</h3>
                 <p className="text-muted-foreground text-sm flex-grow">Abstract away intricate coding tasks with a visual, node-based approach.</p>
               </div>
-              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
+              <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
                   <Lightbulb className="h-12 w-12 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Smart Assistance</h3>
                 <p className="text-muted-foreground text-sm flex-grow">Leverage AI for workflow generation, suggestions, and explanations.</p>
               </div>
-              <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
+              <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
                     <Brain className="h-12 w-12 text-primary" />
                 </div>
@@ -182,7 +183,7 @@ export default function HomePage() {
                     </li>
                 </ul>
                 <div className="text-center mt-8">
-                    <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-all duration-300 ease-in-out border-primary/50 hover:border-primary text-primary hover:bg-primary/5 group hover:scale-105">
+                    <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 shadow-md hover:shadow-accent/30 transition-all duration-300 ease-in-out border-primary/70 hover:border-primary text-primary hover:bg-primary/10 group hover:scale-105">
                         {isLoggedIn ? (
                             <Link href="/workflow">
                                 Open Workflow Editor
@@ -200,7 +201,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="text-center py-10 border-t mt-12">
+      <footer className="text-center py-10 border-t border-border/50 mt-12">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
           <Link href="/contact" className="ml-2 text-primary hover:underline font-medium">Contact Us</Link>
@@ -209,10 +210,3 @@ export default function HomePage() {
     </div>
   );
 }
-    
-
-    
-
-    
-
-    

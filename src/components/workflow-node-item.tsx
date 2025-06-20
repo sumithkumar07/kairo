@@ -5,7 +5,7 @@ import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle, CheckCircle2, XCircle, Loader2, SkipForward, AlertCircleIcon } from 'lucide-react'; 
-import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon, getCanvasNodeStyling } from '@/config/nodes';
+import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon, getCanvasNodeStyling } from '@/config/nodes'; // Ensure getCanvasNodeStyling is imported
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -66,6 +66,7 @@ export function WorkflowNodeItem({
     return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };
   };
 
+  // Use the centralized styling function from config/nodes.ts
   const categoryStyling = getCanvasNodeStyling(node.category);
 
   const getStatusIndicator = () => {
@@ -79,7 +80,7 @@ export function WorkflowNodeItem({
     switch (node.lastExecutionStatus) {
       case 'success':
         StatusIconComponent = CheckCircle2;
-        iconColor = 'text-green-500 dark:text-green-400';
+        iconColor = 'text-green-400'; // Adjusted for dark theme
         tooltipText = 'Successfully Executed';
         break;
       case 'error':
@@ -89,17 +90,17 @@ export function WorkflowNodeItem({
         break;
       case 'running':
         StatusIconComponent = Loader2;
-        iconColor = 'text-blue-500 dark:text-blue-400 animate-spin';
+        iconColor = 'text-blue-400 animate-spin'; // Adjusted for dark theme
         tooltipText = 'Currently Running';
         break;
       case 'skipped':
         StatusIconComponent = SkipForward;
-        iconColor = 'text-gray-400 dark:text-gray-500';
+        iconColor = 'text-gray-500'; // Adjusted for dark theme
         tooltipText = 'Execution Skipped';
         break;
       case 'partial_success':
         StatusIconComponent = AlertCircleIcon;
-        iconColor = 'text-yellow-500 dark:text-yellow-400';
+        iconColor = 'text-yellow-400'; // Adjusted for dark theme
         tooltipText = 'Partial Success (some iterations/branches failed)';
         break;
       default:
@@ -121,11 +122,12 @@ export function WorkflowNodeItem({
     );
   };
   
-  let nodeStyleClasses = categoryStyling.nodeBorder;
+  let nodeStyleClasses = categoryStyling.nodeBorder; // Base border from new styling
   if (node.lastExecutionStatus === 'error') {
     nodeStyleClasses = 'ring-2 ring-destructive border-destructive/80 shadow-destructive/20';
   } else if (hasWarning) {
-    nodeStyleClasses = 'ring-1 ring-yellow-400 border-yellow-400/80 shadow-yellow-400/10';
+    // Use a warning color that contrasts well with the new dark theme node colors
+    nodeStyleClasses = 'ring-1 ring-orange-400 dark:ring-orange-500 border-orange-400/80 dark:border-orange-500/80 shadow-orange-400/10 dark:shadow-orange-500/10';
   } else if (node.lastExecutionStatus === 'success') {
     nodeStyleClasses = 'ring-1 ring-green-500/80 border-green-500/70 shadow-green-500/10';
   } else if (node.lastExecutionStatus === 'partial_success') {
@@ -147,11 +149,12 @@ export function WorkflowNodeItem({
       }}
       className={cn(
         'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
-        'flex flex-col overflow-hidden bg-card', 
+        'flex flex-col overflow-hidden bg-card', // Base card background
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         'border',
-        nodeStyleClasses, // Apply base style (category, warning, or error)
-        isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/30', // Selection ring on top
+        nodeStyleClasses, 
+        isSelected && 'ring-2 ring-offset-2 ring-offset-background shadow-lg', // Use theme's ring for selection
+        isSelected && 'ring-primary', // Ensure primary ring color for selection
       )}
       style={{
         left: node.position.x,
@@ -162,7 +165,7 @@ export function WorkflowNodeItem({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-1.5 space-y-0",
-        categoryStyling.headerBg,
+        categoryStyling.headerBg, // From new styling
       )}>
         <IconComponent className={cn("h-3.5 w-3.5 shrink-0", categoryStyling.headerIconColor)} />
         <CardTitle className={cn("text-xs font-medium truncate flex-grow", categoryStyling.headerTextColor)} title={node.name}>
@@ -174,7 +177,8 @@ export function WorkflowNodeItem({
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+                   {/* Use a warning color that stands out on the node header */}
+                  <AlertTriangle className="h-3.5 w-3.5 text-yellow-300 dark:text-yellow-400 shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
                   <p className="text-xs">{warningMessage}</p>
@@ -201,7 +205,6 @@ export function WorkflowNodeItem({
           const isPotentialTarget = isConnecting && node.id !== connectionStartNodeId && !isConnected;
           const isSelfInputDuringConnect = isConnecting && node.id === connectionStartNodeId;
 
-
           return (
             <TooltipProvider key={`in-tp-${node.id}-${handleId}`} delayDuration={100}>
               <Tooltip>
@@ -215,10 +218,11 @@ export function WorkflowNodeItem({
                       isConnected && !isConnecting && !isPotentialTarget ? categoryStyling.inputHandleColor : 'bg-card', 
                        isPotentialTarget 
                         ? "border-green-400 bg-green-500/80 hover:bg-green-400 scale-125 hover:scale-150 cursor-pointer ring-2 ring-green-400/50" 
-                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : (isConnecting && isConnected ? "border-muted bg-muted opacity-50 cursor-not-allowed": "cursor-default")), // De-emphasize connected inputs if connecting
+                        : (isSelfInputDuringConnect ? "border-muted bg-muted opacity-40 cursor-not-allowed" : (isConnecting && isConnected ? "border-muted bg-muted opacity-50 cursor-not-allowed": "cursor-default")),
                       isConnecting && !isPotentialTarget && !isSelfInputDuringConnect && !isConnected && "opacity-40 cursor-not-allowed" ,
-                      !isConnecting && "hover:scale-110 hover:border-primary",
-                      !isConnecting && isConnected && `${categoryStyling.inputHandleColor} border-primary/50`
+                      !isConnecting && "hover:scale-110", 
+                      !isConnecting && `hover:${categoryStyling.inputHandleBorder.replace('border-', 'border-primary-')}`, // Use primary for hover indication
+                      !isConnecting && isConnected && `${categoryStyling.inputHandleColor} ${categoryStyling.inputHandleBorder.replace('border-', 'border-primary/50-')}`
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -257,11 +261,12 @@ export function WorkflowNodeItem({
                       categoryStyling.outputHandleBorder,
                       isConnected && !isActiveSource ? categoryStyling.outputHandleColor : 'bg-card',
                       isActiveSource 
-                        ? "bg-orange-500 scale-150 cursor-grabbing ring-2 ring-orange-400/50 border-orange-500" 
+                        ? "bg-orange-500 scale-150 cursor-grabbing ring-2 ring-orange-400/50 border-orange-500" // Active connecting source
                         : "", 
-                      !isConnecting ? "cursor-pointer group-hover:scale-125 group-hover:border-primary" : "cursor-default",
+                      !isConnecting ? "cursor-pointer group-hover:scale-125" : "cursor-default",
+                      !isConnecting && `hover:${categoryStyling.outputHandleBorder.replace('border-', 'border-primary-')}`, // Use primary for hover
                       isOtherNodeOutputDuringConnect && "opacity-40 cursor-not-allowed",
-                      !isConnecting && isConnected && `${categoryStyling.outputHandleColor} border-primary/50`
+                      !isConnecting && isConnected && `${categoryStyling.outputHandleColor} ${categoryStyling.outputHandleBorder.replace('border-', 'border-primary/50-')}`
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => {
@@ -285,4 +290,3 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
-

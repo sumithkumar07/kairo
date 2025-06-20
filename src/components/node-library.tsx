@@ -9,64 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Search, ShieldCheck, Star } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getCanvasNodeStyling } from '@/config/nodes'; // Import the centralized styling function
 
-const getCategoryStyling = (category: AvailableNodeType['category']) => {
-  switch (category) {
-    case 'trigger':
-      return {
-        bgColor: 'bg-blue-500/10 hover:bg-blue-500/20',
-        borderColor: 'border-blue-500/60',
-        iconColor: 'text-blue-600 dark:text-blue-400',
-        titleColor: 'text-blue-700 dark:text-blue-300',
-      };
-    case 'action':
-      return {
-        bgColor: 'bg-green-500/10 hover:bg-green-500/20',
-        borderColor: 'border-green-500/60',
-        iconColor: 'text-green-600 dark:text-green-400',
-        titleColor: 'text-green-700 dark:text-green-300',
-      };
-    case 'io':
-      return {
-        bgColor: 'bg-purple-500/10 hover:bg-purple-500/20',
-        borderColor: 'border-purple-500/60',
-        iconColor: 'text-purple-600 dark:text-purple-400',
-        titleColor: 'text-purple-700 dark:text-purple-300',
-      };
-    case 'logic':
-      return {
-        bgColor: 'bg-orange-500/10 hover:bg-orange-500/20',
-        borderColor: 'border-orange-500/60',
-        iconColor: 'text-orange-600 dark:text-orange-400',
-        titleColor: 'text-orange-700 dark:text-orange-300',
-      };
-    case 'ai':
-      return {
-        bgColor: 'bg-sky-500/10 hover:bg-sky-500/20',
-        borderColor: 'border-sky-500/60',
-        iconColor: 'text-sky-600 dark:text-sky-400',
-        titleColor: 'text-sky-700 dark:text-sky-300',
-      };
-    case 'group':
-    case 'iteration':
-    case 'control':
-    case 'interaction':
-        return {
-          bgColor: 'bg-slate-500/10 hover:bg-slate-500/20',
-          borderColor: 'border-slate-500/60',
-          iconColor: 'text-slate-600 dark:text-slate-400',
-          titleColor: 'text-slate-700 dark:text-slate-300',
-        };
-    default:
-      return {
-        bgColor: 'bg-gray-500/10 hover:bg-gray-500/20',
-        borderColor: 'border-gray-400/60',
-        iconColor: 'text-gray-600 dark:text-gray-400',
-        titleColor: 'text-gray-700 dark:text-gray-300',
-      };
-  }
-};
-
+// Remove local getCategoryStyling as we'll use the one from config/nodes.ts
 
 interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
@@ -131,7 +76,8 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
             <p className="text-sm text-muted-foreground text-center py-4">No nodes found matching "{searchTerm}".</p>
           )}
           {filteredNodes.map((nodeType) => {
-            const itemStyling = getCategoryStyling(nodeType.category);
+            // Use the centralized getCanvasNodeStyling for consistency
+            const itemStyling = getCanvasNodeStyling(nodeType.category);
             const isLocked = nodeType.isAdvanced && !isProOrTrial;
             const tooltipContent = isLocked 
               ? `This is a Pro feature. ${isLoggedIn ? 'Upgrade to Pro to use.' : 'Sign up for a Pro trial.'}` 
@@ -146,16 +92,16 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
                       onDragStart={(e) => handleDragStart(e, nodeType)}
                       className={cn(
                         "p-3 border rounded-lg flex flex-col gap-1.5 shadow-sm relative transition-all duration-150 ease-in-out",
-                        itemStyling.borderColor,
+                        itemStyling.nodeBorder, // Use nodeBorder for consistency
                         isLocked 
                           ? 'bg-muted/30 cursor-not-allowed opacity-60' 
-                          : `${itemStyling.bgColor} cursor-grab hover:shadow-md hover:ring-1 hover:ring-primary/50 hover:scale-[1.03]`
+                          : `${itemStyling.headerBg} cursor-grab hover:shadow-md hover:ring-1 hover:ring-primary/50 hover:scale-[1.03]` // Use headerBg for library item background
                       )}
                       title={tooltipContent} 
                     >
                       <div className="flex items-center gap-2">
-                        <nodeType.icon className={cn("h-5 w-5 shrink-0", isLocked ? 'text-muted-foreground' : itemStyling.iconColor)} />
-                        <span className={cn("text-sm font-medium", isLocked ? 'text-muted-foreground' : itemStyling.titleColor)}>{nodeType.name}</span>
+                        <nodeType.icon className={cn("h-5 w-5 shrink-0", isLocked ? 'text-muted-foreground' : itemStyling.headerIconColor)} />
+                        <span className={cn("text-sm font-medium", isLocked ? 'text-muted-foreground' : itemStyling.headerTextColor)}>{nodeType.name}</span>
                         {isLocked && (
                            <ShieldCheck className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 absolute top-1.5 right-1.5" />
                         )}

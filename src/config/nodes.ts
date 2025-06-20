@@ -2,8 +2,8 @@
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
 import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound } from 'lucide-react';
 
-export const NODE_WIDTH = 200; // Increased width
-export const NODE_HEIGHT = 100; // Increased height
+export const NODE_WIDTH = 200; 
+export const NODE_HEIGHT = 100; 
 
 const GENERIC_RETRY_CONFIG_SCHEMA = {
   retry: { 
@@ -847,88 +847,87 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
 };
 
 export const getCanvasNodeStyling = (category: AvailableNodeType['category']) => {
+  // Using Tailwind classes for better theme integration with CSS variables
   switch (category) {
     case 'trigger':
       return {
-        headerBg: 'bg-blue-500/90 dark:bg-blue-600/80',
-        headerIconColor: 'text-blue-50 dark:text-blue-100',
-        headerTextColor: 'text-white dark:text-blue-50',
-        nodeBorder: 'border-blue-500/70 dark:border-blue-600/60',
-        inputHandleColor: 'bg-blue-300 dark:bg-blue-500',
-        inputHandleBorder: 'border-blue-500 dark:border-blue-300',
-        outputHandleColor: 'bg-blue-300 dark:bg-blue-500',
-        outputHandleBorder: 'border-blue-500 dark:border-blue-300',
+        headerBg: 'bg-primary/80',
+        headerIconColor: 'text-primary-foreground/90',
+        headerTextColor: 'text-primary-foreground',
+        nodeBorder: 'border-primary/70',
+        inputHandleColor: 'bg-primary/50',
+        inputHandleBorder: 'border-primary',
+        outputHandleColor: 'bg-primary/50',
+        outputHandleBorder: 'border-primary',
       };
     case 'action':
       return {
-        headerBg: 'bg-green-500/90 dark:bg-green-600/80',
-        headerIconColor: 'text-green-50 dark:text-green-100',
-        headerTextColor: 'text-white dark:text-green-50',
-        nodeBorder: 'border-green-500/70 dark:border-green-600/60',
-        inputHandleColor: 'bg-green-300 dark:bg-green-500',
-        inputHandleBorder: 'border-green-500 dark:border-green-300',
-        outputHandleColor: 'bg-green-300 dark:bg-green-500',
-        outputHandleBorder: 'border-green-500 dark:border-green-300',
+        headerBg: 'bg-accent/80',
+        headerIconColor: 'text-accent-foreground/90',
+        headerTextColor: 'text-accent-foreground',
+        nodeBorder: 'border-accent/70',
+        inputHandleColor: 'bg-accent/50',
+        inputHandleBorder: 'border-accent',
+        outputHandleColor: 'bg-accent/50',
+        outputHandleBorder: 'border-accent',
       };
-    case 'io': // Input/Output
+    case 'io': 
       return {
-        headerBg: 'bg-purple-500/90 dark:bg-purple-600/80',
-        headerIconColor: 'text-purple-50 dark:text-purple-100',
-        headerTextColor: 'text-white dark:text-purple-50',
-        nodeBorder: 'border-purple-500/70 dark:border-purple-600/60',
-        inputHandleColor: 'bg-purple-300 dark:bg-purple-500',
-        inputHandleBorder: 'border-purple-500 dark:border-purple-300',
-        outputHandleColor: 'bg-purple-300 dark:bg-purple-500',
-        outputHandleBorder: 'border-purple-500 dark:border-purple-300',
+        headerBg: 'bg-teal-600/80 dark:bg-teal-500/80', // Custom color example
+        headerIconColor: 'text-teal-50 dark:text-teal-100',
+        headerTextColor: 'text-white dark:text-teal-50',
+        nodeBorder: 'border-teal-600/70 dark:border-teal-500/60',
+        inputHandleColor: 'bg-teal-300 dark:bg-teal-500/50',
+        inputHandleBorder: 'border-teal-500 dark:border-teal-300',
+        outputHandleColor: 'bg-teal-300 dark:bg-teal-500/50',
+        outputHandleBorder: 'border-teal-500 dark:border-teal-300',
       };
     case 'logic':
       return {
-        headerBg: 'bg-orange-500/90 dark:bg-orange-600/80',
-        headerIconColor: 'text-orange-50 dark:text-orange-100',
-        headerTextColor: 'text-white dark:text-orange-50',
-        nodeBorder: 'border-orange-500/70 dark:border-orange-600/60',
-        inputHandleColor: 'bg-orange-300 dark:bg-orange-500',
-        inputHandleBorder: 'border-orange-500 dark:border-orange-300',
-        outputHandleColor: 'bg-orange-300 dark:bg-orange-500',
-        outputHandleBorder: 'border-orange-500 dark:border-orange-300',
+        headerBg: 'bg-secondary/80',
+        headerIconColor: 'text-secondary-foreground/90',
+        headerTextColor: 'text-secondary-foreground',
+        nodeBorder: 'border-secondary/70',
+        inputHandleColor: 'bg-secondary/50',
+        inputHandleBorder: 'border-secondary',
+        outputHandleColor: 'bg-secondary/50',
+        outputHandleBorder: 'border-secondary',
       };
     case 'ai':
       return {
-        headerBg: 'bg-sky-500/90 dark:bg-sky-600/80',
-        headerIconColor: 'text-sky-50 dark:text-sky-100',
-        headerTextColor: 'text-white dark:text-sky-50',
-        nodeBorder: 'border-sky-500/70 dark:border-sky-600/60',
-        inputHandleColor: 'bg-sky-300 dark:bg-sky-500',
-        inputHandleBorder: 'border-sky-500 dark:border-sky-300',
-        outputHandleColor: 'bg-sky-300 dark:bg-sky-500',
-        outputHandleBorder: 'border-sky-500 dark:border-sky-300',
+        headerBg: 'bg-yellow-500/80 dark:bg-yellow-400/80', // Custom color example
+        headerIconColor: 'text-yellow-900 dark:text-yellow-900',
+        headerTextColor: 'text-yellow-950 dark:text-yellow-950',
+        nodeBorder: 'border-yellow-500/70 dark:border-yellow-400/60',
+        inputHandleColor: 'bg-yellow-300 dark:bg-yellow-500/50',
+        inputHandleBorder: 'border-yellow-500 dark:border-yellow-300',
+        outputHandleColor: 'bg-yellow-300 dark:bg-yellow-500/50',
+        outputHandleBorder: 'border-yellow-500 dark:border-yellow-300',
       };
     case 'group':
     case 'iteration':
     case 'control':
     case 'interaction':
         return {
-          headerBg: 'bg-slate-500/90 dark:bg-slate-600/80',
-          headerIconColor: 'text-slate-50 dark:text-slate-100',
-          headerTextColor: 'text-white dark:text-slate-50',
-          nodeBorder: 'border-slate-500/70 dark:border-slate-600/60',
-          inputHandleColor: 'bg-slate-300 dark:bg-slate-500',
-          inputHandleBorder: 'border-slate-500 dark:border-slate-300',
-          outputHandleColor: 'bg-slate-300 dark:bg-slate-500',
-          outputHandleBorder: 'border-slate-500 dark:border-slate-300',
+          headerBg: 'bg-indigo-500/80 dark:bg-indigo-400/80', // Custom color example
+          headerIconColor: 'text-indigo-50 dark:text-indigo-100',
+          headerTextColor: 'text-white dark:text-indigo-50',
+          nodeBorder: 'border-indigo-500/70 dark:border-indigo-400/60',
+          inputHandleColor: 'bg-indigo-300 dark:bg-indigo-500/50',
+          inputHandleBorder: 'border-indigo-500 dark:border-indigo-300',
+          outputHandleColor: 'bg-indigo-300 dark:bg-indigo-500/50',
+          outputHandleBorder: 'border-indigo-500 dark:border-indigo-300',
         };
     default: // unknown and any other
       return {
-        headerBg: 'bg-gray-400/90 dark:bg-gray-500/80',
-        headerIconColor: 'text-gray-50 dark:text-gray-100',
-        headerTextColor: 'text-white dark:text-gray-50',
-        nodeBorder: 'border-gray-400/70 dark:border-gray-500/60',
-        inputHandleColor: 'bg-gray-200 dark:bg-gray-400',
-        inputHandleBorder: 'border-gray-400 dark:border-gray-200',
-        outputHandleColor: 'bg-gray-200 dark:bg-gray-400',
-        outputHandleBorder: 'border-gray-400 dark:border-gray-200',
+        headerBg: 'bg-muted/80',
+        headerIconColor: 'text-muted-foreground/90',
+        headerTextColor: 'text-muted-foreground',
+        nodeBorder: 'border-border/70',
+        inputHandleColor: 'bg-border',
+        inputHandleBorder: 'border-foreground/50',
+        outputHandleColor: 'bg-border',
+        outputHandleBorder: 'border-foreground/50',
       };
   }
 };
-
-

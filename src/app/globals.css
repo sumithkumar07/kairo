@@ -5,97 +5,89 @@
 
 @layer base {
   :root {
-    /* Light Theme based on PRD */
-    --background: 220 25% 95%; /* Light Grey #F0F2F5 from PRD */
-    --foreground: 240 10% 10%;
+    /* New Dark Theme (Default) */
+    --background: 220 20% 10%; /* Dark Slate Blue/Charcoal */
+    --foreground: 210 30% 95%; /* Light Grey/Off-white */
 
+    --card: 220 20% 15%; /* Slightly Lighter Dark */
+    --card-foreground: 210 30% 95%;
+
+    --popover: 220 20% 12%; 
+    --popover-foreground: 210 30% 95%;
+
+    --primary: 280 70% 60%; /* Electric Purple */
+    --primary-foreground: 210 30% 98%; 
+
+    --secondary: 200 70% 55%; /* Cool Cyan/Blue */
+    --secondary-foreground: 210 30% 98%;
+
+    --muted: 220 15% 25%; /* Darker Grey */
+    --muted-foreground: 210 20% 70%;
+
+    --accent: 170 70% 45%; /* Bright Teal/Mint Green */
+    --accent-foreground: 210 30% 98%;
+
+    --destructive: 0 75% 55%; /* Vivid Red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 30%; /* Darker Border */
+    --input: 220 15% 18%; /* Dark Input */
+    --ring: 280 70% 65%; /* Primary color for focus rings */
+    
+    --chart-1: 280 70% 60%; /* Primary */
+    --chart-2: 200 70% 55%; /* Secondary */
+    --chart-3: 170 70% 45%; /* Accent */
+    --chart-4: 40 80% 60%; /* Gold/Orange */
+    --chart-5: 330 75% 60%; /* Pink/Magenta */
+    --radius: 0.5rem;
+
+    /* Dark Sidebar variables */
+    --sidebar-background: 220 20% 12%; /* Slightly darker than main card */
+    --sidebar-foreground: 210 30% 90%;
+    --sidebar-primary: 280 70% 60%; /* Electric Purple */
+    --sidebar-primary-foreground: 210 30% 98%;
+    --sidebar-accent: 170 60% 30%; /* Darker shade of Teal */
+    --sidebar-accent-foreground: 170 70% 80%; /* Lighter teal for text on dark teal */
+    --sidebar-border: 220 15% 28%;
+    --sidebar-ring: 280 70% 65%;
+  }
+
+  .light {
+    /* Original Light Theme as a fallback/option */
+    --background: 220 25% 95%; 
+    --foreground: 240 10% 10%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 10%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
-
-    --primary: 197 77% 53%; /* Vibrant Blue #29ABE2 from PRD */
+    --primary: 197 77% 53%; 
     --primary-foreground: 0 0% 100%; 
-
     --secondary: 220 15% 90%; 
     --secondary-foreground: 240 10% 20%;
-
     --muted: 220 15% 94%; 
     --muted-foreground: 240 5% 45%;
-
-    --accent: 88 52% 59%; /* Muted Green #8BC34A from PRD */
-    --accent-foreground: 240 10% 10%; /* Dark text on green accent for light mode */
-
+    --accent: 88 52% 59%; 
+    --accent-foreground: 240 10% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 220 10% 88%; 
     --input: 0 0% 100%; 
-    --ring: 197 77% 58%; /* Primary color for focus rings */
+    --ring: 197 77% 58%;
     
     --chart-1: 197 70% 50%;
     --chart-2: 220 70% 55%;
     --chart-3: 88 60% 50%;
     --chart-4: 40 80% 60%;
     --chart-5: 0 75% 60%;
-    --radius: 0.5rem;
 
-    /* Sidebar variables for light theme */
-    --sidebar-background: 220 25% 95%; /* Consistent with main light grey background */
+    --sidebar-background: 220 25% 95%;
     --sidebar-foreground: 240 10% 15%;
-    --sidebar-primary: 197 77% 53%; /* Vibrant Blue from PRD */
+    --sidebar-primary: 197 77% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 88 50% 90%; /* Lighter shade of PRD green */
-    --sidebar-accent-foreground: 88 50% 30%; /* Darker green for text on light green */
+    --sidebar-accent: 88 50% 90%;
+    --sidebar-accent-foreground: 88 50% 30%;
     --sidebar-border: 220 10% 90%;
     --sidebar-ring: 197 77% 58%;
-  }
-
-  .dark {
-    --background: 220 15% 6%; /* Near Black */
-    --foreground: 0 0% 98%; /* Near White */
-
-    --card: 220 15% 12%; /* Dark Card */
-    --card-foreground: 0 0% 98%;
-
-    --popover: 220 15% 10%; 
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 197 77% 53%; /* Vibrant Blue #29ABE2 from PRD */
-    --primary-foreground: 0 0% 100%; 
-
-    --secondary: 220 15% 20%; /* Darker grey for secondary */
-    --secondary-foreground: 0 0% 90%; 
-
-    --muted: 220 15% 25%; 
-    --muted-foreground: 0 0% 65%; 
-
-    --accent: 88 52% 59%; /* Muted Green #8BC34A from PRD */
-    --accent-foreground: 0 0% 98%; /* White text on green accent for dark mode */
-
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 220 15% 30%; /* Darker border */
-    --input: 220 15% 18%; /* Dark input */
-    --ring: 197 70% 60%; /* Lighter Primary for focus rings in dark mode */
-    
-    --chart-1: 197 70% 58%;
-    --chart-2: 220 70% 60%;
-    --chart-3: 88 60% 55%;
-    --chart-4: 40 80% 65%;
-    --chart-5: 0 75% 65%;
-
-    /* Dark Sidebar variables */
-    --sidebar-background: 220 15% 8%; 
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 197 77% 53%; /* Vibrant Blue from PRD */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 88 40% 30%; /* Darker shade of PRD green */
-    --sidebar-accent-foreground: 88 50% 80%; /* Lighter green for text on dark green */
-    --sidebar-border: 220 15% 28%;
-    --sidebar-ring: 197 70% 60%;
   }
 }
 
@@ -109,32 +101,42 @@
   }
 }
 
-/* Dot Grid Background */
+/* Dot Grid Background for Dark Theme */
 .dot-grid-background {
   background-color: hsl(var(--background));
-  background-image: radial-gradient(hsl(var(--muted) / 0.2) 0.8px, transparent 0.8px); /* Softer dots */
-  background-size: 18px 18px; /* Slightly smaller grid */
+  background-image: radial-gradient(hsl(var(--muted) / 0.1) 0.7px, transparent 0.7px); /* Very subtle dots */
+  background-size: 20px 20px; 
 }
 
-.dark .dot-grid-background {
+.light .dot-grid-background {
   background-color: hsl(var(--background));
-  background-image: radial-gradient(hsl(var(--muted) / 0.15) 0.8px, transparent 0.8px); /* Even softer for dark */
+  background-image: radial-gradient(hsl(var(--muted) / 0.2) 0.8px, transparent 0.8px);
   background-size: 18px 18px;
 }
 
-/* Custom scrollbar styles for a cleaner look */
+/* Custom scrollbar styles for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background) / 0.5);
+  background: hsl(var(--card) / 0.5); /* Use card color for track */
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: hsl(var(--muted-foreground) / 0.4); /* Muted foreground for thumb */
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+}
+
+.light ::-webkit-scrollbar-track {
+  background: hsl(var(--background) / 0.5);
+}
+.light ::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+.light ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.7);
 }
