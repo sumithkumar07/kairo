@@ -55,7 +55,7 @@ const AssistantChatInputSchema = z.object({
 export type AssistantChatInput = z.infer<typeof AssistantChatInputSchema>;
 
 const AssistantChatOutputSchema = z.object({
-  aiResponse: z.string().nullable().describe("The AI assistant's textual response to the user's message. This could be a general chat response, a confirmation for workflow generation, an analysis of the current workflow with suggestions/questions, or guidance on how to modify the workflow. Must be a string or null."),
+  aiResponse: z.string().describe("The AI assistant's textual response to the user's message. This could be a general chat response, a confirmation for workflow generation, an analysis of the current workflow with suggestions/questions, or guidance on how to modify the workflow. Must be a string."),
   isWorkflowGenerationRequest: z.boolean().optional().describe("True if the AI believes the user's message is a request to generate a new workflow (or regenerate an existing one based on a new prompt). If true, \"workflowGenerationPrompt\" should be populated."),
   workflowGenerationPrompt: z.string().optional().describe("If \"isWorkflowGenerationRequest\" is true, this field contains the extracted or refined prompt that should be used for actual workflow generation by the main generation service. This new workflow will replace the current one."),
   actionRequest: z.enum(["explain_workflow", "suggest_next_node", "analyze_workflow_efficiency"]).optional().describe("If the AI determines the user is asking for a specific action like 'explain the current workflow', 'suggest a next node', or 'analyze workflow efficiency/robustness', this field will be set. The client application should then trigger the appropriate dedicated service/flow."),
@@ -146,7 +146,7 @@ Your primary roles are:
                     *   If no obvious candidate node is found, or if the user says "No" to a suggestion: "I have your [credentials]. Which node in your current workflow should use this?"
                 3.  **Once a target node is confirmed or specified by the user for the credentials**: Proceed to step 4.
                 4.  Explain re-generation: "To apply this specific change to the '[Target Node Name]' node, I'll need to generate an updated workflow. This will replace the current workflow on the canvas."
-                5.  **Ask for a new, complete prompt describing the desired final state, explicitly including the change**: "Could you please provide a new, detailed prompt that describes the entire workflow as you now want it to be, ensuring you specify how the '[Target Node Name]' should use [the new prompt/the provided credentials with placeholders like {{credential.MyYouTubeClientID}} and {{credential.MyYouTubeClientSecret}}}}? For example: 'A workflow triggered by a webhook, then fetches trending YouTube videos using Client ID {{credential.YouTubeClientID}} and Secret {{credential.YouTubeClientSecret}}, and finally logs the video titles.'"
+                5.  **Ask for a new, complete prompt describing the desired final state, explicitly including the change**: "Could you please provide a new, detailed prompt that describes the entire workflow as you now want it to be, ensuring you specify how the '[Target Node Name]' should use [the new prompt/the provided credentials with placeholders like {{credential.MyYouTubeClientID}} and {{credential.MyYouTubeClientSecret}}? For example: 'A workflow triggered by a webhook, then fetches trending YouTube videos using Client ID {{credential.YouTubeClientID}} and Secret {{credential.YouTubeClientSecret}}, and finally logs the video titles.'"
                 6.  If the user provides this new, complete prompt in their current message or a follow-up:
                     *   Set "isWorkflowGenerationRequest" to "true".
                     *   Populate "workflowGenerationPrompt" with this new user-provided prompt.
@@ -178,17 +178,17 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
-- **The "aiResponse" field in the JSON output MUST always be a simple string value (or null if no direct textual response is appropriate but other actions are being signaled).** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
+- **The "aiResponse" field in the JSON output MUST always be a simple string value.** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
 - Do NOT include any explanatory text or markdown formatting (like \`\`\`json ... \`\`\`) before or after the JSON object.
-- When "isWorkflowGenerationRequest: true", "workflowGenerationPrompt" MUST contain the detailed prompt for the generator. "aiResponse" should ONLY be a short confirmation (or null if the confirmation is handled by the client based on the flags).
-- When "actionRequest" is set (e.g., to "explain_workflow"), "aiResponse" should be a short confirmation that you are initiating that action (or null if the confirmation is handled by the client). The actual result of the action (like the explanation text) will come from a separate service call made by the application.
+- When "isWorkflowGenerationRequest: true", "workflowGenerationPrompt" MUST contain the detailed prompt for the generator. "aiResponse" should ONLY be a short confirmation.
+- When "actionRequest" is set (e.g., to "explain_workflow"), "aiResponse" should be a short confirmation that you are initiating that action. The actual result of the action (like the explanation text) will come from a separate service call made by the application.
 - DO NOT output workflow JSON in "aiResponse".
 - Keep responses helpful, concise. If unknown, say so.
 - Mention Kairo node types if relevant (e.g., "'httpRequest' node for external service calls"). Available Kairo node types: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown.
 
 The JSON object should look like this:
 {
-  "aiResponse": "The AI's textual answer to the user, or null.",
+  "aiResponse": "The AI's textual answer to the user.",
   "isWorkflowGenerationRequest": false,
   "workflowGenerationPrompt": null,
   "actionRequest": null
@@ -204,10 +204,11 @@ const assistantChatFlow = ai.defineFlow(
   },
   async (input): Promise<AssistantChatOutput> => {
     console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
+    let result: AssistantChatOutput | undefined | null;
     try {
-      const result = await chatPrompt(input);
+      const genkitResult = await ai.generate({prompt: chatPrompt.prompt, input, model: ai.model('googleai/gemini-1.5-flash-latest'), output: {format: 'json', schema: AssistantChatOutputSchema}});
+      result = genkitResult.output;
 
-      // Log the raw result from AI for better debugging
       if (result === undefined || result === null) {
         console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty (possibly due to strict safety filters not caught by error handler, model issues, or network problems), unparseable by Genkit before Zod validation, or an API error occurred that didn't throw a catchable exception but resulted in no data.");
       } else {
@@ -218,15 +219,15 @@ const assistantChatFlow = ai.defineFlow(
         }
       }
 
-      if (!result) { // Handles undefined or null from chatPrompt
-        console.warn("assistantChatFlow: AI prompt did not return a usable result object (it was undefined or null). Returning generic error message to user.");
+      if (!result) { 
+        console.warn("assistantChatFlow: AI prompt did not return a usable result object (it was undefined or null). Returning generic error message to user. (Code: E_NULL_AI_RESULT)");
         return {
-          aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment?",
+          aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment? (Code: E_NULL_AI_RESULT)",
           isWorkflowGenerationRequest: false,
         };
       }
 
-      let finalAiResponse: string | null = result.aiResponse;
+      let finalAiResponse: string = ""; // Default to empty string
       const isGenRequest = typeof result.isWorkflowGenerationRequest === 'string'
                             ? result.isWorkflowGenerationRequest.toLowerCase() === 'true'
                             : !!result.isWorkflowGenerationRequest;
@@ -234,27 +235,19 @@ const assistantChatFlow = ai.defineFlow(
       const actionReq = typeof result.actionRequest === 'string' ? result.actionRequest as any : undefined;
 
 
-      if (typeof finalAiResponse === 'string') {
-        // aiResponse is a string, this is the ideal case.
-      } else if (finalAiResponse === null) {
-        console.warn(`assistantChatFlow: AI result.aiResponse was null.`);
-        if (isGenRequest && genPrompt && typeof genPrompt === 'string' && genPrompt.trim() !== '') {
-          finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
-        } else if (actionReq && typeof actionReq === 'string' && actionReq.trim() !== '') {
-          finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
-        } else {
-          finalAiResponse = "How can I help you further?";
-          console.log("assistantChatFlow: aiResponse was null and no other action salvaged. Setting default conversational response.");
-        }
+      if (typeof result.aiResponse === 'string') {
+        finalAiResponse = result.aiResponse;
       } else {
-        const originalResponseType = typeof finalAiResponse;
-        console.warn(`assistantChatFlow: Original 'aiResponse' was not a string and not null (type: ${originalResponseType}). Attempting to salvage action if possible. Full result:`, JSON.stringify(result, null, 2));
+        // aiResponse is NOT a string (could be null, undefined, or other type)
+        const originalResponseType = typeof result.aiResponse;
+        console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Full result:`, JSON.stringify(result, null, 2));
         if (isGenRequest && genPrompt && typeof genPrompt === 'string' && genPrompt.trim() !== '') {
           finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
         } else if (actionReq && typeof actionReq === 'string' && actionReq.trim() !== '') {
           finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
         } else {
-          console.warn("assistantChatFlow: 'aiResponse' was not string/null and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
+          // This is the case for the user's error message
+          console.warn("assistantChatFlow: 'aiResponse' was not string and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
           return {
             aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
             isWorkflowGenerationRequest: false,
@@ -300,11 +293,11 @@ const assistantChatFlow = ai.defineFlow(
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
 
       if (error && typeof error === 'object') {
-        if (error.name === 'ZodError' || (error.name === 'Error' && error.message && error.message.includes('Validation failed'))) { 
+        if (error.name === 'ZodError' || (error.name === 'Error' && error.message && (error.message.includes('Validation failed') || error.message.includes('Failed to parse')))) { 
             userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it. (Code: EZOD)";
             console.error("assistantChatFlow: Zod or Zod-like validation error from AI output:", (error as any).errors || error.message);
-        } else if (error.candidates && Array.isArray(error.candidates) && error.candidates.length > 0) {
-          const firstCandidate = error.candidates[0];
+        } else if ((error as any).candidates && Array.isArray((error as any).candidates) && (error as any).candidates.length > 0) {
+          const firstCandidate = (error as any).candidates[0];
           if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
             switch (firstCandidate.finishReason) {
               case 'SAFETY':
@@ -322,24 +315,24 @@ const assistantChatFlow = ai.defineFlow(
           }
         } else if (error.message) {
           const errorMessageLower = String(error.message).toLowerCase();
-          if (errorMessageLower.includes('api key') || errorMessageLower.includes('permission denied') || errorMessageLower.includes('forbidden') || String(error.status) === '401' || String(error.status) === '403' || String(error.code) === '401' || String(error.code) === '403' || errorMessageLower.includes('provide an api key') || errorMessageLower.includes('authenticate')) {
+          if (errorMessageLower.includes('api key') || errorMessageLower.includes('permission denied') || errorMessageLower.includes('forbidden') || String((error as any).status) === '401' || String((error as any).status) === '403' || String((error as any).code) === '401' || String((error as any).code) === '403' || errorMessageLower.includes('provide an api key') || errorMessageLower.includes('authenticate')) {
              userErrorMessage = "There's an issue with the AI service configuration. Please check your API key and project settings, then try again. (Code: ECONF)";
-          } else if (errorMessageLower.includes('quota') || errorMessageLower.includes('rate limit') || String(error.status) === '429' || String(error.code) === '429') {
+          } else if (errorMessageLower.includes('quota') || errorMessageLower.includes('rate limit') || String((error as any).status) === '429' || String((error as any).code) === '429') {
             userErrorMessage = "The AI service is currently experiencing high demand or you've reached a usage limit. Please try again in a few moments. (Code: ELIMIT)";
           } else if (errorMessageLower.includes('blocked') || errorMessageLower.includes('safety') || errorMessageLower.includes('harmful')) {
             userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: ESAFE)";
-          } else if (error.name === 'SyntaxError' && (errorMessageLower.includes('json') || errorMessageLower.includes('unexpected token') || errorMessageLower.includes('parse error'))) {
+          } else if ((error.name === 'SyntaxError' && (errorMessageLower.includes('json') || errorMessageLower.includes('unexpected token') || errorMessageLower.includes('parse error'))) || errorMessageLower.includes('parse error on line')) {
             userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again. (Code: EJSON)";
           } else {
             userErrorMessage = `An error occurred: ${String(error.message).substring(0,100)}. Please try again. (Code: EGEN)`;
           }
-        } else if (error.status || error.code) {
-           if (String(error.status) === '401' || String(error.status) === '403' || String(error.code) === '401' || String(error.code) === '403') {
+        } else if ((error as any).status || (error as any).code) {
+           if (String((error as any).status) === '401' || String((error as any).status) === '403' || String((error as any).code) === '401' || String((error as any).code) === '403') {
                userErrorMessage = "There's an issue with the AI service configuration (authentication/permission). Please check your API key and project settings. (Code: EAUTH)";
-           } else if (String(error.status) === '429' || String(error.code) === '429') {
+           } else if (String((error as any).status) === '429' || String((error as any).code) === '429') {
                userErrorMessage = "The AI service is busy or usage limits were reached. Please try again later. (Code: ERATE)";
            } else {
-               userErrorMessage = `An unexpected error occurred. Status: ${error.status || 'N/A'}, Code: ${error.code || 'N/A'}. (Code: ESTAT)`;
+               userErrorMessage = `An unexpected error occurred. Status: ${(error as any).status || 'N/A'}, Code: ${(error as any).code || 'N/A'}. (Code: ESTAT)`;
            }
         }
       } else if (typeof error === 'string') {
@@ -364,3 +357,4 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
