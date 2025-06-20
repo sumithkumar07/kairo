@@ -16,10 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Default to light theme by not adding .dark class initially.
-    // System preference for dark mode can be handled by adding 'dark' class here conditionally or via a theme provider.
-    // For now, it defaults to the PRD light theme defined in :root.
-    <html lang="en" suppressHydrationWarning={true} className=""> 
+    // Add 'dark' class to html tag to enable dark theme by default
+    <html lang="en" suppressHydrationWarning={true} className="dark"> 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
