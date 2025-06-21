@@ -623,7 +623,6 @@ export default function WorkflowPage() {
       ]);
       setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
       saveHistory();
-      toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
       await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, true);
     } finally {
       setIsWorkflowRunning(false);
