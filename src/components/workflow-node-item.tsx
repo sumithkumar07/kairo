@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/types/workflow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -24,7 +25,7 @@ interface WorkflowNodeItemProps {
 }
 
 
-export function WorkflowNodeItem({
+const WorkflowNodeItemComponent = ({
   node,
   nodeType,
   isSelected,
@@ -35,7 +36,7 @@ export function WorkflowNodeItem({
   connectionStartNodeId,
   connectionStartHandleId,
   connections,
-}: WorkflowNodeItemProps) {
+}: WorkflowNodeItemProps) => {
   
   let IconComponent;
   if (node.type === 'dataTransform' && nodeType) {
@@ -290,3 +291,6 @@ export function WorkflowNodeItem({
     </Card>
   );
 }
+
+export const WorkflowNodeItem = React.memo(WorkflowNodeItemComponent);
+WorkflowNodeItem.displayName = 'WorkflowNodeItem';

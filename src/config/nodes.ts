@@ -851,71 +851,71 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
   switch (category) {
     case 'trigger':
       return {
-        headerBg: 'bg-primary/80',
-        headerIconColor: 'text-primary-foreground/90',
-        headerTextColor: 'text-primary-foreground',
-        nodeBorder: 'border-primary/70',
-        inputHandleColor: 'bg-primary/50',
-        inputHandleBorder: 'border-primary',
-        outputHandleColor: 'bg-primary/50',
-        outputHandleBorder: 'border-primary',
+        headerBg: 'bg-blue-500/90 dark:bg-blue-600/90',
+        headerIconColor: 'text-blue-50',
+        headerTextColor: 'text-white',
+        nodeBorder: 'border-blue-500/80 dark:border-blue-600/70',
+        inputHandleColor: 'bg-blue-300 dark:bg-blue-500/60',
+        inputHandleBorder: 'border-blue-500 dark:border-blue-300',
+        outputHandleColor: 'bg-blue-300 dark:bg-blue-500/60',
+        outputHandleBorder: 'border-blue-500 dark:border-blue-300',
       };
     case 'action':
       return {
-        headerBg: 'bg-accent/80',
-        headerIconColor: 'text-accent-foreground/90',
-        headerTextColor: 'text-accent-foreground',
-        nodeBorder: 'border-accent/70',
-        inputHandleColor: 'bg-accent/50',
-        inputHandleBorder: 'border-accent',
-        outputHandleColor: 'bg-accent/50',
-        outputHandleBorder: 'border-accent',
+        headerBg: 'bg-teal-500/90 dark:bg-teal-600/90',
+        headerIconColor: 'text-teal-50',
+        headerTextColor: 'text-white',
+        nodeBorder: 'border-teal-500/80 dark:border-teal-600/70',
+        inputHandleColor: 'bg-teal-300 dark:bg-teal-500/60',
+        inputHandleBorder: 'border-teal-500 dark:border-teal-300',
+        outputHandleColor: 'bg-teal-300 dark:bg-teal-500/60',
+        outputHandleBorder: 'border-teal-500 dark:border-teal-300',
       };
     case 'io': 
       return {
-        headerBg: 'bg-teal-600/80 dark:bg-teal-500/80', // Custom color example
-        headerIconColor: 'text-teal-50 dark:text-teal-100',
-        headerTextColor: 'text-white dark:text-teal-50',
-        nodeBorder: 'border-teal-600/70 dark:border-teal-500/60',
-        inputHandleColor: 'bg-teal-300 dark:bg-teal-500/50',
-        inputHandleBorder: 'border-teal-500 dark:border-teal-300',
-        outputHandleColor: 'bg-teal-300 dark:bg-teal-500/50',
-        outputHandleBorder: 'border-teal-500 dark:border-teal-300',
+        headerBg: 'bg-slate-500/90 dark:bg-slate-600/90',
+        headerIconColor: 'text-slate-50',
+        headerTextColor: 'text-white',
+        nodeBorder: 'border-slate-500/80 dark:border-slate-600/70',
+        inputHandleColor: 'bg-slate-300 dark:bg-slate-500/60',
+        inputHandleBorder: 'border-slate-500 dark:border-slate-300',
+        outputHandleColor: 'bg-slate-300 dark:bg-slate-500/60',
+        outputHandleBorder: 'border-slate-500 dark:border-slate-300',
       };
     case 'logic':
       return {
-        headerBg: 'bg-secondary/80',
-        headerIconColor: 'text-secondary-foreground/90',
-        headerTextColor: 'text-secondary-foreground',
-        nodeBorder: 'border-secondary/70',
-        inputHandleColor: 'bg-secondary/50',
-        inputHandleBorder: 'border-secondary',
-        outputHandleColor: 'bg-secondary/50',
-        outputHandleBorder: 'border-secondary',
+        headerBg: 'bg-orange-500/90 dark:bg-orange-600/90',
+        headerIconColor: 'text-orange-50',
+        headerTextColor: 'text-white',
+        nodeBorder: 'border-orange-500/80 dark:border-orange-600/70',
+        inputHandleColor: 'bg-orange-300 dark:bg-orange-500/60',
+        inputHandleBorder: 'border-orange-500 dark:border-orange-300',
+        outputHandleColor: 'bg-orange-300 dark:bg-orange-500/60',
+        outputHandleBorder: 'border-orange-500 dark:border-orange-300',
       };
     case 'ai':
       return {
-        headerBg: 'bg-yellow-500/80 dark:bg-yellow-400/80', // Custom color example
-        headerIconColor: 'text-yellow-900 dark:text-yellow-900',
-        headerTextColor: 'text-yellow-950 dark:text-yellow-950',
-        nodeBorder: 'border-yellow-500/70 dark:border-yellow-400/60',
-        inputHandleColor: 'bg-yellow-300 dark:bg-yellow-500/50',
-        inputHandleBorder: 'border-yellow-500 dark:border-yellow-300',
-        outputHandleColor: 'bg-yellow-300 dark:bg-yellow-500/50',
-        outputHandleBorder: 'border-yellow-500 dark:border-yellow-300',
+        headerBg: 'bg-purple-500/90 dark:bg-purple-600/90',
+        headerIconColor: 'text-purple-50',
+        headerTextColor: 'text-white',
+        nodeBorder: 'border-purple-500/80 dark:border-purple-600/70',
+        inputHandleColor: 'bg-purple-300 dark:bg-purple-500/60',
+        inputHandleBorder: 'border-purple-500 dark:border-purple-300',
+        outputHandleColor: 'bg-purple-300 dark:bg-purple-500/60',
+        outputHandleBorder: 'border-purple-500 dark:border-purple-300',
       };
     case 'group':
     case 'iteration':
     case 'control':
     case 'interaction':
         return {
-          headerBg: 'bg-indigo-500/80 dark:bg-indigo-400/80', // Custom color example
-          headerIconColor: 'text-indigo-50 dark:text-indigo-100',
-          headerTextColor: 'text-white dark:text-indigo-50',
-          nodeBorder: 'border-indigo-500/70 dark:border-indigo-400/60',
-          inputHandleColor: 'bg-indigo-300 dark:bg-indigo-500/50',
+          headerBg: 'bg-indigo-500/90 dark:bg-indigo-600/90',
+          headerIconColor: 'text-indigo-50',
+          headerTextColor: 'text-white',
+          nodeBorder: 'border-indigo-500/80 dark:border-indigo-600/70',
+          inputHandleColor: 'bg-indigo-300 dark:bg-indigo-500/60',
           inputHandleBorder: 'border-indigo-500 dark:border-indigo-300',
-          outputHandleColor: 'bg-indigo-300 dark:bg-indigo-500/50',
+          outputHandleColor: 'bg-indigo-300 dark:bg-indigo-500/60',
           outputHandleBorder: 'border-indigo-500 dark:border-indigo-300',
         };
     default: // unknown and any other
