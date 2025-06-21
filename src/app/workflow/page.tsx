@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
+import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
@@ -1370,7 +1371,6 @@ export default function WorkflowPage() {
               nodes={nodes}
               connections={connections}
               onWorkflowGenerated={handleAiPromptSubmit}
-              setIsLoadingGlobal={setIsLoadingAiWorkflow}
               isExplainingWorkflow={isExplainingWorkflow}
               workflowExplanation={workflowExplanation}
               onClearExplanation={() => {
@@ -1394,7 +1394,7 @@ export default function WorkflowPage() {
               isSimulationMode={isSimulationMode}
               chatHistory={chatHistory}
               isChatLoading={isChatLoading}
-              onChatSubmit={(msg) => handleChatSubmit(msg, false)}
+              onChatSubmit={handleChatSubmit}
               onClearChat={() => setChatHistory([])}
             />
             <div className="flex-1 overflow-y-auto">
