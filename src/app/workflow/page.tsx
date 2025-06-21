@@ -27,12 +27,12 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
-import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
@@ -392,9 +392,9 @@ export default function WorkflowPage() {
     const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
       id: conn.id || crypto.randomUUID(),
       sourceNodeId: conn.sourceNodeId,
+      sourcePort: conn.sourcePort,
       targetNodeId: conn.targetNodeId,
-      sourceHandle: conn.sourcePort,
-      targetHandle: conn.targetPort,
+      targetPort: conn.targetPort,
     }));
 
     return { nodes: newNodes, connections: newConnections };
@@ -1339,7 +1339,7 @@ export default function WorkflowPage() {
           onImportWorkflow={handleImportWorkflow}
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
-          onStartConnection={onStartConnection}
+          onStartConnection={handleStartConnection}
           onCompleteConnection={handleCompleteConnection}
           onUpdateConnectionPreview={handleUpdateConnectionPreview}
           connectionPreview={{
@@ -1486,5 +1486,3 @@ export default function WorkflowPage() {
     </div>
   );
 }
-
-    
