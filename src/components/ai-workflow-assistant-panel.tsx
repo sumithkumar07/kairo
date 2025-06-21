@@ -1,12 +1,11 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
+import { useState, useRef, useEffect } from 'react';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -18,16 +17,6 @@ import { Switch } from '@/components/ui/switch';
 
 
 interface AIWorkflowAssistantPanelProps {
-  nodes: WorkflowNode[];
-  connections: WorkflowConnection[];
-  onWorkflowGenerated: (workflow: GenerateWorkflowFromPromptOutput) => void; 
-  setIsLoadingGlobal: (isLoading: boolean) => void; 
-  isExplainingWorkflow: boolean;
-  workflowExplanation: string | null;
-  onClearExplanation: () => void;
-  initialCanvasSuggestion: SuggestNextNodeOutput | null;
-  isLoadingSuggestion: boolean; 
-  onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
   isCanvasEmpty: boolean;
   executionLogs: LogEntry[];
   onClearLogs: () => void;
@@ -45,19 +34,15 @@ interface AIWorkflowAssistantPanelProps {
   isChatLoading: boolean;
   onChatSubmit: (message: string) => void;
   onClearChat: () => void;
+  isExplainingWorkflow: boolean;
+  workflowExplanation: string | null;
+  onClearExplanation: () => void;
+  initialCanvasSuggestion: SuggestNextNodeOutput | null;
+  isLoadingSuggestion: boolean; 
+  onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
 }
 
 export function AIWorkflowAssistantPanel({
-  nodes,
-  connections,
-  onWorkflowGenerated,
-  setIsLoadingGlobal,
-  isExplainingWorkflow,
-  workflowExplanation,
-  onClearExplanation,
-  initialCanvasSuggestion,
-  isLoadingSuggestion, 
-  onAddSuggestedNode,
   isCanvasEmpty,
   executionLogs,
   onClearLogs,
@@ -75,6 +60,12 @@ export function AIWorkflowAssistantPanel({
   isChatLoading,
   onChatSubmit,
   onClearChat,
+  isExplainingWorkflow,
+  workflowExplanation,
+  onClearExplanation,
+  initialCanvasSuggestion,
+  isLoadingSuggestion, 
+  onAddSuggestedNode,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);

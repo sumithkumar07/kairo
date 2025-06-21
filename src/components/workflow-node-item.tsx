@@ -290,7 +290,7 @@ const WorkflowNodeItemComponent = ({
       </CardContent>
     </Card>
   );
-}
+};
 
 export const WorkflowNodeItem = React.memo(WorkflowNodeItemComponent);
 WorkflowNodeItem.displayName = 'WorkflowNodeItem';

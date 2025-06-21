@@ -5,7 +5,7 @@ import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ChatMessage } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, generateWorkflow, assistantChat } from '@/app/actions';
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, generateWorkflow, assistantChat } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -27,12 +27,12 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 
 import { NodeLibrary } from '@/components/node-library';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
+import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
@@ -532,7 +532,7 @@ export default function WorkflowPage() {
     } finally {
       setIsChatLoading(false); 
     }
-  }, [chatHistory, nodes, connections, selectedNodeId, setIsLoadingAiWorkflow, handleAiPromptSubmit, toast]);
+  }, [chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast]);
 
 
   const handleRunWorkflow = useCallback(async () => {
@@ -1370,16 +1370,6 @@ export default function WorkflowPage() {
         {isAssistantVisible && (
           <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
             <AIWorkflowAssistantPanel
-              nodes={nodes}
-              connections={connections}
-              isExplainingWorkflow={isExplainingWorkflow}
-              workflowExplanation={workflowExplanation}
-              onClearExplanation={() => {
-                  setWorkflowExplanation(null);
-              }}
-              initialCanvasSuggestion={initialCanvasSuggestion}
-              isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
-              onAddSuggestedNode={handleAddSuggestedNode}
               isCanvasEmpty={nodes.length === 0}
               executionLogs={executionLogs}
               onClearLogs={handleClearLogs}
@@ -1397,6 +1387,14 @@ export default function WorkflowPage() {
               isChatLoading={isChatLoading}
               onChatSubmit={handleChatSubmit}
               onClearChat={() => setChatHistory([])}
+              isExplainingWorkflow={isExplainingWorkflow}
+              workflowExplanation={workflowExplanation}
+              onClearExplanation={() => {
+                  setWorkflowExplanation(null);
+              }}
+              initialCanvasSuggestion={initialCanvasSuggestion}
+              isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
+              onAddSuggestedNode={handleAddSuggestedNode}
             />
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
