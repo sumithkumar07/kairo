@@ -102,6 +102,9 @@ Your primary roles are:
         - In \`aiResponse\`, ask for more details about what kind of workflow they want.
         - Example: User: "Make a workflow." AI: "Sure, I can help with that! What kind of workflow are you looking to create? What should it do?"
 4.  **Analyze, "Run", & "Fix" CURRENT Workflows, OR Request Specific Actions**:
+    - **Automated "Run" Feedback**: If the \`userMessage\` indicates a workflow execution has just FAILED (e.g., starts with "The workflow has just been executed. Result: FAILED."), treat this as a high-priority request to **fix** the workflow.
+        - Analyze the provided \`Execution Errors\` from the message and correlate them with the \`currentWorkflowNodes\`.
+        - Follow the standard "fix" procedure below.
     - If \`currentWorkflowNodes\` are provided AND the user asks to **"run the workflow"**:
         - **Your first step is to analyze the workflow for issues.** Follow the analysis steps below (Connectivity, Missing Config, Error Handling).
         - **If no issues are found**: Your \`aiResponse\` must be: "The workflow looks good to go! I've checked for common issues and didn't find any. You can now use the 'Run Workflow' button in the UI to execute it." Do NOT set any other flags.
@@ -189,11 +192,11 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
-- **The "aiResponse" field in the JSON output MUST always be a simple string value.** It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
+- The \`aiResponse\` field in the JSON output MUST always be a simple string value. It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
 - Do NOT include any explanatory text or markdown formatting (like \`\`\`json ... \`\`\`) before or after the JSON object.
-- When "isWorkflowGenerationRequest: true", "workflowGenerationPrompt" MUST contain the detailed prompt for the generator. "aiResponse" should ONLY be a short confirmation.
-- When "actionRequest" is set (e.g., to "suggest_next_node"), "aiResponse" should be a short confirmation that you are initiating that action. The actual result of the action (like the suggestion) will come from a separate service call made by the application.
-- DO NOT output workflow JSON in "aiResponse".
+- When \`isWorkflowGenerationRequest: true\`, \`workflowGenerationPrompt\` MUST contain the detailed prompt for the generator. \`aiResponse\` should ONLY be a short confirmation.
+- When \`actionRequest\` is set (e.g., to "suggest_next_node"), \`aiResponse\` should be a short confirmation that you are initiating that action. The actual result of the action (like the suggestion) will come from a separate service call made by the application.
+- DO NOT output workflow JSON in \`aiResponse\`.
 - Keep responses helpful, concise. If unknown, say so.
 - Mention Kairo node types if relevant (e.g., "'httpRequest' node for external service calls"). Available Kairo node types: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown.
 
@@ -325,3 +328,7 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
+    
+
+    

@@ -607,14 +607,16 @@ export default function WorkflowPage() {
       if(hasErrors) {
         const errorDetails = Object.entries(finalWorkflowData)
           .filter(([_, value]) => (value as any).lastExecutionStatus === 'error')
-          .map(([key, value]) => `Node "${nodes.find(n=>n.id===key)?.name || key}" failed with error: ${(value as any).error_message}`)
+          .map(([key, value]) => {
+            const node = nodes.find(n => n.id === key);
+            return `- Node '${node?.name || key}' (ID: ${key}, Type: ${node?.type}): ${(value as any).error_message || 'An unknown error occurred.'}`;
+          })
           .join('\n');
-        systemMessage = `I just ran the workflow and it FAILED. Please analyze the result and help me fix it. Here are the errors I found:\n${errorDetails}`;
+        systemMessage = `The workflow has just been executed. Result: FAILED.\n\nPlease analyze the following execution details and help me fix the workflow.\n\nExecution Errors:\n${errorDetails}`;
       } else {
         systemMessage = `I just ran the workflow and it completed successfully! Can you confirm everything looks good?`;
       }
       
-      // Feed result to assistant
       await handleChatSubmit(systemMessage, true);
 
 
@@ -1337,7 +1339,7 @@ export default function WorkflowPage() {
           onImportWorkflow={handleImportWorkflow}
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
-          onStartConnection={handleStartConnection}
+          onStartConnection={onStartConnection}
           onCompleteConnection={handleCompleteConnection}
           onUpdateConnectionPreview={handleUpdateConnectionPreview}
           connectionPreview={{
@@ -1370,7 +1372,6 @@ export default function WorkflowPage() {
             <AIWorkflowAssistantPanel
               nodes={nodes}
               connections={connections}
-              onWorkflowGenerated={handleAiPromptSubmit}
               isExplainingWorkflow={isExplainingWorkflow}
               workflowExplanation={workflowExplanation}
               onClearExplanation={() => {
@@ -1485,3 +1486,5 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
+    
