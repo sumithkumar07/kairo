@@ -112,7 +112,7 @@ export function NodeConfigPanel({
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
         }
       } else if (isOnErrorWebhookField) {
-        if (fieldKey === 'onErrorWebhook') { // This refers to the entire onErrorWebhook object
+        if (fieldKey === 'onErrorWebhookConfig') { // This refers to the entire onErrorWebhook object
             try {
                 const parsedValue = JSON.parse(String(valueToSet));
                 draftConfig.onErrorWebhook = parsedValue;
@@ -601,4 +601,3 @@ export function NodeConfigPanel({
     </Card>
   );
 }
-
