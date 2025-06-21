@@ -596,11 +596,6 @@ export default function WorkflowPage() {
       });
       setNodes(updatedNodes);
       saveHistory();
-
-      toast({
-        title: 'Workflow Execution Attempted',
-        description: 'Check logs for details. Feeding results to AI assistant for analysis...',
-      });
       
       const hasErrors = Object.values(finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
       let systemMessage = '';
