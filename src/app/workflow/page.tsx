@@ -355,6 +355,75 @@ export default function WorkflowPage() {
   }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
 
+  const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
+    let maxIdNum = nextNodeIdRef.current;
+    const newNodes: WorkflowNode[] = aiWorkflow.nodes.map((aiNode, index) => {
+      const idParts = aiNode.id.split('_');
+      const numPart = parseInt(idParts[idParts.length - 1] || '0', 10);
+      if (!isNaN(numPart) && numPart >= maxIdNum) {
+        maxIdNum = numPart + 1;
+      }
+
+      const mappedTypeKey = aiNode.type.toLowerCase();
+      const uiNodeTypeKey = AI_NODE_TYPE_MAPPING[mappedTypeKey] || AI_NODE_TYPE_MAPPING['default'] || 'unknown';
+      const nodeConfigDef = AVAILABLE_NODES_CONFIG.find(n => n.type === uiNodeTypeKey) ||
+                            AVAILABLE_NODES_CONFIG.find(n => n.type === 'unknown')!;
+
+      const defaultX = (index % 5) * (NODE_WIDTH + 60) + 30;
+      const defaultY = Math.floor(index / 5) * (NODE_HEIGHT + 40) + 30;
+
+      return {
+        id: aiNode.id || `${nodeConfigDef.type}_${maxIdNum++}`,
+        type: nodeConfigDef.type,
+        name: aiNode.name || nodeConfigDef.name || `Node ${aiNode.id}`,
+        description: aiNode.description || '',
+        position: aiNode.position || { x: defaultX, y: defaultY },
+        config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
+        inputHandles: nodeConfigDef.inputHandles,
+        outputHandles: nodeConfigDef.outputHandles,
+        aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
+        category: nodeConfigDef.category,
+        lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'],
+      };
+    });
+    nextNodeIdRef.current = maxIdNum;
+
+    const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
+      id: conn.id || crypto.randomUUID(),
+      sourceNodeId: conn.sourceNodeId,
+      targetNodeId: conn.targetNodeId,
+      sourceHandle: conn.sourcePort,
+      targetHandle: conn.targetPort,
+    }));
+
+    return { nodes: newNodes, connections: newConnections };
+  }, []);
+
+  const handleAiPromptSubmit = useCallback((aiOutput: GenerateWorkflowFromPromptOutput) => {
+    if (!aiOutput || !aiOutput.nodes) {
+      toast({
+        title: 'AI Error',
+        description: 'The AI did not return a valid workflow structure.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const { nodes: newNodes, connections: newConnections } = mapAiWorkflowToInternal(aiOutput);
+    setNodes(newNodes);
+    setConnections(newConnections);
+    setSelectedNodeId(null);
+    setSelectedConnectionId(null);
+    setExecutionLogs([]);
+    setWorkflowExplanation(null);
+    setInitialCanvasSuggestion(null);
+    setSuggestedNextNodeInfo(null);
+
+    setCanvasOffset({ x: 0, y: 0 });
+    setZoomLevel(1);
+    resetHistoryForNewWorkflow(newNodes, newConnections);
+    toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
+  }, [mapAiWorkflowToInternal, toast, resetHistoryForNewWorkflow]);
+  
   const handleChatSubmit = useCallback(async (messageContent: string, isSystemMessage: boolean = false) => {
     if (!messageContent.trim()) {
       toast({
@@ -425,7 +494,7 @@ export default function WorkflowPage() {
       setChatHistory(prev => [...prev, aiMessage]);
 
       if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
-        setIsLoadingGlobal(true); 
+        setIsLoadingAiWorkflow(true); 
         try {
           const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
           handleAiPromptSubmit(generatedWorkflow);
@@ -446,7 +515,7 @@ export default function WorkflowPage() {
           };
           setChatHistory(prev => [...prev, genFailMessage]);
         } finally {
-          setIsLoadingGlobal(false);
+          setIsLoadingAiWorkflow(false);
         }
       }
     } catch (error: any) { 
@@ -462,7 +531,7 @@ export default function WorkflowPage() {
     } finally {
       setIsChatLoading(false); 
     }
-  }, [chatHistory, nodes, connections, selectedNodeId, setIsLoadingGlobal, handleAiPromptSubmit, toast]);
+  }, [chatHistory, nodes, connections, selectedNodeId, setIsLoadingAiWorkflow, handleAiPromptSubmit, toast]);
 
 
   const handleRunWorkflow = useCallback(async () => {
@@ -894,76 +963,6 @@ export default function WorkflowPage() {
     isLoadingInitialSuggestion,
     initialSuggestionAttempted,
   ]);
-
-
-  const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
-    let maxIdNum = nextNodeIdRef.current;
-    const newNodes: WorkflowNode[] = aiWorkflow.nodes.map((aiNode, index) => {
-      const idParts = aiNode.id.split('_');
-      const numPart = parseInt(idParts[idParts.length - 1] || '0', 10);
-      if (!isNaN(numPart) && numPart >= maxIdNum) {
-        maxIdNum = numPart + 1;
-      }
-
-      const mappedTypeKey = aiNode.type.toLowerCase();
-      const uiNodeTypeKey = AI_NODE_TYPE_MAPPING[mappedTypeKey] || AI_NODE_TYPE_MAPPING['default'] || 'unknown';
-      const nodeConfigDef = AVAILABLE_NODES_CONFIG.find(n => n.type === uiNodeTypeKey) ||
-                            AVAILABLE_NODES_CONFIG.find(n => n.type === 'unknown')!;
-
-      const defaultX = (index % 5) * (NODE_WIDTH + 60) + 30;
-      const defaultY = Math.floor(index / 5) * (NODE_HEIGHT + 40) + 30;
-
-      return {
-        id: aiNode.id || `${nodeConfigDef.type}_${maxIdNum++}`,
-        type: nodeConfigDef.type,
-        name: aiNode.name || nodeConfigDef.name || `Node ${aiNode.id}`,
-        description: aiNode.description || '',
-        position: aiNode.position || { x: defaultX, y: defaultY },
-        config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
-        inputHandles: nodeConfigDef.inputHandles,
-        outputHandles: nodeConfigDef.outputHandles,
-        aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
-        category: nodeConfigDef.category,
-        lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'],
-      };
-    });
-    nextNodeIdRef.current = maxIdNum;
-
-    const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
-      id: conn.id || crypto.randomUUID(),
-      sourceNodeId: conn.sourceNodeId,
-      targetNodeId: conn.targetNodeId,
-      sourceHandle: conn.sourcePort,
-      targetHandle: conn.targetPort,
-    }));
-
-    return { nodes: newNodes, connections: newConnections };
-  }, []);
-
-  const handleAiPromptSubmit = useCallback((aiOutput: GenerateWorkflowFromPromptOutput) => {
-    if (!aiOutput || !aiOutput.nodes) {
-      toast({
-        title: 'AI Error',
-        description: 'The AI did not return a valid workflow structure.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    const { nodes: newNodes, connections: newConnections } = mapAiWorkflowToInternal(aiOutput);
-    setNodes(newNodes);
-    setConnections(newConnections);
-    setSelectedNodeId(null);
-    setSelectedConnectionId(null);
-    setExecutionLogs([]);
-    setWorkflowExplanation(null);
-    setInitialCanvasSuggestion(null);
-    setSuggestedNextNodeInfo(null);
-
-    setCanvasOffset({ x: 0, y: 0 });
-    setZoomLevel(1);
-    resetHistoryForNewWorkflow(newNodes, newConnections);
-    toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
-  }, [mapAiWorkflowToInternal, toast, resetHistoryForNewWorkflow]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
     if (nodeType.isAdvanced && !isProOrTrial) {
