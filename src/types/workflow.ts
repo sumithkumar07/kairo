@@ -118,3 +118,9 @@ export interface WorkflowExecutionResult {
 }
 
 
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  message: string;
+  timestamp: string;
+}

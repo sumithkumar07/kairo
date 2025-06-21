@@ -2,10 +2,10 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ChatMessage } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow } from '@/app/actions';
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, generateWorkflow, assistantChat } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -30,7 +30,6 @@ import { Label } from '@/components/ui/label';
 
 
 import { NodeLibrary } from '@/components/node-library';
-import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
 
@@ -43,6 +42,8 @@ const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
 const WORKFLOW_PREFIX = 'kairoWorkflow_';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
+const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
+const CHAT_CONTEXT_MESSAGE_LIMIT = 6;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.1;
@@ -66,6 +67,9 @@ export default function WorkflowPage() {
   const [isAssistantVisible, setIsAssistantVisible] = useState(false);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
+
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   const { toast } = useToast();
   const { isProOrTrial, isLoggedIn } = useSubscription();
@@ -106,6 +110,26 @@ export default function WorkflowPage() {
   const selectedNode = useMemo(() => {
     return nodes.find(node => node.id === selectedNodeId) || null;
   }, [nodes, selectedNodeId]);
+
+  useEffect(() => {
+    const storedHistory = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    if (storedHistory) {
+      try {
+        setChatHistory(JSON.parse(storedHistory));
+      } catch (error) {
+        console.error("Failed to parse chat history from localStorage:", error);
+        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY); 
+      }
+    }
+  }, []); 
+
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(chatHistory));
+    } else {
+      localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
+    }
+  }, [chatHistory]);
 
   const saveHistory = useCallback(() => {
     setHistory(prevHistory => {
@@ -331,6 +355,116 @@ export default function WorkflowPage() {
   }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
 
+  const handleChatSubmit = useCallback(async (messageContent: string, isSystemMessage: boolean = false) => {
+    if (!messageContent.trim()) {
+      toast({
+        title: 'Message is empty',
+        description: 'Please enter a message to send to the AI.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      sender: 'user',
+      message: messageContent,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    
+    const messagesForAIContext = chatHistory.slice(-CHAT_CONTEXT_MESSAGE_LIMIT);
+    const historyForAI = messagesForAIContext.map(ch => ({ sender: ch.sender, message: ch.message }));
+    
+    if (!isSystemMessage) {
+        setChatHistory(prev => [...prev, userMessage]);
+    }
+    
+    setIsChatLoading(true);
+    
+    try {
+      let workflowContextForAI = "User is on the main workflow canvas.";
+      if (selectedNodeId) {
+        const node = nodes.find(n => n.id === selectedNodeId);
+        if (node) workflowContextForAI = `User has node "${node.name}" (Type: ${node.type}) selected. Description: ${node.description || 'N/A'}. Config (first 100 chars): ${JSON.stringify(node.config).substring(0,100)}`;
+      } else if (nodes.length > 0) {
+        workflowContextForAI = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
+      }
+      
+      const currentWorkflowNodesForAI = nodes.map(n => ({
+        id: n.id,
+        type: n.type,
+        name: n.name,
+        description: n.description,
+        config: n.config, 
+        inputHandles: n.inputHandles,
+        outputHandles: n.outputHandles,
+        aiExplanation: n.aiExplanation
+      }));
+
+      const currentWorkflowConnectionsForAI = connections.map(c => ({
+        sourceNodeId: c.sourceNodeId,
+        sourceHandle: c.sourceHandle,
+        targetNodeId: c.targetNodeId,
+        targetHandle: c.targetHandle,
+      }));
+
+      const chatResult = await assistantChat({ 
+        userMessage: messageContent, 
+        workflowContext: workflowContextForAI, 
+        chatHistory: historyForAI,
+        currentWorkflowNodes: currentWorkflowNodesForAI,
+        currentWorkflowConnections: currentWorkflowConnectionsForAI
+      });
+      
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        sender: 'ai',
+        message: chatResult.aiResponse,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatHistory(prev => [...prev, aiMessage]);
+
+      if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
+        setIsLoadingGlobal(true); 
+        try {
+          const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
+          handleAiPromptSubmit(generatedWorkflow);
+          const successMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sender: 'ai',
+            message: "Workflow generated and placed on the canvas!",
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setChatHistory(prev => [...prev, successMessage]);
+        } catch (genError: any) {
+          console.error('Error generating workflow from chat command:', genError);
+          const genFailMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sender: 'ai',
+            message: `Sorry, I tried to generate the workflow, but encountered an error: ${genError.message}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setChatHistory(prev => [...prev, genFailMessage]);
+        } finally {
+          setIsLoadingGlobal(false);
+        }
+      }
+    } catch (error: any) { 
+      console.error('AI chat error:', error);
+      const errorMessageText = error.message || 'Sorry, I encountered an error communicating with the AI.';
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        sender: 'ai',
+        message: errorMessageText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
+    } finally {
+      setIsChatLoading(false); 
+    }
+  }, [chatHistory, nodes, connections, selectedNodeId, setIsLoadingGlobal, handleAiPromptSubmit, toast]);
+
+
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
       toast({
@@ -383,21 +517,37 @@ export default function WorkflowPage() {
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
 
-      setNodes(prevNodes =>
-        prevNodes.map(existingNode => {
-          const executedNodeData = finalWorkflowData[existingNode.id];
-          if (executedNodeData && executedNodeData.lastExecutionStatus) {
-            return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
-          }
-          return { ...existingNode, lastExecutionStatus: 'skipped' as WorkflowNode['lastExecutionStatus'] };
-        })
-      );
+      const updatedNodes = nodes.map(existingNode => {
+        const executedNodeData = finalWorkflowData[existingNode.id];
+        if (executedNodeData && executedNodeData.lastExecutionStatus) {
+          return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
+        }
+        return { ...existingNode, lastExecutionStatus: 'skipped' as WorkflowNode['lastExecutionStatus'] };
+      });
+      setNodes(updatedNodes);
       saveHistory();
 
       toast({
         title: 'Workflow Execution Attempted',
-        description: 'Check logs for details.',
+        description: 'Check logs for details. Feeding results to AI assistant for analysis...',
       });
+      
+      const hasErrors = Object.values(finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+      let systemMessage = '';
+      if(hasErrors) {
+        const errorDetails = Object.entries(finalWorkflowData)
+          .filter(([_, value]) => (value as any).lastExecutionStatus === 'error')
+          .map(([key, value]) => `Node "${nodes.find(n=>n.id===key)?.name || key}" failed with error: ${(value as any).error_message}`)
+          .join('\n');
+        systemMessage = `I just ran the workflow and it FAILED. Please analyze the result and help me fix it. Here are the errors I found:\n${errorDetails}`;
+      } else {
+        systemMessage = `I just ran the workflow and it completed successfully! Can you confirm everything looks good?`;
+      }
+      
+      // Feed result to assistant
+      await handleChatSubmit(systemMessage, true);
+
+
     } catch (error: any) {
       const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
       setExecutionLogs(prevLogs => [
@@ -407,10 +557,11 @@ export default function WorkflowPage() {
       setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
       saveHistory();
       toast({ title: 'Workflow Execution Failed', description: errorMessage, variant: 'destructive' });
+      await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, true);
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, toast, isSimulationMode, saveHistory]);
+  }, [nodes, connections, toast, isSimulationMode, saveHistory, handleChatSubmit]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
@@ -1242,6 +1393,10 @@ export default function WorkflowPage() {
               onRunWorkflow={handleRunWorkflow}
               onToggleSimulationMode={handleToggleSimulationMode}
               isSimulationMode={isSimulationMode}
+              chatHistory={chatHistory}
+              isChatLoading={isChatLoading}
+              onChatSubmit={(msg) => handleChatSubmit(msg, false)}
+              onClearChat={() => setChatHistory([])}
             />
             <div className="flex-1 overflow-y-auto">
               {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (

@@ -4,17 +4,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { assistantChat, generateWorkflow } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User } from 'lucide-react'; // Added Bot, User
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, Sparkles, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import type { LogEntry, WorkflowNode, WorkflowConnection } from '@/types/workflow';
+import type { LogEntry, WorkflowNode, WorkflowConnection, ChatMessage } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 
@@ -43,17 +41,11 @@ interface AIWorkflowAssistantPanelProps {
   onRunWorkflow: () => void;
   onToggleSimulationMode: (isSimulating: boolean) => void;
   isSimulationMode: boolean;
+  chatHistory: ChatMessage[];
+  isChatLoading: boolean;
+  onChatSubmit: (message: string) => void;
+  onClearChat: () => void;
 }
-
-interface ChatMessage {
-  id: string;
-  sender: 'user' | 'ai';
-  message: string;
-  timestamp: string;
-}
-
-const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
-const CHAT_CONTEXT_MESSAGE_LIMIT = 6; 
 
 export function AIWorkflowAssistantPanel({
   nodes,
@@ -79,34 +71,14 @@ export function AIWorkflowAssistantPanel({
   onRunWorkflow,
   onToggleSimulationMode,
   isSimulationMode,
+  chatHistory,
+  isChatLoading,
+  onChatSubmit,
+  onClearChat,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const { toast } = useToast();
   const logsScrollAreaRef = useRef<HTMLDivElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const storedHistory = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
-    if (storedHistory) {
-      try {
-        setChatHistory(JSON.parse(storedHistory));
-      } catch (error) {
-        console.error("Failed to parse chat history from localStorage:", error);
-        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY); 
-      }
-    }
-  }, []); 
-
-  useEffect(() => {
-    if (chatHistory.length > 0) {
-      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(chatHistory));
-    } else {
-      localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
-    }
-  }, [chatHistory]);
-
 
   useEffect(() => {
     if (logsScrollAreaRef.current) {
@@ -120,131 +92,10 @@ export function AIWorkflowAssistantPanel({
     }
   }, [chatHistory]);
 
-  const handleClearChat = () => {
-    setChatHistory([]);
-    toast({ title: 'Chat Cleared', description: 'The conversation history has been cleared.' });
-  };
-
-  const handleChatSubmit = async () => {
-    if (!chatInput.trim()) {
-      toast({
-        title: 'Message is empty',
-        description: 'Please enter a message to send to the AI.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const userMessageContent = chatInput;
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      sender: 'user',
-      message: userMessageContent,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    
-    const messagesForAIContext = chatHistory.slice(-CHAT_CONTEXT_MESSAGE_LIMIT);
-    const historyForAI = messagesForAIContext.map(ch => ({ sender: ch.sender, message: ch.message }));
-
-    setChatHistory(prev => [...prev, userMessage]);
+  const handleLocalChatSubmit = () => {
+    if (!chatInput.trim()) return;
+    onChatSubmit(chatInput);
     setChatInput('');
-    setIsChatLoading(true);
-    
-    try {
-      let workflowContextForAI = "User is on the main workflow canvas.";
-      if (selectedNodeId) {
-        const node = nodes.find(n => n.id === selectedNodeId);
-        if (node) workflowContextForAI = `User has node "${node.name}" (Type: ${node.type}) selected. Description: ${node.description || 'N/A'}. Config (first 100 chars): ${JSON.stringify(node.config).substring(0,100)}`;
-      } else if (nodes.length > 0) {
-        workflowContextForAI = `Current workflow has ${nodes.length} nodes and ${connections.length} connections. Overall goal might be inferred from existing nodes if any.`;
-      }
-      
-      const currentWorkflowNodesForAI = nodes.map(n => ({
-        id: n.id,
-        type: n.type,
-        name: n.name,
-        description: n.description,
-        config: n.config, 
-        inputHandles: n.inputHandles,
-        outputHandles: n.outputHandles,
-        aiExplanation: n.aiExplanation
-      }));
-
-      const currentWorkflowConnectionsForAI = connections.map(c => ({
-        sourceNodeId: c.sourceNodeId,
-        sourceHandle: c.sourceHandle,
-        targetNodeId: c.targetNodeId,
-        targetHandle: c.targetHandle,
-      }));
-
-      const chatResult = await assistantChat({ 
-        userMessage: userMessageContent, 
-        workflowContext: workflowContextForAI, 
-        chatHistory: historyForAI,
-        currentWorkflowNodes: currentWorkflowNodesForAI,
-        currentWorkflowConnections: currentWorkflowConnectionsForAI
-      });
-      
-      const aiMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'ai',
-        message: chatResult.aiResponse,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setChatHistory(prev => [...prev, aiMessage]);
-
-      if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
-        setIsLoadingGlobal(true); 
-        try {
-          const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
-          onWorkflowGenerated(generatedWorkflow);
-          const successMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            sender: 'ai',
-            message: "Workflow generated and placed on the canvas!",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          };
-          setChatHistory(prev => [...prev, successMessage]);
-          toast({
-            title: 'Workflow Generated!',
-            description: 'The AI has generated a workflow from your chat request.',
-          });
-        } catch (genError: any) {
-          console.error('Error generating workflow from chat command:', genError);
-          const genFailMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            sender: 'ai',
-            message: `Sorry, I tried to generate the workflow, but encountered an error: ${genError.message}`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          };
-          setChatHistory(prev => [...prev, genFailMessage]);
-          toast({
-            title: 'Workflow Generation Failed',
-            description: genError.message || 'An error occurred during workflow generation.',
-            variant: 'destructive',
-          });
-        } finally {
-          setIsLoadingGlobal(false);
-        }
-      }
-    } catch (error: any) { 
-      console.error('AI chat error:', error);
-      const errorMessageText = error.message || 'Sorry, I encountered an error communicating with the AI.';
-      const errorMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'ai',
-        message: errorMessageText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setChatHistory(prev => [...prev, errorMessage]);
-      toast({
-        title: 'Error Chatting with AI',
-        description: errorMessageText,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsChatLoading(false); 
-    }
   };
 
   const currentIsLoadingAnyAIButChat = isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
@@ -457,7 +308,7 @@ export function AIWorkflowAssistantPanel({
               AI Workflow Assistant
             </CardTitle>
             <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="xs" onClick={handleClearChat} title="Clear chat history" className="h-7 px-1.5 text-xs">
+                <Button variant="ghost" size="xs" onClick={onClearChat} title="Clear chat history" className="h-7 px-1.5 text-xs">
                     <Trash2 className="h-3.5 w-3.5" />
                     <span className="ml-1 hidden sm:inline">Clear Chat</span>
                 </Button>
@@ -566,10 +417,10 @@ export function AIWorkflowAssistantPanel({
             className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]"
             rows={1}
             disabled={isChatLoading || currentIsLoadingAnyAIButChat}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSubmit(); } }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }}
           />
           <Button
-            onClick={handleChatSubmit}
+            onClick={handleLocalChatSubmit}
             disabled={isChatLoading || currentIsLoadingAnyAIButChat || !chatInput.trim()}
             className="h-auto py-2.5 self-end min-h-[40px]"
             size="default"
