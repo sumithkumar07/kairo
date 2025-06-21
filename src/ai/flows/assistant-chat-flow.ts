@@ -62,73 +62,13 @@ const AssistantChatOutputSchema = z.object({
 });
 export type AssistantChatOutput = z.infer<typeof AssistantChatOutputSchema>;
 
+/**
+ * Main exported function to handle assistant chat. It directly calls the Genkit flow.
+ */
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
-  const genkitResponse = await chatPrompt(input);
-  let result = genkitResponse.output;
-
-  if (!result) {
-    console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty (possibly due to strict safety filters not caught by error handler, model issues, or network problems), unparseable by Genkit before Zod validation, or an API error occurred that didn't throw a catchable exception but resulted in no data.");
-    return {
-      aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment? (Code: E_NULL_AI_RESULT)",
-      isWorkflowGenerationRequest: false,
-    };
-  }
-  
-  try {
-    console.log("assistantChatFlow: Raw AI result object (attempting to stringify):", JSON.stringify(result, null, 2));
-  } catch (stringifyError: any) {
-    console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be (displaying directly):", result);
-  }
-
-  let finalAiResponse: string;
-  const isGenRequest = typeof result.isWorkflowGenerationRequest === 'string'
-                        ? result.isWorkflowGenerationRequest.toLowerCase() === 'true'
-                        : !!result.isWorkflowGenerationRequest;
-  const genPrompt = typeof result.workflowGenerationPrompt === 'string' && result.workflowGenerationPrompt.trim() !== '' ? result.workflowGenerationPrompt : undefined;
-  const actionReq = typeof result.actionRequest === 'string' && result.actionRequest.trim() !== '' ? result.actionRequest as any : undefined;
-
-  if (typeof result.aiResponse === 'string') {
-    finalAiResponse = result.aiResponse;
-  } else { 
-    // aiResponse is not a string (could be null, undefined, object, number etc.) - this is a structural issue from AI
-    const originalResponseType = typeof result.aiResponse;
-    console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Full result:`, JSON.stringify(result, null, 2));
-    
-    if (isGenRequest && genPrompt) {
-      finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
-    } else if (actionReq) {
-      finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
-    } else {
-      // No other primary action can be salvaged, so this is a genuine structural error.
-      console.warn("assistantChatFlow: 'aiResponse' was not string and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
-      return {
-        aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
-        isWorkflowGenerationRequest: false,
-        workflowGenerationPrompt: undefined,
-        actionRequest: undefined,
-      };
-    }
-    console.log(`assistantChatFlow: Salvaged/Defaulted 'aiResponse' to: "${finalAiResponse}" because original was type ${originalResponseType}.`);
-  }
-
-  // If AI flags for generation but doesn't provide a prompt, it's an issue.
-  if (isGenRequest && !genPrompt) {
-      console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as chat response. Original/Salvaged AI Response was:", finalAiResponse);
-      return {
-          aiResponse: finalAiResponse || "I was about to generate a workflow, but I'm missing the details. Could you clarify what you'd like me to create?",
-          isWorkflowGenerationRequest: false,
-          workflowGenerationPrompt: undefined,
-          actionRequest: actionReq, // Keep actionReq if it was set, might be a multi-step where prompt was forgotten
-      };
-  }
-
-  return {
-    aiResponse: finalAiResponse, 
-    isWorkflowGenerationRequest: isGenRequest,
-    workflowGenerationPrompt: isGenRequest ? genPrompt : undefined,
-    actionRequest: actionReq,
-  };
+  return assistantChatFlow(input);
 }
+
 
 const chatPrompt = ai.definePrompt({
   name: 'assistantChatPrompt',
@@ -275,6 +215,9 @@ The JSON object should look like this:
 `
 });
 
+/**
+ * Genkit flow that orchestrates the chat logic. It calls the prompt and processes the response.
+ */
 const assistantChatFlow = ai.defineFlow(
   {
     name: 'assistantChatFlow',
@@ -283,13 +226,13 @@ const assistantChatFlow = ai.defineFlow(
   },
   async (input): Promise<AssistantChatOutput> => {
     console.log("assistantChatFlow: Received input (userMessage first 100 chars):", input.userMessage.substring(0,100) + "...");
-    let result: AssistantChatOutput | undefined | null;
+    
     try {
       const genkitResponse = await chatPrompt(input); 
-      result = genkitResponse.output; 
+      const result = genkitResponse.output; 
 
       if (result === undefined || result === null) {
-        console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty (possibly due to strict safety filters not caught by error handler, model issues, or network problems), unparseable by Genkit before Zod validation, or an API error occurred that didn't throw a catchable exception but resulted in no data.");
+        console.warn("assistantChatFlow: AI prompt returned undefined or null result. This can happen if the LLM response is empty, unparseable, or an API error occurred without a catchable exception.");
         return {
           aiResponse: "I'm having a little trouble formulating a response right now. Could you try rephrasing or asking again in a moment? (Code: E_NULL_AI_RESULT)",
           isWorkflowGenerationRequest: false,
@@ -297,43 +240,38 @@ const assistantChatFlow = ai.defineFlow(
       }
       
       try {
-        console.log("assistantChatFlow: Raw AI result object (attempting to stringify):", JSON.stringify(result, null, 2));
+        console.log("assistantChatFlow: Raw AI result object:", JSON.stringify(result, null, 2));
       } catch (stringifyError: any) {
-        console.warn("assistantChatFlow: Could not stringify raw AI result object. Error during stringify:", stringifyError.message, "Raw result might be (displaying directly):", result);
+        console.warn("assistantChatFlow: Could not stringify raw AI result object. Error:", stringifyError.message);
       }
 
-      let finalAiResponse: string;
+      // Sanitize and validate the AI's output before returning
       const isGenRequest = typeof result.isWorkflowGenerationRequest === 'string'
                             ? result.isWorkflowGenerationRequest.toLowerCase() === 'true'
                             : !!result.isWorkflowGenerationRequest;
       const genPrompt = typeof result.workflowGenerationPrompt === 'string' && result.workflowGenerationPrompt.trim() !== '' ? result.workflowGenerationPrompt : undefined;
       const actionReq = typeof result.actionRequest === 'string' && result.actionRequest.trim() !== '' ? result.actionRequest as any : undefined;
+      let finalAiResponse = result.aiResponse;
 
-      if (typeof result.aiResponse === 'string') {
-        finalAiResponse = result.aiResponse;
-      } else { 
-        // aiResponse is not a string
+      if (typeof finalAiResponse !== 'string') {
         const originalResponseType = typeof result.aiResponse;
-        console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Full result:`, JSON.stringify(result, null, 2));
+        console.warn(`assistantChatFlow: AI result.aiResponse was not a string (type: ${originalResponseType}). Salvaging...`);
         
         if (isGenRequest && genPrompt) {
           finalAiResponse = `Understood. I will generate a workflow based on: "${genPrompt.substring(0, 150)}${genPrompt.length > 150 ? '...' : ''}"`;
         } else if (actionReq) {
           finalAiResponse = `Okay, I will perform the action: ${actionReq}.`;
         } else {
-          console.warn("assistantChatFlow: 'aiResponse' was not string and no other primary action could be salvaged. Returning structural error message. Result was:", JSON.stringify(result, null, 2));
+          console.error("assistantChatFlow: 'aiResponse' was not a string and could not be salvaged. Returning a structural error message.");
           return {
             aiResponse: "I'm having a little trouble formulating a response right now (issue with 'aiResponse' structure). Could you try rephrasing or asking again in a moment?",
             isWorkflowGenerationRequest: false,
-            workflowGenerationPrompt: undefined,
-            actionRequest: undefined,
           };
         }
-        console.log(`assistantChatFlow: Salvaged/Defaulted 'aiResponse' to: "${finalAiResponse}" because original was type ${originalResponseType}.`);
       }
 
       if (isGenRequest && !genPrompt) {
-          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as chat response. Original/Salvaged AI Response was:", finalAiResponse);
+          console.warn("assistantChatFlow: AI indicated workflow generation but didn't provide a valid 'workflowGenerationPrompt'. Treating as a chat response.");
           return {
               aiResponse: finalAiResponse || "I was about to generate a workflow, but I'm missing the details. Could you clarify what you'd like me to create?",
               isWorkflowGenerationRequest: false,
@@ -352,89 +290,42 @@ const assistantChatFlow = ai.defineFlow(
     } catch (error: any) {
       console.error("assistantChatFlow: Error caught during flow execution. Raw error:", error);
 
-      let errorDetailsForLog = "Raw error logged above.";
-      if (typeof error === 'object' && error !== null) {
-        try {
-          errorDetailsForLog = JSON.stringify(error, Object.getOwnPropertyNames(error));
-        } catch (e) {
-          errorDetailsForLog = `Name: ${error.name}, Message: ${error.message}, Stack: ${error.stack ? error.stack.substring(0, 200) + '...' : 'N/A'}`;
-        }
-      } else if (typeof error !== 'string') {
-        errorDetailsForLog = String(error);
-      }
-      console.error(`assistantChatFlow: Processed error for user. Full Error Details: ${errorDetailsForLog}`);
-
-
       let userErrorMessage = "An unexpected error occurred while I was thinking. Please try your request again.";
 
       if (error && typeof error === 'object') {
         if (error.name === 'ZodError' || (error.name === 'Error' && error.message && (error.message.includes('Validation failed') || error.message.includes('Failed to parse')))) { 
             userErrorMessage = "The AI returned data in an unexpected format. I'll try to adapt. Please try your request again, or slightly rephrase it. (Code: EZOD)";
-            console.error("assistantChatFlow: Zod or Zod-like validation error from AI output:", (error as any).errors || error.message);
         } else if ((error as any).candidates && Array.isArray((error as any).candidates) && (error as any).candidates.length > 0) {
           const firstCandidate = (error as any).candidates[0];
           if (firstCandidate.finishReason && firstCandidate.finishReason !== 'STOP' && firstCandidate.finishReason !== 'MODEL_SPECIFIED_STOP') {
-            switch (firstCandidate.finishReason) {
-              case 'SAFETY':
-                userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: EFIN-SAFE)";
-                break;
-              case 'RECITATION':
-                userErrorMessage = "I'm unable to complete that request due to content restrictions related to recitation. Please try a different approach. (Code: EFIN-REC)";
-                break;
-              case 'MAX_TOKENS':
-                userErrorMessage = "The request was too long or the response would be too long. Please try a shorter message or request. (Code: EFIN-MAX)";
-                break;
-              default:
-                userErrorMessage = "I'm sorry, I couldn't complete that request due to an unexpected reason (" + firstCandidate.finishReason + "). Please try rephrasing. (Code: EFIN-OTHER)";
-            }
+            userErrorMessage = `I couldn't complete that request due to an unexpected reason (${firstCandidate.finishReason}). Please try rephrasing. (Code: EFIN-${firstCandidate.finishReason})`;
           }
         } else if (error.message) {
-          const errorMessageLower = String(error.message).toLowerCase();
-          if (errorMessageLower.includes('api key') || errorMessageLower.includes('permission denied') || errorMessageLower.includes('forbidden') || String((error as any).status) === '401' || String((error as any).status) === '403' || String((error as any).code) === '401' || String((error as any).code) === '403' || errorMessageLower.includes('provide an api key') || errorMessageLower.includes('authenticate')) {
+          const msg = String(error.message).toLowerCase();
+          if (msg.includes('api key') || msg.includes('permission denied') || msg.includes('forbidden') || msg.includes('authenticate') || String((error as any).status || (error as any).code).startsWith('40')) {
              userErrorMessage = "There's an issue with the AI service configuration. Please check your API key and project settings, then try again. (Code: ECONF)";
-          } else if (errorMessageLower.includes('quota') || errorMessageLower.includes('rate limit') || String((error as any).status) === '429' || String((error as any).code) === '429') {
+          } else if (msg.includes('quota') || msg.includes('rate limit') || String((error as any).status || (error as any).code) === '429') {
             userErrorMessage = "The AI service is currently experiencing high demand or you've reached a usage limit. Please try again in a few moments. (Code: ELIMIT)";
-          } else if (errorMessageLower.includes('blocked') || errorMessageLower.includes('safety') || errorMessageLower.includes('harmful')) {
+          } else if (msg.includes('blocked') || msg.includes('safety') || msg.includes('harmful')) {
             userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: ESAFE)";
-          } else if ((error.name === 'SyntaxError' && (errorMessageLower.includes('json') || errorMessageLower.includes('unexpected token') || errorMessageLower.includes('parse error'))) || errorMessageLower.includes('parse error on line')) {
+          } else if ((error.name === 'SyntaxError' && (msg.includes('json') || msg.includes('unexpected token'))) || msg.includes('parse error on line')) {
             userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again. (Code: EJSON)";
-          } else if (errorMessageLower.includes('invalid_argument') && errorMessageLower.includes('at least one message is required')) {
+          } else if (msg.includes('invalid_argument') && msg.includes('at least one message is required')) {
             userErrorMessage = `An error occurred: ${String(error.message)}. This might indicate an issue with the prompt content or structure. Please try again. (Code: EMSGREQ)`;
-          }
-           else {
+          } else {
             userErrorMessage = `An error occurred: ${String(error.message).substring(0,100)}. Please try again. (Code: EGEN)`;
           }
-        } else if ((error as any).status || (error as any).code) {
-           if (String((error as any).status) === '401' || String((error as any).status) === '403' || String((error as any).code) === '401' || String((error as any).code) === '403') {
-               userErrorMessage = "There's an issue with the AI service configuration (authentication/permission). Please check your API key and project settings. (Code: EAUTH)";
-           } else if (String((error as any).status) === '429' || String((error as any).code) === '429') {
-               userErrorMessage = "The AI service is busy or usage limits were reached. Please try again later. (Code: ERATE)";
-           } else {
-               userErrorMessage = `An unexpected error occurred. Status: ${(error as any).status || 'N/A'}, Code: ${(error as any).code || 'N/A'}. (Code: ESTAT)`;
-           }
         }
       } else if (typeof error === 'string') {
-        const errorStringLower = error.toLowerCase();
-        if (errorStringLower.includes('api key') || errorStringLower.includes('permission denied') || errorStringLower.includes('forbidden') || errorStringLower.includes('401') || errorStringLower.includes('403') || errorStringLower.includes('authenticate')) {
+        const strErr = error.toLowerCase();
+        if (strErr.includes('api key') || strErr.includes('permission denied') || strErr.includes('forbidden') || strErr.includes('authenticate')) {
            userErrorMessage = "There's an issue with the AI service configuration. Please check your API key and project settings. (Code: SCONF)";
-        } else if (errorStringLower.includes('quota') || errorStringLower.includes('rate limit') || errorStringLower.includes('429')) {
-          userErrorMessage = "The AI service is currently experiencing high demand or usage limits. Please try again in a few moments. (Code: SLIMIT)";
-        } else if (errorStringLower.includes('blocked') || errorStringLower.includes('safety') || errorStringLower.includes('harmful')) {
-          userErrorMessage = "I'm sorry, I couldn't process that request due to content safety guidelines. Please try rephrasing. (Code: SSAFE)";
-        } else if (errorStringLower.includes('json') || errorStringLower.includes('unexpected token') || errorStringLower.includes('parse error')) {
-             userErrorMessage = "The AI's response was not in the expected format. I'll try to learn from this. Please try again. (Code: SJSON)";
-        } else if (errorStringLower.includes('invalid_argument') && errorStringLower.includes('at least one message is required')) {
-            userErrorMessage = `An error occurred: ${error}. This might indicate an issue with the prompt content or structure. Please try again. (Code: SMSGREQ)`;
         } else {
           userErrorMessage = `An error occurred: ${error.substring(0,100)}. Please try again. (Code: SGEN)`;
         }
       }
       
-      if (error && error.message && error.message.includes('INVALID_ARGUMENT') && error.message.includes('at least one message is required')) {
-          console.error("assistantChatFlow: Caught 'INVALID_ARGUMENT: at least one message is required' error. This likely means the prompt resolved to an empty message for the LLM.");
-      }
-
-
+      console.error(`assistantChatFlow: Responding to user with error message: "${userErrorMessage}"`);
       return {
         aiResponse: userErrorMessage,
         isWorkflowGenerationRequest: false,
@@ -442,12 +333,3 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
-
-
-    
-
-    
-
-    
-
