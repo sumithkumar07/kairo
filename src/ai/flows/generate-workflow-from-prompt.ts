@@ -102,7 +102,7 @@ Node Requirements: For each node, you MUST provide:
         - For the 'false' path, position the next node downwards and to the other side (e.g., \`x: conditionalNode.x + NODE_WIDTH + 60\`, \`y: conditionalNode.y + NODE_HEIGHT + 40\`).
         - Subsequent nodes in these branches should continue their respective divergent paths.
     - **Parallel Branches:** Lay out the sequences within each branch of a 'parallel' node distinctly, perhaps side-by-side or vertically stacked with clear separation.
-    - **Loops (\\\`forEach\\\`, \\\`whileLoop\\\`):** Nodes within a loop's sub-flow should form a clear sequence, possibly indented or visually grouped.
+    - **Loops (\`forEach\`, \`whileLoop\`):** Nodes within a loop's sub-flow should form a clear sequence, possibly indented or visually grouped.
     - **AVOID OVERLAPS.** Ensure adequate spacing (e.g., 40-60px) between distinct elements. (NODE_WIDTH is 200, NODE_HEIGHT is 100).
 - \`config\`: A JSON object for node-specific parameters.
     - Populate fields relevant to the node's 'type' and its 'configSchema'.
