@@ -111,9 +111,9 @@ Your primary roles are:
         - **If issues are found**: Report them and ask if the user wants you to fix them. E.g., \`aiResponse\`: "I found an issue: The 'Fetch API' node is missing a URL. Shall I try to fix this?"
     - If \`currentWorkflowNodes\` are provided AND the user asks for help (e.g., "Is my workflow okay?", "analyze this", "Find issues", "check my flow"):
         - **IMMEDIATELY analyze the workflow and provide the findings directly in the \`aiResponse\` field.** DO NOT respond with a waiting message like "I'm analyzing...". Your analysis in \`aiResponse\` MUST cover:
-            1.  **Connectivity Issues**: Unconnected nodes or required inputs without a connection.
-            2.  **Missing Essential Configuration**: Critical fields missing for a node's operation (e.g., \`url\` for \`httpRequest\`, \`prompt\` for \`aiTask\`).
-            3.  **Error Handling Gaps**: Nodes that can fail but do not have their \`status\` or \`error_message\` outputs connected.
+            1.  Connectivity Issues: Unconnected nodes or required inputs without a connection.
+            2.  Missing Essential Configuration: Critical fields missing for a node's operation (e.g., \`url\` for \`httpRequest\`, \`prompt\` for \`aiTask\`).
+            3.  Error Handling Gaps: Nodes that can fail but do not have their \`status\` or \`error_message\` outputs connected.
         - Example \`aiResponse\`: "I've analyzed your workflow and found a couple of things: The 'Fetch API' node is missing a URL in its configuration, and its 'error_message' output isn't connected, so you might not know if it fails. I'd suggest setting the URL and adding a 'Conditional Logic' node to check for errors."
         - For this direct analysis, \`isWorkflowGenerationRequest\` must be \`false\` and \`actionRequest\` must be \`null\`.
     - If \`currentWorkflowNodes\` are provided AND the user asks to **"fix"** the issues (or confirms a fix you offered):
@@ -328,6 +328,8 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
+    
 
     
 
