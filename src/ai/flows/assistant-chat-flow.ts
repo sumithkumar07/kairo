@@ -5,7 +5,7 @@
  * It can also identify if a user's message is a request to generate a workflow,
  * or analyze the current workflow for issues, providing suggestions or asking for clarification.
  * It can also guide users on how to modify their workflow or prompt for a re-generation for complex changes.
- * It can also signal when specific actions like "explain workflow", "suggest next node", or "analyze workflow efficiency" are requested.
+ * It can also signal when specific actions like "explain workflow", "suggest next node" are requested.
  *
  * - assistantChat - A function that takes a user's message and returns an AI response.
  * - AssistantChatInput - The input type for the assistantChat function.
@@ -58,7 +58,7 @@ const AssistantChatOutputSchema = z.object({
   aiResponse: z.string(),
   isWorkflowGenerationRequest: z.boolean().optional(),
   workflowGenerationPrompt: z.string().optional(),
-  actionRequest: z.enum(["explain_workflow", "suggest_next_node", "analyze_workflow_efficiency"]).optional(),
+  actionRequest: z.enum(["explain_workflow", "suggest_next_node"]).optional(),
 });
 export type AssistantChatOutput = z.infer<typeof AssistantChatOutputSchema>;
 
@@ -103,25 +103,24 @@ Your primary roles are:
         - Example: User: "Make a workflow." AI: "Sure, I can help with that! What kind of workflow are you looking to create? What should it do?"
 4.  **Analyze & Assist with CURRENT Workflow, "Fix" Issues, OR Request Specific Actions**:
     - If "currentWorkflowNodes" and "currentWorkflowConnections" are provided in your input data AND the user's message implies they need help with their current workflow (e.g., "Is my workflow okay?", "What's wrong here?", "Help me with this flow", "How can I improve this workflow?", "Find issues in my flow", "Can you fix the problems here?"):
-        - Analyze the provided nodes and connections for:
+        - **Analyze the provided nodes and connections *yourself* and formulate the findings directly in 'aiResponse'.** The analysis should check for:
             1.  **Connectivity Issues**: Unconnected nodes, or nodes with required input handles that are not connected.
             2.  **Missing Essential Configuration**: Critical fields missing for a node's operation (e.g., "url" for "httpRequest", "prompt" for "aiTask", "queryText" for "databaseQuery", "pathSuffix" for "webhookTrigger"). Infer common required fields based on node type.
             3.  **Basic Error Handling Gaps**: Identify nodes that can produce errors (like "httpRequest", "aiTask", "databaseQuery") where their "status" or "error_message" output handles are not connected to any subsequent node, or not used in a "conditionalLogic" node. Suggest adding error handling (e.g., "Consider adding a Conditional Logic node after 'Node X' to check its 'status' output and handle potential errors.").
             4.  **Potential Inefficiencies (High-Level)**: Briefly check for obvious redundancies (e.g., two HTTP Request nodes fetching the exact same URL right after each other without an apparent reason).
-        - Formulate your findings.
-        - **If the user also asks to "fix" the identified issues**:
+        - **If the user ALSO asks to "fix" the identified issues**:
             - Describe the issues found.
             - **Attempt to formulate a new, complete \`workflowGenerationPrompt\` that describes the entire existing workflow but with the identified issues corrected.** Be specific about the corrections (e.g., "add a 'Log Message' node after 'Node X' to log its output", "set the 'url' for 'HTTP Request Node Y' to 'https://api.example.com/default' if a URL was missing").
             - In your "aiResponse", propose this: "I found these issues: [list issues]. I can try to fix this by generating an updated workflow. The new workflow would be described as: '[The new, complete prompt you formulated]'. Shall I proceed?"
             - **Do NOT set \`isWorkflowGenerationRequest: true\` yet. Wait for user confirmation.**
         - **Else (if user only asked for analysis/help, not an explicit fix)**:
-            - Formulate your findings in "aiResponse": Describe the problem clearly (mention specific node names or IDs) and suggest a specific, actionable solution, or ask specific, guiding questions.
-            - For this analysis, your "aiResponse" should be purely textual. Do NOT set "isWorkflowGenerationRequest" to true unless the user explicitly asks to generate a *new* workflow later.
+            - Formulate your findings directly in "aiResponse": Describe the problem clearly (mention specific node names or IDs) and suggest a specific, actionable solution, or ask specific, guiding questions.
+            - For this direct analysis, your "aiResponse" should be purely textual. Do NOT set "isWorkflowGenerationRequest" to true or "actionRequest".
     - If "currentWorkflowNodes" are provided AND the user asks a "how-to" question about configuring a *specific node type* that exists in their workflow (e.g., "How do I set the HTTP Request node to use POST?", "What fields do I need for the Send Email node?"):
         - Identify the relevant node type from the user's question.
-        - Provide clear, step-by-step textual instructions on how to configure that node type's common/relevant fields in the Kairo UI. Mention key configuration field names.
+        - Provide clear, step-by-step textual instructions in "aiResponse" on how to configure that node type's common/relevant fields in the Kairo UI. Mention key configuration field names.
         - Example: User asks "How do I make the HTTP node send a POST request?" AI Response: "To make an HTTP Request node send a POST request, you'll need to set its 'method' configuration field to 'POST' in the node's config panel. You'll also typically provide data in the 'body' field for a POST request, which can be a JSON string or text."
-        - Set "isWorkflowGenerationRequest" to false.
+        - Set "isWorkflowGenerationRequest" and "actionRequest" to false/null.
     - **Explicit "Explain Workflow" Request**: If "currentWorkflowNodes" are provided AND the user explicitly asks "Explain this workflow", "Summarize this workflow", or similar:
         - Set "actionRequest" to "explain_workflow".
         - Set "aiResponse" to a confirmation, e.g., "Certainly! I can get an explanation of the current workflow for you. One moment..."
@@ -130,10 +129,6 @@ Your primary roles are:
         - Set "actionRequest" to "suggest_next_node".
         - Set "aiResponse" to a confirmation, e.g., "Okay, let me think of a good next step for your workflow..."
         - Do NOT attempt to generate the suggestion yourself in "aiResponse".
-    - **Explicit "Analyze Workflow Efficiency/Robustness" Request**: If "currentWorkflowNodes" are provided AND the user explicitly asks to "analyze this workflow for efficiency", "make this workflow more robust", "find issues for improvement", or similar specific analysis requests beyond general help:
-        - Set "actionRequest" to "analyze_workflow_efficiency".
-        - Set "aiResponse" to a confirmation, e.g., "Okay, I'll perform a deeper analysis of your workflow for efficiency and robustness. One moment..."
-        - Do NOT attempt to generate the analysis yourself in "aiResponse" if "actionRequest" is set.
     - **If the user asks to "run the workflow"**:
         - Set "aiResponse" to "I can't directly run the workflow from here. You can use the 'Run Workflow' button in the UI to execute it. If you'd like me to analyze it for issues before you run it, or help fix any problems, just let me know!"
         - Do NOT set any other flags.
@@ -333,3 +328,5 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
+    
