@@ -4,8 +4,8 @@ import { NODE_HEIGHT, NODE_WIDTH } from './nodes';
 
 export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
   {
-    name: 'Simple API Fetch & Log',
-    description: 'Fetches data from a public API, parses the JSON, and logs the first item. Triggered by a simulated webhook.',
+    name: 'Test Case: Failing API Fetch',
+    description: 'This workflow is intentionally broken to test the AI debugging feature. Running it in "Live Mode" will cause an error, which will be automatically sent to the AI assistant for analysis.',
     nodes: [
       {
         id: 'webhook_trigger_1',
@@ -27,11 +27,11 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
       {
         id: 'http_1',
         type: 'httpRequest',
-        name: 'Fetch Posts API',
-        description: 'Fetches a list of posts from JSONPlaceholder.',
+        name: 'Fetch Posts API (Intentionally Broken)',
+        description: 'This node is configured with an invalid URL to cause a failure.',
         position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
         config: {
-          url: 'https://jsonplaceholder.typicode.com/posts',
+          url: '{{non_existent_source.url}}', // This will fail to resolve
           method: 'GET',
           simulatedResponse: '[{"id":1, "title":"Example Post", "body":"This is a test."}]',
           simulatedStatusCode: 200,
@@ -39,7 +39,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         inputHandles: ['input'],
         outputHandles: ['response', 'status_code', 'error_message', 'status'],
         category: 'action',
-        aiExplanation: 'Makes a GET request to JSONPlaceholder to fetch posts. Simulates a successful response.'
+        aiExplanation: 'This node is intentionally broken with an invalid URL placeholder ({{non_existent_source.url}}) to demonstrate the automated AI debugging feature. When you run this workflow in Live Mode, the node will fail, and the AI assistant will automatically analyze the error.'
       },
       {
         id: 'parse_1',
