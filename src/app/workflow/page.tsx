@@ -22,7 +22,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -37,7 +36,6 @@ import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { produce } from 'immer';
-import { MousePointer2 } from 'lucide-react';
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
@@ -65,7 +63,7 @@ export default function WorkflowPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false);
-  const [isAssistantVisible, setIsAssistantVisible] = useState(false);
+  const [isAssistantVisible, setIsAssistantVisible] = useState(true);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
@@ -753,8 +751,6 @@ export default function WorkflowPage() {
     const savedAssistantVisibility = localStorage.getItem(ASSISTANT_PANEL_VISIBLE_KEY);
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
-    } else {
-      setIsAssistantVisible(true); // Default to visible now
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -829,37 +825,6 @@ export default function WorkflowPage() {
     showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, showSaveAsDialog, handleCancelConnection,
     handleZoomIn, handleZoomOut, handleSaveWorkflowAs
   ]);
-
-  useEffect(() => {
-    const handleGlobalMouseMove = (event: MouseEvent) => {
-      if (!isPanning) return;
-      const deltaX = (event.clientX - panStartRef.current.x) / zoomLevel;
-      const deltaY = (event.clientY - panStartRef.current.y) / zoomLevel;
-      setCanvasOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
-      panStartRef.current = { x: event.clientX, y: event.clientY };
-    };
-
-    const handleGlobalMouseUp = () => {
-      if (isPanning) {
-        setIsPanning(false);
-        document.body.style.cursor = 'default';
-        saveHistory();
-      }
-    };
-
-    if (isPanning) {
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-      if (document.body.style.cursor === 'grabbing') {
-        document.body.style.cursor = 'default';
-      }
-    };
-  }, [isPanning, zoomLevel, saveHistory]);
 
   useEffect(() => {
     let isActive = true;
@@ -1355,35 +1320,7 @@ export default function WorkflowPage() {
 
         {isAssistantVisible && (
           <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
-            <AIWorkflowAssistantPanel
-              isCanvasEmpty={nodes.length === 0}
-              executionLogs={executionLogs}
-              onClearLogs={handleClearLogs}
-              isWorkflowRunning={isWorkflowRunning}
-              selectedNodeId={selectedNodeId}
-              selectedConnectionId={selectedConnectionId}
-              onDeleteSelectedConnection={handleDeleteSelectedConnection}
-              onDeselectConnection={() => setSelectedConnectionId(null)}
-              isConnecting={isConnecting}
-              onCancelConnection={handleCancelConnection}
-              onRunWorkflow={handleRunWorkflow}
-              onToggleSimulationMode={handleToggleSimulationMode}
-              isSimulationMode={isSimulationMode}
-              chatHistory={chatHistory}
-              isChatLoading={isChatLoading}
-              onChatSubmit={handleChatSubmit}
-              onClearChat={() => setChatHistory([])}
-              isExplainingWorkflow={isExplainingWorkflow}
-              workflowExplanation={workflowExplanation}
-              onClearExplanation={() => {
-                  setWorkflowExplanation(null);
-              }}
-              initialCanvasSuggestion={initialCanvasSuggestion}
-              isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
-              onAddSuggestedNode={handleAddSuggestedNode}
-            />
-            <div className="flex-1 overflow-y-auto">
-              {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
+             {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
                 <NodeConfigPanel
                   node={selectedNode}
                   nodeType={selectedNodeType}
@@ -1396,9 +1333,34 @@ export default function WorkflowPage() {
                   onAddSuggestedNode={handleAddSuggestedNode}
                 />
               ) : (
-               null
+                <AIWorkflowAssistantPanel
+                  isCanvasEmpty={nodes.length === 0}
+                  executionLogs={executionLogs}
+                  onClearLogs={handleClearLogs}
+                  isWorkflowRunning={isWorkflowRunning}
+                  selectedNodeId={selectedNodeId}
+                  selectedConnectionId={selectedConnectionId}
+                  onDeleteSelectedConnection={handleDeleteSelectedConnection}
+                  onDeselectConnection={() => setSelectedConnectionId(null)}
+                  isConnecting={isConnecting}
+                  onCancelConnection={handleCancelConnection}
+                  onRunWorkflow={handleRunWorkflow}
+                  onToggleSimulationMode={handleToggleSimulationMode}
+                  isSimulationMode={isSimulationMode}
+                  chatHistory={chatHistory}
+                  isChatLoading={isChatLoading}
+                  onChatSubmit={handleChatSubmit}
+                  onClearChat={() => setChatHistory([])}
+                  isExplainingWorkflow={isExplainingWorkflow}
+                  workflowExplanation={workflowExplanation}
+                  onClearExplanation={() => {
+                      setWorkflowExplanation(null);
+                  }}
+                  initialCanvasSuggestion={initialCanvasSuggestion}
+                  isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
+                  onAddSuggestedNode={handleAddSuggestedNode}
+                />
               )}
-            </div>
           </aside>
         )}
       </div>

@@ -3,16 +3,15 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, Wrench, Lightbulb, DollarSign, LogIn, LogOut, UserPlus, LayoutDashboard, GitFork, PlayCircle, GaugeCircle, Puzzle, Brain, List, User, KeyRound } from 'lucide-react';
-import Image from 'next/image';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, List, User, KeyRound, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { cn } from '@/lib/utils'; // Ensure cn is imported
+import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const { isLoggedIn, logout } = useSubscription();
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/20 text-foreground">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-between items-center">
           <Link href="/" className="text-3xl font-bold text-primary flex items-center">
@@ -34,7 +33,7 @@ export default function HomePage() {
             </Button>
             <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
               <Link href="/subscriptions" className="flex items-center">
-                <DollarSign className="h-4 w-4 mr-1 sm:mr-1.5" />
+                <BrainCircuit className="h-4 w-4 mr-1 sm:mr-1.5" />
                 Subscriptions
               </Link>
             </Button>
@@ -76,8 +75,8 @@ export default function HomePage() {
 
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8">
         <section className="text-center py-16 md:py-24">
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6">
-            Intelligent Automation, <span className="text-primary">Visually Designed with Kairo</span>
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6 bg-clip-text text-transparent bg-gradient-to-br from-gray-200 to-gray-500">
+            Intelligent Automation, <span className="text-primary">Visually Designed</span>
           </h1>
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">
             Kairo empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
@@ -98,7 +97,7 @@ export default function HomePage() {
         <section id="features" className="py-16 md:py-20">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Powerful Features, Simplified</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
-            <div className="p-6 bg-card rounded-xl shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div className="p-6 bg-card rounded-xl border border-border/50 shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center items-center mb-4 h-[125px]">
                  <BrainCircuit className="h-20 w-20 text-primary" />
               </div>
@@ -107,7 +106,7 @@ export default function HomePage() {
                 Describe your automation in plain language. Our AI drafts a workflow, giving you a smart head start.
               </p>
             </div>
-            <div className="p-6 bg-card rounded-xl shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div className="p-6 bg-card rounded-xl border border-border/50 shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
                <div className="flex justify-center items-center mb-4 h-[125px]">
                 <GitFork className="h-20 w-20 text-primary" />
               </div>
@@ -116,7 +115,7 @@ export default function HomePage() {
                 Visually construct and modify workflows. Connect nodes, configure steps, and see your automation take shape in real-time.
               </p>
             </div>
-            <div className="p-6 bg-card rounded-xl shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
+            <div className="p-6 bg-card rounded-xl border border-border/50 shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col">
               <div className="flex justify-center items-center mb-4 h-[125px]">
                  <Rocket className="h-20 w-20 text-primary" />
               </div>
@@ -128,7 +127,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="benefits" className="py-16 md:py-20 bg-muted/30 rounded-xl my-12">
+        <section id="benefits" className="py-16 md:py-20 bg-card/50 border border-border/50 rounded-xl my-12">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-12">Why Choose Kairo?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -148,14 +147,14 @@ export default function HomePage() {
               </div>
               <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
-                  <Lightbulb className="h-12 w-12 text-primary" />
+                  <Brain className="h-12 w-12 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">Smart Assistance</h3>
                 <p className="text-muted-foreground text-sm flex-grow">Leverage AI for workflow generation, suggestions, and explanations.</p>
               </div>
               <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
-                    <Brain className="h-12 w-12 text-primary" />
+                    <BrainCircuit className="h-12 w-12 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">AI-Powered Insights</h3>
                 <p className="text-muted-foreground text-sm flex-grow">Gain deeper understanding with AI-driven explanations and suggestions for optimization.</p>
@@ -165,7 +164,7 @@ export default function HomePage() {
         </section>
 
         <section className="py-16 text-center">
-           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes with Kairo?</h2>
+           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">Ready to Streamline Your Processes?</h2>
             <div className="max-w-3xl mx-auto">
                 <p className="text-lg text-muted-foreground mb-6 text-center">
                     Kairo empowers you to connect various services, process data, and automate repetitive tasks with unparalleled ease. From simple API calls to complex multi-step AI-driven processes, build it all without writing extensive code.
