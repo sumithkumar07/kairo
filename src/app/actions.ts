@@ -1695,6 +1695,10 @@ async function executeFlowInternal(
               currentAttemptOutput = { ...currentAttemptOutput, output: delayInputData };
               break;
 
+            case 'googleSheetsAppendRow':
+            case 'slackPostMessage':
+            case 'openAiChatCompletion':
+            case 'stripeCreatePaymentLink':
             case 'youtubeFetchTrending':
             case 'youtubeDownloadVideo':
             case 'videoConvertToShorts':
@@ -1892,6 +1896,7 @@ export async function executeWorkflow(
 
 
     
+
 
 
 

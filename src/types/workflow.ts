@@ -91,7 +91,7 @@ export interface AvailableNodeType {
   name: string;
   icon: LucideIcon;
   description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'control' | 'interaction' | 'unknown';
+  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'control' | 'interaction' | 'integrations' | 'unknown';
   defaultConfig: Record<string, any>;
   configSchema?: Record<string, ConfigFieldSchema>;
   inputHandles?: string[]; 

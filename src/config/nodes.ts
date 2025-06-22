@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound } from 'lucide-react';
+import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard } from 'lucide-react';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
@@ -185,7 +185,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     name: 'Google Calendar: List Events (Simulated)',
     icon: CalendarDays,
     description: 'Simulates fetching events from Google Calendar. Real execution would require Google OAuth setup. Supports retries and on-error webhook.',
-    category: 'action',
+    category: 'integrations',
+    isAdvanced: true,
     defaultConfig: { 
         maxResults: 10, 
         simulatedResponse: '[{"summary": "Team Sync", "start": {"dateTime": "2024-09-15T10:00:00-07:00"}, "end": {"dateTime": "2024-09-15T11:00:00-07:00"}}, {"summary": "Project Deadline", "start": {"date": "2024-09-20"}, "end": {"date": "2024-09-21"}}]', 
@@ -510,11 +511,86 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     outputHandles: ['output', 'status', 'error_message'],
   },
   {
+    type: 'googleSheetsAppendRow',
+    name: 'Google Sheets: Append Row',
+    icon: Sheet,
+    description: 'Appends a row of data to a Google Sheet (simulated). Requires Google OAuth.',
+    category: 'integrations',
+    isAdvanced: true,
+    defaultConfig: { spreadsheetId: '', range: 'Sheet1', values: '[["{{input.name}}", "{{input.email}}"]]', retry: {}, onErrorWebhook: undefined, simulated_config: { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } },
+    configSchema: {
+      spreadsheetId: { label: 'Spreadsheet ID', type: 'string', placeholder: 'Enter your Google Sheet ID here', required: true, helperText: 'Find this in your Google Sheet URL.' },
+      range: { label: 'Sheet Name/Range', type: 'string', defaultValue: 'Sheet1', placeholder: 'Sheet1!A1', helperText: 'The sheet name, e.g., "Sheet1", or a range like "Sheet1!A1". Appends after the last row of the specified range/sheet.', required: true },
+      values: { label: 'Values to Append (JSON Array of Arrays)', type: 'json', placeholder: '[["{{input.name}}", "{{input.email}}"]]', helperText: 'An array of rows, where each row is an array of cell values.', required: true },
+      simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"updatedRange": "Sheet1!A1:B1"}', helperText: 'Mock response for simulation mode.', required: true },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
+    type: 'slackPostMessage',
+    name: 'Slack: Post Message',
+    icon: MessageSquare,
+    description: 'Posts a message to a Slack channel (simulated). Requires Slack Bot Token.',
+    category: 'integrations',
+    isAdvanced: true,
+    defaultConfig: { channel: '#general', text: 'Hello from Kairo!', token: '{{credential.SlackBotToken}}', retry: {}, onErrorWebhook: undefined, simulated_config: { ok: true, ts: new Date().getTime().toString() } },
+    configSchema: {
+      channel: { label: 'Channel ID or Name', type: 'string', placeholder: '#general or C12345678', required: true },
+      text: { label: 'Message Text', type: 'textarea', placeholder: 'New order received: {{input.orderId}}', required: true },
+      token: { label: 'Slack Bot Token', type: 'string', placeholder: '{{credential.SlackBotToken}}', helperText: "Use {{credential.SlackBotToken}} for a managed credential.", required: true },
+      simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"ok": true}', helperText: 'Mock response for simulation mode.', required: true },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
+    type: 'openAiChatCompletion',
+    name: 'OpenAI: Chat Completion',
+    icon: Bot,
+    description: 'Generates a chat completion using OpenAI models (simulated).',
+    category: 'ai',
+    isAdvanced: true,
+    defaultConfig: { model: 'gpt-4', messages: '[{"role": "user", "content": "Hello, world!"}]', apiKey: '{{credential.OpenAIKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { choices: [{ message: { role: 'assistant', content: 'Hello! How can I help you today?' } }] } },
+    configSchema: {
+      model: { label: 'Model', type: 'string', defaultValue: 'gpt-4', placeholder: 'gpt-4, gpt-3.5-turbo', required: true },
+      messages: { label: 'Messages (JSON Array)', type: 'json', placeholder: '[{"role": "user", "content": "{{input.prompt}}"}]', helperText: 'An array of message objects (role and content).', required: true },
+      apiKey: { label: 'OpenAI API Key', type: 'string', placeholder: '{{credential.OpenAIKey}}', helperText: "Use {{credential.OpenAIKey}} for a managed credential.", required: true },
+      simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"choices": [{"message": {"content": "..."}}]}', helperText: 'Mock OpenAI response for simulation mode.', required: true },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
+    type: 'stripeCreatePaymentLink',
+    name: 'Stripe: Create Payment Link',
+    icon: CreditCard,
+    description: 'Creates a Stripe Payment Link (simulated). Requires Stripe API Key.',
+    category: 'integrations',
+    isAdvanced: true,
+    defaultConfig: { line_items: '[{"price_data": {"currency": "usd", "product_data": {"name": "T-shirt"}, "unit_amount": 2000}, "quantity": 1}]', apiKey: '{{credential.StripeApiKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { id: 'plink_sim_123', url: 'https://checkout.stripe.com/pay/plink_sim_123' } },
+    configSchema: {
+      line_items: { label: 'Line Items (JSON Array)', type: 'json', placeholder: '[{"price": "price_123", "quantity": 1}]', helperText: 'Array of line items for the payment link.', required: true },
+      apiKey: { label: 'Stripe API Key', type: 'string', placeholder: '{{credential.StripeApiKey}}', helperText: "Use {{credential.StripeApiKey}} for a managed credential.", required: true },
+      simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"id": "plink_sim_123", "url": "..."}', helperText: 'Mock Stripe response for simulation mode.', required: true },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'status', 'error_message'],
+  },
+  {
     type: 'youtubeFetchTrending',
     name: 'YouTube: Fetch Trending',
     icon: TrendingUp,
     description: 'Fetches trending videos from YouTube (conceptual - currently logs intent). Requires YOUTUBE_API_KEY env var. Supports retries and on-error webhook.',
-    category: 'action', 
+    category: 'integrations', 
     defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{credential.YouTubeApiKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.', required: true },
@@ -532,7 +608,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     name: 'YouTube: Download Video',
     icon: DownloadCloud,
     description: 'Downloads a YouTube video (conceptual - currently logs intent). Supports retries and on-error webhook.',
-    category: 'action',
+    category: 'integrations',
     defaultConfig: { videoUrl: '', quality: 'best', retry: {}, onErrorWebhook: undefined, simulated_config: { filePath: '/simulated/path/to/video.mp4'} },
     configSchema: {
       videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}', required: true },
@@ -567,7 +643,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     name: 'YouTube: Upload Short',
     icon: UploadCloud,
     description: 'Uploads a video short to YouTube (conceptual - currently logs intent). Requires YouTube OAuth credentials. Supports retries and on-error webhook.',
-    category: 'action',
+    category: 'integrations',
     defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{credential.YouTubeOAuth}}', retry: {}, onErrorWebhook: undefined, simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}', required: true },
@@ -779,6 +855,26 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'user decision': 'manualInput',
   'form input': 'manualInput',
   
+  // Specific Integrations (New)
+  'googlesheetsappendrow': 'googleSheetsAppendRow',
+  'google sheets append row': 'googleSheetsAppendRow',
+  'add row to google sheet': 'googleSheetsAppendRow',
+  'write to google sheets': 'googleSheetsAppendRow',
+  'google sheets': 'googleSheetsAppendRow',
+  'slackpostmessage': 'slackPostMessage',
+  'slack post message': 'slackPostMessage',
+  'send slack message': 'slackPostMessage',
+  'notify slack': 'slackPostMessage',
+  'slack': 'slackPostMessage',
+  'openaichatcompletion': 'openAiChatCompletion',
+  'openai chat completion': 'openAiChatCompletion',
+  'chatgpt': 'openAiChatCompletion',
+  'openai': 'openAiChatCompletion',
+  'stripecreatepaymentlink': 'stripeCreatePaymentLink',
+  'stripe create payment link': 'stripeCreatePaymentLink',
+  'create stripe payment': 'stripeCreatePaymentLink',
+  'stripe': 'stripeCreatePaymentLink',
+
   // Google Services (Simulated)
   'googlecalendarlistevents': 'googleCalendarListEvents',
   'list google calendar events': 'googleCalendarListEvents',
@@ -869,6 +965,17 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
         inputHandleBorder: 'border-sky-300',
         outputHandleColor: 'bg-sky-400',
         outputHandleBorder: 'border-sky-300',
+      };
+    case 'integrations':
+       return {
+        headerBg: 'bg-teal-500',
+        headerIconColor: 'text-teal-100',
+        headerTextColor: 'text-white',
+        nodeBorder: 'border-teal-600',
+        inputHandleColor: 'bg-teal-400',
+        inputHandleBorder: 'border-teal-300',
+        outputHandleColor: 'bg-teal-400',
+        outputHandleBorder: 'border-teal-300',
       };
     case 'io': // For nodes like Database, Log
       return {
