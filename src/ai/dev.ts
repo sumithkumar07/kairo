@@ -8,3 +8,4 @@ import '@/ai/flows/enhance-user-prompt-flow.ts'; // Added import for the new flo
 import '@/ai/flows/explain-workflow-flow.ts'; // Added import for workflow explanation flow
 import '@/ai/flows/assistant-chat-flow.ts'; // Added import for the new chat flow
 import '@/ai/flows/test-api-key-flow.ts'; // Added import for API key test flow
+import '@/ai/flows/mcp-flow.ts'; // Added import for MCP flow

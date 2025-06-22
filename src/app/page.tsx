@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, List, User, KeyRound, LogIn, UserPlus, LayoutDashboard, History, LogOut } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, List, User, KeyRound, LogIn, UserPlus, LayoutDashboard, History, LogOut, Bot } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,12 @@ export default function HomePage() {
               <Link href="/run-history" className="flex items-center">
                 <History className="h-4 w-4 mr-1 sm:mr-1.5" />
                 Run History
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
+              <Link href="/mcp" className="flex items-center">
+                <Bot className="h-4 w-4 mr-1 sm:mr-1.5" />
+                MCP Console
               </Link>
             </Button>
             <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
