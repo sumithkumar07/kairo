@@ -537,48 +537,40 @@ export default function WorkflowPage() {
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
-      toast({
-        title: 'Empty Workflow',
-        description: 'Add some nodes to the canvas before running.',
-        variant: 'destructive',
-      });
+      await handleChatSubmit("The user tried to run an empty workflow. Please ask them to add some nodes or describe what they want to build.", true);
       return;
     }
-
+  
     const validationErrors: string[] = [];
     nodes.forEach(node => {
       const nodeTypeConfig = AVAILABLE_NODES_CONFIG.find(nt => nt.type === node.type);
       if (!isConfigComplete(node, nodeTypeConfig)) {
-        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has incomplete configuration.`);
+        validationErrors.push(`- Node "${node.name || node.id}" (Type: ${node.type}) has incomplete or invalid configuration.`);
       }
-      if (nodeTypeConfig?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeTypeConfig)) {
-        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) is disconnected or missing inputs.`);
-      }
-      if (nodeTypeConfig?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeTypeConfig)) {
-        validationErrors.push(`Node "${node.name || node.id}" (Type: ${node.type}) has unconnected input handles.`);
+      if (nodeTypeConfig?.category !== 'trigger') {
+        const unconnectedInputs = nodeTypeConfig?.inputHandles?.filter(
+          handleId => !connections.some(conn => conn.targetNodeId === node.id && conn.targetHandle === handleId)
+        ) ?? [];
+  
+        if (unconnectedInputs.length > 0) {
+          validationErrors.push(`- Node "${node.name || node.id}" (Type: ${node.type}) has required input(s) that are not connected: ${unconnectedInputs.join(', ')}.`);
+        }
       }
     });
-
+  
     if (validationErrors.length > 0) {
-      const errorSummary = validationErrors.slice(0, 3).join('\n');
-      const fullErrorMessage = validationErrors.length > 3
-        ? `${errorSummary}\n...and ${validationErrors.length - 3} more issues.`
-        : errorSummary;
-      toast({
-        title: 'Workflow Validation Failed',
-        description: `Please fix the following issues before running:\n${fullErrorMessage}`,
-        variant: 'destructive',
-        duration: 7000,
-      });
+      const errorSummary = validationErrors.join('\n');
+      const systemMessage = `The workflow failed pre-run validation. Please analyze these issues and help the user fix them:\n\nValidation Errors:\n${errorSummary}`;
+      await handleChatSubmit(systemMessage, true);
       setIsWorkflowRunning(false);
       return;
     }
-
+  
     setIsWorkflowRunning(true);
     setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
     const runModeMessage = isSimulationMode ? 'Simulation Mode' : 'Live Mode';
     setExecutionLogs(prevLogs => [{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
-
+  
     try {
       const { serverLogs: newServerLogs, finalWorkflowData }: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {});
       const newLogs: LogEntry[] = newServerLogs.map(log => ({
@@ -586,7 +578,7 @@ export default function WorkflowPage() {
         timestamp: new Date(log.timestamp).toLocaleTimeString(),
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
-
+  
       const updatedNodes = nodes.map(existingNode => {
         const executedNodeData = finalWorkflowData[existingNode.id];
         if (executedNodeData && executedNodeData.lastExecutionStatus) {
@@ -613,8 +605,8 @@ export default function WorkflowPage() {
       }
       
       await handleChatSubmit(systemMessage, true);
-
-
+  
+  
     } catch (error: any) {
       const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
       setExecutionLogs(prevLogs => [
@@ -627,7 +619,7 @@ export default function WorkflowPage() {
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, toast, isSimulationMode, saveHistory, handleChatSubmit]);
+  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
