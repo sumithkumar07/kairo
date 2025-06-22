@@ -127,8 +127,7 @@ const WorkflowNodeItemComponent = ({
   if (node.lastExecutionStatus === 'error') {
     nodeStyleClasses = 'ring-2 ring-destructive border-destructive/80 shadow-destructive/20';
   } else if (hasWarning) {
-    // Use a warning color that contrasts well with the new dark theme node colors
-    nodeStyleClasses = 'ring-1 ring-orange-400 dark:ring-orange-500 border-orange-400/80 dark:border-orange-500/80 shadow-orange-400/10 dark:shadow-orange-500/10';
+    nodeStyleClasses = 'ring-1 ring-orange-500 border-orange-500/80 shadow-orange-500/10';
   } else if (node.lastExecutionStatus === 'success') {
     nodeStyleClasses = 'ring-1 ring-green-500/80 border-green-500/70 shadow-green-500/10';
   } else if (node.lastExecutionStatus === 'partial_success') {
@@ -150,7 +149,7 @@ const WorkflowNodeItemComponent = ({
       }}
       className={cn(
         'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
-        'flex flex-col overflow-hidden bg-card', // Base card background
+        'flex flex-col overflow-hidden bg-card/95 backdrop-blur-sm',
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         'border',
         nodeStyleClasses, 
@@ -166,7 +165,7 @@ const WorkflowNodeItemComponent = ({
     >
       <CardHeader className={cn(
         "p-2 border-b flex-row items-center gap-1.5 space-y-0",
-        categoryStyling.headerBg, // From new styling
+        categoryStyling.headerBg,
       )}>
         <IconComponent className={cn("h-3.5 w-3.5 shrink-0", categoryStyling.headerIconColor)} />
         <CardTitle className={cn("text-xs font-medium truncate flex-grow", categoryStyling.headerTextColor)} title={node.name}>
@@ -178,8 +177,7 @@ const WorkflowNodeItemComponent = ({
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                   {/* Use a warning color that stands out on the node header */}
-                  <AlertTriangle className="h-3.5 w-3.5 text-yellow-300 dark:text-yellow-400 shrink-0" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-yellow-300 shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
                   <p className="text-xs">{warningMessage}</p>
@@ -189,7 +187,7 @@ const WorkflowNodeItemComponent = ({
           )}
         </div>
       </CardHeader>
-      <CardContent className="px-2 py-1.5 text-[11px] text-muted-foreground flex-grow overflow-hidden relative bg-card/80 backdrop-blur-sm">
+      <CardContent className="px-2 py-1.5 text-[11px] text-muted-foreground flex-grow overflow-hidden relative">
         <p className="truncate" title={node.type}>
           Type: <span className="font-medium text-foreground/80">{node.type}</span>
         </p>
