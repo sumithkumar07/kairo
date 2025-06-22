@@ -1,4 +1,4 @@
-md
+
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI.
@@ -22,7 +22,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
     *   Create a `.env.local` file in the root directory by copying `.env` (if it's empty, just create the file).
     *   Refer to the "Important Considerations for Live Mode & Deployment" section below for essential variables needed for live features. **Pay special attention to `GOOGLE_API_KEY` for AI features.**
 5.  Run the development server: `npm run dev` or `yarn dev`.
-6.  Open [http://localhost:9002](http://localhost:9002) (or your configured port) in your browser.
+6.  Open [http://localhost:3000](http://localhost:3000) (or your configured port) in your browser.
 
 The main workflow editor is accessible at the `/workflow` route. Explore the homepage for an overview and navigation links.
 
