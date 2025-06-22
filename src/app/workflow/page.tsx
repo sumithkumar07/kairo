@@ -1321,9 +1321,9 @@ export default function WorkflowPage() {
           onImportWorkflow={handleImportWorkflow}
           workflowName={currentWorkflowNameRef.current}
           isConnecting={isConnecting}
-          onStartConnection={onStartConnection}
+          onStartConnection={handleStartConnection}
           onCompleteConnection={handleCompleteConnection}
-          onUpdateConnectionPreview={onUpdateConnectionPreview}
+          onUpdateConnectionPreview={handleUpdateConnectionPreview}
           connectionPreview={{
             startNodeId: connectionStartNodeId,
             startHandleId: connectionStartHandleId,
