@@ -80,11 +80,6 @@ export default function RunHistoryPage() {
                 Workflow Editor
               </Link>
             </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/saved-workflows">
-                My Workflows
-              </Link>
-            </Button>
           </nav>
         </div>
       </header>

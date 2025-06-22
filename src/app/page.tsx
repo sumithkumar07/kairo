@@ -26,12 +26,6 @@ export default function HomePage() {
               </Link>
             </Button>
             <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/saved-workflows" className="flex items-center">
-                <List className="h-4 w-4 mr-1 sm:mr-1.5" />
-                My Workflows
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
               <Link href="/run-history" className="flex items-center">
                 <History className="h-4 w-4 mr-1 sm:mr-1.5" />
                 Run History

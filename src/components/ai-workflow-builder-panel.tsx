@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, File as FileIcon, FilePlus } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -11,6 +11,15 @@ import type { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import {
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarSeparator,
+  MenubarShortcut,
+  MenubarTrigger,
+} from "@/components/ui/menubar"
 
 interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
@@ -24,10 +33,11 @@ interface AIWorkflowBuilderPanelProps {
   onToggleAssistant: () => void;
   onSaveWorkflow: () => void;
   onSaveWorkflowAs: () => void;
-  onLoadWorkflow: () => void;
+  onOpenWorkflow: () => void;
+  onNewWorkflow: () => void;
   onExportWorkflow: () => void;
   onImportWorkflow: () => void;
-  onClearCanvas: () => void;
+  workflowName: string;
   isConnecting: boolean;
   onStartConnection: (nodeId: string, handleId: string, handlePosition: { x: number, y: number }) => void;
   onCompleteConnection: (nodeId: string, handleId: string) => void;
@@ -69,10 +79,11 @@ export function AIWorkflowBuilderPanel({
   onToggleAssistant,
   onSaveWorkflow,
   onSaveWorkflowAs,
-  onLoadWorkflow,
+  onOpenWorkflow,
+  onNewWorkflow,
   onExportWorkflow,
   onImportWorkflow,
-  onClearCanvas,
+  workflowName,
   isConnecting,
   onStartConnection,
   onCompleteConnection,
@@ -175,29 +186,48 @@ export function AIWorkflowBuilderPanel({
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
       <TooltipProvider delayDuration={200}>
-        <div className="p-3 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Kairo</h1>
-            <p className="text-xs text-muted-foreground">
-              Build, simulate, and deploy AI-driven automations. Current Tier:
-              <span className={cn("font-semibold ml-1", isProOrTrial ? "text-primary" : "text-amber-500")}>
-                {currentTier}
-              </span>
-            </p>
+        <div className="p-2 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
+          <div className="flex items-center gap-2">
+            <Menubar className="border-none bg-transparent p-0 h-auto">
+                <MenubarMenu>
+                    <MenubarTrigger className="px-2.5 py-1.5 h-8">File</MenubarTrigger>
+                    <MenubarContent>
+                        <MenubarItem onClick={onNewWorkflow}>New <MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onOpenWorkflow}>Open... <MenubarShortcut>⌘O</MenubarShortcut></MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem onClick={onSaveWorkflow}>Save <MenubarShortcut>⌘S</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onSaveWorkflowAs}>Save As... <MenubarShortcut>⇧⌘S</MenubarShortcut></MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem onClick={onImportWorkflow}>Import from File...</MenubarItem>
+                        <MenubarItem onClick={onExportWorkflow} disabled={!hasWorkflow}>Export to File...</MenubarItem>
+                    </MenubarContent>
+                </MenubarMenu>
+                 <MenubarMenu>
+                    <MenubarTrigger className="px-2.5 py-1.5 h-8">Edit</MenubarTrigger>
+                    <MenubarContent>
+                        <MenubarItem onClick={onUndo} disabled={!canUndo}>Undo <MenubarShortcut>⌘Z</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onRedo} disabled={!canRedo}>Redo <MenubarShortcut>⇧⌘Z</MenubarShortcut></MenubarItem>
+                    </MenubarContent>
+                </MenubarMenu>
+            </Menubar>
+            <Separator orientation="vertical" className="h-5" />
+            <div className="flex items-center gap-1.5">
+                <FileIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-foreground font-medium max-w-[200px] truncate" title={workflowName}>{workflowName}</span>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" onClick={onZoomOut} title="Zoom Out (Ctrl+Minus)">
-                  <Minus />
+                  <Minus className="h-4 w-4"/>
                 </Button>
               </TooltipTrigger>
               <TooltipContent><p>Zoom Out (Ctrl + -)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" className="h-10 px-3 py-2" onClick={onResetView} title="Reset View (Zoom & Pan)">
-                  <RefreshCw className="h-4 w-4" />
+                <Button variant="outline" className="h-10 w-20 px-3 py-2" onClick={onResetView} title="Reset View (Zoom & Pan)">
                   <span className="text-xs">{(zoomLevel * 100).toFixed(0)}%</span>
                 </Button>
               </TooltipTrigger>
@@ -206,90 +236,15 @@ export function AIWorkflowBuilderPanel({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" onClick={onZoomIn} title="Zoom In (Ctrl+Plus)">
-                  <Plus />
+                  <Plus className="h-4 w-4"/>
                 </Button>
               </TooltipTrigger>
               <TooltipContent><p>Zoom In (Ctrl + =)</p></TooltipContent>
             </Tooltip>
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
-
+            
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-                  <Undo2 />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Undo (Ctrl + Z)</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
-                  <Redo2 />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Redo (Ctrl + Y / Shift+Ctrl+Z)</p></TooltipContent>
-            </Tooltip>
-
-            <Separator orientation="vertical" className="h-6 mx-1.5" />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onClearCanvas} disabled={!hasWorkflow} title="Clear Canvas (Delete all nodes and connections)">
-                  <Trash2 className="h-4 w-4 mr-1.5" />
-                  Clear
-                </Button>
-              </TooltipTrigger>
-               <TooltipContent><p>Clear Canvas (Delete all nodes and connections)</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onImportWorkflow}>
-                  <UploadCloud className="h-4 w-4 mr-1.5" />
-                  Import
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Import Workflow from JSON</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onExportWorkflow} disabled={!hasWorkflow}>
-                  <DownloadCloud className="h-4 w-4 mr-1.5" />
-                  Export
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Export Workflow to JSON</p></TooltipContent>
-            </Tooltip>
-             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onSaveWorkflowAs} disabled={!hasWorkflow}>
-                  <SaveAll className="h-4 w-4 mr-1.5" />
-                  Save As...
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Save Workflow with a Name (Ctrl + Shift + S)</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onSaveWorkflow}>
-                  <Save className="h-4 w-4 mr-1.5" />
-                  Save Current
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Save Current Workflow Locally (Ctrl + S)</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" asChild>
-                    <Link href="/saved-workflows">
-                        <List className="mr-1.5 h-4 w-4" />
-                        My Workflows
-                    </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>View all saved workflows</p></TooltipContent>
-            </Tooltip>
-             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="sm" asChild>
                     <Link href="/run-history">
@@ -313,7 +268,6 @@ export function AIWorkflowBuilderPanel({
                 <TooltipContent><p>View your profile</p></TooltipContent>
               </Tooltip>
             )}
-
 
             <Separator orientation="vertical" className="h-6 mx-1.5" />
 
@@ -353,7 +307,7 @@ export function AIWorkflowBuilderPanel({
           </div>
           <h2 className="text-2xl font-semibold text-foreground mb-2">Start Building Your Workflow</h2>
           <p className="text-muted-foreground mb-6 max-w-md text-sm">
-            Drag nodes from the library on the left, or click the AI Assistant button <Bot className="inline h-4 w-4 align-text-bottom"/> (bottom-right) to generate a workflow.
+            Drag nodes from the library on the left, or use the menu <code className="bg-muted px-1.5 py-1 rounded-sm text-xs font-semibold">File &gt; New</code> to start fresh.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
