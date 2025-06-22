@@ -117,6 +117,14 @@ export interface WorkflowExecutionResult {
   finalWorkflowData: Record<string, any>; // Contains node outputs and their lastExecutionStatus
 }
 
+export interface WorkflowRunRecord {
+  id: string;
+  workflowName: string;
+  timestamp: string; // ISO string
+  status: 'Success' | 'Failed';
+  executionResult: WorkflowExecutionResult;
+}
+
 
 export interface ChatMessage {
   id: string;

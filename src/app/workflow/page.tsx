@@ -2,7 +2,7 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ChatMessage } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ChatMessage, WorkflowRunRecord } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, generateWorkflow, assistantChat } from '@/app/actions';
@@ -11,7 +11,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText, SaveAll, List } from 'lucide-react';
+import { Loader2, Trash2, Undo2, Redo2, X, Bot, MessageSquareText, SaveAll, List, History } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -40,6 +40,7 @@ import { produce } from 'immer';
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
 const WORKFLOW_PREFIX = 'kairoWorkflow_';
+const RUN_HISTORY_KEY = 'kairoRunHistory';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
 const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
 const CHAT_CONTEXT_MESSAGE_LIMIT = 6;
@@ -73,6 +74,7 @@ export default function WorkflowPage() {
   const { toast } = useToast();
   const { isProOrTrial, isLoggedIn } = useSubscription();
   const nextNodeIdRef = useRef(1);
+  const currentWorkflowNameRef = useRef('Untitled Workflow');
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStartNodeId, setConnectionStartNodeId] = useState<string | null>(null);
@@ -275,10 +277,23 @@ export default function WorkflowPage() {
           setWorkflowExplanation(null);
           setInitialCanvasSuggestion(null);
           setSuggestedNextNodeInfo(null);
+          
+          currentWorkflowNameRef.current = 'Untitled Workflow';
+          const savedIndexJson = localStorage.getItem(SAVED_WORKFLOWS_INDEX_KEY);
+          if (savedIndexJson) {
+            const savedNames = JSON.parse(savedIndexJson);
+            for (const name of savedNames) {
+                const savedNamedWorkflowJson = localStorage.getItem(`${WORKFLOW_PREFIX}${name}`);
+                if (savedNamedWorkflowJson === savedWorkflowJson) {
+                    currentWorkflowNameRef.current = name;
+                    break;
+                }
+            }
+          }
 
           resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
           if (showToastMessage) {
-            toast({ title: 'Workflow Loaded', description: 'Your current working workflow has been loaded.' });
+            toast({ title: 'Workflow Loaded', description: `Loaded workflow: "${currentWorkflowNameRef.current}"` });
           }
         } catch (error: any) {
            console.error("Error loading workflow from local storage:", error);
@@ -303,6 +318,12 @@ export default function WorkflowPage() {
     if (typeof window !== 'undefined') {
       const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
       localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(workflowToSave));
+      
+      // If this workflow has a name, also update the named save.
+      if (currentWorkflowNameRef.current !== 'Untitled Workflow') {
+        localStorage.setItem(`${WORKFLOW_PREFIX}${currentWorkflowNameRef.current}`, JSON.stringify(workflowToSave));
+      }
+      
       toast({ title: 'Current Workflow Saved', description: 'Your current work has been saved locally.' });
       saveHistory();
     }
@@ -347,6 +368,8 @@ export default function WorkflowPage() {
       names.push(saveAsName);
       localStorage.setItem(SAVED_WORKFLOWS_INDEX_KEY, JSON.stringify(names));
     }
+    
+    currentWorkflowNameRef.current = saveAsName;
 
     toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
     setShowSaveAsDialog(false);
@@ -416,6 +439,7 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
+    currentWorkflowNameRef.current = 'Untitled Workflow';
 
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
@@ -570,15 +594,15 @@ export default function WorkflowPage() {
     setExecutionLogs(prevLogs => [{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
   
     try {
-      const { serverLogs: newServerLogs, finalWorkflowData }: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {});
-      const newLogs: LogEntry[] = newServerLogs.map(log => ({
+      const result: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {});
+      const newLogs: LogEntry[] = result.serverLogs.map(log => ({
         ...log,
         timestamp: new Date(log.timestamp).toLocaleTimeString(),
       }));
       setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
   
       const updatedNodes = nodes.map(existingNode => {
-        const executedNodeData = finalWorkflowData[existingNode.id];
+        const executedNodeData = result.finalWorkflowData[existingNode.id];
         if (executedNodeData && executedNodeData.lastExecutionStatus) {
           return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
         }
@@ -586,11 +610,26 @@ export default function WorkflowPage() {
       });
       setNodes(updatedNodes);
       saveHistory();
+
+      // Save to run history
+      const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+      const runRecord: WorkflowRunRecord = {
+        id: crypto.randomUUID(),
+        workflowName: currentWorkflowNameRef.current,
+        timestamp: new Date().toISOString(),
+        status: hasErrors ? 'Failed' : 'Success',
+        executionResult: result,
+      };
       
-      const hasErrors = Object.values(finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+      const historyJson = localStorage.getItem(RUN_HISTORY_KEY);
+      const history = historyJson ? JSON.parse(historyJson) : [];
+      history.unshift(runRecord); // Add to the beginning
+      localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(history.slice(0, 50))); // Keep last 50 runs
+
+      
       let systemMessage = '';
       if(hasErrors) {
-        const errorDetails = Object.entries(finalWorkflowData)
+        const errorDetails = Object.entries(result.finalWorkflowData)
           .filter(([_, value]) => (value as any).lastExecutionStatus === 'error')
           .map(([key, value]) => {
             const node = nodes.find(n => n.id === key);
@@ -607,17 +646,34 @@ export default function WorkflowPage() {
   
     } catch (error: any) {
       const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
-      setExecutionLogs(prevLogs => [
-        ...prevLogs,
-        { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' },
-      ]);
+      const finalErrorLogs = [
+        ...executionLogs,
+        { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' as const },
+      ];
+      setExecutionLogs(finalErrorLogs);
       setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
       saveHistory();
+      
+      const errorRunRecord: WorkflowRunRecord = {
+        id: crypto.randomUUID(),
+        workflowName: currentWorkflowNameRef.current,
+        timestamp: new Date().toISOString(),
+        status: 'Failed',
+        executionResult: { 
+            finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
+            serverLogs: finalErrorLogs.map(l => ({ ...l, timestamp: new Date().toISOString()})) 
+        },
+      };
+      const historyJson = localStorage.getItem(RUN_HISTORY_KEY);
+      const history = historyJson ? JSON.parse(historyJson) : [];
+      history.unshift(errorRunRecord);
+      localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
+
       await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, true);
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit]);
+  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, executionLogs]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
@@ -1171,6 +1227,7 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
+    currentWorkflowNameRef.current = 'Untitled Workflow';
 
     setCanvasOffset({ x: 0, y: 0 });
     setZoomLevel(1);
@@ -1194,7 +1251,7 @@ export default function WorkflowPage() {
     const link = document.createElement('a');
     link.href = url;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    link.download = `kairo_workflow_${timestamp}.json`;
+    link.download = `${currentWorkflowNameRef.current.replace(/\s/g, '_')}_${timestamp}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1228,6 +1285,9 @@ export default function WorkflowPage() {
             setCanvasOffset(importedData.canvasOffset || { x: 0, y: 0 });
             setZoomLevel(importedData.zoomLevel || 1);
             setIsSimulationMode(importedData.isSimulationMode === undefined ? true : importedData.isSimulationMode);
+            
+            const fileName = file.name.replace('.json', '');
+            currentWorkflowNameRef.current = fileName || 'Untitled Workflow';
 
             setSelectedNodeId(null);
             setSelectedConnectionId(null);
@@ -1238,7 +1298,7 @@ export default function WorkflowPage() {
 
             resetHistoryForNewWorkflow(importedNodes, importedData.connections || []);
 
-            toast({ title: 'Workflow Imported', description: 'Workflow loaded from file and set as current.' });
+            toast({ title: 'Workflow Imported', description: `Workflow "${currentWorkflowNameRef.current}" loaded from file and set as current.` });
             localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData));
           } catch (error: any) {
             toast({ title: 'Import Error', description: `Failed to import workflow: ${error.message}`, variant: 'destructive' });
@@ -1290,7 +1350,7 @@ export default function WorkflowPage() {
           onImportWorkflow={handleImportWorkflow}
           onClearCanvas={() => setShowClearCanvasConfirmDialog(true)}
           isConnecting={isConnecting}
-          onStartConnection={handleStartConnection}
+          onStartConnection={onStartConnection}
           onCompleteConnection={handleCompleteConnection}
           onUpdateConnectionPreview={handleUpdateConnectionPreview}
           connectionPreview={{

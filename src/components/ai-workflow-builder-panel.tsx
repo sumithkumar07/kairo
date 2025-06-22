@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -104,7 +104,7 @@ export function AIWorkflowBuilderPanel({
     if (!isProOrTrial) {
       toast({
         title: 'Pro Feature',
-        description: `Workflow explanation is available on the Pro plan. ${!isLoggedIn ? 'Sign up or log in to start a trial.' : 'Please upgrade to use this feature.'}`,
+        description: `Workflow explanation is available on the Pro plan. ${!isLoggedIn ? 'Sign up or log in to start a trial.' : 'Upgrade to use this feature.'}`,
         variant: 'default',
         duration: 5000,
       });
@@ -280,16 +280,7 @@ export function AIWorkflowBuilderPanel({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onLoadWorkflow}>
-                  <FolderOpen className="h-4 w-4 mr-1.5" />
-                  Load Current
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent><p>Load Current Workflow from Local (Ctrl + O)</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                 <Button variant="ghost" size="sm" asChild>
+                <Button variant="ghost" size="sm" asChild>
                     <Link href="/saved-workflows">
                         <List className="mr-1.5 h-4 w-4" />
                         My Workflows
@@ -297,6 +288,17 @@ export function AIWorkflowBuilderPanel({
                 </Button>
               </TooltipTrigger>
               <TooltipContent><p>View all saved workflows</p></TooltipContent>
+            </Tooltip>
+             <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/run-history">
+                        <History className="mr-1.5 h-4 w-4" />
+                        Run History
+                    </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>View execution history</p></TooltipContent>
             </Tooltip>
             {isLoggedIn && (
               <Tooltip>
