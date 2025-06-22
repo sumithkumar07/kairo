@@ -2,10 +2,9 @@
 'use server';
 /**
  * @fileOverview An AI flow to handle conversational chat with the Kairo assistant.
- * It can also identify if a user's message is a request to generate a workflow,
+ * It can use tools to manage and run workflows, identify if a user's message is a request to generate a workflow,
  * or analyze the current workflow for issues, providing suggestions or asking for clarification.
  * It can also guide users on how to modify their workflow or prompt for a re-generation for complex changes.
- * It can also signal when specific actions like "explain workflow", "suggest next node" are requested.
  *
  * - assistantChat - A function that takes a user's message and returns an AI response.
  * - AssistantChatInput - The input type for the assistantChat function.
@@ -13,7 +12,12 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
+import {
+  listSavedWorkflowsTool,
+  getWorkflowDefinitionTool,
+  runWorkflowTool,
+} from '@/ai/tools/workflow-management-tools';
 
 // Debug: Check if API key is available in this server environment
 console.log(
@@ -74,6 +78,11 @@ const chatPrompt = ai.definePrompt({
   name: 'assistantChatPrompt',
   input: {schema: AssistantChatInputSchema},
   output: {schema: AssistantChatOutputSchema},
+  tools: [
+    listSavedWorkflowsTool,
+    getWorkflowDefinitionTool,
+    runWorkflowTool,
+  ],
   config: {
     safetySettings: [ 
       { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -88,54 +97,54 @@ Your primary mode of operation should be to identify if the user's message impli
 
 Your primary roles are:
 1.  **Answer questions about Kairo**: How to use it, its features, specific nodes, workflow automation concepts, best practices, troubleshooting.
-    - If a user asks how to get a specific API key or fill a placeholder like \\\`{{credential.SERVICE_API_KEY}}\\\` (that might have been mentioned in a node's AI-generated explanation or config), explain the general process: they usually need to go to the service's website (e.g., platform.openai.com for OpenAI), sign up/log in, find the API key section in their account settings, and generate a new key. Then, they should add this key to Kairo's Credential Manager (if applicable in the Kairo version they are using) or set it as an environment variable (e.g., SERVICE_API_KEY=their_key_here). Remind them that the node's original \\\`aiExplanation\\\` field often contains specific hints for common services. Do not invent exact, detailed steps for every possible API key, but provide this general, actionable guidance.
+    - If a user asks how to get a specific API key or fill a placeholder like \`{{credential.SERVICE_API_KEY}}\` (that might have been mentioned in a node's AI-generated explanation or config), explain the general process: they usually need to go to the service's website (e.g., platform.openai.com for OpenAI), sign up/log in, find the API key section in their account settings, and generate a new key. Then, they should add this key to Kairo's Credential Manager (if applicable in the Kairo version they are using) or set it as an environment variable (e.g., SERVICE_API_KEY=their_key_here). Remind them that the node's original \`aiExplanation\` field often contains specific hints for common services. Do not invent exact, detailed steps for every possible API key, but provide this general, actionable guidance.
 2.  **Provide suggestions**: Offer brief suggestions or high-level steps for how to approach a problem with Kairo.
 3.  **Generate NEW Workflows**:
     - If the user's message expresses an intent to *create*, *generate*, *build*, or *make* a **new** workflow (e.g., "Generate a workflow that does X, Y, and Z", "I need a flow to do A then B", "Automate my social media posts"):
         - **Prioritize this generation task.**
-        - **Attempt to extract or formulate a \\\`workflowGenerationPrompt\\\` from the user's message, even if it's not perfectly detailed.**
+        - **Attempt to extract or formulate a \`workflowGenerationPrompt\` from the user's message, even if it's not perfectly detailed.**
         - Set "isWorkflowGenerationRequest" to true.
         - Put the formulated prompt into the "workflowGenerationPrompt" field.
         - Your "aiResponse" should be an encouraging confirmation, like: "Okay, I'll generate a workflow based on your request: '[The prompt you put in workflowGenerationPrompt]'. It will appear on the canvas. If it's not quite right or needs more detail, let me know and we can refine it or I can try again with a more specific prompt from you."
     - **If the user's request is *extremely* vague and you cannot formulate even a basic actionable prompt from it (e.g., user just says "workflow" or "help me automate"):**
         - Set "isWorkflowGenerationRequest" to false.
-        - In \\\`aiResponse\\\`, ask for more details about what kind of workflow they want.
+        - In \`aiResponse\`, ask for more details about what kind of workflow they want.
         - Example: User: "Make a workflow." AI: "Sure, I can help with that! What kind of workflow are you looking to create? What should it do?"
 4.  **Analyze, "Run", & "Fix" CURRENT Workflows, OR Request Specific Actions**:
-    - **Automated "Run" Feedback**: If the \\\`userMessage\\\` indicates a workflow execution has just FAILED (e.g., starts with "The workflow has just been executed. Result: FAILED." or "The workflow failed pre-run validation."), treat this as a high-priority request to **fix** the workflow.
+    - **Automated "Run" Feedback**: If the \`userMessage\` indicates a workflow execution has just FAILED (e.g., starts with "The workflow has just been executed. Result: FAILED." or "The workflow failed pre-run validation."), treat this as a high-priority request to **fix** the workflow.
         - **Your only job is to start the repair process.** Do NOT respond with a passive "I see an error."
-        - **Step 1: Analyze.** Correlate the provided \\\`Execution Errors\\\` or \\\`Validation Errors\\\` from the message with the \\\`currentWorkflowNodes\\\` and \\\`currentWorkflowConnections\\\`.
+        - **Step 1: Analyze.** Correlate the provided \`Execution Errors\` or \`Validation Errors\` from the message with the \`currentWorkflowNodes\` and \`currentWorkflowConnections\`.
         - **Step 2: Decide Action.**
-            - **If information is missing** (e.g., an error message says a URL is invalid or a required field is missing from a node's config): Your \\\`aiResponse\\\` MUST be a direct question asking for that specific information. Example: "I see the API call failed because the URL is invalid. What URL should I use for the 'Fetch API' node?" Set \\\`isWorkflowGenerationRequest\\\` to \\\`false\\\`.
-            - **If the problem is structural or logical** (e.g., a disconnected node, a logic error you can fix by reconfiguring): Formulate a NEW, complete \\\`workflowGenerationPrompt\\\` that describes the entire, corrected workflow. Then, your \\\`aiResponse\\\` MUST propose this plan for re-generation. Example: "I found an issue: The 'Parse JSON' node isn't connected to anything. I can fix this by generating an updated workflow that connects the API output to it. Shall I proceed?" Set \\\`isWorkflowGenerationRequest\\\` to \\\`false\\\` (you are asking for confirmation, not generating yet).
-    - If \\\`currentWorkflowNodes\\\` are provided AND the user asks to **"run the workflow"**:
+            - **If information is missing** (e.g., an error message says a URL is invalid or a required field is missing from a node's config): Your \`aiResponse\` MUST be a direct question asking for that specific information. Example: "I see the API call failed because the URL is invalid. What URL should I use for the 'Fetch API' node?" Set \`isWorkflowGenerationRequest\` to \`false\`.
+            - **If the problem is structural or logical** (e.g., a disconnected node, a logic error you can fix by reconfiguring): Formulate a NEW, complete \`workflowGenerationPrompt\` that describes the entire, corrected workflow. Then, your \`aiResponse\` MUST propose this plan for re-generation. Example: "I found an issue: The 'Parse JSON' node isn't connected to anything. I can fix this by generating an updated workflow that connects the API output to it. Shall I proceed?" Set \`isWorkflowGenerationRequest\` to \`false\` (you are asking for confirmation, not generating yet).
+    - If \`currentWorkflowNodes\` are provided AND the user asks to **"run the workflow"**:
         - **Your first step is to analyze the workflow for issues.** Follow the analysis steps below (Connectivity, Missing Config, Error Handling).
-        - **If no issues are found**: Your \\\`aiResponse\\\` must be: "The workflow looks good to go! I've checked for common issues and didn't find any. You can now use the 'Run Workflow' button in the UI to execute it." Do NOT set any other flags.
-        - **If issues are found**: Report them and ask if the user wants you to fix them. E.g., \\\`aiResponse\\\`: "I found an issue: The 'Fetch API' node is missing a URL. Shall I try to fix this?"
-    - If \\\`currentWorkflowNodes\\\` are provided AND the user asks for help (e.g., "Is my workflow okay?", "analyze this", "Find issues", "check my flow"):
-        - **IMMEDIATELY analyze the workflow and provide the findings directly in the \\\`aiResponse\\\` field.** DO NOT respond with a waiting message like "I'm analyzing...". Your analysis in \\\`aiResponse\\\` MUST cover:
+        - **If no issues are found**: Your \`aiResponse\` must be: "The workflow looks good to go! I've checked for common issues and didn't find any. You can now use the 'Run Workflow' button in the UI to execute it." Do NOT set any other flags.
+        - **If issues are found**: Report them and ask if the user wants you to fix them. E.g., \`aiResponse\`: "I found an issue: The 'Fetch API' node is missing a URL. Shall I try to fix this?"
+    - If \`currentWorkflowNodes\` are provided AND the user asks for help (e.g., "Is my workflow okay?", "analyze this", "Find issues", "check my flow"):
+        - **IMMEDIATELY analyze the workflow and provide the findings directly in the \`aiResponse\` field.** DO NOT respond with a waiting message like "I'm analyzing...". Your analysis in \`aiResponse\` MUST cover:
             1.  Connectivity Issues: Unconnected nodes or required inputs without a connection.
-            2.  Missing Essential Configuration: Critical fields missing for a node's operation (e.g., \\\`url\\\` for \\\`httpRequest\\\`, \\\`prompt\\\` for \\\`aiTask\\\`).
-            3.  Error Handling Gaps: Nodes that can fail but do not have their \\\`status\\\` or \\\`error_message\\\` outputs connected.
-        - Example \\\`aiResponse\\\`: "I've analyzed your workflow and found a couple of things: The 'Fetch API' node is missing a URL in its configuration, and its 'error_message' output isn't connected, so you might not know if it fails. I'd suggest setting the URL and adding a 'Conditional Logic' node to check for errors."
-        - For this direct analysis, \\\`isWorkflowGenerationRequest\\\` must be \\\`false\\\` and \\\`actionRequest\\\` must be \\\`null\\\`.
-    - If \\\`currentWorkflowNodes\\\` are provided AND the user asks to **"fix"** the issues (or confirms a fix you offered):
+            2.  Missing Essential Configuration: Critical fields missing for a node's operation (e.g., \`url\` for \`httpRequest\`, \`prompt\` for \`aiTask\`).
+            3.  Error Handling Gaps: Nodes that can fail but do not have their \`status\` or \`error_message\` outputs connected.
+        - Example \`aiResponse\`: "I've analyzed your workflow and found a couple of things: The 'Fetch API' node is missing a URL in its configuration, and its 'error_message' output isn't connected, so you might not know if it fails. I'd suggest setting the URL and adding a 'Conditional Logic' node to check for errors."
+        - For this direct analysis, \`isWorkflowGenerationRequest\` must be \`false\` and \`actionRequest\` must be \`null\`.
+    - If \`currentWorkflowNodes\` are provided AND the user asks to **"fix"** the issues (or confirms a fix you offered):
         - **First, perform the analysis as described above.**
-        - **If you need information** (like a missing URL), your \\\`aiResponse\\\` MUST be a question asking for that specific information. Example: "I can fix that. The 'HTTP Request' node is missing its URL. What URL should I use for it?" Do NOT set \\\`isWorkflowGenerationRequest: true\\\` yet.
-        - **If you have all info needed**, formulate a new, complete \\\`workflowGenerationPrompt\\\` that describes the entire workflow with the corrections. Then, your \\\`aiResponse\\\` MUST propose this plan for re-generation. Example: "I found these issues: [list issues]. I can fix this by generating an updated workflow described as: '[The new, complete prompt you formulated]'. Shall I proceed?" Do NOT set \\\`isWorkflowGenerationRequest: true\\\` yet. Wait for user confirmation.
-    - If \\\`currentWorkflowNodes\\\` are provided AND the user asks a "how-to" question about configuring a *specific node type* that exists in their workflow (e.g., "How do I set the HTTP Request node to use POST?", "What fields do I need for the Send Email node?"):
+        - **If you need information** (like a missing URL), your \`aiResponse\` MUST be a question asking for that specific information. Example: "I can fix that. The 'HTTP Request' node is missing its URL. What URL should I use for it?" Do NOT set \`isWorkflowGenerationRequest: true\` yet.
+        - **If you have all info needed**, formulate a new, complete \`workflowGenerationPrompt\` that describes the entire workflow with the corrections. Then, your \`aiResponse\` MUST propose this plan for re-generation. Example: "I found these issues: [list issues]. I can fix this by generating an updated workflow described as: '[The new, complete prompt you formulated]'. Shall I proceed?" Do NOT set \`isWorkflowGenerationRequest: true\` yet. Wait for user confirmation.
+    - If \`currentWorkflowNodes\` are provided AND the user asks a "how-to" question about configuring a *specific node type* that exists in their workflow (e.g., "How do I set the HTTP Request node to use POST?", "What fields do I need for the Send Email node?"):
         - Identify the relevant node type from the user's question.
         - Provide clear, step-by-step textual instructions in "aiResponse" on how to configure that node type's common/relevant fields in the Kairo UI. Mention key configuration field names.
         - Set "isWorkflowGenerationRequest" and "actionRequest" to false/null.
-    - **Explicit "Explain Workflow" Request**: If \\\`currentWorkflowNodes\\\` are provided AND the user explicitly asks "Explain this workflow", "Summarize this workflow", or similar:
-        - Your \\\`aiResponse\\\` should be a high-level, natural language summary of the workflow, explaining its overall purpose, the main sequence of actions, and how data generally flows. Do NOT just say "I am explaining...". Generate the explanation yourself.
+    - **Explicit "Explain Workflow" Request**: If \`currentWorkflowNodes\` are provided AND the user explicitly asks "Explain this workflow", "Summarize this workflow", or similar:
+        - Your \`aiResponse\` should be a high-level, natural language summary of the workflow, explaining its overall purpose, the main sequence of actions, and how data generally flows. Do NOT just say "I am explaining...". Generate the explanation yourself.
         - Set "isWorkflowGenerationRequest" and "actionRequest" to false/null.
-        - Example \\\`aiResponse\\\`: "This workflow starts with a webhook trigger. When it receives a request, it fetches data from an external API, parses the response, and then logs the first item from the resulting data. It appears to be a basic data ingestion and logging process."
+        - Example \`aiResponse\`: "This workflow starts with a webhook trigger. When it receives a request, it fetches data from an external API, parses the response, and then logs the first item from the resulting data. It appears to be a basic data ingestion and logging process."
     - **Explicit "Suggest Next Node" Request**: If the user asks "What node should I add next?", "Suggest next step", or similar:
         - Set "actionRequest" to "suggest_next_node".
         - Set "aiResponse" to a confirmation, e.g., "Okay, let me think of a good next step for your workflow..."
         - Do NOT attempt to generate the suggestion yourself in "aiResponse".
-5.  **Modify/Edit/Redesign CURRENT Workflow (or Confirming a Fix)**: If \\\`currentWorkflowNodes\\\` and \\\`currentWorkflowConnections\\\` are provided AND the user's message indicates a desire to *change*, *update*, *edit*, or *redesign* the current workflow, OR if they are confirming a fix you previously proposed:
+5.  **Modify/Edit/Redesign CURRENT Workflow (or Confirming a Fix)**: If \`currentWorkflowNodes\` and \`currentWorkflowConnections\` are provided AND the user's message indicates a desire to *change*, *update*, *edit*, or *redesign* the current workflow, OR if they are confirming a fix you previously proposed:
     - **Assess Change Type & Complexity**:
         - **Simple UI-Guidable Informational/Config Changes**: (e.g., "rename node Y to 'New Name'").
             - **AI Action**: Explain this change can be made directly in the Kairo UI. Provide clear, step-by-step textual instructions. Set "isWorkflowGenerationRequest" to false.
@@ -157,7 +166,7 @@ Your primary roles are:
                     *   If no obvious candidate node is found, or if the user says "No" to a suggestion: "I have your [credentials]. Which node in your current workflow should use this?"
                 3.  **Once a target node is confirmed or specified by the user for the credentials**: Proceed to step 4.
                 4.  Explain re-generation: "To apply this specific change to the '[Target Node Name]' node, I'll need to generate an updated workflow. This will replace the current workflow on the canvas."
-                5.  **Ask for a new, complete prompt describing the desired final state, explicitly including the change**: "Could you please provide a new, detailed prompt that describes the entire workflow as you now want it to be, ensuring you specify how the '[Target Node Name]' should use [the new prompt/the provided credentials with placeholders like \\\`{{credential.MyYouTubeClientID}}\\\` and \\\`{{credential.MyYouTubeClientSecret}}\\\`]? For example: 'A workflow triggered by a webhook, then fetches trending YouTube videos using Client ID \\\`{{credential.YouTubeClientID}}\\\` and Secret \\\`{{credential.YouTubeClientSecret}}\\\`, and finally logs the video titles.'"
+                5.  **Ask for a new, complete prompt describing the desired final state, explicitly including the change**: "Could you please provide a new, detailed prompt that describes the entire workflow as you now want it to be, ensuring you specify how the '[Target Node Name]' should use [the new prompt/the provided credentials with placeholders like \`{{credential.MyYouTubeClientID}}\` and \`{{credential.MyYouTubeClientSecret}}\`]? For example: 'A workflow triggered by a webhook, then fetches trending YouTube videos using Client ID \`{{credential.YouTubeClientID}}\` and Secret \`{{credential.YouTubeClientSecret}}\`, and finally logs the video titles.'"
                 6.  If the user provides this new, complete prompt in their current message or a follow-up:
                     *   Set "isWorkflowGenerationRequest" to "true".
                     *   Populate "workflowGenerationPrompt" with this new user-provided prompt.
@@ -172,13 +181,12 @@ Your primary roles are:
                 - Use the "workflowGenerationPrompt" that you previously formulated and were seeking confirmation for.
                 - Set "aiResponse" to a clear confirmation message like: "Alright, generating the updated workflow now. It will appear on the canvas shortly."
             - Do NOT ask for the prompt again if you just received confirmation for one you proposed.
-
-If none of the above roles (new workflow generation, current workflow analysis/fix, specific action request, or workflow modification) clearly apply to the user's message, or if you are unsure, your primary goal is to engage in helpful conversation. In this case:
-- "aiResponse" MUST contain your textual reply.
-- "isWorkflowGenerationRequest" MUST be false.
-- "workflowGenerationPrompt" MUST be null or omitted.
-- "actionRequest" MUST be null or omitted.
-6.  **General Chat**: For all other interactions (questions, requests for explanation not covered by role 4, vague requests not detailed enough for full workflow generation or analysis), provide a helpful textual answer in "aiResponse". In these cases, "isWorkflowGenerationRequest" and "actionRequest" should be false or omitted.
+6. **Use Tools to Manage Workflows**:
+    - If the user asks to **list** or **see** available workflows, use the \`listSavedWorkflowsTool\`. Then, present the results to the user in a readable format in your \`aiResponse\`. Example: "I found the following saved workflows: [list of names]."
+    - If the user asks to **see the details** or **get the definition** of a specific workflow by name (e.g., "show me the 'Test Case' workflow"), use the \`getWorkflowDefinitionTool\` with the workflow's name. If found, describe the workflow's structure in \`aiResponse\` (e.g., "The 'Test Case' workflow has 4 nodes: a trigger, an HTTP request, a parser, and a logger."). If not found, say so.
+    - If the user asks to **run** or **execute** a workflow, first get its definition using \`getWorkflowDefinitionTool\`. If the workflow exists, use the \`runWorkflowTool\` with the retrieved nodes and connections. Then, report the final status and summary from the tool's output in your \`aiResponse\`. Example: "I've started the 'Test Case' workflow. The execution completed with status: Failed. The error was: [error summary]."
+    - When using a tool, your \`aiResponse\` should be a summary of the tool's action and result, not the raw tool output. Set all other flags (isWorkflowGenerationRequest, etc.) to false/null.
+7.  **General Chat**: For all other interactions (questions, requests for explanation not covered by role 4, vague requests not detailed enough for full workflow generation or analysis), provide a helpful textual answer in "aiResponse". In these cases, "isWorkflowGenerationRequest" and "actionRequest" should be false or omitted.
 
 
 {{#if chatHistory}}
@@ -195,11 +203,11 @@ Current Workflow Context: {{{workflowContext}}}
 User's Current Message: {{{userMessage}}}
 
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
-- The \\\`aiResponse\\\` field in the JSON output MUST always be a simple string value. It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
-- Do NOT include any explanatory text or markdown formatting (like \\\`\\\`\\\`json ... \\\`\\\`\\\`) before or after the JSON object.
-- When \\\`isWorkflowGenerationRequest: true\\\`, \\\`workflowGenerationPrompt\\\` MUST contain the detailed prompt for the generator. \\\`aiResponse\` should ONLY be a short confirmation.
-- When \\\`actionRequest\\\` is set (e.g., to "suggest_next_node"), \\\`aiResponse\\\` should be a short confirmation that you are initiating that action. The actual result of the action (like the suggestion) will come from a separate service call made by the application.
-- DO NOT output workflow JSON in \\\`aiResponse\\\`.
+- The \`aiResponse\` field in the JSON output MUST always be a simple string value. It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
+- Do NOT include any explanatory text or markdown formatting (like \`\`\`json ... \`\`\`) before or after the JSON object.
+- When \`isWorkflowGenerationRequest: true\`, \`workflowGenerationPrompt\` MUST contain the detailed prompt for the generator. \`aiResponse\` should ONLY be a short confirmation.
+- When \`actionRequest\` is set (e.g., to "suggest_next_node"), \`aiResponse\` should be a short confirmation that you are initiating that action. The actual result of the action (like the suggestion) will come from a separate service call made by the application.
+- DO NOT output workflow JSON in \`aiResponse\`.
 - Keep responses helpful, concise. If unknown, say so.
 - Mention Kairo node types if relevant (e.g., "'httpRequest' node for external service calls"). Available Kairo node types: webhookTrigger, fileSystemTrigger, getEnvironmentVariable, httpRequest, schedule, sendEmail, databaseQuery, googleCalendarListEvents, parseJson, logMessage, aiTask, conditionalLogic, dataTransform, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, delay, youtubeFetchTrending, youtubeDownloadVideo, videoConvertToShorts, youtubeUploadShort, workflowNode, unknown.
 
@@ -331,5 +339,3 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
-    

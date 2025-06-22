@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Workflow, Bot, Terminal, Loader2, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { assistantChat } from '@/app/actions';
 
 export default function MCPPage() {
   const [command, setCommand] = useState('');
@@ -31,21 +32,8 @@ export default function MCPPage() {
     setResponse('');
 
     try {
-      const res = await fetch('/api/mcp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.details || 'The MCP server returned an error.');
-      }
-
-      const result = await res.json();
-      setResponse(result.response);
+      const result = await assistantChat({ userMessage: command });
+      setResponse(result.aiResponse);
     } catch (error: any) {
       toast({
         title: 'MCP Error',
@@ -82,7 +70,7 @@ export default function MCPPage() {
             <Bot className="h-12 w-12 text-primary mx-auto mb-3" />
             <CardTitle className="text-2xl">MCP Console</CardTitle>
             <CardDescription className="text-sm">
-              Issue commands to the Kairo AI Orchestrator.
+              Issue commands to the Kairo AI Orchestrator. e.g., "run the test case workflow"
             </CardDescription>
           </CardHeader>
 

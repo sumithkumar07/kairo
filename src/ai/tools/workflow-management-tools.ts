@@ -69,9 +69,11 @@ export const getWorkflowDefinitionTool = ai.defineTool(
     console.log(`[MCP Tool] Getting definition for workflow: ${name}`);
     const workflow = EXAMPLE_WORKFLOWS.find(wf => wf.name.toLowerCase() === name.toLowerCase());
     if (workflow) {
+      // Cast the example workflow nodes and connections to the input schemas.
+      // This is a simplification; in a real-world scenario, you might have a more robust mapping.
       return {
-        nodes: workflow.nodes,
-        connections: workflow.connections,
+        nodes: workflow.nodes as z.infer<typeof WorkflowNodeInputSchema>[],
+        connections: workflow.connections as z.infer<typeof WorkflowConnectionInputSchema>[],
       };
     }
     return undefined;
