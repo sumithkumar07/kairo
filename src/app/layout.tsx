@@ -16,8 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // Add 'dark' class to html tag to enable dark theme by default
-    <html lang="en" suppressHydrationWarning={true} className="dark"> 
+    // The 'dark' class has been removed to make the light theme the default.
+    // The dark theme is still available and can be toggled if a theme switcher is implemented.
+    <html lang="en" suppressHydrationWarning={true}> 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
