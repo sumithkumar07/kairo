@@ -754,7 +754,7 @@ export default function WorkflowPage() {
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
     } else {
-      setIsAssistantVisible(false);
+      setIsAssistantVisible(true); // Default to visible now
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

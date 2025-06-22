@@ -197,7 +197,7 @@ User's Current Message: {{{userMessage}}}
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema.
 - The \\\`aiResponse\\\` field in the JSON output MUST always be a simple string value. It should not be an object or any other complex type. It contains the direct textual reply or confirmation for the user.
 - Do NOT include any explanatory text or markdown formatting (like \\\`\\\`\\\`json ... \\\`\\\`\\\`) before or after the JSON object.
-- When \\\`isWorkflowGenerationRequest: true\\\`, \\\`workflowGenerationPrompt\\\` MUST contain the detailed prompt for the generator. \\\`aiResponse\\\` should ONLY be a short confirmation.
+- When \\\`isWorkflowGenerationRequest: true\\\`, \\\`workflowGenerationPrompt\\\` MUST contain the detailed prompt for the generator. \\\`aiResponse\` should ONLY be a short confirmation.
 - When \\\`actionRequest\\\` is set (e.g., to "suggest_next_node"), \\\`aiResponse\\\` should be a short confirmation that you are initiating that action. The actual result of the action (like the suggestion) will come from a separate service call made by the application.
 - DO NOT output workflow JSON in \\\`aiResponse\\\`.
 - Keep responses helpful, concise. If unknown, say so.
