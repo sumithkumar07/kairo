@@ -119,6 +119,7 @@ export default function ProfilePage() {
              <Button onClick={logout} variant="outline" className="w-full">
               <LogOut className="mr-2 h-4 w-4" /> Logout
             </Button>
+            {/*
             {isLoggedIn && (currentTier === 'Pro Trial' || currentTier === 'Pro') && (
               <Button
                 variant="destructive"
@@ -128,6 +129,7 @@ export default function ProfilePage() {
                 <AlertTriangle className="mr-2 h-4 w-4" /> Revert to Free Tier (Dev Tool)
               </Button>
             )}
+            */}
           </CardFooter>
         </Card>
       </main>

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A simple Genkit flow to test if the Google API key is configured correctly.
