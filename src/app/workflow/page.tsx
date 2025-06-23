@@ -8,6 +8,7 @@ import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, generateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { saveRunRecord } from '@/services/workflow-storage-service';
 
 
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +40,6 @@ import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH }
 import { produce } from 'immer';
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
-const RUN_HISTORY_KEY = 'kairoRunHistory';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
 const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
 const CHAT_CONTEXT_MESSAGE_LIMIT = 6;
@@ -577,7 +577,6 @@ export default function WorkflowPage() {
       setNodes(updatedNodes);
       saveHistory();
 
-      // Save to run history
       const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
       const runRecord: WorkflowRunRecord = {
         id: crypto.randomUUID(),
@@ -585,14 +584,11 @@ export default function WorkflowPage() {
         timestamp: new Date().toISOString(),
         status: hasErrors ? 'Failed' : 'Success',
         executionResult: result,
+        workflowSnapshot: { nodes, connections },
       };
       
-      const historyJson = localStorage.getItem(RUN_HISTORY_KEY);
-      const runHistory = historyJson ? JSON.parse(historyJson) : [];
-      runHistory.unshift(runRecord); // Add to the beginning
-      localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(runHistory.slice(0, 50))); // Keep last 50 runs
+      await saveRunRecord(runRecord);
 
-      
       let systemMessage = '';
       if(hasErrors) {
         const errorDetails = Object.entries(result.finalWorkflowData)
@@ -629,11 +625,9 @@ export default function WorkflowPage() {
             finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
             serverLogs: finalErrorLogs.map(l => ({ ...l, timestamp: new Date().toISOString()})) 
         },
+        workflowSnapshot: { nodes, connections },
       };
-      const historyJson = localStorage.getItem(RUN_HISTORY_KEY);
-      const runHistory = historyJson ? JSON.parse(historyJson) : [];
-      runHistory.unshift(errorRunRecord);
-      localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(runHistory.slice(0, 50)));
+      await saveRunRecord(errorRunRecord);
 
       await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, true);
     } finally {

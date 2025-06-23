@@ -1,8 +1,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { executeWorkflow } from '@/app/actions';
-import type { Workflow, WorkflowNode } from '@/types/workflow';
-import { findWorkflowByWebhookPath } from '@/services/workflow-storage-service';
+import type { Workflow, WorkflowNode, WorkflowRunRecord } from '@/types/workflow';
+import { findWorkflowByWebhookPath, saveRunRecord } from '@/services/workflow-storage-service';
 
 // Helper function to resolve potential placeholders in the security token
 function resolveSecurityToken(tokenValue: string | undefined): string | undefined {
@@ -146,6 +146,19 @@ export async function POST(
       console.log(`[API Webhook] Workflow for pathSuffix ${pathSuffix} executed. Final Data keys:`, Object.keys(executionResult.finalWorkflowData).join(', '));
       
       const hasErrors = Object.values(executionResult.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+      
+      // Save the run record
+      const runRecord: WorkflowRunRecord = {
+        id: crypto.randomUUID(),
+        workflowName: `Webhook: ${pathSuffix}`,
+        timestamp: new Date().toISOString(),
+        status: hasErrors ? 'Failed' : 'Success',
+        executionResult: executionResult,
+        initialData: initialDataForWorkflow,
+        workflowSnapshot: workflowToExecute,
+      };
+      await saveRunRecord(runRecord);
+
       if (hasErrors) {
          return NextResponse.json(
           { message: 'Webhook received. Workflow executed with errors.', path: pathSuffix, executionDetails: { logsSummary: `Found ${executionResult.serverLogs.filter(l=>l.type === 'error').length} error(s). Check server logs for full details.` } }, 

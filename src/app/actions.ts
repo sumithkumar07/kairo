@@ -26,7 +26,7 @@ import {
   type AssistantChatInput,
   type AssistantChatOutput,
 } from '@/ai/flows/assistant-chat-flow';
-import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig, WorkflowExecutionResult } from '@/types/workflow';
+import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig, WorkflowExecutionResult, WorkflowRunRecord } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
@@ -538,6 +538,10 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
     initialWorkflowDataWithStatus[node.id] = { lastExecutionStatus: 'pending' };
   });
 
+  if (initialData) {
+    Object.assign(initialWorkflowDataWithStatus, initialData);
+  }
+
   const result = await executeFlowInternal(
     "main", 
     workflow.nodes, 
@@ -550,6 +554,41 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
+
+export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRecord> {
+  const originalRun = await WorkflowStorage.getRunRecordById(runId);
+  if (!originalRun) {
+    throw new Error('Run record not found.');
+  }
+  if (!originalRun.workflowSnapshot) {
+    throw new Error('Cannot re-run: The original workflow definition was not saved with this run.');
+  }
+
+  const isLiveMode = !!originalRun.initialData;
+
+  const result = await executeWorkflow(
+    originalRun.workflowSnapshot,
+    !isLiveMode,
+    originalRun.initialData
+  );
+  
+  const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+  
+  const newRunRecord: WorkflowRunRecord = {
+    id: crypto.randomUUID(),
+    workflowName: `${originalRun.workflowName} (Re-run)`,
+    timestamp: new Date().toISOString(),
+    status: hasErrors ? 'Failed' : 'Success',
+    executionResult: result,
+    initialData: originalRun.initialData,
+    workflowSnapshot: originalRun.workflowSnapshot,
+  };
+  
+  await WorkflowStorage.saveRunRecord(newRunRecord);
+  
+  return newRunRecord;
+}
+
 
 // All other public actions remain the same
 export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {

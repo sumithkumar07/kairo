@@ -129,6 +129,8 @@ export interface WorkflowRunRecord {
   timestamp: string; // ISO string
   status: 'Success' | 'Failed';
   executionResult: WorkflowExecutionResult;
+  initialData?: Record<string, any>; // The initial data that triggered the workflow (e.g. from webhook)
+  workflowSnapshot: Workflow; // A snapshot of the workflow at the time of execution
 }
 
 
