@@ -4,7 +4,7 @@
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow, AlertTriangle } from 'lucide-react';
+import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -18,7 +18,6 @@ export default function ProfilePage() {
     trialEndDate, 
     daysRemainingInTrial,
     isProOrTrial,
-    forceEndTrial 
   } = useSubscription();
   const router = useRouter();
 
@@ -119,17 +118,6 @@ export default function ProfilePage() {
              <Button onClick={logout} variant="outline" className="w-full">
               <LogOut className="mr-2 h-4 w-4" /> Logout
             </Button>
-            {/*
-            {isLoggedIn && (currentTier === 'Pro Trial' || currentTier === 'Pro') && (
-              <Button
-                variant="destructive"
-                className="w-full mt-2"
-                onClick={forceEndTrial}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" /> Revert to Free Tier (Dev Tool)
-              </Button>
-            )}
-            */}
           </CardFooter>
         </Card>
       </main>

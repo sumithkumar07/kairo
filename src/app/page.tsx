@@ -3,9 +3,8 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, List, User, KeyRound, LogIn, UserPlus, LayoutDashboard, History, LogOut, Bot, Settings } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, UserPlus, LogOut, Bot, Settings } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
