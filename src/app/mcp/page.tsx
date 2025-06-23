@@ -1,169 +1,162 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Workflow, Bot, Terminal, Loader2, Wand2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { assistantChat } from '@/app/actions';
-import type { ChatMessage } from '@/types/workflow';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Workflow, Bot, Plus, Settings, History, Link as LinkIcon, MoreHorizontal, List, FileJson, Play, HelpCircle, User, Zap, Info } from 'lucide-react';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Separator } from '@/components/ui/separator';
+
+// This would typically come from a service/API, but we'll mock it for the UI
+// to reflect the tools available to the AI assistant.
+const availableTools = [
+  {
+    name: 'List Workflows',
+    description: 'Lists all available saved example and user-created workflows.',
+    icon: List,
+  },
+  {
+    name: 'Get Workflow Definition',
+    description: 'Retrieves the structure (nodes and connections) of a specific workflow by name.',
+    icon: FileJson,
+  },
+  {
+    name: 'Run Workflow',
+    description: 'Executes a workflow in simulation mode and returns the result.',
+    icon: Play,
+  },
+];
 
 export default function MCPPage() {
-  const [history, setHistory] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
+  const { user } = useSubscription();
+  const [activeTab, setActiveTab] = useState('configure');
 
-  useEffect(() => {
-    if (chatScrollAreaRef.current) {
-      chatScrollAreaRef.current.scrollTop = chatScrollAreaRef.current.scrollHeight;
-    }
-  }, [history]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) {
-      toast({
-        title: 'Empty Command',
-        description: 'Please enter a command for the AI.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      sender: 'user',
-      message: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setHistory(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const result = await assistantChat({ 
-        userMessage: input,
-        chatHistory: history.slice(-6).map(h => ({ sender: h.sender, message: h.message }))
-      });
-
-      const aiMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'ai',
-        message: result.aiResponse,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setHistory(prev => [...prev, aiMessage]);
-
-    } catch (error: any) {
-      toast({
-        title: 'MCP Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-       const errorMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'ai',
-        message: `Error: ${error.message}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setHistory(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+  const getInitials = (email: string | undefined) => {
+    if (!email) return '..';
+    const parts = email.split('@')[0].split(/[._-]/);
+    return parts.map(p => p[0]).slice(0, 2).join('').toUpperCase();
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-3xl font-bold text-primary flex items-center">
-            <Workflow className="h-8 w-8 mr-2" />
-            Kairo
+    <div className="flex h-screen w-full bg-muted/30 text-foreground dark:bg-background">
+      {/* Left Sidebar */}
+      <aside className="w-64 flex-shrink-0 border-r border-border bg-card flex flex-col">
+        <div className="p-4 border-b border-border">
+          <Link href="/" className="flex items-center gap-2">
+            <Zap className="h-6 w-6 text-primary" />
+            <span className="text-lg font-bold text-foreground">Kairo MCP</span>
+            <span className="px-2 py-0.5 text-xs font-semibold text-primary bg-primary/10 rounded-full">Beta</span>
           </Link>
-          <nav>
-            <Button variant="ghost" asChild>
-              <Link href="/workflow">
-                Workflow Editor
-              </Link>
-            </Button>
-          </nav>
         </div>
-      </header>
+        <div className="p-2 flex-1">
+          <Button variant="outline" className="w-full justify-start mb-2">
+            <Plus className="mr-2 h-4 w-4" /> New MCP Server
+          </Button>
+          <Button variant="secondary" className="w-full justify-start">
+            Kairo Main Server
+          </Button>
+        </div>
+        <div className="p-4 border-t border-border mt-auto">
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center text-muted-foreground">
+              <span className="flex items-center gap-1.5"><Info className="h-4 w-4" /> Usage</span>
+              <span>0/300</span>
+            </div>
+             <Link href="/contact" className="flex items-center gap-1.5 text-muted-foreground cursor-pointer hover:text-foreground">
+              <HelpCircle className="h-4 w-4" />
+              <span>Support</span>
+            </Link>
+            <Separator />
+            <Link href="/profile" className="flex items-center gap-2 cursor-pointer group">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>{getInitials(user?.email)}</AvatarFallback>
+              </Avatar>
+              <span className="font-medium truncate group-hover:text-primary">{user?.email || 'Guest User'}</span>
+            </Link>
+          </div>
+        </div>
+      </aside>
 
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl shadow-xl">
-          <CardHeader className="text-center border-b pb-4">
-            <Bot className="h-12 w-12 text-primary mx-auto mb-3" />
-            <CardTitle className="text-2xl">MCP Console</CardTitle>
-            <CardDescription className="text-sm">
-              Issue commands to the Kairo AI Orchestrator. e.g., "run the test case workflow"
-            </CardDescription>
-          </CardHeader>
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-y-auto">
+        <header className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Kairo Main Server</h1>
+          <div className="flex items-center gap-2">
+            <Button variant={activeTab === 'configure' ? 'default' : 'outline'} onClick={() => setActiveTab('configure')}>
+              <Settings className="mr-2 h-4 w-4" /> Configure
+            </Button>
+            <Button variant={activeTab === 'connect' ? 'default' : 'outline'} onClick={() => setActiveTab('connect')}>
+              <LinkIcon className="mr-2 h-4 w-4" /> Connect
+            </Button>
+            <Button variant={activeTab === 'history' ? 'default' : 'outline'} onClick={() => setActiveTab('history')}>
+              <History className="mr-2 h-4 w-4" /> History
+            </Button>
+             <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+          </div>
+        </header>
 
-          <CardContent className="space-y-4 pt-6">
-            <ScrollArea className="h-80 border rounded-md bg-muted/40 p-3" viewportRef={chatScrollAreaRef}>
-              {history.length === 0 ? (
-                 <div className="flex items-center justify-center h-full">
-                    <p className="text-sm text-muted-foreground">Command history will appear here.</p>
-                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {history.map((item) => (
-                    <div key={item.id} className={`flex ${item.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`p-2 rounded-lg max-w-[80%] ${item.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
-                           <pre className="text-sm whitespace-pre-wrap break-words font-sans">{item.message}</pre>
+        {activeTab === 'configure' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Client</CardTitle>
+                <CardDescription>Choose which MCP client you want to use with this server.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-md p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Kairo AI Assistant</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Tools</CardTitle>
+                    <CardDescription>What your MCP server can do with Kairo.</CardDescription>
+                  </div>
+                  <Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Add tool</Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {availableTools.map((tool, index) => (
+                    <div key={index} className="border rounded-md p-3 flex items-center justify-between hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <tool.icon className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-medium">{tool.name}</p>
+                          <p className="text-xs text-muted-foreground">{tool.description}</p>
                         </div>
+                      </div>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
                     </div>
                   ))}
-                  {isLoading && (
-                     <div className="flex justify-start">
-                        <div className="p-2 rounded-lg bg-secondary text-secondary-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                     </div>
-                  )}
                 </div>
-              )}
-            </ScrollArea>
-             <form onSubmit={handleSubmit} className="flex gap-2">
-              <Textarea
-                placeholder="e.g., 'Run the test case workflow' or 'list available workflows'"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                className="flex-1 resize-none"
-                disabled={isLoading}
-                onKeyDown={(e) => {
-                    if(e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e as any);
-                    }
-                }}
-              />
-              <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="h-4 w-4" />
-                )}
-                <span className="sr-only">Execute</span>
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+         {activeTab !== 'configure' && (
+             <Card className="flex items-center justify-center h-96">
+                <CardContent className="text-center p-6">
+                    <p className="text-lg font-medium text-muted-foreground">This section is for demonstration purposes.</p>
+                    <p className="text-sm text-muted-foreground">The '{activeTab}' functionality is not implemented.</p>
+                </CardContent>
+            </Card>
+         )}
       </main>
-
-      <footer className="text-center py-10 border-t mt-12">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
-        </p>
-      </footer>
     </div>
   );
 }
