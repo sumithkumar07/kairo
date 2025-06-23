@@ -397,8 +397,22 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
     }
 }
 
-// ... Add more individual node execution functions here as needed ...
+async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[]): Promise<any> {
+    const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${config?.message}`, type: 'info' });
+    return { output: config?.message };
+}
 
+const nodeExecutionFunctions: { [key: string]: Function } = {
+  webhookTrigger: executeWebhookTriggerNode,
+  httpRequest: executeHttpRequestNode,
+  aiTask: executeAiTaskNode,
+  parseJson: executeParseJsonNode,
+  sendEmail: executeSendEmailNode,
+  databaseQuery: executeDbQueryNode,
+  logMessage: executeLogMessageNode,
+  // Add other node type handlers here as they are implemented
+};
 
 // ================================================================= //
 // ===================== CORE EXECUTION ENGINE ===================== //
@@ -443,27 +457,12 @@ async function executeFlowInternal(
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                let nodeExecutionFunc: Function | undefined;
-                switch (node.type) {
-                    case 'webhookTrigger': nodeExecutionFunc = executeWebhookTriggerNode; break;
-                    case 'httpRequest': nodeExecutionFunc = executeHttpRequestNode; break;
-                    case 'aiTask': nodeExecutionFunc = executeAiTaskNode; break;
-                    case 'parseJson': nodeExecutionFunc = executeParseJsonNode; break;
-                    case 'sendEmail': nodeExecutionFunc = executeSendEmailNode; break;
-                    case 'databaseQuery': nodeExecutionFunc = executeDbQueryNode; break;
-                    // Add other cases here, pointing to their respective functions
-                    case 'logMessage':
-                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${resolvedConfig?.message}`, type: 'info' });
-                        finalNodeOutput = { output: resolvedConfig?.message };
-                        break;
-                    default:
-                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented.`, type: 'info' });
-                        finalNodeOutput = { output: `Execution not implemented for type: ${node.type}` };
-                        break;
-                }
-
+                const nodeExecutionFunc = nodeExecutionFunctions[node.type];
                 if (nodeExecutionFunc) {
                     finalNodeOutput = await nodeExecutionFunc(node, resolvedConfig, isSimulationMode, initialData ? initialData[node.id] : null, serverLogs);
+                } else {
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented.`, type: 'info' });
+                    finalNodeOutput = { output: `Execution not implemented for type: ${node.type}` };
                 }
                 
                 finalNodeOutput.status = 'success';
