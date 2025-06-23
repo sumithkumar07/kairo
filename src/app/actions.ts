@@ -36,6 +36,8 @@ import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes'; 
 import { format, parseISO } from 'date-fns';
+import * as WorkflowStorage from '@/services/workflow-storage-service';
+
 
 // Initialize the PostgreSQL connection pool at the module level
 let pool: Pool | undefined;
@@ -1893,11 +1895,35 @@ export async function executeWorkflow(
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
 
+// Server actions for workflow management
+export async function listWorkflowsAction(): Promise<{ name: string; type: 'example' | 'user' }[]> {
+    const workflows = await WorkflowStorage.listAllWorkflows();
+    // Simplified to just names for the client UI dropdown
+    return workflows.map(wf => ({ name: wf.name, type: wf.type }));
+}
 
+export async function loadWorkflowAction(name: string): Promise<{ name: string; workflow: Workflow } | null> {
+    const workflow = await WorkflowStorage.getWorkflowByName(name);
+    if (workflow) {
+        return { name, workflow };
+    }
+    return null;
+}
 
-    
+export async function saveWorkflowAction(name: string, workflow: Workflow): Promise<{ success: boolean; message: string }> {
+    try {
+        await WorkflowStorage.saveWorkflow(name, workflow);
+        return { success: true, message: `Workflow "${name}" saved successfully.` };
+    } catch (e: any) {
+        return { success: false, message: e.message };
+    }
+}
 
-
-
-
-
+export async function deleteWorkflowAction(name: string): Promise<{ success: boolean; message: string }> {
+    try {
+        await WorkflowStorage.deleteWorkflowByName(name);
+        return { success: true, message: `Workflow "${name}" deleted successfully.` };
+    } catch (e: any) {
+        return { success: false, message: e.message };
+    }
+}

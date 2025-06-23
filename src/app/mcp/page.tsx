@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,16 +10,24 @@ import { Workflow, Bot, Terminal, Loader2, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { assistantChat } from '@/app/actions';
+import type { ChatMessage } from '@/types/workflow';
 
 export default function MCPPage() {
-  const [command, setCommand] = useState('');
-  const [response, setResponse] = useState('');
+  const [history, setHistory] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatScrollAreaRef.current) {
+      chatScrollAreaRef.current.scrollTop = chatScrollAreaRef.current.scrollHeight;
+    }
+  }, [history]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!command.trim()) {
+    if (!input.trim()) {
       toast({
         title: 'Empty Command',
         description: 'Please enter a command for the AI.',
@@ -28,19 +36,44 @@ export default function MCPPage() {
       return;
     }
 
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      sender: 'user',
+      message: input,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setHistory(prev => [...prev, userMessage]);
+    setInput('');
     setIsLoading(true);
-    setResponse('');
 
     try {
-      const result = await assistantChat({ userMessage: command });
-      setResponse(result.aiResponse);
+      const result = await assistantChat({ 
+        userMessage: input,
+        chatHistory: history.slice(-6).map(h => ({ sender: h.sender, message: h.message }))
+      });
+
+      const aiMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        sender: 'ai',
+        message: result.aiResponse,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setHistory(prev => [...prev, aiMessage]);
+
     } catch (error: any) {
       toast({
         title: 'MCP Error',
         description: error.message,
         variant: 'destructive',
       });
-      setResponse(`Error: ${error.message}`);
+       const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        sender: 'ai',
+        message: `Error: ${error.message}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setHistory(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -74,39 +107,55 @@ export default function MCPPage() {
             </CardDescription>
           </CardHeader>
 
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4 pt-6">
-              <Textarea
-                placeholder="e.g., 'Run the test case workflow' or 'list available workflows'"
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                className="min-h-[80px] text-base"
-                disabled={isLoading}
-              />
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="mr-2 h-4 w-4" />
-                )}
-                {isLoading ? 'Executing...' : 'Execute Command'}
-              </Button>
-
-              {response && (
-                <div className="mt-6">
-                  <h3 className="font-semibold text-foreground flex items-center gap-2 mb-2">
-                    <Terminal className="h-4 w-4 text-primary" />
-                    AI Response
-                  </h3>
-                  <ScrollArea className="h-40 border rounded-md bg-muted/40 p-3">
-                    <pre className="text-sm whitespace-pre-wrap break-words font-mono">
-                      {response}
-                    </pre>
-                  </ScrollArea>
+          <CardContent className="space-y-4 pt-6">
+            <ScrollArea className="h-80 border rounded-md bg-muted/40 p-3" viewportRef={chatScrollAreaRef}>
+              {history.length === 0 ? (
+                 <div className="flex items-center justify-center h-full">
+                    <p className="text-sm text-muted-foreground">Command history will appear here.</p>
+                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((item) => (
+                    <div key={item.id} className={`flex ${item.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`p-2 rounded-lg max-w-[80%] ${item.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
+                           <pre className="text-sm whitespace-pre-wrap break-words font-sans">{item.message}</pre>
+                        </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                     <div className="flex justify-start">
+                        <div className="p-2 rounded-lg bg-secondary text-secondary-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                     </div>
+                  )}
                 </div>
               )}
-            </CardContent>
-          </form>
+            </ScrollArea>
+             <form onSubmit={handleSubmit} className="flex gap-2">
+              <Textarea
+                placeholder="e.g., 'Run the test case workflow' or 'list available workflows'"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1 resize-none"
+                disabled={isLoading}
+                onKeyDown={(e) => {
+                    if(e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e as any);
+                    }
+                }}
+              />
+              <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                <span className="sr-only">Execute</span>
+              </Button>
+            </form>
+          </CardContent>
         </Card>
       </main>
 

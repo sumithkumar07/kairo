@@ -2,12 +2,13 @@
 'use server';
 /**
  * @fileOverview Defines Genkit tools for AI-driven workflow management.
- * These tools allow the AI to list, inspect, and execute workflows.
+ * These tools allow the AI to list, inspect, and execute workflows by interacting
+ * with the central WorkflowStorage service.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
+import { listAllWorkflows, getWorkflowByName } from '@/services/workflow-storage-service';
 import { executeWorkflow } from '@/app/actions';
 import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 
@@ -39,38 +40,35 @@ const WorkflowConnectionInputSchema = z.object({
 export const listSavedWorkflowsTool = ai.defineTool(
   {
     name: 'listSavedWorkflows',
-    description: 'Lists all available saved example workflows. In this prototype, this does not include user-saved workflows from the editor.',
+    description: 'Lists all available saved workflows, including examples and user-created ones.',
     inputSchema: z.undefined(),
     outputSchema: z.array(z.object({
         name: z.string(),
         description: z.string(),
+        type: z.enum(['example', 'user']),
     })),
   },
   async () => {
-    console.log('[MCP Tool] Listing example workflows...');
-    return EXAMPLE_WORKFLOWS.map(wf => ({
-        name: wf.name,
-        description: wf.description,
-    }));
+    console.log('[MCP Tool] Listing all workflows from storage...');
+    return await listAllWorkflows();
   }
 );
 
 export const getWorkflowDefinitionTool = ai.defineTool(
   {
     name: 'getWorkflowDefinition',
-    description: 'Retrieves the full JSON definition (nodes and connections) for a specific example workflow by its name.',
-    inputSchema: z.object({ name: z.string().describe("The exact name of the example workflow to retrieve.") }),
+    description: 'Retrieves the full JSON definition (nodes and connections) for a specific workflow by its name.',
+    inputSchema: z.object({ name: z.string().describe("The exact name of the workflow to retrieve.") }),
     outputSchema: z.object({
         nodes: z.array(WorkflowNodeInputSchema),
         connections: z.array(WorkflowConnectionInputSchema),
     }).optional(),
   },
   async ({ name }) => {
-    console.log(`[MCP Tool] Getting definition for workflow: ${name}`);
-    const workflow = EXAMPLE_WORKFLOWS.find(wf => wf.name.toLowerCase() === name.toLowerCase());
+    console.log(`[MCP Tool] Getting definition for workflow: ${name} from storage...`);
+    const workflow = await getWorkflowByName(name);
     if (workflow) {
-      // Cast the example workflow nodes and connections to the input schemas.
-      // This is a simplification; in a real-world scenario, you might have a more robust mapping.
+      // Cast the workflow nodes and connections to the input schemas.
       return {
         nodes: workflow.nodes as z.infer<typeof WorkflowNodeInputSchema>[],
         connections: workflow.connections as z.infer<typeof WorkflowConnectionInputSchema>[],
@@ -104,7 +102,7 @@ export const runWorkflowTool = ai.defineTool(
             if (hasErrors) {
                 const errorDetails = Object.entries(result.finalWorkflowData)
                     .filter(([_, value]) => (value as any).lastExecutionStatus === 'error')
-                    .map(([key, value]) => `Node '${key}' failed with error: ${(value as any).error_message}`)
+                    .map(([key, value]) => `Node '${(nodes.find(n => n.id === key))?.name || key}' failed with error: ${(value as any).error_message}`)
                     .join('; ');
                 summary += ` Errors: ${errorDetails}`;
             }

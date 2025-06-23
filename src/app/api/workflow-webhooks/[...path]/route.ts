@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeWorkflow } from '@/app/actions';
 import type { Workflow, WorkflowNode } from '@/types/workflow';
-import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows'; // Import example workflows
+import { findWorkflowByWebhookPath } from '@/services/workflow-storage-service';
 
 // Helper function to resolve potential placeholders in the security token
 function resolveSecurityToken(tokenValue: string | undefined): string | undefined {
@@ -96,22 +96,8 @@ export async function POST(
 
 
     console.log(`[API Webhook] Received POST for pathSuffix: '${pathSuffix}'`);
-    // console.log('[API Webhook] Headers:', JSON.stringify(requestHeaders, null, 2));
-    // console.log('[API Webhook] Query Params:', JSON.stringify(requestQuery, null, 2));
-    // console.log('[API Webhook] Parsed Body:', JSON.stringify(requestBody, null, 2));
 
-    let workflowToExecute: Workflow | null = null;
-
-    // TODO: Replace this with dynamic workflow loading based on pathSuffix or a database lookup
-    const exampleWorkflow = EXAMPLE_WORKFLOWS.find(ex => 
-        ex.nodes.some(n => n.type === 'webhookTrigger' && n.config?.pathSuffix === pathSuffix)
-    );
-
-    if (exampleWorkflow) {
-        workflowToExecute = { nodes: exampleWorkflow.nodes, connections: exampleWorkflow.connections };
-        console.log(`[API Webhook] Found example workflow '${exampleWorkflow.name}' for path: ${pathSuffix}`);
-    }
-    
+    const workflowToExecute = await findWorkflowByWebhookPath(pathSuffix);
 
     if (!workflowToExecute) {
       console.error(`[API Webhook] No workflow configured for pathSuffix: ${pathSuffix}`);
@@ -122,9 +108,12 @@ export async function POST(
       (n: WorkflowNode) => n.type === 'webhookTrigger' && n.config?.pathSuffix === pathSuffix
     );
     
-    let webhookTriggerNodeId = webhookTriggerNode?.id;
+    if (!webhookTriggerNode) {
+      console.error(`[API Webhook] Workflow for path ${pathSuffix} found, but trigger node with matching path is missing.`);
+      return NextResponse.json({ message: 'Workflow configuration error: Inconsistent webhook trigger node.' }, { status: 500 });
+    }
 
-    if (webhookTriggerNode && webhookTriggerNode.config?.securityToken) {
+    if (webhookTriggerNode.config?.securityToken) {
         const expectedToken = resolveSecurityToken(webhookTriggerNode.config.securityToken);
         const receivedToken = request.headers.get('X-Webhook-Token');
 
@@ -140,40 +129,16 @@ export async function POST(
             console.log(`[API Webhook] Security token validated successfully for ${pathSuffix}.`);
         }
     }
-
-
-    if (!webhookTriggerNodeId && webhookTriggerNode) { // Should have ID if node exists
-        webhookTriggerNodeId = webhookTriggerNode.id;
-    } else if (!webhookTriggerNodeId) {
-         // Fallback: if no node has matching pathSuffix, assume the first webhookTrigger node is the one.
-        const firstTrigger = workflowToExecute.nodes.find((n: WorkflowNode) => n.type === 'webhookTrigger');
-        if (firstTrigger) {
-            webhookTriggerNodeId = firstTrigger.id;
-            console.warn(`[API Webhook] No webhookTrigger node with matching pathSuffix '${pathSuffix}'. Using first webhookTrigger node ID: '${webhookTriggerNodeId}'. Note: Security token validation might be based on this first trigger if it has one.`);
-             if (firstTrigger.config?.securityToken) {
-                const expectedToken = resolveSecurityToken(firstTrigger.config.securityToken);
-                const receivedToken = request.headers.get('X-Webhook-Token');
-                if (expectedToken) {
-                    if (!receivedToken) return NextResponse.json({ message: 'Unauthorized: Missing security token header (fallback trigger).' }, { status: 401 });
-                    if (receivedToken !== expectedToken) return NextResponse.json({ message: 'Forbidden: Invalid security token (fallback trigger).' }, { status: 403 });
-                    console.log(`[API Webhook] Security token for fallback trigger validated successfully for ${pathSuffix}.`);
-                }
-            }
-        } else {
-            console.error(`[API Webhook] Workflow for ${pathSuffix} does not have a webhookTrigger node.`);
-            return NextResponse.json({ message: 'Workflow configuration error: No webhookTrigger node found.' }, { status: 500 });
-        }
-    }
     
     const initialDataForWorkflow = {
-      [webhookTriggerNodeId]: { 
+      [webhookTriggerNode.id]: { 
         requestBody: requestBody,
         requestHeaders: requestHeaders,
         requestQuery: requestQuery,
         status: 'success' 
       }
     };
-    console.log(`[API Webhook] Prepared initialData for node ${webhookTriggerNodeId}`); // Removed potentially large data from log
+    console.log(`[API Webhook] Prepared initialData for node ${webhookTriggerNode.id}`);
 
     try {
       console.log(`[API Webhook] Triggering workflow for pathSuffix: ${pathSuffix} in LIVE mode.`);
