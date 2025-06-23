@@ -9,6 +9,7 @@ import { AI_NODE_TYPE_MAPPING, AVAILABLE_NODES_CONFIG, NODE_HEIGHT, NODE_WIDTH }
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface WorkflowCanvasProps {
   nodes: WorkflowNode[];
@@ -270,30 +271,41 @@ export function WorkflowCanvas({
 
             const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
             const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
-
-            const midX = (sourcePos.x + targetPos.x) / 2;
-            const midY = (sourcePos.y + targetPos.y) / 2;
+            
+            // Bezier curve midpoint approximation
+            const t = 0.5;
+            const mt = 1 - t;
+            const midX = (mt * mt * mt * sourcePos.x) + (3 * mt * mt * t * (sourcePos.x + Math.abs(targetPos.x - sourcePos.x) / 2)) + (3 * mt * t * t * (targetPos.x - Math.abs(targetPos.x - sourcePos.x) / 2)) + (t * t * t * targetPos.x);
+            const midY = (mt * mt * mt * sourcePos.y) + (3 * mt * mt * t * sourcePos.y) + (3 * mt * t * t * targetPos.y) + (t * t * t * targetPos.y);
 
             return (
-              <Button
-                data-delete-connection-button="true"
-                variant="destructive"
-                size="icon"
-                className="absolute w-6 h-6 rounded-full shadow-md z-10 pointer-events-auto"
-                style={{
-                  left: `${midX - 12}px`, // Adjust for button size
-                  top: `${midY - 12}px`,  // Adjust for button size
-                  transform: `scale(${1 / zoomLevel})`, // Counter-scale the button
-                  transformOrigin: 'center center',
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteSelectedConnection();
-                }}
-                title="Delete Connection"
-              >
-                <X className="w-3 h-3" />
-              </Button>
+              <TooltipProvider>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                           <Button
+                              data-delete-connection-button="true"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute w-7 h-7 rounded-full shadow-lg z-10 pointer-events-auto flex items-center justify-center"
+                              style={{
+                                left: `${midX - 14}px`,
+                                top: `${midY - 14}px`,
+                                transform: `scale(${1 / zoomLevel})`,
+                                transformOrigin: 'center center',
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteSelectedConnection();
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                          <p>Delete Connection</p>
+                      </TooltipContent>
+                  </Tooltip>
+              </TooltipProvider>
             );
           })()}
 

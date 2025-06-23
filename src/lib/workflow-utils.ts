@@ -49,17 +49,25 @@ export function hasUnconnectedInputs(node: WorkflowNode, connections: WorkflowCo
   return false;
 }
 
-export function findPlaceholdersInObject(obj: any, type: 'env' | 'credential'): string[] {
-  const placeholders = new Set<string>();
-  const regex = new RegExp(`{{\\s*${type === 'secret' ? '(?:secret|credential)' : type}\\.([^}\\s]+)\\s*}}`, 'g');
+export function findPlaceholdersInObject(obj: any): { env: string[], secrets: string[] } {
+  const envPlaceholders = new Set<string>();
+  const secretPlaceholders = new Set<string>();
+
+  const envRegex = /{{\s*env\.([^}\s]+)\s*}}/g;
+  const secretRegex = /{{\s*(?:credential|secret)\.([^}\s]+)\s*}}/g;
 
   function recurse(current: any) {
     if (typeof current === 'string') {
       let match;
-      // Reset lastIndex for global regex if it's being reused or if the string is different
-      regex.lastIndex = 0; 
-      while ((match = regex.exec(current)) !== null) {
-        placeholders.add(match[0]); // match[0] is the full placeholder e.g. {{env.VAR_NAME}}
+      // Important: Reset regex index for global flag
+      envRegex.lastIndex = 0;
+      secretRegex.lastIndex = 0;
+      
+      while ((match = envRegex.exec(current)) !== null) {
+        envPlaceholders.add(match[1]); // Add only the name, e.g., VAR_NAME
+      }
+      while ((match = secretRegex.exec(current)) !== null) {
+        secretPlaceholders.add(match[1]); // Add only the name, e.g., MyApiKey
       }
     } else if (Array.isArray(current)) {
       current.forEach(item => recurse(item));
@@ -69,5 +77,8 @@ export function findPlaceholdersInObject(obj: any, type: 'env' | 'credential'): 
   }
 
   recurse(obj);
-  return Array.from(placeholders);
+  return {
+    env: Array.from(envPlaceholders),
+    secrets: Array.from(secretPlaceholders),
+  };
 }

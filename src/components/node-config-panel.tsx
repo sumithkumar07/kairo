@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React, { useState } from 'react';
@@ -126,10 +126,9 @@ export function NodeConfigPanel({
   
   const suggestedNodeConfig = suggestedNextNodeInfo?.suggestion?.suggestedNode ? AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNextNodeInfo.suggestion.suggestedNode) : null;
 
-  const { envPlaceholders, secretPlaceholders } = React.useMemo(() => ({
-    envPlaceholders: findPlaceholdersInObject(node.config, 'env'),
-    secretPlaceholders: findPlaceholdersInObject(node.config, 'credential'),
-  }), [node.config]);
+  const { env: envPlaceholders, secrets: secretPlaceholders } = React.useMemo(() => {
+    return findPlaceholdersInObject(node.config);
+  }, [node.config]);
 
   const currentRetryConfig: Partial<RetryConfig> = node.config.retry || {};
 
@@ -158,58 +157,137 @@ export function NodeConfigPanel({
       </CardHeader>
       <ScrollArea className="flex-grow">
         <CardContent className="space-y-4 p-4">
-          <div className="space-y-1">
-            <Label htmlFor={`${node.id}-nodeName`} className="text-xs font-medium">Node Name</Label>
-            <Input id={`${node.id}-nodeName`} value={node.name} onChange={(e) => onNodeNameChange(node.id, e.target.value)} className="mt-1 text-sm" />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor={`${node.id}-nodeDescription`} className="text-xs font-medium">Node Description</Label>
-            <Textarea id={`${node.id}-nodeDescription`} value={node.description || ''} onChange={(e) => onNodeDescriptionChange(node.id, e.target.value)} className="mt-1 min-h-[50px] text-sm" rows={2} />
-          </div>
-          <Separator />
           
-          <Label className="text-sm font-semibold text-foreground">Parameters</Label>
-          {nodeType?.configSchema && Object.keys(nodeType.configSchema).filter(k => k !== 'retry' && k !== 'onErrorWebhook').length > 0 ? (
-            Object.entries(nodeType.configSchema).filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook').map(([key, schema]) => (
-              <div key={key} className="space-y-1">
-                {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>}
-                {renderFormField(key, schema)}
-                {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-1">{schema.helperText}</p>}
-                {jsonValidationErrors[key] && <p className="text-xs text-destructive mt-1">{jsonValidationErrors[key]}</p>}
-              </div>
-            ))
-          ) : (
-            <p className="text-xs text-muted-foreground italic">No specific configuration parameters for this node.</p>
-          )}
+          <Accordion type="multiple" defaultValue={['ai-explanation', 'general', 'parameters']} className="w-full">
 
-          <Separator />
-          
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="retry-config">
-              <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline">
-                <div className="flex items-center gap-2"><RotateCcwIcon className="h-4 w-4"/>Retry Configuration</div>
+            {node.aiExplanation && (
+              <AccordionItem value="ai-explanation">
+                  <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
+                    <div className="flex items-center gap-2"><Info className="h-4 w-4"/>AI Explanation</div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2">
+                      <Card className="p-3 bg-accent/20 dark:bg-accent/10 text-xs text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border-accent/30 shadow-sm break-words">
+                        {node.aiExplanation}
+                      </Card>
+                  </AccordionContent>
+              </AccordionItem>
+            )}
+            
+            <AccordionItem value="general">
+              <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
+                <div className="flex items-center gap-2"><Blocks className="h-4 w-4"/>General</div>
               </AccordionTrigger>
-              <AccordionContent className="pt-2 space-y-2">
-                <div className="space-y-1"><Label className="text-xs">Attempts</Label><Input type="number" value={currentRetryConfig.attempts ?? ''} onChange={e => handleRetryConfigChange('attempts', e.target.value)} placeholder="e.g., 3" className="h-8 text-xs"/></div>
-                <div className="space-y-1"><Label className="text-xs">Initial Delay (ms)</Label><Input type="number" value={currentRetryConfig.delayMs ?? ''} onChange={e => handleRetryConfigChange('delayMs', e.target.value)} placeholder="e.g., 1000" className="h-8 text-xs"/></div>
-                <div className="space-y-1"><Label className="text-xs">Backoff Factor</Label><Input type="number" value={currentRetryConfig.backoffFactor ?? ''} onChange={e => handleRetryConfigChange('backoffFactor', e.target.value)} placeholder="e.g., 2" className="h-8 text-xs"/></div>
-                <div className="space-y-1"><Label className="text-xs">Retry on Status Codes</Label><Input value={(currentRetryConfig.retryOnStatusCodes || []).join(', ')} onChange={e => handleRetryConfigChange('retryOnStatusCodes', e.target.value)} placeholder="500, 503, 429" className="h-8 text-xs"/></div>
-                <div className="space-y-1"><Label className="text-xs">Retry on Error Keywords</Label><Input value={(currentRetryConfig.retryOnErrorKeywords || []).join(', ')} onChange={e => handleRetryConfigChange('retryOnErrorKeywords', e.target.value)} placeholder="timeout, unavailable" className="h-8 text-xs"/></div>
+              <AccordionContent className="pt-2 space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor={`${node.id}-nodeName`} className="text-xs font-medium">Node Name</Label>
+                    <Input id={`${node.id}-nodeName`} value={node.name} onChange={(e) => onNodeNameChange(node.id, e.target.value)} className="mt-1 text-sm h-9" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`${node.id}-nodeDescription`} className="text-xs font-medium">Node Description</Label>
+                    <Textarea id={`${node.id}-nodeDescription`} value={node.description || ''} onChange={(e) => onNodeDescriptionChange(node.id, e.target.value)} className="mt-1 min-h-[50px] text-sm" rows={2} />
+                  </div>
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem value="webhook-config">
-              <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline">
-                <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4"/>On-Error Webhook</div>
+
+            <AccordionItem value="parameters">
+              <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
+                <div className="flex items-center gap-2"><Anchor className="h-4 w-4"/>Parameters</div>
               </AccordionTrigger>
-              <AccordionContent className="pt-2 space-y-2">
-                {/* Simplified view for on-error webhook */}
-                <p className="text-xs text-muted-foreground italic">Configuration for on-error webhooks would go here.</p>
+              <AccordionContent className="pt-2 space-y-3">
+                 {nodeType?.configSchema && Object.keys(nodeType.configSchema).filter(k => k !== 'retry' && k !== 'onErrorWebhook').length > 0 ? (
+                  Object.entries(nodeType.configSchema).filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook').map(([key, schema]) => (
+                    <div key={key} className="space-y-1">
+                      {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>}
+                      {renderFormField(key, schema)}
+                      {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-1">{schema.helperText}</p>}
+                      {jsonValidationErrors[key] && <p className="text-xs text-destructive mt-1">{jsonValidationErrors[key]}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-2">No specific configuration parameters for this node.</p>
+                )}
               </AccordionContent>
             </AccordionItem>
+
+            {(envPlaceholders.length > 0 || secretPlaceholders.length > 0) && (
+              <AccordionItem value="dependencies">
+                  <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
+                    <div className="flex items-center gap-2"><KeyRound className="h-4 w-4"/>Dependencies Detected</div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 space-y-3">
+                     <p className="text-xs text-muted-foreground">The AI has detected the following placeholders in your configuration, which need to be available at runtime.</p>
+                     {secretPlaceholders.length > 0 && (
+                        <div className="space-y-1">
+                            <Label className="text-xs">Credentials:</Label>
+                            <ul className="list-disc list-inside pl-2 text-xs font-mono text-amber-600 dark:text-amber-400">
+                                {secretPlaceholders.map(p => <li key={p}>{p}</li>)}
+                            </ul>
+                        </div>
+                     )}
+                     {envPlaceholders.length > 0 && (
+                        <div className="space-y-1">
+                            <Label className="text-xs">Environment Variables:</Label>
+                            <ul className="list-disc list-inside pl-2 text-xs font-mono text-cyan-600 dark:text-cyan-400">
+                                {envPlaceholders.map(p => <li key={p}>{p}</li>)}
+                            </ul>
+                        </div>
+                     )}
+                  </AccordionContent>
+              </AccordionItem>
+            )}
+
+            <AccordionItem value="advanced-config">
+              <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
+                <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4"/>Advanced Error Handling</div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 space-y-3">
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="retry-config" className="border-b-0">
+                      <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
+                        <div className="flex items-center gap-2"><RotateCcwIcon className="h-4 w-4"/>Retry Configuration</div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 space-y-2 px-1">
+                        <div className="space-y-1"><Label className="text-xs">Attempts</Label><Input type="number" value={currentRetryConfig.attempts ?? ''} onChange={e => handleRetryConfigChange('attempts', e.target.value)} placeholder="e.g., 3" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Initial Delay (ms)</Label><Input type="number" value={currentRetryConfig.delayMs ?? ''} onChange={e => handleRetryConfigChange('delayMs', e.target.value)} placeholder="e.g., 1000" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Backoff Factor</Label><Input type="number" value={currentRetryConfig.backoffFactor ?? ''} onChange={e => handleRetryConfigChange('backoffFactor', e.target.value)} placeholder="e.g., 2" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Retry on Status Codes</Label><Input value={(currentRetryConfig.retryOnStatusCodes || []).join(', ')} onChange={e => handleRetryConfigChange('retryOnStatusCodes', e.target.value)} placeholder="500, 503, 429" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Retry on Error Keywords</Label><Input value={(currentRetryConfig.retryOnErrorKeywords || []).join(', ')} onChange={e => handleRetryConfigChange('retryOnErrorKeywords', e.target.value)} placeholder="timeout, unavailable" className="h-8 text-xs"/></div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="webhook-config" className="border-b-0">
+                      <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
+                        <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4"/>On-Error Webhook</div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 space-y-2 px-1">
+                        <p className="text-xs text-muted-foreground italic">Configuration for on-error webhooks would go here.</p>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+              </AccordionContent>
+            </AccordionItem>
+
           </Accordion>
+          
 
         </CardContent>
       </ScrollArea>
+       <div className="p-3 border-t mt-auto bg-background/50">
+        {isLoadingSuggestion ? (
+          <Button variant="outline" className="w-full h-9 text-sm" disabled>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            AI is thinking...
+          </Button>
+        ) : suggestedNextNodeInfo && suggestedNextNodeInfo.forNodeId === node.id && suggestedNodeConfig ? (
+          <Card className="p-3 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2 shadow-md">
+            <p className="font-semibold flex items-center gap-2 text-sm"><Wand2 className="h-4 w-4 text-primary"/> Next Step Suggestion:</p>
+            <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{suggestedNextNodeInfo.suggestion.reason}</p>
+            <Button size="sm" onClick={() => onAddSuggestedNode(suggestedNextNodeInfo.suggestion.suggestedNode)} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs">
+              Add {suggestedNodeConfig.name} Node
+              <ChevronRight className="ml-auto h-4 w-4" />
+            </Button>
+          </Card>
+        ) : null}
+      </div>
     </Card>
   );
 }
