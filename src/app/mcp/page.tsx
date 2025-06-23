@@ -1,79 +1,41 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Workflow, Bot, User, Terminal, Loader2, Zap, Send } from 'lucide-react';
-import { assistantChat, type ChatMessage } from '@/app/actions'; 
-import { cn } from '@/lib/utils';
+import { Workflow, User, Bot, Server, Settings, History, Tv, ListChecks, Play, Zap } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { cn } from '@/lib/utils';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarFooter,
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 
-export default function MCPPage() {
-  const [cliHistory, setCliHistory] = useState<ChatMessage[]>([]);
-  const [command, setCommand] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+const availableTools = [
+    { name: 'listSavedWorkflows', description: 'Lists all available saved workflows.', icon: ListChecks },
+    { name: 'getWorkflowDefinition', description: 'Retrieves the structure of a specific workflow.', icon: Tv },
+    { name: 'runWorkflow', description: 'Executes a workflow and returns the result.', icon: Play },
+];
+
+export default function MCPDashboardPage() {
+  const [activeTab, setActiveTab] = useState('configure');
   const { user } = useSubscription();
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [cliHistory]);
-  
-  useEffect(() => {
-    if (cliHistory.length === 0 && !isProcessing) {
-      setIsProcessing(true);
-      setTimeout(() => {
-        setCliHistory([
-          { id: crypto.randomUUID(), sender: 'ai', message: "Kairo MCP (Model Context Protocol) ready.\nType a command to begin. For example, try:\n- 'list all workflows'\n- 'run the test case workflow'", timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
-        ]);
-        setIsProcessing(false);
-      }, 500);
-    }
-  }, [cliHistory.length, isProcessing]);
-
-  const handleCommandSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!command.trim() || isProcessing) return;
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      sender: 'user',
-      message: command,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setCliHistory(prev => [...prev, userMessage]);
-    setCommand('');
-    setIsProcessing(true);
-
-    try {
-      // The assistant chat flow is smart enough to handle commands without extra context here
-      const result = await assistantChat({ userMessage: command });
-      const aiResponse: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'ai',
-        message: result.aiResponse,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setCliHistory(prev => [...prev, aiResponse]);
-    } catch (error: any) {
-      const errorMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'ai',
-        message: `Error processing command: ${error.message}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setCliHistory(prev => [...prev, errorMessage]);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const getInitials = (email: string | undefined) => {
     if (!email) return '..';
@@ -82,71 +44,127 @@ export default function MCPPage() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-muted/30 text-foreground dark:bg-background">
-      <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
-        <Card className="w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
-            <div className="flex items-center gap-3">
-               <div className="p-2 bg-primary/10 rounded-lg">
-                  <Zap className="h-6 w-6 text-primary" />
+    <SidebarProvider>
+    <div className="flex h-screen w-full bg-muted/40 text-foreground dark:bg-background">
+      <Sidebar side="left" variant="sidebar" collapsible="offcanvas" className="group hidden w-64 shrink-0 flex-col justify-between border-r bg-card p-2 shadow-sm data-[mobile=true]:dark:bg-background md:flex">
+          <SidebarHeader>
+              <div className="flex items-center gap-3 p-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                    <Server className="h-6 w-6 text-primary" />
                 </div>
-              <div>
-                <CardTitle className="text-lg">Kairo MCP Console</CardTitle>
-                <CardDescription className="text-xs">AI Command Interface</CardDescription>
+                <div>
+                    <h2 className="text-base font-semibold">MCP Server</h2>
+                    <p className="text-xs text-muted-foreground">AI Command Control</p>
+                </div>
               </div>
-            </div>
-             <Button variant="outline" asChild>
-                <Link href="/workflow">
-                  <Workflow className="mr-2 h-4 w-4" />
-                  Go to Editor
+          </SidebarHeader>
+          <SidebarContent className="flex-1">
+              <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'configure'} onClick={() => setActiveTab('configure')}>
+                      <Settings className="h-4 w-4" />
+                      Configure
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'connect'} onClick={() => setActiveTab('connect')}>
+                      <Zap className="h-4 w-4" />
+                      Connect
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'history'} onClick={() => setActiveTab('history')}>
+                      <History className="h-4 w-4" />
+                      History
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+              </SidebarMenu>
+          </SidebarContent>
+          <SidebarFooter>
+              <Separator className="my-2" />
+              <div className="flex items-center gap-3 p-2">
+                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">
+                  {getInitials(user?.email)}
+                </div>
+                <div>
+                  <p className="text-sm font-medium truncate">{user?.email || 'Guest User'}</p>
+                  <p className="text-xs text-muted-foreground">Kairo User</p>
+                </div>
+              </div>
+          </SidebarFooter>
+      </Sidebar>
+      <SidebarInset className="flex flex-col">
+          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 shadow-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+            <div className="flex items-center gap-2">
+                <SidebarTrigger className="md:hidden"/>
+                <Link href="/" className="text-2xl font-bold text-primary flex items-center gap-2">
+                    <Workflow className="h-6 w-6" />
+                    Kairo
                 </Link>
-             </Button>
-          </CardHeader>
-          <CardContent className="flex-1 p-0 overflow-hidden">
-            <ScrollArea className="h-full" viewportRef={scrollAreaRef}>
-              <div className="p-4 font-mono text-sm space-y-4">
-                {cliHistory.map((item) => (
-                  <div key={item.id} className="flex flex-col">
-                    {item.sender === 'user' ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-cyan-400">{user?.email || 'user'}@kairo:~$</span>
-                        <p className="flex-1 text-foreground whitespace-pre-wrap break-words">{item.message}</p>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-2">
-                         <span className="text-primary font-bold shrink-0">[Kairo AI]:</span>
-                         <p className="text-muted-foreground whitespace-pre-wrap break-words">{item.message}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                 {isProcessing && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-primary font-bold shrink-0">[Kairo AI]:</span>
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    </div>
-                  )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-          <form onSubmit={handleCommandSubmit} className="p-4 border-t bg-card/80">
-            <div className="relative flex items-center">
-              <Terminal className="absolute left-3 h-5 w-5 text-muted-foreground" />
-              <Input
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder="Type a command for the Kairo AI..."
-                className="pl-10 h-10 text-base"
-                disabled={isProcessing}
-                autoComplete="off"
-              />
-               <Button type="submit" disabled={isProcessing || !command.trim()} size="icon" className="absolute right-1.5 h-8 w-8">
-                  <Send className="h-4 w-4" />
-               </Button>
             </div>
-          </form>
-        </Card>
-      </main>
+            <Button asChild variant="outline">
+                <Link href="/workflow">Go to Editor</Link>
+            </Button>
+          </header>
+          <main className="flex-1 overflow-auto p-4 sm:p-6">
+             <div className="max-w-4xl mx-auto">
+                 {activeTab === 'configure' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>AI Assistant Tools</CardTitle>
+                            <CardDescription>These are the capabilities (tools) the Kairo AI assistant can use to help you automate tasks and manage workflows.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {availableTools.map((tool) => (
+                                    <div key={tool.name} className="flex items-start gap-4 p-3 border rounded-lg bg-muted/50">
+                                        <div className="p-2 bg-primary/10 text-primary rounded-md">
+                                            <tool.icon className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-sm">{tool.name}</p>
+                                            <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                 )}
+                  {activeTab === 'connect' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Connect to MCP</CardTitle>
+                            <CardDescription>Use this information to connect your applications to the Kairo MCP.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <Label htmlFor="api-endpoint" className="text-xs">API Endpoint</Label>
+                                <pre className="mt-1 text-xs p-2 bg-muted rounded-md font-mono text-muted-foreground">/api/mcp</pre>
+                            </div>
+                             <div>
+                                <Label htmlFor="api-key" className="text-xs">Authentication</Label>
+                                <p className="text-xs mt-1 text-muted-foreground">Authentication would typically be managed via API keys generated in your profile settings (feature not implemented).</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                 )}
+                 {activeTab === 'history' && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Command History</CardTitle>
+                            <CardDescription>A log of commands sent to the AI assistant (feature not yet implemented).</CardDescription>
+                        </CardHeader>
+                        <CardContent className="text-center text-muted-foreground text-sm py-12">
+                            <History className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                            Command history will appear here.
+                        </CardContent>
+                    </Card>
+                 )}
+             </div>
+          </main>
+      </SidebarInset>
     </div>
+    </SidebarProvider>
   );
 }
