@@ -25,6 +25,22 @@ import {
 
 const RUN_HISTORY_KEY = 'kairoRunHistory';
 
+// Simple JSON syntax highlighter
+const JsonSyntaxHighlighter = ({ jsonString }: { jsonString: string }) => {
+  const highlighted = jsonString.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+    let cls = 'text-green-400'; // number, boolean, null
+    if (/^"/.test(match)) {
+      if (/:$/.test(match)) {
+        cls = 'text-cyan-400'; // key
+      } else {
+        cls = 'text-amber-400'; // string
+      }
+    }
+    return `<span class="${cls}">${match}</span>`;
+  });
+  return <pre className="text-xs p-2" dangerouslySetInnerHTML={{ __html: highlighted }} />;
+};
+
 export default function RunHistoryPage() {
   const [runHistory, setRunHistory] = useState<WorkflowRunRecord[]>([]);
   const [selectedRun, setSelectedRun] = useState<WorkflowRunRecord | null>(null);
@@ -193,9 +209,7 @@ export default function RunHistoryPage() {
                     <div className="flex flex-col gap-3">
                         <h3 className="font-semibold flex items-center gap-2"><FileJson className="h-4 w-4 text-primary" /> Final Node Data</h3>
                          <ScrollArea className="h-full border rounded-md bg-muted/30 p-2">
-                            <pre className="text-xs p-2">
-                                {JSON.stringify(selectedRun.executionResult.finalWorkflowData, null, 2)}
-                            </pre>
+                            <JsonSyntaxHighlighter jsonString={JSON.stringify(selectedRun.executionResult.finalWorkflowData, null, 2)} />
                         </ScrollArea>
                     </div>
                 </div>

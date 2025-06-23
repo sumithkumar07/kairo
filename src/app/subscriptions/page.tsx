@@ -36,9 +36,9 @@ export default function SubscriptionsPage() {
       description: 'Get started with basic workflow automation and AI assistance.',
       features: [
         `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-        `Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Limited'}`, 
-        `Advanced Nodes Access: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'None'}`, 
-        `Max Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
+        `AI Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
+        `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
+        `Max Saved Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
         'Community Support',
       ],
       cta: {
@@ -48,13 +48,13 @@ export default function SubscriptionsPage() {
     },
     Pro: {
       name: 'Pro Tier',
-      price: '$29/month (Example Price)',
+      price: '$29/month',
       description: 'Unlock the full power of Kairo with unlimited features and priority support.',
       features: [
-        `AI Workflow Generations: ${PRO_TIER_FEATURES.aiWorkflowGenerationsPerDay === 'unlimited' ? 'Unlimited' : PRO_TIER_FEATURES.aiWorkflowGenerationsPerDay}`,
-        `Workflow Explanations: ${PRO_TIER_FEATURES.canExplainWorkflow ? 'Full AI Explanations & Advanced Suggestions' : 'Limited'}`,
-        `Advanced Nodes Access: ${PRO_TIER_FEATURES.accessToAdvancedNodes ? 'Full Node Library Access' : 'Limited'}`,
-        `Max Workflows: ${PRO_TIER_FEATURES.maxWorkflows === 'unlimited' ? 'Unlimited' : PRO_TIER_FEATURES.maxWorkflows}`,
+        `AI Workflow Generations: Unlimited`,
+        `AI Workflow Explanations: Full AI Explanations & Suggestions`,
+        `Advanced Nodes: Full Node Library Access`,
+        `Max Saved Workflows: Unlimited`,
         'Priority Email Support',
       ],
       cta: { 

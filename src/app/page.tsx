@@ -3,9 +3,16 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, List, User, KeyRound, LogIn, UserPlus, LayoutDashboard, History, LogOut, Bot } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, List, User, KeyRound, LogIn, UserPlus, LayoutDashboard, History, LogOut, Bot, Settings } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function HomePage() {
   const { isLoggedIn, logout } = useSubscription();
@@ -18,43 +25,24 @@ export default function HomePage() {
             <Workflow className="h-8 w-8 mr-2" />
             Kairo
           </Link>
-          <nav className="space-x-1 sm:space-x-2">
-            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/workflow" className="flex items-center">
-                 <LayoutDashboard className="h-4 w-4 mr-1 sm:mr-1.5" />
-                 Workflow Editor
-              </Link>
+          <nav className="hidden md:flex items-center gap-1 sm:gap-2">
+            <Button variant="ghost" asChild className="text-sm font-medium">
+              <Link href="/workflow">Workflow Editor</Link>
             </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/run-history" className="flex items-center">
-                <History className="h-4 w-4 mr-1 sm:mr-1.5" />
-                Run History
-              </Link>
+            <Button variant="ghost" asChild className="text-sm font-medium">
+              <Link href="/run-history">Run History</Link>
             </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/mcp" className="flex items-center">
-                <Bot className="h-4 w-4 mr-1 sm:mr-1.5" />
-                MCP Console
-              </Link>
+             <Button variant="ghost" asChild className="text-sm font-medium">
+              <Link href="/mcp">MCP Console</Link>
             </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/subscriptions" className="flex items-center">
-                <BrainCircuit className="h-4 w-4 mr-1 sm:mr-1.5" />
-                Subscriptions
-              </Link>
+            <Button variant="ghost" asChild className="text-sm font-medium">
+              <Link href="/subscriptions">Subscriptions</Link>
             </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium text-muted-foreground hover:text-primary">
-              <Link href="/test-apikey" className="flex items-center">
-                <KeyRound className="h-4 w-4 mr-1 sm:mr-1.5" />
-                Test API Key
-              </Link>
-            </Button>
+
             {isLoggedIn ? (
               <>
-                <Button variant="ghost" asChild size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                  <Link href="/profile">
-                    <User className="h-4 w-4 mr-1 sm:mr-1.5" /> Profile
-                  </Link>
+                <Button variant="ghost" asChild size="sm" className="text-sm font-medium">
+                  <Link href="/profile">Profile</Link>
                 </Button>
                 <Button variant="outline" size="sm" onClick={logout} className="text-sm">
                   <LogOut className="h-4 w-4 mr-1.5" />
@@ -63,19 +51,45 @@ export default function HomePage() {
               </>
             ) : (
               <>
-                <Button variant="ghost" asChild size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                  <Link href="/login">
-                    <LogIn className="h-4 w-4 mr-1 sm:mr-1.5" /> Log In
-                  </Link>
+                <Button variant="ghost" asChild size="sm" className="text-sm font-medium">
+                  <Link href="/login">Log In</Link>
                 </Button>
                 <Button asChild size="sm" className="text-sm">
-                  <Link href="/signup">
-                    <UserPlus className="h-4 w-4 mr-1 sm:mr-1.5" /> Sign Up
-                  </Link>
+                  <Link href="/signup">Sign Up</Link>
                 </Button>
               </>
             )}
           </nav>
+
+           <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Settings className="h-5 w-5" />
+                    <span className="sr-only">Toggle navigation menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild><Link href="/workflow">Workflow Editor</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/run-history">Run History</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/mcp">MCP Console</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/subscriptions">Subscriptions</Link></DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {isLoggedIn ? (
+                    <>
+                      <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                      <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild><Link href="/login">Log In</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/signup">Sign Up</Link></DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
         </div>
       </header>
 

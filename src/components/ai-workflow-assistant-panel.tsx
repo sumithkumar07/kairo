@@ -11,7 +11,7 @@ import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import type { LogEntry, WorkflowNode, WorkflowConnection, ChatMessage } from '@/types/workflow';
+import type { LogEntry, ChatMessage } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 
@@ -129,10 +129,6 @@ export function AIWorkflowAssistantPanel({
   }
   
   if (selectedConnectionId && !selectedNodeId && !workflowExplanation && !isConnecting) {
-    const connection = connections.find(c => c.id === selectedConnectionId);
-    const sourceNode = connection ? nodes.find(n => n.id === connection.sourceNodeId) : null;
-    const targetNode = connection ? nodes.find(n => n.id === connection.targetNodeId) : null;
-
      return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
@@ -152,29 +148,6 @@ export function AIWorkflowAssistantPanel({
               <p className="text-xs text-muted-foreground">
                   ID: <code className="text-xs bg-muted p-1 rounded">{selectedConnectionId.substring(0,12)}...</code>
               </p>
-              {sourceNode && connection && (
-                <div className="p-2.5 border rounded-md bg-muted/30 space-y-0.5">
-                  <p className="text-xs font-medium text-foreground">Source Node:</p>
-                  <p className="text-xs text-muted-foreground">
-                    Name: <span className="font-semibold text-foreground/90">{sourceNode.name || 'Unnamed Node'}</span> <code className="text-xs bg-muted p-0.5 rounded">({sourceNode.id.substring(0,8)}...)</code>
-                  </p>
-                   <p className="text-xs text-muted-foreground">Type: <span className="font-semibold text-foreground/90">{sourceNode.type}</span></p>
-                  <p className="text-xs text-muted-foreground">Handle: <span className="font-semibold text-foreground/90">{connection.sourceHandle || 'default_output'}</span></p>
-                </div>
-              )}
-              {targetNode && connection && (
-                <div className="p-2.5 border rounded-md bg-muted/30 space-y-0.5">
-                  <p className="text-xs font-medium text-foreground">Target Node:</p>
-                  <p className="text-xs text-muted-foreground">
-                    Name: <span className="font-semibold text-foreground/90">{targetNode.name || 'Unnamed Node'}</span> <code className="text-xs bg-muted p-0.5 rounded">({targetNode.id.substring(0,8)}...)</code>
-                  </p>
-                  <p className="text-xs text-muted-foreground">Type: <span className="font-semibold text-foreground/90">{targetNode.type}</span></p>
-                  <p className="text-xs text-muted-foreground">Handle: <span className="font-semibold text-foreground/90">{connection.targetHandle || 'default_input'}</span></p>
-                </div>
-              )}
-              {!connection && (
-                  <p className="text-xs text-destructive">Connection details not found.</p>
-              )}
               <div className="pt-2">
                   <Button variant="destructive" size="sm" onClick={onDeleteSelectedConnection} title="Delete selected connection (Delete/Backspace)" className="w-full h-8 text-xs">
                       <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Connection
@@ -206,7 +179,7 @@ export function AIWorkflowAssistantPanel({
                       <div key={index} className={cn(
                         "p-1.5 rounded-sm text-opacity-90 break-words",
                         log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                        log.type === 'success' && 'bg-green-500/10 text-green-700 dark:text-green-300',
+                        log.type === 'success' && 'bg-green-500/10 text-green-300',
                         log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
                       )}>
                         <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
@@ -224,7 +197,6 @@ export function AIWorkflowAssistantPanel({
   }
   
   if (isConnecting) {
-    const sourceNode = nodes.find(n => n.id === selectedNodeId); 
     return (
       <div className="flex flex-col h-full">
         <div className="p-4 border-b">
@@ -233,7 +205,7 @@ export function AIWorkflowAssistantPanel({
             Creating Connection
           </h2>
            <p className="text-xs text-muted-foreground">
-             {sourceNode ? `From: ${sourceNode.name} ` : `Click an output handle to start, then an input handle to connect.`}
+             Click an output handle to start, then an input handle to connect.
            </p>
         </div>
         <div className="p-6 text-center flex flex-col items-center justify-center flex-1">
@@ -268,7 +240,7 @@ export function AIWorkflowAssistantPanel({
                       <div key={index} className={cn(
                         "p-1.5 rounded-sm text-opacity-90 break-words",
                         log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                        log.type === 'success' && 'bg-green-500/10 text-green-700 dark:text-green-300',
+                        log.type === 'success' && 'bg-green-500/10 text-green-300',
                         log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
                       )}>
                         <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
@@ -383,8 +355,8 @@ export function AIWorkflowAssistantPanel({
           {isChatLoading && (
              <div className="flex items-end gap-2.5 mb-3">
               <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
-              <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-xl rounded-es-none shadow items-center"> {/* Adjusted padding */}
-                <div className="flex space-x-1.5 items-center justify-center"> {/* Centered dots */}
+              <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-xl rounded-es-none shadow items-center">
+                <div className="flex space-x-1.5 items-center justify-center">
                   <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.3s]"></span>
                   <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.15s]"></span>
                   <span className="h-2 w-2 bg-primary rounded-full animate-pulse"></span>
@@ -450,7 +422,7 @@ export function AIWorkflowAssistantPanel({
                     <div key={index} className={cn(
                       "p-1.5 rounded-sm text-opacity-90 break-words",
                       log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                      log.type === 'success' && 'bg-green-500/10 text-green-700 dark:text-green-300',
+                      log.type === 'success' && 'bg-green-500/10 text-green-300',
                       log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
                     )}>
                       <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>

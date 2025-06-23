@@ -4,7 +4,7 @@
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, ShieldCheck, CalendarDays, LogOut, Edit, Workflow, AlertTriangle } from 'lucide-react';
+import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -108,15 +108,6 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-
-            <div className="space-y-3 pt-2">
-              <Button variant="outline" className="w-full justify-start" disabled>
-                <Edit className="mr-2 h-4 w-4" /> Change Email (Not available in demo)
-              </Button>
-              <Button variant="outline" className="w-full justify-start" disabled>
-                <Edit className="mr-2 h-4 w-4" /> Change Password (Not available in demo)
-              </Button>
-            </div>
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3 border-t pt-6">
@@ -134,7 +125,7 @@ export default function ProfilePage() {
                 className="w-full mt-2"
                 onClick={forceEndTrial}
               >
-                <AlertTriangle className="mr-2 h-4 w-4" /> Dev: End Trial / Revert to Free
+                <AlertTriangle className="mr-2 h-4 w-4" /> Revert to Free Tier (Dev Tool)
               </Button>
             )}
           </CardFooter>

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Workflow, Mail, MessageSquareHeart, Building, Home } from 'lucide-react';
+import { Workflow, Mail, Home } from 'lucide-react';
 
 export default function ContactPage() {
   return (
@@ -66,14 +66,7 @@ export default function ContactPage() {
           </CardContent>
           
           <CardFooter className="flex flex-col items-center gap-4 border-t pt-6">
-             <div className="flex items-center gap-3 text-muted-foreground">
-                <MessageSquareHeart className="h-5 w-5 text-primary/80" />
-                <span>Feedback</span>
-                 <span className="text-xs opacity-70">|</span>
-                <Building className="h-5 w-5 text-primary/80" />
-                <span>Enterprise</span>
-             </div>
-            <Button asChild variant="outline" className="mt-2 group">
+            <Button asChild variant="outline" className="w-full group">
               <Link href="/">
                 <Home className="mr-2 h-4 w-4 group-hover:animate-pulse" />
                 Back to Home

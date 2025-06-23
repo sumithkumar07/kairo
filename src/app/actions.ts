@@ -26,10 +26,6 @@ import {
   type AssistantChatInput,
   type AssistantChatOutput,
 } from '@/ai/flows/assistant-chat-flow';
-import {
-  testApiKey as genkitTestApiKey,
-  type TestApiKeyOutput,
-} from '@/ai/flows/test-api-key-flow'; // Import the test API key flow
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig, WorkflowExecutionResult } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
@@ -594,25 +590,6 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
     return { aiResponse: errorMessage, isWorkflowGenerationRequest: false };
   }
 }
-
-// New server action for testing the API key
-export async function testApiKeyAction(): Promise<TestApiKeyOutput> {
-  console.log("[SERVER ACTION] testApiKeyAction: Initiating API key test.");
-  // Log API key presence here as well, as this is a direct test point
-  console.log('[SERVER ACTION - testApiKeyAction] GOOGLE_API_KEY check. Available: ', process.env.GOOGLE_API_KEY ? `Yes (starts with: ${process.env.GOOGLE_API_KEY.substring(0, 5)})` : 'No / Empty');
-  try {
-    const result = await genkitTestApiKey();
-    console.log("[SERVER ACTION] testApiKeyAction: Test completed. Result:", result);
-    return result;
-  } catch (error: any) {
-    console.error("[SERVER ACTION] testApiKeyAction: Error during test:", error);
-    return {
-      success: false,
-      message: `Error in testApiKeyAction: ${error.message || 'Unknown error'}`,
-    };
-  }
-}
-
 
 function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnection[], flowLabel: string): { executionOrder: WorkflowNode[], error?: string } {
   const adj: Record<string, string[]> = {};
