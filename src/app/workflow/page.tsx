@@ -2,10 +2,10 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowExecutionResult, ChatMessage, WorkflowRunRecord } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, generateWorkflow, assistantChat } from '@/app/actions';
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, generateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -39,8 +39,6 @@ import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH }
 import { produce } from 'immer';
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
-const SAVED_WORKFLOWS_INDEX_KEY = 'kairoSavedWorkflowsIndex';
-const WORKFLOW_PREFIX = 'kairoWorkflow_';
 const RUN_HISTORY_KEY = 'kairoRunHistory';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
 const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
@@ -57,10 +55,6 @@ interface HistoryEntry {
   selectedConnectionId: string | null;
   canvasOffset: { x: number; y: number };
   zoomLevel: number;
-}
-
-interface SavedWorkflowItem {
-  name: string;
 }
 
 export default function WorkflowPage() {
@@ -113,7 +107,7 @@ export default function WorkflowPage() {
   const [saveAsName, setSaveAsName] = useState('');
 
   const [showOpenDialog, setShowOpenDialog] = useState(false);
-  const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowItem[]>([]);
+  const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowMetadata[]>([]);
   const [workflowToDeleteFromModal, setWorkflowToDeleteFromModal] = useState<string | null>(null);
 
 
@@ -242,67 +236,49 @@ export default function WorkflowPage() {
   }, [resetHistoryForNewWorkflow]);
 
 
-  const loadSavedWorkflowsIndex = useCallback(() => {
-    const indexJson = localStorage.getItem(SAVED_WORKFLOWS_INDEX_KEY);
-    if (indexJson) {
-        try {
-            const names: string[] = JSON.parse(indexJson);
-            setSavedWorkflows(names.map(name => ({ name })));
-        } catch (e) {
-            console.error("Error parsing saved workflows index:", e);
-            setSavedWorkflows([]);
-            localStorage.removeItem(SAVED_WORKFLOWS_INDEX_KEY);
-        }
-    } else {
-        setSavedWorkflows([]);
+  const loadSavedWorkflowsIndex = useCallback(async () => {
+    try {
+      const workflowList = await listWorkflowsAction();
+      setSavedWorkflows(workflowList);
+    } catch (e: any) {
+      toast({ title: 'Error', description: 'Could not load saved workflows.', variant: 'destructive' });
+      setSavedWorkflows([]);
     }
-  }, []);
+  }, [toast]);
 
-  const handleOpenWorkflowDialog = useCallback(() => {
-    loadSavedWorkflowsIndex();
+  const handleOpenWorkflowDialog = useCallback(async () => {
+    await loadSavedWorkflowsIndex();
     setShowOpenDialog(true);
   }, [loadSavedWorkflowsIndex]);
 
-  const handleLoadNamedWorkflow = useCallback((workflowName: string) => {
-    const workflowKey = `${WORKFLOW_PREFIX}${workflowName}`;
-    const workflowJson = localStorage.getItem(workflowKey);
-
-    if (workflowJson) {
-      try {
-        const workflowData = JSON.parse(workflowJson);
-        loadWorkflowIntoEditor(workflowData, workflowName);
-        localStorage.setItem(CURRENT_WORKFLOW_KEY, workflowJson);
+  const handleLoadNamedWorkflow = useCallback(async (workflowName: string) => {
+    try {
+      const loadedData = await loadWorkflowAction(workflowName);
+      if (loadedData) {
+        loadWorkflowIntoEditor(loadedData.workflow, loadedData.name);
         toast({ title: 'Workflow Loaded', description: `Workflow "${workflowName}" is now active in the editor.` });
         setShowOpenDialog(false);
-      } catch (e: any) {
-        toast({ title: 'Load Error', description: `Failed to load workflow "${workflowName}": ${e.message}`, variant: 'destructive' });
+      } else {
+        throw new Error("Workflow data not found.");
       }
-    } else {
-      toast({ title: 'Error Loading Workflow', description: `Could not find data for workflow "${workflowName}". It might have been deleted or corrupted.`, variant: 'destructive' });
-      loadSavedWorkflowsIndex();
+    } catch (e: any) {
+      toast({ title: 'Load Error', description: `Failed to load workflow "${workflowName}": ${e.message}`, variant: 'destructive' });
+      await loadSavedWorkflowsIndex();
     }
   }, [loadWorkflowIntoEditor, toast, loadSavedWorkflowsIndex]);
 
-  const handleDeleteWorkflowFromModal = useCallback(() => {
+  const handleDeleteWorkflowFromModal = useCallback(async () => {
     if (!workflowToDeleteFromModal) return;
 
-    const workflowKey = `${WORKFLOW_PREFIX}${workflowToDeleteFromModal}`;
-    localStorage.removeItem(workflowKey);
-
-    const indexJson = localStorage.getItem(SAVED_WORKFLOWS_INDEX_KEY);
-    if (indexJson) {
-        try {
-            let names: string[] = JSON.parse(indexJson);
-            names = names.filter(name => name !== workflowToDeleteFromModal);
-            localStorage.setItem(SAVED_WORKFLOWS_INDEX_KEY, JSON.stringify(names));
-        } catch (e) {
-            console.error("Error updating saved workflows index:", e);
-        }
+    try {
+      await deleteWorkflowAction(workflowToDeleteFromModal);
+      toast({ title: 'Workflow Deleted', description: `Workflow "${workflowToDeleteFromModal}" has been deleted.` });
+      setSavedWorkflows(prev => prev.filter(wf => wf.name !== workflowToDeleteFromModal));
+    } catch (e: any) {
+      toast({ title: 'Error Deleting', description: e.message, variant: 'destructive' });
+    } finally {
+      setWorkflowToDeleteFromModal(null);
     }
-
-    setSavedWorkflows(prev => prev.filter(wf => wf.name !== workflowToDeleteFromModal));
-    toast({ title: 'Workflow Deleted', description: `Workflow "${workflowToDeleteFromModal}" has been deleted.` });
-    setWorkflowToDeleteFromModal(null);
   }, [workflowToDeleteFromModal, toast]);
 
 
@@ -311,7 +287,8 @@ export default function WorkflowPage() {
       const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
       if (savedWorkflowJson) {
         try {
-          loadWorkflowIntoEditor(JSON.parse(savedWorkflowJson));
+          const savedWorkflow = JSON.parse(savedWorkflowJson);
+          loadWorkflowIntoEditor(savedWorkflow, savedWorkflow.name || 'Untitled Workflow');
         } catch (error) {
           console.error("Error loading initial workflow:", error);
           localStorage.removeItem(CURRENT_WORKFLOW_KEY);
@@ -324,21 +301,25 @@ export default function WorkflowPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSaveWorkflow = useCallback(() => {
+  const handleSaveWorkflow = useCallback(async () => {
     if (typeof window !== 'undefined') {
       if (currentWorkflowNameRef.current === 'Untitled Workflow') {
-        handleSaveWorkflowAs();
+        setShowSaveAsDialog(true);
         return;
       }
       
-      const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
-      const workflowJson = JSON.stringify(workflowToSave);
-      
-      localStorage.setItem(CURRENT_WORKFLOW_KEY, workflowJson);
-      localStorage.setItem(`${WORKFLOW_PREFIX}${currentWorkflowNameRef.current}`, workflowJson);
-      
-      toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
-      saveHistory();
+      const workflowToSave: Workflow = { nodes, connections };
+      try {
+        await saveWorkflowAction(currentWorkflowNameRef.current, workflowToSave);
+        toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
+        
+        const fullState = { name: currentWorkflowNameRef.current, workflow: workflowToSave, canvasOffset, zoomLevel, isSimulationMode };
+        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(fullState));
+
+        saveHistory();
+      } catch (e: any) {
+        toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
+      }
     }
   }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
@@ -351,42 +332,26 @@ export default function WorkflowPage() {
     setShowSaveAsDialog(true);
   }, [nodes, connections, toast]);
 
-  const confirmSaveAsWorkflow = useCallback(() => {
+  const confirmSaveAsWorkflow = useCallback(async () => {
     if (!saveAsName.trim()) {
       toast({ title: 'Invalid Name', description: 'Please enter a valid name for the workflow.', variant: 'destructive' });
       return;
     }
 
-    const workflowKey = `${WORKFLOW_PREFIX}${saveAsName}`;
+    const workflowToSave: Workflow = { nodes, connections };
+    try {
+      await saveWorkflowAction(saveAsName, workflowToSave);
+      currentWorkflowNameRef.current = saveAsName;
+      
+      const fullState = { name: currentWorkflowNameRef.current, workflow: workflowToSave, canvasOffset, zoomLevel, isSimulationMode };
+      localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(fullState));
 
-    const indexJson = localStorage.getItem(SAVED_WORKFLOWS_INDEX_KEY);
-    let names: string[] = [];
-    if (indexJson) {
-      try { names = JSON.parse(indexJson); } catch (e) { names = []; }
+      toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
+      setShowSaveAsDialog(false);
+      saveHistory();
+    } catch (e: any) {
+      toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
     }
-
-    if (names.includes(saveAsName) && saveAsName !== currentWorkflowNameRef.current) {
-        const overwrite = confirm(`A workflow named "${saveAsName}" already exists. Overwrite it?`);
-        if (!overwrite) {
-            return;
-        }
-    }
-
-    const workflowToSave = { nodes, connections, nextNodeId: nextNodeIdRef.current, canvasOffset, zoomLevel, isSimulationMode };
-    const workflowJson = JSON.stringify(workflowToSave);
-    localStorage.setItem(workflowKey, workflowJson);
-    localStorage.setItem(CURRENT_WORKFLOW_KEY, workflowJson);
-
-    if (!names.includes(saveAsName)) {
-      names.push(saveAsName);
-      localStorage.setItem(SAVED_WORKFLOWS_INDEX_KEY, JSON.stringify(names));
-    }
-    
-    currentWorkflowNameRef.current = saveAsName;
-
-    toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
-    setShowSaveAsDialog(false);
-    saveHistory();
   }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
 
@@ -1268,8 +1233,16 @@ export default function WorkflowPage() {
             const fileName = file.name.replace('.json', '');
             loadWorkflowIntoEditor(importedData, fileName || 'Untitled Workflow');
 
+            const fullStateToSave = {
+              name: fileName || 'Untitled Workflow',
+              workflow: { nodes: importedData.nodes, connections: importedData.connections },
+              canvasOffset: importedData.canvasOffset,
+              zoomLevel: importedData.zoomLevel,
+              isSimulationMode: importedData.isSimulationMode
+            };
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(fullStateToSave));
             toast({ title: 'Workflow Imported', description: `Workflow "${fileName || 'Untitled Workflow'}" loaded from file and set as current.` });
-            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(importedData));
+
           } catch (error: any) {
             toast({ title: 'Import Error', description: `Failed to import workflow: ${error.message}`, variant: 'destructive' });
           }
@@ -1468,17 +1441,22 @@ export default function WorkflowPage() {
             </DialogHeader>
             <div className="py-2">
                 {savedWorkflows.length === 0 ? (
-                    <p className="text-sm text-center text-muted-foreground py-4">No saved workflows found in local storage.</p>
+                    <p className="text-sm text-center text-muted-foreground py-4">No saved workflows found.</p>
                 ) : (
                     <ScrollArea className="h-64 border rounded-md">
                         <div className="p-2 space-y-1">
                             {savedWorkflows.map(wf => (
                                 <div key={wf.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <span className="text-sm font-medium truncate" title={wf.name}>{wf.name}</span>
+                                    <div className='flex flex-col'>
+                                      <span className="text-sm font-medium truncate" title={wf.name}>{wf.name}</span>
+                                      <span className="text-xs text-muted-foreground">{wf.type}</span>
+                                    </div>
                                     <div className="flex items-center gap-1.5">
-                                      <Button variant="destructive" size="icon" className="h-7 w-7" onClick={(e) => {e.stopPropagation(); setWorkflowToDeleteFromModal(wf.name); }}>
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
+                                      {wf.type === 'user' && (
+                                        <Button variant="destructive" size="icon" className="h-7 w-7" onClick={(e) => {e.stopPropagation(); setWorkflowToDeleteFromModal(wf.name); }}>
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
                                       <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadNamedWorkflow(wf.name)}>
                                         Load
                                       </Button>

@@ -64,6 +64,12 @@ export interface ExampleWorkflow {
   connections: WorkflowConnection[];
 }
 
+export interface SavedWorkflowMetadata {
+  name: string;
+  type: 'example' | 'user';
+  description?: string;
+}
+
 export interface ConfigFieldSchema {
   label: string;
   type: 'string' | 'number' | 'textarea' | 'select' | 'boolean' | 'json';
