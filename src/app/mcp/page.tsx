@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check } from 'lucide-react';
+import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import {
@@ -335,5 +335,7 @@ export default function MCPDashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
 
     
