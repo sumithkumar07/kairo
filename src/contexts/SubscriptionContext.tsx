@@ -10,7 +10,6 @@ import { useRouter } from 'next/navigation';
 
 interface User {
   email: string;
-  // Add other user properties if needed
 }
 
 interface SubscriptionContextType {
@@ -23,8 +22,7 @@ interface SubscriptionContextType {
   login: (email: string) => void;
   signup: (email: string) => void;
   logout: () => void;
-  upgradeToPro: () => void; 
-  forceEndTrial: () => void; // Added for dev/testing
+  upgradeToPro: () => void;
   isProOrTrial: boolean;
   daysRemainingInTrial: number | null;
 }
@@ -56,6 +54,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         isProEquivalent = true;
         const diffTime = trialEndDate.getTime() - new Date().getTime();
         daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      } else if (trialEndDate && trialEndDate <= new Date()) {
+        // Trial has expired, user is on Free tier
+        tier = 'Free';
+        activeFeatures = FREE_TIER_FEATURES;
+        isProEquivalent = false;
+        daysLeft = 0;
       }
     }
     return { tier, features: activeFeatures, isProOrTrial: isProEquivalent, daysRemainingInTrial: daysLeft };
@@ -63,65 +67,81 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const { tier: currentTier, features, isProOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
+  const persistUserState = useCallback(() => {
+    if (user?.email) {
+      if (trialEndDate) {
+        localStorage.setItem(`kairo_trialEnd_${user.email}`, trialEndDate.toISOString());
+      } else {
+        localStorage.removeItem(`kairo_trialEnd_${user.email}`);
+      }
+      localStorage.setItem(`kairo_proStatus_${user.email}`, String(hasPurchasedPro));
+    }
+  }, [user, trialEndDate, hasPurchasedPro]);
+  
+  useEffect(() => {
+    // This effect runs whenever the user state changes, effectively saving their progress.
+    persistUserState();
+  }, [persistUserState]);
+
 
   const signup = useCallback((email: string) => {
+    const newUser = { email };
     setIsLoggedIn(true);
-    setUser({ email });
+    setUser(newUser);
     const newTrialEndDate = new Date();
     newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
     setTrialEndDate(newTrialEndDate);
     setHasPurchasedPro(false);
+
+    localStorage.setItem(`kairo_trialEnd_${email}`, newTrialEndDate.toISOString());
+    localStorage.removeItem(`kairo_proStatus_${email}`);
+
     toast({ title: 'Signup Successful!', description: 'Your 15-day Pro trial has started.' });
     router.push('/workflow');
   }, [toast, router]);
 
   const login = useCallback((email: string) => {
+    const newUser = { email };
     setIsLoggedIn(true);
-    setUser({ email });
-    // Simulate loading persisted state - for a real app, this would come from a backend
-    // For this demo, if they log in and don't have an active trial or pro, start/restart a trial.
+    setUser(newUser);
+
     const storedTrialEnd = localStorage.getItem(`kairo_trialEnd_${email}`);
     const storedProStatus = localStorage.getItem(`kairo_proStatus_${email}`);
 
-    let loadedTrialEnd = storedTrialEnd ? new Date(storedTrialEnd) : null;
-    let loadedProStatus = storedProStatus === 'true';
-
-    if (loadedProStatus) {
+    if (storedProStatus === 'true') {
         setHasPurchasedPro(true);
         setTrialEndDate(null);
         toast({ title: 'Login Successful!', description: 'Welcome back to your Pro account.'});
-    } else if (loadedTrialEnd && loadedTrialEnd > new Date()) {
-        setHasPurchasedPro(false);
+    } else if (storedTrialEnd) {
+        const loadedTrialEnd = new Date(storedTrialEnd);
         setTrialEndDate(loadedTrialEnd);
-        toast({ title: 'Login Successful!', description: 'Welcome back! Your Pro trial is active.' });
-    } else { // No valid trial or pro status found, start a new trial
+        if (loadedTrialEnd > new Date()) {
+          toast({ title: 'Login Successful!', description: 'Welcome back! Your Pro trial is active.' });
+        } else {
+          toast({ title: 'Login Successful!', description: 'Welcome back. Your trial has expired.' });
+        }
+    } else { // First time login for this email, start a new trial
         const newTrialEndDate = new Date();
         newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
         setTrialEndDate(newTrialEndDate);
         setHasPurchasedPro(false);
         localStorage.setItem(`kairo_trialEnd_${email}`, newTrialEndDate.toISOString());
-        localStorage.removeItem(`kairo_proStatus_${email}`); // ensure pro is off
-        toast({ title: 'Login Successful!', description: 'Your 15-day Pro trial has started.' });
+        localStorage.removeItem(`kairo_proStatus_${email}`);
+        toast({ title: 'Login Successful!', description: 'A new 15-day Pro trial has started.' });
     }
     router.push('/workflow');
   }, [toast, router]);
 
 
   const logout = useCallback(() => {
-    // Persist current user's subscription state before logging out
-    if (user?.email) {
-        if (trialEndDate) localStorage.setItem(`kairo_trialEnd_${user.email}`, trialEndDate.toISOString());
-        else localStorage.removeItem(`kairo_trialEnd_${user.email}`);
-        localStorage.setItem(`kairo_proStatus_${user.email}`, String(hasPurchasedPro));
-    }
-
+    // Persisting state is now handled by the useEffect hook.
     setIsLoggedIn(false);
     setUser(null);
     setTrialEndDate(null); 
     setHasPurchasedPro(false);
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
     router.push('/');
-  }, [user, trialEndDate, hasPurchasedPro, toast, router]);
+  }, [toast, router]);
 
   const upgradeToPro = useCallback(() => {
     if (!isLoggedIn || !user) {
@@ -130,26 +150,9 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     setHasPurchasedPro(true);
-    setTrialEndDate(null); 
-    localStorage.setItem(`kairo_proStatus_${user.email}`, 'true');
-    localStorage.removeItem(`kairo_trialEnd_${user.email}`);
+    setTrialEndDate(null);
     toast({ title: 'Upgrade Successful!', description: 'You now have full access to Pro features.' });
   }, [isLoggedIn, user, toast, router]);
-
-  const forceEndTrial = useCallback(() => {
-    if (!isLoggedIn || !user) {
-        toast({ title: 'Not Logged In', description: 'Cannot end trial if not logged in.', variant: 'destructive' });
-        return;
-    }
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 1); // Set to yesterday
-    setTrialEndDate(pastDate);
-    setHasPurchasedPro(false); // Ensure not marked as Pro
-    localStorage.setItem(`kairo_trialEnd_${user.email}`, pastDate.toISOString());
-    localStorage.setItem(`kairo_proStatus_${user.email}`, 'false');
-    toast({ title: 'Developer Action', description: 'Pro Trial has been ended. You are now on the Free tier.' });
-  }, [isLoggedIn, user, toast]);
-
 
   return (
     <SubscriptionContext.Provider value={{ 
@@ -163,7 +166,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       signup, 
       logout, 
       upgradeToPro,
-      forceEndTrial, // Expose the new function
       isProOrTrial,
       daysRemainingInTrial
     }}>

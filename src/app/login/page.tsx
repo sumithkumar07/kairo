@@ -71,9 +71,11 @@ export default function LoginPage() {
             Kairo
           </Link>
           <nav className="space-x-4">
-            <Link href="/signup" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Sign Up
-            </Link>
+            <Button asChild variant="ghost">
+                <Link href="/signup">
+                    Sign Up
+                </Link>
+            </Button>
           </nav>
         </div>
       </header>

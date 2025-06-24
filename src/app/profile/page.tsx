@@ -4,7 +4,7 @@
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow } from 'lucide-react';
+import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -51,7 +51,7 @@ export default function ProfilePage() {
             <Workflow className="h-8 w-8 mr-2" />
             Kairo
           </Link>
-          <nav className="space-x-4">
+          <nav className="space-x-2">
              <Button variant="ghost" asChild>
                 <Link href="/workflow">
                     Workflow Editor
@@ -112,7 +112,7 @@ export default function ProfilePage() {
           <CardFooter className="flex flex-col gap-3 border-t pt-6">
             <Button asChild className="w-full" variant="default">
               <Link href="/subscriptions">
-                <ShieldCheck className="mr-2 h-4 w-4" /> Manage Subscription
+                <Edit className="mr-2 h-4 w-4" /> Manage Subscription
               </Link>
             </Button>
              <Button onClick={logout} variant="outline" className="w-full">

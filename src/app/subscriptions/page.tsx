@@ -12,106 +12,50 @@ import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription';
 export default function SubscriptionsPage() {
   const { 
     currentTier, 
-    features, 
     upgradeToPro, 
     isLoggedIn, 
-    user, 
-    signup,
     daysRemainingInTrial,
-    trialEndDate
+    isProOrTrial
   } = useSubscription();
-  
-  const tierDisplayName = (tier: typeof currentTier) => {
+
+  const getTierDisplayName = (tier: typeof currentTier) => {
     if (tier === 'Pro Trial') return 'Pro Trial';
     if (tier === 'Pro') return 'Pro Tier';
     return 'Free Tier';
   };
 
-  const isTrialExpired = isLoggedIn && currentTier === 'Free' && trialEndDate && trialEndDate <= new Date();
+  const isTrialActive = currentTier === 'Pro Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0;
+  const isTrialExpired = isLoggedIn && currentTier === 'Free' && isProOrTrial === false && daysRemainingInTrial === 0;
 
-  const tierDetails = {
-    Free: {
-      name: 'Free Tier',
-      price: '$0/month',
-      description: 'Get started with basic workflow automation and AI assistance.',
-      features: [
-        `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-        `AI Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
-        `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
-        `Max Saved Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
-        'Community Support',
-      ],
-      cta: {
-        text: 'Your Current Plan',
-        disabled: true,
-      },
-    },
-    Pro: {
-      name: 'Pro Tier',
-      price: '$29/month',
-      description: 'Unlock the full power of Kairo with unlimited features and priority support.',
-      features: [
-        `AI Workflow Generations: Unlimited`,
-        `AI Workflow Explanations: Full AI Explanations & Suggestions`,
-        `Advanced Nodes: Full Node Library Access`,
-        `Max Saved Workflows: Unlimited`,
-        'Priority Email Support',
-      ],
-      cta: { 
-        text: '', 
-        disabled: false,
-        action: undefined as (() => void) | undefined,
-        href: undefined as string | undefined,
-      },
-    },
+  const freeTierFeaturesList = [
+    `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
+    `AI Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
+    `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
+    `Max Saved Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
+    'Community Support',
+  ];
+
+  const proTierFeaturesList = [
+    `AI Workflow Generations: Unlimited`,
+    `AI Workflow Explanations: Full AI Explanations & Suggestions`,
+    `Advanced Nodes: Full Node Library Access`,
+    `Max Saved Workflows: Unlimited`,
+    'Priority Email Support',
+  ];
+
+  const renderProCtaButton = () => {
+    if (currentTier === 'Pro') {
+      return <Button className="w-full text-base py-6" disabled><ShieldCheck className="mr-2 h-4 w-4" />Your Current Plan</Button>;
+    }
+    if (isTrialActive) {
+      return <Button onClick={upgradeToPro} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Activate Full Pro Plan</Button>;
+    }
+    if (!isLoggedIn) {
+      return <Button asChild className="w-full text-base py-6"><Link href="/signup"><UserPlus className="mr-2 h-4 w-4" />Sign Up for 15-Day Trial</Link></Button>;
+    }
+    return <Button onClick={upgradeToPro} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />Upgrade to Pro</Button>;
   };
-
-  let proTierCtaText = 'Upgrade to Pro';
-  let proTierCtaAction: (() => void) | undefined = upgradeToPro;
-  let proTierCtaDisabled = false;
-  let proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
-  let proTierCtaHref: string | undefined = undefined;
-
-  if (!isLoggedIn) {
-    proTierCtaText = 'Sign Up for 15-Day Pro Trial';
-    proTierCtaAction = undefined; 
-    proTierCtaHref = "/signup";
-    proTierCtaIcon = <UserPlus className="mr-2 h-4 w-4" />;
-    proTierCtaDisabled = false;
-  } else if (currentTier === 'Pro Trial') {
-    proTierCtaText = 'Activate Full Pro Plan';
-    proTierCtaAction = upgradeToPro;
-    proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
-    proTierCtaDisabled = false; 
-    proTierCtaHref = undefined;
-  } else if (currentTier === 'Pro') {
-    proTierCtaText = 'You are on the Pro Tier';
-    proTierCtaAction = undefined;
-    proTierCtaDisabled = true;
-    proTierCtaIcon = <ShieldCheck className="mr-2 h-4 w-4" />;
-    proTierCtaHref = undefined;
-  } else if (isLoggedIn && currentTier === 'Free' && !isTrialExpired) {
-     proTierCtaText = 'Start 15-Day Pro Trial';
-     proTierCtaAction = () => signup(user!.email); 
-     proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
-     proTierCtaDisabled = false;
-     proTierCtaHref = undefined;
-  } else if (isTrialExpired) { 
-    proTierCtaText = 'Upgrade to Pro';
-    proTierCtaAction = upgradeToPro;
-    proTierCtaIcon = <Workflow className="mr-2 h-4 w-4" />;
-    proTierCtaDisabled = false;
-    proTierCtaHref = undefined;
-  }
   
-  tierDetails.Pro.cta = {
-    text: proTierCtaText,
-    disabled: proTierCtaDisabled,
-    action: proTierCtaAction,
-    href: proTierCtaHref,
-  };
-
-
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -121,9 +65,11 @@ export default function SubscriptionsPage() {
             Kairo
           </Link>
           <nav>
-            <Link href="/workflow" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Workflow Editor
-            </Link>
+            <Button variant="ghost" asChild>
+                <Link href="/workflow">
+                  Workflow Editor
+                </Link>
+            </Button>
           </nav>
         </div>
       </header>
@@ -134,11 +80,9 @@ export default function SubscriptionsPage() {
             Choose Your Kairo Plan
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            {isLoggedIn && currentTier === 'Pro Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0 ? 
-              `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
-              isTrialExpired ?
-              `Your Pro Trial has expired. Please upgrade to continue using Pro features.` :
-              `Unlock powerful AI automation features tailored to your needs.`
+            {isTrialActive ? `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
+             isTrialExpired ? `Your Pro Trial has expired. Please upgrade to continue using Pro features.` :
+             `Unlock powerful AI automation features tailored to your needs.`
             }
           </p>
         </section>
@@ -168,15 +112,15 @@ export default function SubscriptionsPage() {
           )}>
             <CardHeader className="pb-4">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-2xl font-semibold text-primary">{tierDetails.Free.name}</CardTitle>
+                <CardTitle className="text-2xl font-semibold text-primary">Free Tier</CardTitle>
                 {isLoggedIn && currentTier === 'Free' && <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">Current Plan</span>}
               </div>
-              <CardDescription className="text-sm pt-1">{tierDetails.Free.description}</CardDescription>
-              <p className="text-3xl font-bold text-foreground pt-2">{tierDetails.Free.price}</p>
+              <CardDescription className="text-sm pt-1">Get started with basic workflow automation.</CardDescription>
+              <p className="text-3xl font-bold text-foreground pt-2">$0/month</p>
             </CardHeader>
             <CardContent className="flex-grow">
               <ul className="space-y-2.5 text-sm">
-                {tierDetails.Free.features.map((feature, index) => (
+                {freeTierFeaturesList.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2.5 mt-0.5 shrink-0" />
                     <span className="text-muted-foreground">{feature}</span>
@@ -185,38 +129,14 @@ export default function SubscriptionsPage() {
               </ul>
             </CardContent>
             <CardFooter className="mt-auto pt-6">
-               {isLoggedIn && currentTier === 'Free' ? (
-                  <Button
-                    className="w-full text-base py-6 shadow-md"
-                    variant="default" 
-                    disabled={true}
-                  >
-                    {tierDetails.Free.cta.text}
-                  </Button>
-               ) : !isLoggedIn ? (
-                  <Button
-                    className="w-full text-base py-6 shadow-md"
-                    variant="outline"
-                    disabled={true}
-                  >
-                    Sign up to activate
-                  </Button>
-               ) : ( 
-                  <Button
-                    className="w-full text-base py-6 shadow-md"
-                    variant="outline"
-                    disabled={true}
-                  >
-                    Your plan is {tierDisplayName(currentTier)}
-                  </Button>
-               )}
+              <Button className="w-full text-base py-6" variant="default" disabled={true}>Your Current Plan</Button>
             </CardFooter>
           </Card>
 
           {/* Pro Tier Card */}
           <Card className={cn(
             "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
-            isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial') && "border-2 border-primary ring-4 ring-primary/20"
+            isProOrTrial && "border-2 border-primary ring-4 ring-primary/20"
           )}>
             <CardHeader className="pb-4 bg-gradient-to-tr from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-t-lg relative">
               <div className="absolute top-3 right-3">
@@ -226,18 +146,18 @@ export default function SubscriptionsPage() {
                   </div>
               </div>
                <div className="flex justify-between items-center pt-2">
-                <CardTitle className="text-2xl font-semibold text-primary">{tierDetails.Pro.name}</CardTitle>
+                <CardTitle className="text-2xl font-semibold text-primary">Pro Tier</CardTitle>
                 {isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial') && 
                   <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">
-                    {currentTier === 'Pro Trial' ? 'Active Trial' : 'Current Plan'}
+                    {getTierDisplayName(currentTier)}
                   </span>}
               </div>
-              <CardDescription className="text-sm pt-1">{tierDetails.Pro.description}</CardDescription>
-              <p className="text-3xl font-bold text-foreground pt-2">{tierDetails.Pro.price}</p>
+              <CardDescription className="text-sm pt-1">Unlock the full power of Kairo.</CardDescription>
+              <p className="text-3xl font-bold text-foreground pt-2">$29/month</p>
             </CardHeader>
             <CardContent className="flex-grow">
               <ul className="space-y-2.5 text-sm">
-                {tierDetails.Pro.features.map((feature, index) => (
+                {proTierFeaturesList.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <ShieldCheck className="h-4 w-4 text-primary mr-2.5 mt-0.5 shrink-0" />
                     <span className="text-muted-foreground">{feature}</span>
@@ -246,24 +166,7 @@ export default function SubscriptionsPage() {
               </ul>
             </CardContent>
             <CardFooter className="mt-auto pt-6">
-              {tierDetails.Pro.cta.href ? (
-                <Button asChild className="w-full text-base py-6 shadow-md hover:shadow-primary/30">
-                  <Link href={tierDetails.Pro.cta.href}>
-                    {proTierCtaIcon}
-                    {tierDetails.Pro.cta.text}
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  className="w-full text-base py-6 shadow-md hover:shadow-primary/30"
-                  variant={(isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial')) ? "default" : "secondary"}
-                  onClick={tierDetails.Pro.cta.action}
-                  disabled={tierDetails.Pro.cta.disabled}
-                >
-                  {proTierCtaIcon}
-                  {tierDetails.Pro.cta.text}
-                </Button>
-              )}
+              {renderProCtaButton()}
             </CardFooter>
           </Card>
         </div>

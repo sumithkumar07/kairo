@@ -88,9 +88,11 @@ export default function SignupPage() {
             Kairo
           </Link>
           <nav className="space-x-4">
-            <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-              Log In
-            </Link>
+            <Button asChild variant="ghost">
+                <Link href="/login">
+                    Log In
+                </Link>
+            </Button>
           </nav>
         </div>
       </header>
