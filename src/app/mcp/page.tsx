@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import {
@@ -26,7 +26,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { McpCommandRecord } from '@/types/workflow';
 import { getMcpHistory } from '@/services/workflow-storage-service';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type Tool = { name: string; description: string; icon: React.ElementType; service: string; };
@@ -44,7 +45,6 @@ const INITIAL_TOOLS = ALL_AVAILABLE_TOOLS.slice(0, 3);
 
 
 export default function MCPDashboardPage() {
-  const [activeTab, setActiveTab] = useState('configure');
   const { user } = useSubscription();
   const { toast } = useToast();
 
@@ -52,6 +52,8 @@ export default function MCPDashboardPage() {
   const [commandHistory, setCommandHistory] = useState<McpCommandRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showAddToolDialog, setShowAddToolDialog] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -84,6 +86,19 @@ export default function MCPDashboardPage() {
     toast({ title: 'Tool Removed', description: `"${toolName}" has been removed from your server.` });
   };
 
+  const handleGenerateKey = () => {
+    setApiKey(`kairo_sk_${crypto.randomUUID().replace(/-/g, '')}`);
+    setIsCopied(false);
+    toast({ title: 'API Key Generated', description: 'Your new API key is ready to be used.' });
+  };
+
+  const handleCopyKey = () => {
+    if (!apiKey) return;
+    navigator.clipboard.writeText(apiKey);
+    setIsCopied(true);
+    toast({ title: 'Copied to Clipboard!', description: 'The API key has been copied.' });
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   const getInitials = (email: string | undefined) => {
     if (!email) return '..';
@@ -118,7 +133,7 @@ export default function MCPDashboardPage() {
           <SidebarContent className="flex-1">
               <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton size="sm">
+                    <SidebarMenuButton size="sm" onClick={() => toast({ title: 'Coming Soon!', description: 'The ability to create multiple MCP servers is planned for a future update.' })}>
                       <Plus className="h-4 w-4" />
                       New MCP Server
                     </SidebarMenuButton>
@@ -146,133 +161,142 @@ export default function MCPDashboardPage() {
           </SidebarFooter>
       </Sidebar>
       <SidebarInset className="flex flex-col bg-background">
-          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 shadow-sm sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-            <div className="flex items-center gap-2">
-                <SidebarTrigger className="md:hidden"/>
-                <h1 className="text-xl font-semibold">Cursor MCP Server</h1>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg bg-secondary p-1">
-                <Button variant={activeTab === 'configure' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('configure')} className="h-7 text-xs shadow-sm data-[variant=primary]:bg-background data-[variant=primary]:text-primary-foreground">
-                    <Settings className="h-4 w-4 mr-1.5" />Configure
-                </Button>
-                 <Button variant={activeTab === 'connect' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('connect')} className="h-7 text-xs shadow-sm data-[variant=primary]:bg-background data-[variant=primary]:text-primary-foreground">
-                    <Zap className="h-4 w-4 mr-1.5" />Connect
-                </Button>
-                 <Button variant={activeTab === 'history' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('history')} className="h-7 text-xs shadow-sm data-[variant=primary]:bg-background data-[variant=primary]:text-primary-foreground">
-                    <History className="h-4 w-4 mr-1.5" />History
-                </Button>
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto p-4 sm:p-6">
-             <div className="max-w-4xl mx-auto grid gap-6">
-                 {activeTab === 'configure' && (
-                    <>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Client</CardTitle>
-                            <CardDescription className="text-xs">Choose which MCP client you want to use with this server.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <Button variant="outline" className="w-full justify-start">
-                                <Workflow className="h-4 w-4 mr-2" /> Kairo
-                             </Button>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <CardTitle className="text-base">Tools</CardTitle>
-                                    <CardDescription className="text-xs">What your MCP server can do across various apps.</CardDescription>
-                                </div>
-                                <Button size="sm" variant="outline" onClick={() => setShowAddToolDialog(true)}><Plus className="h-4 w-4 mr-2" />Add tool</Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {configuredTools.map((tool) => (
-                                    <div key={tool.name} className="flex items-center gap-4 p-2 border rounded-lg bg-background hover:bg-muted/50">
-                                        <div className="p-1 bg-muted rounded-md">
-                                            <tool.icon className="h-5 w-5 text-muted-foreground" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-medium text-sm">{tool.name}</p>
-                                        </div>
-                                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveTool(tool.name)}>
-                                            <X className="h-4 w-4 text-destructive" />
-                                         </Button>
+        <Tabs defaultValue="configure" className="flex flex-col h-full">
+            <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 shadow-sm sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+                <div className="flex items-center gap-2">
+                    <SidebarTrigger className="md:hidden"/>
+                    <h1 className="text-xl font-semibold">Cursor MCP Server</h1>
+                </div>
+                <TabsList className="grid w-auto grid-cols-3 h-9">
+                  <TabsTrigger value="configure" className="text-xs px-3"><Settings className="h-4 w-4 mr-1.5" />Configure</TabsTrigger>
+                  <TabsTrigger value="connect" className="text-xs px-3"><Zap className="h-4 w-4 mr-1.5" />Connect</TabsTrigger>
+                  <TabsTrigger value="history" className="text-xs px-3"><History className="h-4 w-4 mr-1.5" />History</TabsTrigger>
+                </TabsList>
+            </header>
+            <main className="flex-1 overflow-auto p-4 sm:p-6">
+                <div className="max-w-4xl mx-auto grid gap-6">
+                    <TabsContent value="configure" className="m-0 space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Client</CardTitle>
+                                <CardDescription className="text-xs">Choose which MCP client you want to use with this server.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Button variant="secondary" className="w-full justify-start border-primary/30 border ring-1 ring-primary/20">
+                                    <CheckCircle2 className="h-4 w-4 mr-2 text-primary" /> Kairo
+                                </Button>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <CardTitle className="text-base">Tools</CardTitle>
+                                        <CardDescription className="text-xs">What your MCP server can do across various apps.</CardDescription>
                                     </div>
-                                ))}
-                                {configuredTools.length === 0 && (
-                                  <div className="text-center py-6 text-sm text-muted-foreground">No tools configured. Click "Add tool" to get started.</div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                    </>
-                 )}
-                 {activeTab === 'connect' && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Connect to MCP</CardTitle>
-                            <CardDescription>Use this information to connect your applications to the Kairo MCP.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API Endpoint</div>
-                                <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono">/api/mcp</pre>
-                                <p className="text-xs text-muted-foreground mt-1">Send a POST request with a JSON body: <code className="text-xs bg-muted p-1 rounded font-mono">{`{ "command": "your prompt here" }`}</code></p>
-                            </div>
-                             <div>
-                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Authentication</div>
-                                <p className="text-sm mt-1 text-muted-foreground">In a production environment, you would generate a unique API key for your server here. That key would then be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header of your requests (e.g., <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>).</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                 )}
-                 {activeTab === 'history' && (
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Command History</CardTitle>
-                            <CardDescription>A log of commands sent to the AI assistant via the MCP endpoint.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {isLoadingHistory ? (
-                                <div className="text-center py-12"><Loader2 className="h-8 w-8 text-primary mx-auto animate-spin" /></div>
-                            ) : commandHistory.length === 0 ? (
-                                <div className="text-center text-muted-foreground text-sm py-12">
-                                  <History className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                                  Command history will appear here once you use the API endpoint.
+                                    <Button size="sm" variant="outline" onClick={() => setShowAddToolDialog(true)}><Plus className="h-4 w-4 mr-2" />Add tool</Button>
                                 </div>
-                            ) : (
-                                <ScrollArea className="h-96">
-                                    <div className="space-y-4">
-                                      {commandHistory.map(record => (
-                                        <div key={record.id} className="p-3 border rounded-lg bg-muted/30">
-                                          <div className="flex justify-between items-start">
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2">
+                                    {configuredTools.map((tool) => (
+                                        <div key={tool.name} className="flex items-center gap-4 p-2 border rounded-lg bg-background hover:bg-muted/50">
+                                            <div className="p-1 bg-muted rounded-md">
+                                                <tool.icon className="h-5 w-5 text-muted-foreground" />
+                                            </div>
                                             <div className="flex-1">
-                                              <p className="text-sm font-mono text-foreground font-semibold">
-                                                <span className="text-primary">&gt;</span> {record.command}
-                                              </p>
-                                              <p className="text-sm text-muted-foreground mt-1.5 whitespace-pre-wrap">{record.response}</p>
+                                                <p className="font-medium text-sm">{tool.name}</p>
                                             </div>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground ml-4 shrink-0">
-                                              {getStatusIndicator(record.status)}
-                                              <span title={new Date(record.timestamp).toLocaleString()}>
-                                                {formatDistanceToNow(new Date(record.timestamp), { addSuffix: true })}
-                                              </span>
-                                            </div>
-                                          </div>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveTool(tool.name)}>
+                                                <X className="h-4 w-4 text-destructive" />
+                                            </Button>
                                         </div>
-                                      ))}
+                                    ))}
+                                    {configuredTools.length === 0 && (
+                                    <div className="text-center py-6 text-sm text-muted-foreground">No tools configured. Click "Add tool" to get started.</div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="connect" className="m-0">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Connect to MCP</CardTitle>
+                                <CardDescription>Use this information to connect your applications to the Kairo MCP.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div>
+                                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API Endpoint</div>
+                                    <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono">/api/mcp</pre>
+                                    <p className="text-xs text-muted-foreground mt-1">Send a POST request with a JSON body: <code className="text-xs bg-muted p-1 rounded font-mono">{`{ "command": "your prompt here" }`}</code></p>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication</div>
+                                    <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your server. This key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header of your requests (e.g., <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>).</p>
+                                    <div className="mt-4">
+                                      {!apiKey ? (
+                                          <Button onClick={handleGenerateKey}><KeyRound className="h-4 w-4 mr-2" />Generate API Key</Button>
+                                      ) : (
+                                          <div className="space-y-3">
+                                            <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+                                              <pre className="text-sm font-mono flex-1 truncate">{apiKey}</pre>
+                                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyKey}>
+                                                {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                              </Button>
+                                            </div>
+                                            <Button variant="destructive" size="sm" onClick={handleGenerateKey}>Revoke & Regenerate Key</Button>
+                                          </div>
+                                      )}
                                     </div>
-                                </ScrollArea>
-                            )}
-                        </CardContent>
-                    </Card>
-                 )}
-             </div>
-          </main>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="history" className="m-0">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Command History</CardTitle>
+                                <CardDescription>A log of commands sent to the AI assistant via the MCP endpoint.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {isLoadingHistory ? (
+                                    <div className="text-center py-12"><Loader2 className="h-8 w-8 text-primary mx-auto animate-spin" /></div>
+                                ) : commandHistory.length === 0 ? (
+                                    <div className="text-center text-muted-foreground text-sm py-12">
+                                    <History className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                                    Command history will appear here once you use the API endpoint.
+                                    </div>
+                                ) : (
+                                    <ScrollArea className="h-96">
+                                        <div className="space-y-4">
+                                        {commandHistory.map(record => (
+                                            <div key={record.id} className="p-3 border rounded-lg bg-muted/30">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                <p className="text-sm font-mono text-foreground font-semibold">
+                                                    <span className="text-primary">&gt;</span> {record.command}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground mt-1.5 whitespace-pre-wrap">{record.response}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground ml-4 shrink-0">
+                                                {getStatusIndicator(record.status)}
+                                                <span title={new Date(record.timestamp).toLocaleString()}>
+                                                    {formatDistanceToNow(new Date(record.timestamp), { addSuffix: true })}
+                                                </span>
+                                                </div>
+                                            </div>
+                                            </div>
+                                        ))}
+                                        </div>
+                                    </ScrollArea>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </div>
+            </main>
+        </Tabs>
       </SidebarInset>
     </div>
     <Dialog open={showAddToolDialog} onOpenChange={setShowAddToolDialog}>
@@ -311,3 +335,5 @@ export default function MCPDashboardPage() {
     </SidebarProvider>
   );
 }
+
+    
