@@ -102,7 +102,7 @@ const WorkflowNodeItemComponent = ({
       onDragStart={(e) => !isConnecting && onDragStartInternal(e, node.id)}
       onClick={(e) => !(e.target as HTMLElement).closest('[data-handle-id]') && onClick(node.id)}
       className={cn(
-        'absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
+        'workflow-node-item absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
         'flex flex-col overflow-hidden bg-card/95 backdrop-blur-sm border',
         isConnecting ? 'cursor-crosshair' : 'cursor-grab',
         nodeStyleClasses, 

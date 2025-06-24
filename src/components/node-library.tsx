@@ -9,9 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Search, ShieldCheck, Star } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getCanvasNodeStyling } from '@/config/nodes'; // Import the centralized styling function
-
-// Remove local getCategoryStyling as we'll use the one from config/nodes.ts
+import { getCanvasNodeStyling } from '@/config/nodes';
 
 interface NodeLibraryProps {
   availableNodes: AvailableNodeType[];
@@ -76,7 +74,6 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
             <p className="text-sm text-muted-foreground text-center py-4">No nodes found matching "{searchTerm}".</p>
           )}
           {filteredNodes.map((nodeType) => {
-            // Use the centralized getCanvasNodeStyling for consistency
             const itemStyling = getCanvasNodeStyling(nodeType.category);
             const isLocked = nodeType.isAdvanced && !isProOrTrial;
             const tooltipContent = isLocked 
@@ -92,10 +89,10 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
                       onDragStart={(e) => handleDragStart(e, nodeType)}
                       className={cn(
                         "p-3 border rounded-lg flex flex-col gap-1.5 shadow-sm relative transition-all duration-150 ease-in-out",
-                        itemStyling.nodeBorder, // Use nodeBorder for consistency
+                        itemStyling.nodeBorder,
                         isLocked 
                           ? 'bg-muted/30 cursor-not-allowed opacity-60' 
-                          : `${itemStyling.headerBg} cursor-grab hover:shadow-md hover:ring-1 hover:ring-primary/50 hover:scale-[1.03]` // Use headerBg for library item background
+                          : `${itemStyling.headerBg} cursor-grab hover:shadow-md hover:ring-1 hover:ring-primary/50 hover:scale-[1.03]`
                       )}
                       title={tooltipContent} 
                     >

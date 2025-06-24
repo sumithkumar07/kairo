@@ -374,20 +374,30 @@ async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulatio
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SENDEMAIL] SIMULATION: Would send email to ${config.to}.`, type: 'info' });
         return { messageId: config.simulatedMessageId || 'simulated-email-id-default' };
     }
+    if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) {
+        throw new Error("Missing EMAIL_* environment variables. All are required for sending emails in Live Mode.");
+    }
     if (!config.to || !config.subject || !config.body) throw new Error(`'to', 'subject', and 'body' are required.`);
-    if (!process.env.EMAIL_HOST) throw new Error(`Missing EMAIL_ environment variables.`);
+    
     const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT!, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
     const info = await transporter.sendMail({ from: process.env.EMAIL_FROM, to: config.to, subject: config.subject, html: config.body });
     return { messageId: info.messageId };
 }
 
 async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
-    const pool = getDbPool();
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DATABASEQUERY] SIMULATION: Would execute query.`, type: 'info' });
         return { results: config.simulatedResults || [], rowCount: config.simulatedRowCount || (config.simulatedResults?.length || 0) };
     }
+    
+    const resolvedConnectionString = resolveValue(process.env.DB_CONNECTION_STRING, {}, serverLogs);
+    if (!resolvedConnectionString) {
+       throw new Error("DB_CONNECTION_STRING environment variable is not set or not resolved. It's required for database queries in Live Mode.");
+    }
+
+    const pool = getDbPool();
     if (!config.queryText) throw new Error(`'queryText' is required.`);
+    
     const client = await pool.connect();
     try {
         const queryResult = await client.query(config.queryText, Array.isArray(config.queryParams) ? config.queryParams : []);
@@ -399,8 +409,9 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
 
 async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[]): Promise<any> {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${config?.message}`, type: 'info' });
-    return { output: config?.message };
+    const resolvedMessage = resolveValue(config?.message, {}, serverLogs); // Resolve placeholders in the message
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${resolvedMessage}`, type: 'info' });
+    return { output: resolvedMessage };
 }
 
 const nodeExecutionFunctions: { [key: string]: Function } = {

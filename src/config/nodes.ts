@@ -220,11 +220,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'logMessage',
     name: 'Log Message',
     icon: Terminal,
-    description: 'Logs a message to the workflow execution log.',
+    description: 'Logs a message to the workflow execution log. Useful for debugging.',
     category: 'io',
-    defaultConfig: { message: 'Workflow log: ' },
+    defaultConfig: { message: 'Workflow log: {{input}}' },
     configSchema: {
-      message: { label: 'Message to Log', type: 'textarea', placeholder: 'Current value: {{data.value}}', required: true },
+      message: { label: 'Message to Log', type: 'textarea', placeholder: 'Current value: {{data.value}}', required: true, helperText: 'You can use placeholders to log dynamic data.' },
     },
     inputHandles: ['input'],
     outputHandles: ['output'],
@@ -737,6 +737,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'print to console': 'logMessage',
   'debug log': 'logMessage',
   'output message': 'logMessage',
+  'log': 'logMessage',
   'getenvvar': 'getEnvironmentVariable',
   'get env var': 'getEnvironmentVariable',
   'get environment variable': 'getEnvironmentVariable',
@@ -1037,4 +1038,3 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
-

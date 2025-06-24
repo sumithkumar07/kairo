@@ -29,7 +29,7 @@ interface WorkflowCanvasProps {
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void; // Updated signature
+  onCanvasClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
   onCanvasPanStart: (event: React.MouseEvent) => void;
   canvasOffset: { x: number; y: number };
   isPanningForCursor: boolean;
@@ -154,13 +154,13 @@ export function WorkflowCanvas({
 
     if (targetIsCanvas && !clickedOnConnectionTarget) {
       if (event.button === 0) {
-        onCanvasClick(event); // Pass event
+        onCanvasClick(event);
         onCanvasPanStart(event);
       }
     } else if (!targetIsCanvas && !clickedOnConnectionTarget) {
         const isNodeOrHandle = (event.target as HTMLElement).closest('.workflow-node-item, [data-handle-id]');
         if (!isNodeOrHandle) {
-          onCanvasClick(event); // Pass event
+          onCanvasClick(event);
         }
     }
   };
@@ -253,10 +253,10 @@ export function WorkflowCanvas({
               );
             })}
             {isConnecting && previewStartPos && connectionPreview?.previewPosition && (
-              <line
-                x1={previewStartPos.x} y1={previewStartPos.y}
-                x2={connectionPreview.previewPosition.x} y2={connectionPreview.previewPosition.y}
+              <path
+                d={`M ${previewStartPos.x} ${previewStartPos.y} C ${previewStartPos.x + 50} ${previewStartPos.y} ${connectionPreview.previewPosition.x - 50} ${connectionPreview.previewPosition.y} ${connectionPreview.previewPosition.x} ${connectionPreview.previewPosition.y}`}
                 stroke="hsl(var(--accent))" strokeWidth="2" strokeDasharray="5,5"
+                fill="none"
                 markerEnd="url(#arrow-preview)"
               />
             )}
