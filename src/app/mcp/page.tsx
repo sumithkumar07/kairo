@@ -140,11 +140,11 @@ export default function MCPDashboardPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <Label htmlFor="api-endpoint" className="text-xs">API Endpoint</Label>
+                                <div className="text-xs font-medium">API Endpoint</div>
                                 <pre className="mt-1 text-xs p-2 bg-muted rounded-md font-mono text-muted-foreground">/api/mcp</pre>
                             </div>
                              <div>
-                                <Label htmlFor="api-key" className="text-xs">Authentication</Label>
+                                <div className="text-xs font-medium">Authentication</div>
                                 <p className="text-xs mt-1 text-muted-foreground">Authentication would typically be managed via API keys generated in your profile settings (feature not implemented).</p>
                             </div>
                         </CardContent>
