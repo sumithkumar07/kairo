@@ -117,3 +117,35 @@ export const runWorkflowTool = ai.defineTool(
         }
     }
 );
+
+// Conceptual tools to match the Zapier screenshot
+export const youtubeFindVideoTool = ai.defineTool({
+    name: 'youtubeFindVideo',
+    description: 'Finds a YouTube video based on a search query.',
+    inputSchema: z.object({ query: z.string() }),
+    outputSchema: z.object({ videoId: z.string(), title: z.string() }),
+}, async ({ query }) => {
+    // This is a placeholder implementation
+    console.log(`[MCP Tool - Placeholder] Finding YouTube video for query: ${query}`);
+    return { videoId: 'dQw4w9WgXcQ', title: 'Placeholder Video' };
+});
+
+export const youtubeGetReportTool = ai.defineTool({
+    name: 'youtubeGetReport',
+    description: 'Gets a report for a YouTube video.',
+    inputSchema: z.object({ videoId: z.string() }),
+    outputSchema: z.object({ views: z.number(), likes: z.number() }),
+}, async ({ videoId }) => {
+    console.log(`[MCP Tool - Placeholder] Getting report for YouTube video: ${videoId}`);
+    return { views: 1000000, likes: 50000 };
+});
+
+export const googleDriveFindFileTool = ai.defineTool({
+    name: 'googleDriveFindFile',
+    description: 'Finds a file or folder in Google Drive by name.',
+    inputSchema: z.object({ name: z.string() }),
+    outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }),
+}, async ({ name }) => {
+    console.log(`[MCP Tool - Placeholder] Finding Google Drive file: ${name}`);
+    return { fileId: '12345_placeholder_id', name: 'My Placeholder Document', mimeType: 'application/vnd.google-apps.document' };
+});

@@ -5,10 +5,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Workflow, User, Bot, Server, Settings, History, Tv, ListChecks, Play, Zap } from 'lucide-react';
+import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import {
@@ -18,20 +16,20 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarFooter,
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 
-
+// Mocking the tool list based on what's available and inspired by the image
 const availableTools = [
-    { name: 'listSavedWorkflows', description: 'Lists all available saved workflows.', icon: ListChecks },
-    { name: 'getWorkflowDefinition', description: 'Retrieves the structure of a specific workflow.', icon: Tv },
-    { name: 'runWorkflow', description: 'Executes a workflow and returns the result.', icon: Play },
+    { name: 'Workflow: List Saved', description: 'Lists all available saved workflows.', icon: ListChecks, service: 'Kairo' },
+    { name: 'Workflow: Get Definition', description: 'Retrieves the structure of a specific workflow.', icon: Tv, service: 'Kairo' },
+    { name: 'Workflow: Run', description: 'Executes a workflow and returns the result.', icon: Play, service: 'Kairo' },
+    { name: 'YouTube: Find Video', description: 'Finds a YouTube video based on a search query.', icon: Youtube, service: 'YouTube' },
+    { name: 'YouTube: Get Report', description: 'Gets a report for a YouTube video.', icon: Youtube, service: 'YouTube' },
+    { name: 'Google Drive: Find File', description: 'Finds a file or folder in Google Drive by name.', icon: FolderGit2, service: 'Google Drive' },
 ];
 
 export default function MCPDashboardPage() {
@@ -46,15 +44,15 @@ export default function MCPDashboardPage() {
 
   return (
     <SidebarProvider>
-    <div className="flex h-screen w-full bg-muted/40 text-foreground dark:bg-background">
+    <div className="flex h-screen w-full bg-muted/40 text-foreground">
       <Sidebar side="left" variant="sidebar" collapsible="offcanvas" className="group hidden w-64 shrink-0 flex-col justify-between border-r bg-card p-2 shadow-sm data-[mobile=true]:dark:bg-background md:flex">
           <SidebarHeader>
               <div className="flex items-center gap-3 p-2">
                 <div className="p-2 bg-primary/10 rounded-lg">
-                    <Server className="h-6 w-6 text-primary" />
+                    <Zap className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                    <h2 className="text-base font-semibold">MCP Server</h2>
+                    <h2 className="text-base font-semibold">Kairo MCP</h2>
                     <p className="text-xs text-muted-foreground">AI Command Control</p>
                 </div>
               </div>
@@ -62,21 +60,16 @@ export default function MCPDashboardPage() {
           <SidebarContent className="flex-1">
               <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'configure'} onClick={() => setActiveTab('configure')}>
-                      <Settings className="h-4 w-4" />
-                      Configure
+                    <SidebarMenuButton size="sm">
+                      <Plus className="h-4 w-4" />
+                      New MCP Server
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                   <Separator className="my-2" />
                   <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'connect'} onClick={() => setActiveTab('connect')}>
-                      <Zap className="h-4 w-4" />
-                      Connect
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'history'} onClick={() => setActiveTab('history')}>
-                      <History className="h-4 w-4" />
-                      History
+                    <SidebarMenuButton size="sm" isActive={true}>
+                      <Server className="h-4 w-4" />
+                      Cursor MCP Server
                     </SidebarMenuButton>
                   </SidebarMenuItem>
               </SidebarMenu>
@@ -94,45 +87,70 @@ export default function MCPDashboardPage() {
               </div>
           </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="flex flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 shadow-sm sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <SidebarInset className="flex flex-col bg-background">
+          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 shadow-sm sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <div className="flex items-center gap-2">
                 <SidebarTrigger className="md:hidden"/>
-                <Link href="/" className="text-2xl font-bold text-primary flex items-center gap-2">
-                    <Workflow className="h-6 w-6" />
-                    Kairo
-                </Link>
+                <h1 className="text-xl font-semibold">Cursor MCP Server</h1>
             </div>
-            <Button asChild variant="outline">
-                <Link href="/workflow">Go to Editor</Link>
-            </Button>
+            <div className="flex items-center gap-2 rounded-lg bg-secondary p-1">
+                <Button variant={activeTab === 'configure' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('configure')} className="h-7 text-xs shadow-sm data-[variant=primary]:bg-background data-[variant=primary]:text-primary-foreground">
+                    <Settings className="h-4 w-4 mr-1.5" />Configure
+                </Button>
+                 <Button variant={activeTab === 'connect' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('connect')} className="h-7 text-xs shadow-sm data-[variant=primary]:bg-background data-[variant=primary]:text-primary-foreground">
+                    <Zap className="h-4 w-4 mr-1.5" />Connect
+                </Button>
+                 <Button variant={activeTab === 'history' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('history')} className="h-7 text-xs shadow-sm data-[variant=primary]:bg-background data-[variant=primary]:text-primary-foreground">
+                    <History className="h-4 w-4 mr-1.5" />History
+                </Button>
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-4 sm:p-6">
-             <div className="max-w-4xl mx-auto">
+             <div className="max-w-4xl mx-auto grid gap-6">
                  {activeTab === 'configure' && (
+                    <>
                     <Card>
                         <CardHeader>
-                            <CardTitle>AI Assistant Tools</CardTitle>
-                            <CardDescription>These are the capabilities (tools) the Kairo AI assistant can use to help you automate tasks and manage workflows.</CardDescription>
+                            <CardTitle className="text-base">Client</CardTitle>
+                            <CardDescription className="text-xs">Choose which MCP client you want to use with this server.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
+                             <Button variant="outline" className="w-full justify-start">
+                                <Workflow className="h-4 w-4 mr-2" /> Kairo
+                             </Button>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle className="text-base">Tools</CardTitle>
+                                    <CardDescription className="text-xs">What your MCP server can do across various apps.</CardDescription>
+                                </div>
+                                <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-2" />Add tool</Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
                                 {availableTools.map((tool) => (
-                                    <div key={tool.name} className="flex items-start gap-4 p-3 border rounded-lg bg-muted/50">
-                                        <div className="p-2 bg-primary/10 text-primary rounded-md">
-                                            <tool.icon className="h-5 w-5" />
+                                    <div key={tool.name} className="flex items-center gap-4 p-2 border rounded-lg bg-background hover:bg-muted/50">
+                                        <div className="p-1 bg-muted rounded-md">
+                                            <tool.icon className="h-5 w-5 text-muted-foreground" />
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-sm">{tool.name}</p>
-                                            <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                        <div className="flex-1">
+                                            <p className="font-medium text-sm">{tool.name}</p>
                                         </div>
+                                         <Button variant="ghost" size="icon" className="h-6 w-6">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                         </Button>
                                     </div>
                                 ))}
                             </div>
                         </CardContent>
                     </Card>
+                    </>
                  )}
-                  {activeTab === 'connect' && (
+                 {activeTab === 'connect' && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Connect to MCP</CardTitle>
@@ -140,12 +158,12 @@ export default function MCPDashboardPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <div className="text-xs font-medium">API Endpoint</div>
-                                <pre className="mt-1 text-xs p-2 bg-muted rounded-md font-mono text-muted-foreground">/api/mcp</pre>
+                                <div className="text-xs font-semibold">API Endpoint</div>
+                                <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono text-muted-foreground">/api/mcp</pre>
                             </div>
                              <div>
-                                <div className="text-xs font-medium">Authentication</div>
-                                <p className="text-xs mt-1 text-muted-foreground">Authentication would typically be managed via API keys generated in your profile settings (feature not implemented).</p>
+                                <div className="text-xs font-semibold">Authentication</div>
+                                <p className="text-sm mt-1 text-muted-foreground">Authentication would typically be managed via API keys generated in your profile settings (feature not implemented).</p>
                             </div>
                         </CardContent>
                     </Card>
