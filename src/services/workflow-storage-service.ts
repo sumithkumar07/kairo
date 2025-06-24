@@ -6,12 +6,14 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import type { Workflow, ExampleWorkflow, WorkflowRunRecord } from '@/types/workflow';
+import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 
 const WORKFLOWS_DB_PATH = path.join(process.cwd(), 'src/data/user_workflows.json');
 const RUN_HISTORY_DB_PATH = path.join(process.cwd(), 'src/data/run_history.json');
+const MCP_HISTORY_DB_PATH = path.join(process.cwd(), 'src/data/mcp_command_history.json');
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
+const MAX_MCP_HISTORY = 50; // Max number of MCP command records to keep
 
 interface StoredWorkflow {
   name: string;
@@ -147,7 +149,8 @@ export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<Wor
 // ========================
 
 export async function getRunHistory(): Promise<WorkflowRunRecord[]> {
-  return await readDataFromFile<WorkflowRunRecord>(RUN_HISTORY_DB_PATH);
+  const history = await readDataFromFile<WorkflowRunRecord>(RUN_HISTORY_DB_PATH);
+  return history.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
 export async function getRunRecordById(id: string): Promise<WorkflowRunRecord | null> {
@@ -164,4 +167,20 @@ export async function saveRunRecord(record: WorkflowRunRecord): Promise<void> {
 
 export async function clearRunHistory(): Promise<void> {
   await writeDataToFile<WorkflowRunRecord>(RUN_HISTORY_DB_PATH, []);
+}
+
+// ========================
+// MCP Command History
+// ========================
+
+export async function getMcpHistory(): Promise<McpCommandRecord[]> {
+  const history = await readDataFromFile<McpCommandRecord>(MCP_HISTORY_DB_PATH);
+  return history.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export async function saveMcpCommand(record: McpCommandRecord): Promise<void> {
+  const history = await getMcpHistory();
+  history.unshift(record); // Add new record to the top
+  const trimmedHistory = history.slice(0, MAX_MCP_HISTORY);
+  await writeDataToFile<McpCommandRecord>(MCP_HISTORY_DB_PATH, trimmedHistory);
 }

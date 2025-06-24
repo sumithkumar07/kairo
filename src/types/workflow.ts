@@ -141,4 +141,10 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-    
+export interface McpCommandRecord {
+  id: string;
+  timestamp: string; // ISO string
+  command: string;
+  response: string;
+  status: 'Success' | 'Failed';
+}
