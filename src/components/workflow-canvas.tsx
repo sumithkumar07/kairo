@@ -23,7 +23,7 @@ interface WorkflowCanvasProps {
   isConnecting: boolean;
   onStartConnection: (nodeId: string, handleId: string, handlePosition: { x: number, y: number }) => void;
   onCompleteConnection: (nodeId: string, handleId: string) => void;
-  onUpdateConnectionPreview: (position: { x: number, y: number }) => void;
+  onUpdateConnectionPreview: (position: { x: number; y: number }) => void;
   connectionPreview: {
     startNodeId: string | null;
     startHandleId: string | null;
