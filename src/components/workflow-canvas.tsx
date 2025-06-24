@@ -14,29 +14,31 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 interface WorkflowCanvasProps {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
-  selectedNodeId: string | null;
-  selectedConnectionId: string | null;
-  onNodeClick: (nodeId: string) => void;
-  onConnectionClick: (connectionId: string) => void;
-  onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
-  onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
-  isConnecting: boolean;
-  onStartConnection: (nodeId: string, handleId: string, handlePosition: { x: number, y: number }) => void;
-  onCompleteConnection: (nodeId: string, handleId: string) => void;
-  onUpdateConnectionPreview: (position: { x: number; y: number }) => void;
-  connectionPreview: {
+  selectedNodeId?: string | null;
+  selectedConnectionId?: string | null;
+  onNodeClick?: (nodeId: string) => void;
+  onConnectionClick?: (connectionId: string) => void;
+  onNodeDragStop?: (nodeId: string, position: { x: number; y: number }) => void;
+  onCanvasDrop?: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
+  isConnecting?: boolean;
+  onStartConnection?: (nodeId: string, handleId: string, handlePosition: { x: number, y: number }) => void;
+  onCompleteConnection?: (nodeId: string, handleId: string) => void;
+  onUpdateConnectionPreview?: (position: { x: number; y: number }) => void;
+  connectionPreview?: {
     startNodeId: string | null;
     startHandleId: string | null;
     previewPosition: { x: number; y: number } | null;
   } | null;
-  onCanvasClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
-  onCanvasPanStart: (event: React.MouseEvent) => void;
-  canvasOffset: { x: number; y: number };
-  isPanningForCursor: boolean;
-  connectionStartNodeId: string | null;
-  connectionStartHandleId: string | null;
-  zoomLevel: number;
-  onDeleteSelectedConnection: () => void;
+  onCanvasClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
+  onCanvasPanStart?: (event: React.MouseEvent) => void;
+  canvasOffset?: { x: number; y: number };
+  isPanningForCursor?: boolean;
+  connectionStartNodeId?: string | null;
+  connectionStartHandleId?: string | null;
+  zoomLevel?: number;
+  onDeleteSelectedConnection?: () => void;
+  readOnly?: boolean;
+  executionData?: Record<string, any>;
 }
 
 export function WorkflowCanvas({
@@ -44,23 +46,25 @@ export function WorkflowCanvas({
   connections,
   selectedNodeId,
   selectedConnectionId,
-  onNodeClick,
-  onConnectionClick,
-  onNodeDragStop,
-  onCanvasDrop,
-  isConnecting,
-  onStartConnection,
-  onCompleteConnection,
-  onUpdateConnectionPreview,
+  onNodeClick = () => {},
+  onConnectionClick = () => {},
+  onNodeDragStop = () => {},
+  onCanvasDrop = () => {},
+  isConnecting = false,
+  onStartConnection = () => {},
+  onCompleteConnection = () => {},
+  onUpdateConnectionPreview = () => {},
   connectionPreview,
-  onCanvasClick,
-  onCanvasPanStart,
-  canvasOffset,
-  isPanningForCursor,
+  onCanvasClick = () => {},
+  onCanvasPanStart = () => {},
+  canvasOffset = { x: 0, y: 0 },
+  isPanningForCursor = false,
   connectionStartNodeId,
   connectionStartHandleId,
-  zoomLevel,
-  onDeleteSelectedConnection,
+  zoomLevel = 1,
+  onDeleteSelectedConnection = () => {},
+  readOnly = false,
+  executionData,
 }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingNodeOffset, setDraggingNodeOffset] = useState<{ x: number, y: number } | null>(null);
@@ -76,6 +80,7 @@ export function WorkflowCanvas({
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    if (readOnly) return;
     event.dataTransfer.dropEffect = 'move';
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -85,11 +90,11 @@ export function WorkflowCanvas({
         y: (event.clientY - canvasRect.top + canvasRef.current.scrollTop) / zoomLevel - canvasOffset.y,
       });
     }
-  }, [isConnecting, onUpdateConnectionPreview, connectionPreview, canvasOffset.x, canvasOffset.y, zoomLevel]);
+  }, [isConnecting, onUpdateConnectionPreview, connectionPreview, canvasOffset.x, canvasOffset.y, zoomLevel, readOnly]);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (!canvasRef.current) return;
+    if (readOnly || !canvasRef.current) return;
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const scrollLeft = canvasRef.current.scrollLeft;
@@ -116,9 +121,10 @@ export function WorkflowCanvas({
     }
     setDraggingNodeOffset(null);
     event.dataTransfer.clearData();
-  }, [onCanvasDrop, onNodeDragStop, draggingNodeOffset, canvasOffset, zoomLevel]);
+  }, [onCanvasDrop, onNodeDragStop, draggingNodeOffset, canvasOffset, zoomLevel, readOnly]);
 
   const handleNodeDragStartInternal = useCallback((event: React.DragEvent<HTMLDivElement>, nodeId: string) => {
+    if (readOnly) return;
     event.dataTransfer.setData('application/nodeId', nodeId);
     event.dataTransfer.effectAllowed = 'move';
 
@@ -132,7 +138,7 @@ export function WorkflowCanvas({
             });
         }
     }
-  }, [zoomLevel]);
+  }, [zoomLevel, readOnly]);
 
   const getHandlePosition = (node: WorkflowNode, handleId: string, isOutput: boolean): { x: number, y: number } => {
     const nodeTypeConfig = getNodeTypeConfig(node.type);
@@ -146,6 +152,7 @@ export function WorkflowCanvas({
   };
 
   const handleLocalCanvasMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (readOnly) return;
     const targetIsCanvas = event.target === event.currentTarget ||
                            (event.target as HTMLElement).classList.contains('pannable-content-wrapper') ||
                            (event.target as HTMLElement).closest('svg') === event.currentTarget?.querySelector('svg');
@@ -166,6 +173,7 @@ export function WorkflowCanvas({
   };
 
   const handleMouseMoveOnCanvas = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (readOnly) return;
     if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
       const canvasRect = canvasRef.current.getBoundingClientRect();
       onUpdateConnectionPreview({
@@ -187,7 +195,7 @@ export function WorkflowCanvas({
         ref={canvasRef}
         className={cn(
           "relative w-full h-full min-w-[2000px] min-h-[1500px] p-4 overflow-auto select-none",
-          isPanningForCursor ? 'cursor-grabbing' : (isConnecting ? 'crosshair' : 'grab')
+          isPanningForCursor ? 'cursor-grabbing' : (isConnecting ? 'crosshair' : (readOnly ? 'default' : 'grab'))
         )}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -246,8 +254,8 @@ export function WorkflowCanvas({
                     stroke="transparent"
                     strokeWidth="10"
                     fill="none"
-                    className="cursor-pointer pointer-events-stroke"
-                    onClick={(e) => { e.stopPropagation(); onConnectionClick(conn.id || ''); }}
+                    className={cn("pointer-events-stroke", !readOnly && "cursor-pointer")}
+                    onClick={(e) => { if(!readOnly) { e.stopPropagation(); onConnectionClick(conn.id || ''); } }}
                   />
                 </g>
               );
@@ -263,7 +271,7 @@ export function WorkflowCanvas({
           </svg>
 
           {/* Render delete button for selected connection */}
-          {selectedConnectionId && connections.find(c => c.id === selectedConnectionId) && (() => {
+          {selectedConnectionId && !readOnly && connections.find(c => c.id === selectedConnectionId) && (() => {
             const conn = connections.find(c => c.id === selectedConnectionId)!;
             const sourceNode = nodes.find(n => n.id === conn.sourceNodeId);
             const targetNode = nodes.find(n => n.id === conn.targetNodeId);
@@ -319,6 +327,7 @@ export function WorkflowCanvas({
               onClick={onNodeClick}
               onDragStartInternal={handleNodeDragStartInternal}
               onHandleClick={(nodeId, handleId, handleType, handlePosition) => {
+                if (readOnly) return;
                 const absoluteHandlePosition = {
                     x: handlePosition.x,
                     y: handlePosition.y
@@ -333,6 +342,8 @@ export function WorkflowCanvas({
               connectionStartNodeId={connectionStartNodeId}
               connectionStartHandleId={connectionStartHandleId}
               connections={connections}
+              readOnly={readOnly}
+              executionData={executionData ? executionData[node.id] : undefined}
             />
           ))}
         </div>
@@ -340,7 +351,7 @@ export function WorkflowCanvas({
         {nodes.length === 0 && !isConnecting && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <p className="text-muted-foreground text-lg">
-              Generate a workflow, drag nodes, or load a saved one.
+              {readOnly ? 'Workflow snapshot is empty.' : 'Generate a workflow, drag nodes, or load a saved one.'}
             </p>
           </div>
         )}

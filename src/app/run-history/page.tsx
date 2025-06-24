@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, Play, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -26,6 +26,8 @@ import * as WorkflowStorage from '@/services/workflow-storage-service';
 import { rerunWorkflowAction } from '@/app/actions';
 import { WorkflowNodeItem } from '@/components/workflow-node-item';
 import { AVAILABLE_NODES_CONFIG, getCanvasNodeStyling, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
+import { WorkflowCanvas } from '@/components/workflow-canvas';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const JsonSyntaxHighlighter = ({ jsonString }: { jsonString: string }) => {
@@ -108,6 +110,18 @@ export default function RunHistoryPage() {
       return <Icon className={cn("h-6 w-6 shrink-0", color)} />;
   };
 
+  const getNodesForRun = (run: WorkflowRunRecord): WorkflowNode[] => {
+    if (!run.workflowSnapshot?.nodes) return [];
+    
+    return run.workflowSnapshot.nodes.map(node => {
+      const resultData = run.executionResult.finalWorkflowData[node.id];
+      return {
+        ...node,
+        lastExecutionStatus: resultData?.lastExecutionStatus || 'skipped',
+      };
+    });
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -164,29 +178,45 @@ export default function RunHistoryPage() {
       
       {selectedRun && (
         <Dialog open={!!selectedRun} onOpenChange={(open) => !open && setSelectedRun(null)}>
-          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogContent className="max-w-7xl w-[90vw] h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-xl">Run Details: {selectedRun.workflowName}</DialogTitle>
               <DialogDescription>Executed on {format(new Date(selectedRun.timestamp), 'PPpp')}</DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
-              <div className="flex flex-col gap-3">
-                <h3 className="font-semibold flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" /> Execution Logs</h3>
-                <ScrollArea className="h-full border rounded-md bg-muted/30 p-2">
-                  {getLogsForRun(selectedRun).length === 0 ? <p className="text-xs text-muted-foreground/70 italic py-2">No logs recorded.</p> : (
-                    <div className="space-y-1.5 text-xs font-mono p-1">
-                      {getLogsForRun(selectedRun).map((log, index) => (
-                        <div key={index} className={cn("p-1.5 rounded-sm text-opacity-90 break-words", log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90', log.type === 'success' && 'bg-green-500/10 text-green-300', log.type === 'info' && 'bg-primary/5 text-primary-foreground/80' )}>
-                          <span className="font-medium opacity-70 mr-1.5">[{log.timestamp}]</span><span>{log.message}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
-              <div className="flex flex-col gap-3">
-                <h3 className="font-semibold flex items-center gap-2"><FileJson className="h-4 w-4 text-primary" /> Final Node Data</h3>
-                <ScrollArea className="h-full border rounded-md bg-muted/30 p-2"><JsonSyntaxHighlighter jsonString={JSON.stringify(selectedRun.executionResult.finalWorkflowData, null, 2)} /></ScrollArea>
+            <div className="grid grid-cols-3 gap-4 flex-1 overflow-hidden">
+                <div className="col-span-2 border rounded-md relative bg-muted/20 dot-grid-background">
+                    <WorkflowCanvas
+                        nodes={getNodesForRun(selectedRun)}
+                        connections={selectedRun.workflowSnapshot.connections}
+                        executionData={selectedRun.executionResult.finalWorkflowData}
+                        readOnly={true}
+                    />
+                </div>
+                <div className="col-span-1 flex flex-col gap-3">
+                    <Tabs defaultValue="logs" className="flex flex-col h-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="logs"><ListChecks className="mr-2 h-4 w-4"/>Logs</TabsTrigger>
+                          <TabsTrigger value="data"><FileJson className="mr-2 h-4 w-4"/>Final Data</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="logs" className="flex-grow overflow-hidden">
+                            <ScrollArea className="h-full border rounded-md bg-muted/30 p-2">
+                                {getLogsForRun(selectedRun).length === 0 ? <p className="text-xs text-muted-foreground/70 italic py-2">No logs recorded.</p> : (
+                                    <div className="space-y-1.5 text-xs font-mono p-1">
+                                    {getLogsForRun(selectedRun).map((log, index) => (
+                                        <div key={index} className={cn("p-1.5 rounded-sm text-opacity-90 break-words", log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90', log.type === 'success' && 'bg-green-500/10 text-green-300', log.type === 'info' && 'bg-primary/5 text-primary-foreground/80' )}>
+                                        <span className="font-medium opacity-70 mr-1.5">[{log.timestamp}]</span><span>{log.message}</span>
+                                        </div>
+                                    ))}
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </TabsContent>
+                        <TabsContent value="data" className="flex-grow overflow-hidden">
+                            <ScrollArea className="h-full border rounded-md bg-muted/30 p-2">
+                                <JsonSyntaxHighlighter jsonString={JSON.stringify(selectedRun.executionResult.finalWorkflowData, null, 2)} />
+                            </ScrollArea>
+                        </TabsContent>
+                    </Tabs>
               </div>
             </div>
             <DialogFooter className="pt-4 border-t">

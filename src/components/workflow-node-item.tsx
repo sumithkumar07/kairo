@@ -22,6 +22,8 @@ interface WorkflowNodeItemProps {
   connectionStartNodeId: string | null; 
   connectionStartHandleId: string | null; 
   connections: WorkflowConnection[]; 
+  readOnly?: boolean;
+  executionData?: any;
 }
 
 
@@ -35,6 +37,8 @@ const WorkflowNodeItemComponent = ({
   isConnecting,
   connectionStartNodeId,
   connections,
+  readOnly = false,
+  executionData,
 }: WorkflowNodeItemProps) => {
   
   const IconComponent = node.type === 'dataTransform' && nodeType 
@@ -75,15 +79,21 @@ const WorkflowNodeItemComponent = ({
       skipped: { Icon: SkipForward, color: 'text-gray-500', tooltip: 'Execution Skipped' },
       partial_success: { Icon: AlertCircleIcon, color: 'text-yellow-400', tooltip: 'Partial Success' },
     };
-    const { Icon, color, tooltip } = statusMap[node.lastExecutionStatus] || {};
-
-    if (!Icon) return null;
+    const statusInfo = statusMap[node.lastExecutionStatus];
+    
+    if (!statusInfo) return null;
+    const { Icon, color, tooltip } = statusInfo;
+    
+    let finalTooltip = tooltip;
+    if (node.lastExecutionStatus === 'error' && executionData?.error_message) {
+      finalTooltip = `Error: ${executionData.error_message}`;
+    }
 
     return (
       <TooltipProvider delayDuration={100}>
         <Tooltip>
           <TooltipTrigger asChild><Icon className={cn("h-3.5 w-3.5", color)} /></TooltipTrigger>
-          <TooltipContent side="top"><p className="text-xs">{tooltip}</p></TooltipContent>
+          <TooltipContent side="top" className="max-w-xs"><p className="text-xs">{finalTooltip}</p></TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
@@ -91,22 +101,22 @@ const WorkflowNodeItemComponent = ({
   
   let nodeStyleClasses = categoryStyling.nodeBorder;
   if (node.lastExecutionStatus === 'error') nodeStyleClasses = 'ring-2 ring-destructive border-destructive/80';
-  else if (hasWarning) nodeStyleClasses = 'ring-1 ring-orange-500 border-orange-500/80';
+  else if (hasWarning && !readOnly) nodeStyleClasses = 'ring-1 ring-orange-500 border-orange-500/80';
   else if (node.lastExecutionStatus === 'success') nodeStyleClasses = 'ring-1 ring-green-500/80 border-green-500/70';
   else if (node.lastExecutionStatus === 'partial_success') nodeStyleClasses = 'ring-1 ring-yellow-500/80 border-yellow-500/70';
 
   return (
     <Card
       id={`node-${node.id}`}
-      draggable
-      onDragStart={(e) => !isConnecting && onDragStartInternal(e, node.id)}
-      onClick={(e) => !(e.target as HTMLElement).closest('[data-handle-id]') && onClick(node.id)}
+      draggable={!readOnly}
+      onDragStart={(e) => !isConnecting && !readOnly && onDragStartInternal(e, node.id)}
+      onClick={(e) => !(e.target as HTMLElement).closest('[data-handle-id]') && !readOnly && onClick(node.id)}
       className={cn(
-        'workflow-node-item absolute shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out',
+        'workflow-node-item absolute shadow-lg transition-all duration-150 ease-in-out',
         'flex flex-col overflow-hidden bg-card/95 backdrop-blur-sm border',
-        isConnecting ? 'cursor-crosshair' : 'cursor-grab',
+        isConnecting ? 'cursor-crosshair' : (readOnly ? 'cursor-default' : 'cursor-grab hover:shadow-xl'),
         nodeStyleClasses, 
-        isSelected && 'ring-2 ring-offset-2 ring-offset-background ring-primary',
+        isSelected && !readOnly && 'ring-2 ring-offset-2 ring-offset-background ring-primary',
       )}
       style={{ left: node.position.x, top: node.position.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
     >
@@ -117,7 +127,7 @@ const WorkflowNodeItemComponent = ({
         </CardTitle>
         <div className="flex items-center gap-1 shrink-0">
           {getStatusIndicator()}
-          {hasWarning && node.lastExecutionStatus !== 'error' && ( 
+          {hasWarning && node.lastExecutionStatus !== 'error' && !readOnly && ( 
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild><AlertTriangle className="h-3.5 w-3.5 text-yellow-300 shrink-0" /></TooltipTrigger>
@@ -145,10 +155,11 @@ const WorkflowNodeItemComponent = ({
                       "absolute -left-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all",
                       categoryStyling.inputHandleBorder,
                       isConnected ? categoryStyling.inputHandleColor : 'bg-card',
-                      isConnecting ? 'cursor-pointer' : 'cursor-default',
+                      !readOnly && (isConnecting ? 'cursor-pointer' : 'cursor-default'),
+                      readOnly && 'cursor-not-allowed',
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
-                    onClick={(e) => { e.stopPropagation(); onHandleClick(node.id, handleId, 'input', getHandleAbsolutePosition(handleId, false)); }}
+                    onClick={(e) => { if (!readOnly) { e.stopPropagation(); onHandleClick(node.id, handleId, 'input', getHandleAbsolutePosition(handleId, false)); } }}
                   />
                 </TooltipTrigger>
                 <TooltipContent side="left"><p className="text-xs">Input: {handleId} {isConnected && "(Connected)"}</p></TooltipContent>
@@ -169,12 +180,13 @@ const WorkflowNodeItemComponent = ({
                     data-handle-id={handleId}
                     className={cn(
                       "absolute -right-2 w-4 h-4 rounded-full border-2 shadow-md transform -translate-y-1/2 transition-all",
-                      "cursor-pointer group-hover:scale-125",
+                      !readOnly && "cursor-pointer group-hover:scale-125",
+                      readOnly && "cursor-not-allowed",
                       categoryStyling.outputHandleBorder,
                       isConnected ? categoryStyling.outputHandleColor : 'bg-card',
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
-                    onClick={(e) => { e.stopPropagation(); onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true)); }}
+                    onClick={(e) => { if (!readOnly) { e.stopPropagation(); onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true)); } }}
                   />
                 </TooltipTrigger>
                 <TooltipContent side="right"><p className="text-xs">Output: {handleId} {isConnected && "(Connected)"}</p></TooltipContent>
