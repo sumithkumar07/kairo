@@ -5,7 +5,7 @@ import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, generateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction } from '@/app/actions';
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction } from '@/app/actions';
 import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { saveRunRecord } from '@/services/workflow-storage-service';
@@ -485,7 +485,7 @@ export default function WorkflowPage() {
       if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
         setIsLoadingAiWorkflow(true); 
         try {
-          const generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
+          const generatedWorkflow = await enhanceAndGenerateWorkflow({ originalPrompt: chatResult.workflowGenerationPrompt });
           handleAiPromptSubmit(generatedWorkflow);
           const successMessage: ChatMessage = {
             id: crypto.randomUUID(),
@@ -1305,6 +1305,7 @@ export default function WorkflowPage() {
           zoomLevel={zoomLevel}
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
+  
           onResetView={handleResetView}
           onExplainWorkflow={handleGetWorkflowExplanation}
           isExplainingWorkflow={isExplainingWorkflow}
@@ -1487,3 +1488,4 @@ export default function WorkflowPage() {
     </div>
   );
 }
+
