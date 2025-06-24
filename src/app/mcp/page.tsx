@@ -28,7 +28,7 @@ import type { McpCommandRecord } from '@/types/workflow';
 import { getMcpHistory } from '@/services/workflow-storage-service';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import { Label } from '@/components/ui/label';
 
 type Tool = { name: string; description: string; icon: React.ElementType; service: string; };
 
