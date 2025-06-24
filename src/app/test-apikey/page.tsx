@@ -37,7 +37,7 @@ export default function TestApiKeyPageRemoved() {
           
           <CardContent className="space-y-4 pt-6 text-center">
              <p className="text-sm text-muted-foreground">
-              Please use the main application features.
+              The AI assistant now provides direct feedback on API configuration issues.
             </p>
             <Button asChild>
               <Link href="/workflow">

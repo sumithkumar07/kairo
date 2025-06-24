@@ -19,42 +19,11 @@ export const TestApiKeyOutputSchema = z.object({
 export type TestApiKeyOutput = z.infer<typeof TestApiKeyOutputSchema>;
 
 export async function testApiKey(): Promise<TestApiKeyOutput> {
-  console.log("[API Key Test Flow] Initiating test call to AI model...");
-  try {
-    const genkitResponse = await ai.generate({
-      prompt: "Hello, world! Respond with 'OK' if you are working.",
-      model: 'googleai/gemini-1.5-flash-latest',
-      config: {
-        temperature: 0.1,
-      },
-    });
-    
-    const textResponse = genkitResponse.text;
-    console.log("[API Key Test Flow] Received AI response:", textResponse);
-
-    if (textResponse && textResponse.includes('OK')) {
-      return {
-        success: true,
-        message: 'API Key Test Successful!',
-        data: textResponse,
-      };
-    } else {
-       return {
-        success: false,
-        message: 'AI responded, but not with the expected content.',
-        data: textResponse,
-      };
-    }
-
-  } catch (error: any) {
-    console.error("[API Key Test Flow] Error during AI call:", error);
-    let errorMessage = "An unknown error occurred.";
-    if (error.message) {
-        errorMessage = `An unexpected error occurred: ${error.message}`;
-    }
-    return {
-      success: false,
-      message: errorMessage,
-    };
-  }
+  console.log("[API Key Test Flow] This flow is deprecated. AI Assistant error handling now provides better feedback.");
+  
+  // Return a success message indicating deprecation, as the assistant now handles this better.
+  return {
+    success: true,
+    message: "This API key test flow is deprecated. The AI assistant chat now provides direct feedback on API key or configuration issues.",
+  };
 }
