@@ -59,7 +59,7 @@ Create a `.env.local` file in the project root for local development, or set the
 ### Live Webhook Trigger (`webhookTrigger` node)
 
 *   **Base URL:** Live webhooks are exposed at `/api/workflow-webhooks/YOUR_PATH_SUFFIX`. Replace `YOUR_PATH_SUFFIX` with the value configured in the `webhookTrigger` node.
-*   **Current Limitation:** The API route (`src/app/api/workflow-webhooks/[...path]/route.ts`) that handles incoming webhooks is currently designed to execute workflows found within the `EXAMPLE_WORKFLOWS` array (defined in `src/config/example-workflows.ts`).
+*   **Current Limitation:** The API route (`src/app/api/workflow-webhooks/[...path]/route.ts`) that handles incoming webhooks is currently designed to execute workflows found within the `EXAMPLE_WORKFLOWS` array (defined in `src/config/example-workflows.ts`) or user-saved workflows stored on the server's file system (`src/data/user_workflows.json`).
     *   This means if you create a new workflow with a `webhookTrigger` node and save it (which saves to your browser's local storage), that specific user-created workflow **will not be directly triggerable by external HTTP calls in a deployed environment.**
     *   To test live webhooks, you would typically modify one of the existing example workflows that already includes a `webhookTrigger` or ensure your custom workflow's path suffix matches one defined in an example and that the example is configured to meet your testing needs.
     *   A robust solution for user-defined, live-triggered webhooks would require a backend database to store and retrieve user workflows, which is beyond the current prototype's scope.
