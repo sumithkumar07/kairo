@@ -162,7 +162,7 @@ export async function POST(
       if (hasErrors) {
          return NextResponse.json(
           { message: 'Webhook received. Workflow executed with errors.', path: pathSuffix, executionDetails: { logsSummary: `Found ${executionResult.serverLogs.filter(l=>l.type === 'error').length} error(s). Check server logs for full details.` } }, 
-          { status: 207 } 
+          { status: 207 } // Multi-Status
         );
       }
 

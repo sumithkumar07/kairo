@@ -42,7 +42,9 @@ function getDbPool() {
     if (!process.env.DB_CONNECTION_STRING) {
       const fatalErrorMsg = "[DB POOL] FATAL: DB_CONNECTION_STRING environment variable is not set. Database operations cannot proceed.";
       console.error(fatalErrorMsg);
-      throw new Error(fatalErrorMsg); 
+      // In a real app, you might throw or handle this more gracefully.
+      // For this prototype, we'll allow it to fail later if a DB node is actually used.
+      // throw new Error(fatalErrorMsg); 
     }
     pool = new Pool({
       connectionString: process.env.DB_CONNECTION_STRING,
@@ -60,6 +62,7 @@ function getDbPool() {
 // =================== WORKFLOW UTILITY FUNCTIONS ================== //
 // ================================================================= //
 
+// Placeholder resolvers and condition evaluators remain the same...
 function resolveValue(
   value: any, 
   workflowData: Record<string, any>, 
@@ -118,6 +121,7 @@ function resolveValue(
     // Then check credentials (with env fallback)
     if (!dataFound && firstPart === 'credential' && pathParts.length >= 2) {
         const credentialName = pathParts.slice(1).join('.');
+        // This is a simplified fallback for development. A real system would use a secure credential store.
         dataAtPath = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`];
         if (dataAtPath !== undefined) {
             dataFound = true;
@@ -145,6 +149,8 @@ function resolveValue(
     }
     
     if (dataFound) {
+      // If the entire value is just one placeholder, return the resolved data in its original type.
+      // Otherwise, stringify and replace within the larger string.
       if (placeholder === value) {
         resolvedValue = dataAtPath;
       } else {
@@ -168,10 +174,12 @@ function resolveNodeConfig(
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
+      // Do not resolve sub-flow definitions, as they have their own scopes and will be resolved during their execution.
       const specialKeys = ['flowGroupNodes', 'flowGroupConnections', 'iterationNodes', 'iterationConnections', 'loopNodes', 'loopConnections', 'branches', 'inputFieldsSchema', 'retry'];
       if (specialKeys.includes(key)) {
         resolvedConfig[key] = value;
       } else if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
+         // Resolve placeholders inside the webhook config, but not the whole object itself.
          resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts); 
       } else if (Array.isArray(value)) {
         resolvedConfig[key] = value.map(item => (typeof item === 'object' && item !== null) ? resolveNodeConfig(item, workflowData, serverLogs, additionalContexts) : resolveValue(item, workflowData, serverLogs, additionalContexts));
@@ -192,6 +200,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
   }
   
   try {
+      // Very basic evaluation logic. For a production system, use a secure sandbox like `vm2`.
       const operators = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
       let operatorFound: string | null = null;
       let parts: string[] = [];
@@ -205,6 +214,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
           }
       }
 
+      // Helper to parse operands, supporting strings, numbers, booleans, null, undefined
       const parseOperand = (operandStr: string): any => {
           operandStr = operandStr.trim();
           if (operandStr.toLowerCase() === 'true') return true;
@@ -221,10 +231,11 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
       if (operatorFound && parts.length === 2) {
           let val1 = parseOperand(parts[0]);
           let val2 = parseOperand(parts[1]);
+          // Simple comparisons. Note: For non-number types, this is a basic string comparison.
           switch(operatorFound) {
               case '===': return val1 === val2;
               case '!==': return val1 !== val2;
-              case '==':  return val1 == val2; 
+              case '==':  return val1 == val2; // Using '==' for loose comparison as intended in many simple template engines
               case '!=':  return val1 != val2;
               case '<':   return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 < val2 : String(val1) < String(val2);
               case '>':   return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 > val2 : String(val1) > String(val2);
@@ -232,10 +243,11 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
               case '>=':  return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 >= val2 : String(val1) >= String(val2);
           }
       }
+      // If no operator, treat the whole string as a value and evaluate its truthiness.
       return !!parseOperand(conditionString);
   } catch (e: any) {
       serverLogs.push({ timestamp: new Date().toISOString(), message: `[CONDITION EVAL] Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`, type: 'error' });
-      return false; 
+      return false; // Fail safe
   }
 }
 
@@ -255,22 +267,25 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
 
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Sending on-error webhook to ${webhookConfig.url}`, type: 'info' });
 
+    // Define the special context for resolving placeholders in the webhook body/headers
     const errorContext = {
         'failed_node_id': node.id,
         'failed_node_name': node.name || node.id,
         'error_message': errorMessage,
         'timestamp': new Date().toISOString(),
-        'workflow_data_snapshot_json': JSON.stringify(workflowData) 
+        'workflow_data_snapshot_json': JSON.stringify(workflowData) // This can be large!
     };
 
     try {
         const resolvedHeaders = webhookConfig.headers ? resolveNodeConfig(webhookConfig.headers, workflowData, serverLogs, errorContext) : {};
+        // Default content type to JSON if a body is provided
         if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
             resolvedHeaders['Content-Type'] = 'application/json';
         }
         
         const resolvedBody = webhookConfig.bodyTemplate ? resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext) : {};
         
+        // Fire-and-forget fetch call
         await fetch(webhookConfig.url, {
             method: webhookConfig.method || 'POST',
             headers: resolvedHeaders,
@@ -338,6 +353,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AITASK] SIMULATION: Would send prompt to model ${config.model || 'default'}.`, type: 'info' });
         return { output: config.simulatedOutput || "Simulated AI output." };
     }
+    if (!process.env.GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY environment variable is not set. It's required for AI Tasks in Live Mode.");
     if (!config.prompt) throw new Error(`AI Prompt is not configured or resolved.`);
     const genkitResponse = await ai.generate({ prompt: String(config.prompt), model: (config.model || 'googleai/gemini-1.5-flash-latest') as any });
     return { output: genkitResponse.text }; 
@@ -390,7 +406,7 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
         return { results: config.simulatedResults || [], rowCount: config.simulatedRowCount || (config.simulatedResults?.length || 0) };
     }
     
-    const resolvedConnectionString = resolveValue(process.env.DB_CONNECTION_STRING, {}, serverLogs);
+    const resolvedConnectionString = resolveValue("{{env.DB_CONNECTION_STRING}}", {}, serverLogs);
     if (!resolvedConnectionString) {
        throw new Error("DB_CONNECTION_STRING environment variable is not set or not resolved. It's required for database queries in Live Mode.");
     }
@@ -407,23 +423,13 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
     }
 }
 
-async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeLogMessageNode(node: WorkflowNode, config: any, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): Promise<any> {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-    const resolvedMessage = resolveValue(config?.message, {}, serverLogs); // Resolve placeholders in the message
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${resolvedMessage}`, type: 'info' });
-    return { output: resolvedMessage };
+    const resolvedMessage = resolveValue(config?.message, workflowData, serverLogs); // Resolve placeholders in the message
+    const finalMessage = typeof resolvedMessage === 'object' ? JSON.stringify(resolvedMessage, null, 2) : resolvedMessage;
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${finalMessage}`, type: 'info' });
+    return { output: finalMessage };
 }
-
-const nodeExecutionFunctions: { [key: string]: Function } = {
-  webhookTrigger: executeWebhookTriggerNode,
-  httpRequest: executeHttpRequestNode,
-  aiTask: executeAiTaskNode,
-  parseJson: executeParseJsonNode,
-  sendEmail: executeSendEmailNode,
-  databaseQuery: executeDbQueryNode,
-  logMessage: executeLogMessageNode,
-  // Add other node type handlers here as they are implemented
-};
 
 // ================================================================= //
 // ===================== CORE EXECUTION ENGINE ===================== //
@@ -436,8 +442,8 @@ async function executeFlowInternal(
   currentWorkflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
   isSimulationMode: boolean,
-  initialData?: Record<string, any>, 
-  parentWorkflowData?: Record<string, any> 
+  initialData?: Record<string, any>, // Data from external trigger, e.g., webhook
+  parentWorkflowData?: Record<string, any> // Data from a parent flow (for sub-flows)
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any, flowError?: string }> {
   
     const { executionOrder, error: sortError } = getExecutionOrder(nodesToExecute, connectionsToExecute, flowLabel);
@@ -456,6 +462,7 @@ async function executeFlowInternal(
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
         const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs);
 
+        // Check for conditional execution
         if (resolvedConfig._flow_run_condition !== undefined && !evaluateCondition(String(resolvedConfig._flow_run_condition), nodeIdentifier, serverLogs)) {
             currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy`, lastExecutionStatus: 'skipped' };
             lastNodeOutput = currentWorkflowData[node.id];
@@ -468,16 +475,38 @@ async function executeFlowInternal(
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                const nodeExecutionFunc = nodeExecutionFunctions[node.type];
-                if (nodeExecutionFunc) {
-                    finalNodeOutput = await nodeExecutionFunc(node, resolvedConfig, isSimulationMode, initialData ? initialData[node.id] : null, serverLogs);
-                } else {
-                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented.`, type: 'info' });
-                    finalNodeOutput = { output: `Execution not implemented for type: ${node.type}` };
+                // Here you would have a switch or a map to call the correct execution function based on node.type
+                let nodeResult: any;
+                switch (node.type) {
+                    case 'webhookTrigger':
+                        nodeResult = await executeWebhookTriggerNode(node, resolvedConfig, isSimulationMode, initialData ? initialData[node.id] : null, serverLogs);
+                        break;
+                    case 'httpRequest':
+                        nodeResult = await executeHttpRequestNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                    case 'aiTask':
+                        nodeResult = await executeAiTaskNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                    case 'parseJson':
+                        nodeResult = await executeParseJsonNode(node, resolvedConfig, serverLogs);
+                        break;
+                    case 'sendEmail':
+                        nodeResult = await executeSendEmailNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                    case 'databaseQuery':
+                        nodeResult = await executeDbQueryNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                    case 'logMessage':
+                        nodeResult = await executeLogMessageNode(node, resolvedConfig, dataForResolution, serverLogs);
+                        break;
+                    // Add other node type handlers here
+                    default:
+                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented.`, type: 'info' });
+                        nodeResult = { output: `Execution not implemented for type: ${node.type}` };
+                        break;
                 }
                 
-                finalNodeOutput.status = 'success';
-                finalNodeOutput.lastExecutionStatus = 'success';
+                finalNodeOutput = { ...nodeResult, status: 'success', lastExecutionStatus: 'success' };
                 break; // Exit retry loop on success
 
             } catch (error: any) {
@@ -485,6 +514,7 @@ async function executeFlowInternal(
                 if (attempt >= maxAttempts) {
                     finalNodeOutput = { status: 'error', lastExecutionStatus: 'error', error_message: errorDetails };
                     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED permanently: ${errorDetails}`, type: 'error' });
+                    // Handle on-error webhook if configured
                     if (resolvedConfig.onErrorWebhook) {
                         await handleOnErrorWebhook(node, errorDetails, resolvedConfig.onErrorWebhook, dataForResolution, serverLogs);
                     }
@@ -492,6 +522,7 @@ async function executeFlowInternal(
                 }
                 // Handle retry logic (delay, etc.) here if needed
                 const delay = (retryConfig?.delayMs || 0) * Math.pow(retryConfig?.backoffFactor || 1, attempt - 1);
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} failed on attempt ${attempt}. Retrying in ${delay}ms...`, type: 'info' });
                 if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
@@ -502,6 +533,7 @@ async function executeFlowInternal(
     return { finalWorkflowData: currentWorkflowData, serverLogs, lastNodeOutput };
 }
 
+// Topological sort to determine execution order
 function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnection[], flowLabel: string): { executionOrder: WorkflowNode[], error?: string } {
     const adj: Record<string, string[]> = {};
     const inDegree: Record<string, number> = {};
@@ -533,6 +565,7 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
     }
 
     if (executionOrder.length !== nodes.length) {
+        // This indicates a cycle or disconnected components, which is a critical workflow design error.
         return { executionOrder: [], error: `Workflow has a cycle or disconnected components.` };
     }
     return { executionOrder };
@@ -549,6 +582,7 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
     initialWorkflowDataWithStatus[node.id] = { lastExecutionStatus: 'pending' };
   });
 
+  // If initialData is provided (e.g., from a webhook), merge it in.
   if (initialData) {
     Object.assign(initialWorkflowDataWithStatus, initialData);
   }
@@ -575,11 +609,13 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
     throw new Error('Cannot re-run: The original workflow definition was not saved with this run.');
   }
 
+  // Determine if the original run was live or simulated
   const isLiveMode = !!originalRun.initialData;
 
+  // Re-execute the workflow with the original snapshot and trigger data
   const result = await executeWorkflow(
     originalRun.workflowSnapshot,
-    !isLiveMode,
+    !isLiveMode, // Run in simulation if original was simulation, live if original was live
     originalRun.initialData
   );
   
@@ -648,4 +684,3 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
         return { success: false, message: e.message };
     }
 }
-

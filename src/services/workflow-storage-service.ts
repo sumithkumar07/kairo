@@ -31,6 +31,7 @@ async function readDataFromFile<T>(filePath: string): Promise<T[]> {
     return JSON.parse(fileContent);
   } catch (error: any) {
     if (error.code === 'ENOENT') {
+      // If the file doesn't exist, create it with an empty array.
       await fs.writeFile(filePath, '[]', 'utf-8');
       return [];
     }
