@@ -12,3 +12,4 @@ import '@/ai/flows/assistant-chat-flow.ts';
 
 // Import tools to register them with Genkit
 import '@/ai/tools/workflow-management-tools.ts';
+
