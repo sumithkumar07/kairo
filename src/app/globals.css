@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    /* Professional Light Theme inspired by the screenshot */
+    /* Light Theme Variables */
     --background: 240 10% 98%; /* Very light gray */
     --foreground: 222.2 84% 4.9%; /* Dark text */
 
@@ -53,7 +53,7 @@
   }
 
   .dark {
-     /* Dark Theme Fallback (Kept for reference, but light is now default) */
+     /* Dark Theme Variables */
     --background: 224 71.4% 4.1%; 
     --foreground: 210 20% 98%; 
 
@@ -110,14 +110,14 @@
   }
 }
 
-/* Dot Grid Background for Light Theme */
+/* Dot Grid Background */
 .dot-grid-background {
   background-color: hsl(var(--background));
   background-image: radial-gradient(hsl(var(--foreground) / 0.08) 0.8px, transparent 0.8px);
   background-size: 20px 20px;
 }
 
-/* Custom scrollbar styles for Light Theme */
+/* Custom scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
