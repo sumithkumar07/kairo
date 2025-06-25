@@ -17,6 +17,9 @@ import {
   listSavedWorkflowsTool,
   getWorkflowDefinitionTool,
   runWorkflowTool,
+  youtubeFindVideoTool,
+  youtubeGetReportTool,
+  googleDriveFindFileTool
 } from '@/ai/tools/workflow-management-tools';
 
 // Minimal Schemas for workflow context analysis by the chat AI
@@ -75,6 +78,9 @@ const chatPrompt = ai.definePrompt({
     listSavedWorkflowsTool,
     getWorkflowDefinitionTool,
     runWorkflowTool,
+    youtubeFindVideoTool,
+    youtubeGetReportTool,
+    googleDriveFindFileTool
   ],
   config: {
     safetySettings: [ 
@@ -109,7 +115,10 @@ Your primary roles are:
     - In your \`aiResponse\`, confirm your understanding and ask for permission before generating: "Okay, you want to add a logging step after the API call. To do that, I'll need to regenerate the workflow with the new step included. Is that okay?"
     - If they confirm in the next turn, set \`isWorkflowGenerationRequest: true\` with the new prompt.
 
-4.  **Tool-Based Workflow Management**:
+4.  **Tool-Based Workflow Management & Information Gathering**:
+    - You have tools to interact with external services and manage Kairo workflows.
+    - If a user's request requires information you don't have (e.g., the ID of their "latest video" or the name of a specific "report file"), **use your tools to find that information first.** 
+    - Example: If the user says "Get the stats for my latest video and email them," you should first use the \`youtubeFindVideoTool\` with a query like "latest video from Kairo channel", then use the returned video ID with the \`youtubeGetReportTool\`. Finally, use the information gathered to create the \`workflowGenerationPrompt\`.
     - Use your tools when the user asks to **list**, **see details of**, or **run** a saved workflow.
     - \`listSavedWorkflowsTool\`: Use when asked to "list my workflows" or "show me what's saved."
     - \`getWorkflowDefinitionTool\`: Use when asked to "show me the 'Order Processing' workflow" or before running one.

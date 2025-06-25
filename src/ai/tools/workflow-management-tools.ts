@@ -118,34 +118,36 @@ export const runWorkflowTool = ai.defineTool(
     }
 );
 
-// Conceptual tools to match the Zapier screenshot
+// Activated conceptual tools with simulated data
 export const youtubeFindVideoTool = ai.defineTool({
     name: 'youtubeFindVideo',
-    description: 'Finds a YouTube video based on a search query.',
-    inputSchema: z.object({ query: z.string() }),
-    outputSchema: z.object({ videoId: z.string(), title: z.string() }),
+    description: 'Finds a YouTube video based on a search query. Can be used to find "latest video" or a specific title.',
+    inputSchema: z.object({ query: z.string().describe('The search query, e.g., "Kairo Launch Trailer" or "latest video from Kairo channel".') }),
+    outputSchema: z.object({ videoId: z.string(), title: z.string(), channel: z.string() }),
 }, async ({ query }) => {
-    // This is a placeholder implementation
-    console.log(`[Agent Tool - Placeholder] Finding YouTube video for query: ${query}`);
-    return { videoId: 'dQw4w9WgXcQ', title: 'Placeholder Video' };
+    console.log(`[Agent Tool - Simulated] Finding YouTube video for query: ${query}`);
+    // Simulate finding a video. In a real scenario, this would call the YouTube API.
+    return { videoId: 'dQw4w9WgXcQ', title: `Simulated result for: ${query}`, channel: 'Kairo Demo Channel' };
 });
 
 export const youtubeGetReportTool = ai.defineTool({
     name: 'youtubeGetReport',
-    description: 'Gets a report for a YouTube video.',
-    inputSchema: z.object({ videoId: z.string() }),
+    description: 'Gets a simulated performance report (views, likes) for a given YouTube video ID.',
+    inputSchema: z.object({ videoId: z.string().describe("The ID of the video to get a report for.") }),
     outputSchema: z.object({ views: z.number(), likes: z.number() }),
 }, async ({ videoId }) => {
-    console.log(`[Agent Tool - Placeholder] Getting report for YouTube video: ${videoId}`);
-    return { views: 1000000, likes: 50000 };
+    console.log(`[Agent Tool - Simulated] Getting report for YouTube video: ${videoId}`);
+    // Simulate fetching video statistics.
+    return { views: Math.floor(Math.random() * 1000000), likes: Math.floor(Math.random() * 50000) };
 });
 
 export const googleDriveFindFileTool = ai.defineTool({
     name: 'googleDriveFindFile',
-    description: 'Finds a file or folder in Google Drive by name.',
-    inputSchema: z.object({ name: z.string() }),
+    description: 'Finds a file or folder in Google Drive by its name.',
+    inputSchema: z.object({ name: z.string().describe('The name of the file or folder to find.') }),
     outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }),
 }, async ({ name }) => {
-    console.log(`[Agent Tool - Placeholder] Finding Google Drive file: ${name}`);
-    return { fileId: '12345_placeholder_id', name: 'My Placeholder Document', mimeType: 'application/vnd.google-apps.document' };
+    console.log(`[Agent Tool - Simulated] Finding Google Drive file: ${name}`);
+    // Simulate finding a file in Google Drive.
+    return { fileId: 'sim_gdrive_12345_abcdef', name: name, mimeType: 'application/vnd.google-apps.document' };
 });

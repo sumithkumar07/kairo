@@ -234,6 +234,46 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
     ],
   },
   {
+    name: 'Zapier Clone: YouTube to Slack Report',
+    description: 'A starting point to demonstrate the AI Assistant\'s agentic capabilities. The AI can find a video, get its stats, and generate the full workflow.',
+    nodes: [
+      {
+        id: 'yt_report_trigger',
+        type: 'webhookTrigger',
+        name: 'Get YT Report',
+        description: 'A trigger to start the reporting process.',
+        position: { x: 50, y: 50 },
+        config: {
+          pathSuffix: 'youtube-slack-report',
+          simulatedRequestBody: '{"trigger": "manual"}',
+          simulatedRequestHeaders: '{}',
+          simulatedRequestQuery: '{}',
+        },
+        inputHandles: [],
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
+        category: 'trigger',
+        aiExplanation: 'This is a starting point for an advanced workflow. The AI assistant can now use tools to gather information before generating a workflow. Try asking the assistant: "Find the YouTube video titled \'Kairo Launch Trailer\', get its performance report, and then create a workflow to post that report to the #announcements channel in Slack." The AI will use its tools to find the video, get the stats, and then build the complete workflow for you.'
+      },
+      {
+        id: 'yt_report_log',
+        type: 'logMessage',
+        name: 'Log Report Details',
+        description: 'Logs details before sending to Slack.',
+        position: { x: 50, y: 190 },
+        config: {
+          message: 'Preparing to send report to Slack...',
+        },
+        inputHandles: ['input'],
+        outputHandles: ['output'],
+        category: 'io',
+        aiExplanation: 'This is a placeholder logging step. The AI will replace or build upon this when you ask it to generate the full workflow.'
+      },
+    ],
+    connections: [
+      { id: 'conn_zap_1', sourceNodeId: 'yt_report_trigger', sourceHandle: 'requestBody', targetNodeId: 'yt_report_log', targetHandle: 'input' },
+    ],
+  },
+  {
     name: 'Database User Onboarding',
     description: 'Receives new user data, adds to database (simulated), and sends a welcome email.',
     nodes: [
