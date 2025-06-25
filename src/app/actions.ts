@@ -122,7 +122,7 @@ function resolveValue(
     if (!dataFound && firstPart === 'credential' && pathParts.length >= 2) {
         const credentialName = pathParts.slice(1).join('.');
         // This is a simplified fallback for development. A real system would use a secure credential store.
-        dataAtPath = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`];
+        dataAtPath = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`] || process.env[`${credentialName}_TOKEN`];
         if (dataAtPath !== undefined) {
             dataFound = true;
             resolutionSource = 'credential(env_fallback)';
@@ -431,6 +431,115 @@ async function executeLogMessageNode(node: WorkflowNode, config: any, workflowDa
     return { output: finalMessage };
 }
 
+// === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
+
+async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SLACK] SIMULATION: Would post message to channel ${config.channel}.`, type: 'info' });
+        return { output: config.simulated_config || { ok: true, message: { ts: 'simulated_timestamp' } } };
+    }
+    
+    if (!config.token) throw new Error(`Slack Bot Token is not configured or resolved.`);
+    if (!config.channel) throw new Error(`Slack channel is not configured or resolved.`);
+    if (!config.text) throw new Error(`Slack message text is not configured or resolved.`);
+    
+    const response = await fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': `Bearer ${config.token}`,
+        },
+        body: JSON.stringify({
+            channel: config.channel,
+            text: config.text,
+        }),
+    });
+    
+    const responseData = await response.json();
+
+    if (!response.ok || !responseData.ok) {
+        const slackError = responseData.error || `HTTP error ${response.status}`;
+        throw new Error(`Slack API error: ${slackError}`);
+    }
+
+    return { output: responseData };
+}
+
+async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE OPENAI] SIMULATION: Would send prompt to model ${config.model}.`, type: 'info' });
+        return { output: config.simulated_config };
+    }
+
+    if (!config.apiKey) throw new Error("OpenAI API Key is not configured or resolved.");
+    if (!config.messages) throw new Error("OpenAI messages are not configured or resolved.");
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+            model: config.model,
+            messages: Array.isArray(config.messages) ? config.messages : JSON.parse(config.messages),
+        }),
+    });
+
+    const responseData = await response.json();
+    if (!response.ok) {
+        throw new Error(`OpenAI API error: ${responseData.error?.message || `HTTP error ${response.status}`}`);
+    }
+    return { output: responseData };
+}
+
+async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GITHUB] SIMULATION: Would create issue in ${config.owner}/${config.repo}.`, type: 'info' });
+        return { output: config.simulated_config };
+    }
+
+    if (!config.token) throw new Error("GitHub Token is not configured or resolved.");
+    
+    const url = `https://api.github.com/repos/${config.owner}/${config.repo}/issues`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `token ${config.token}`,
+        },
+        body: JSON.stringify({
+            title: config.title,
+            body: config.body,
+        }),
+    });
+    
+    const responseData = await response.json();
+    if (!response.ok) {
+        throw new Error(`GitHub API error: ${responseData.message || `HTTP error ${response.status}`}`);
+    }
+    return { output: responseData };
+}
+
+// Simulated Live Mode for complex auth integrations
+async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], serviceName: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] SIMULATION: Returning simulated data.`, type: 'info' });
+        return { output: config.simulated_config || {} };
+    }
+    
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] LIVE (SIMULATED): This integration requires OAuth2, which is not fully implemented. Returning simulated data for workflow continuity.`, type: 'info' });
+    
+    // In a real scenario, you'd check for OAuth tokens here.
+    const hasCreds = Object.values(config).some(val => typeof val === 'string' && val.includes('{{credential.'));
+    if (!hasCreds) {
+       serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] WARNING: No credential placeholder found in config. Real execution would fail.`, type: 'info' });
+    }
+    
+    return { output: config.simulated_config || {} };
+}
+
+
 // ================================================================= //
 // ===================== CORE EXECUTION ENGINE ===================== //
 // ================================================================= //
@@ -499,10 +608,34 @@ async function executeFlowInternal(
                     case 'logMessage':
                         nodeResult = await executeLogMessageNode(node, resolvedConfig, dataForResolution, serverLogs);
                         break;
-                    // Add other node type handlers here
+                    // New Integration Nodes
+                    case 'slackPostMessage':
+                        nodeResult = await executeSlackPostMessageNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                    case 'openAiChatCompletion':
+                        nodeResult = await executeOpenAiChatCompletionNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                    case 'githubCreateIssue':
+                        nodeResult = await executeGithubCreateIssueNode(node, resolvedConfig, isSimulationMode, serverLogs);
+                        break;
+                     // Simulated Live Nodes
+                    case 'googleSheetsAppendRow':
+                        nodeResult = await executeSimulatedLiveNode(node, resolvedConfig, isSimulationMode, serverLogs, 'Google Sheets');
+                        break;
+                    case 'stripeCreatePaymentLink':
+                    case 'hubspotCreateContact':
+                    case 'twilioSendSms':
+                    case 'dropboxUploadFile':
+                    case 'googleCalendarListEvents':
+                    case 'youtubeFetchTrending':
+                    case 'youtubeDownloadVideo':
+                    case 'videoConvertToShorts':
+                    case 'youtubeUploadShort':
+                        nodeResult = await executeSimulatedLiveNode(node, resolvedConfig, isSimulationMode, serverLogs, node.type);
+                        break;
                     default:
-                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented.`, type: 'info' });
-                        nodeResult = { output: `Execution not implemented for type: ${node.type}` };
+                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented. Returning simulated_config if available.`, type: 'info' });
+                        nodeResult = { output: resolvedConfig.simulated_config || `Execution not implemented for type: ${node.type}` };
                         break;
                 }
                 
