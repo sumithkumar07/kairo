@@ -235,9 +235,10 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-    setChatHistory([]);
+    setChatHistory([]); // Clear chat history when loading a new workflow
     
     currentWorkflowNameRef.current = workflowName || 'Untitled Workflow';
+    document.title = `${currentWorkflowNameRef.current} - Kairo`;
 
     resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
   }, [resetHistoryForNewWorkflow]);
@@ -263,6 +264,8 @@ export default function WorkflowPage() {
       const loadedData = await loadWorkflowAction(workflowName);
       if (loadedData) {
         loadWorkflowIntoEditor(loadedData.workflow, loadedData.name);
+        // Persist to local storage to make it the "current" workflow on refresh
+        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: loadedData.name, workflow: loadedData.workflow }));
         toast({ title: 'Workflow Loaded', description: `Workflow "${workflowName}" is now active in the editor.` });
         setShowOpenDialog(false);
       } else {
@@ -311,6 +314,7 @@ export default function WorkflowPage() {
   const handleSaveWorkflow = useCallback(async () => {
     if (typeof window !== 'undefined') {
       if (currentWorkflowNameRef.current === 'Untitled Workflow') {
+        setSaveAsName(''); // Clear previous name for a fresh save
         setShowSaveAsDialog(true);
         return;
       }
@@ -348,6 +352,7 @@ export default function WorkflowPage() {
     try {
       await saveWorkflowAction(saveAsName, workflowToSave);
       currentWorkflowNameRef.current = saveAsName;
+      document.title = `${currentWorkflowNameRef.current} - Kairo`;
       
       localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
 

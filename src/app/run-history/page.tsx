@@ -75,7 +75,7 @@ export default function RunHistoryPage() {
       await rerunWorkflowAction(runId);
       toast({ title: 'Workflow Re-run', description: 'The workflow has been successfully re-run. Check history for new record.' });
       setSelectedRun(null);
-      await loadHistory();
+      await loadHistory(); // Refresh the history list
     } catch (e: any) {
       toast({ title: 'Re-run Failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -189,6 +189,8 @@ export default function RunHistoryPage() {
                         connections={selectedRun.workflowSnapshot.connections}
                         executionData={selectedRun.executionResult.finalWorkflowData}
                         readOnly={true}
+                        canvasOffset={selectedRun.workflowSnapshot.canvasOffset}
+                        zoomLevel={selectedRun.workflowSnapshot.zoomLevel}
                     />
                 </div>
                 <div className="col-span-1 flex flex-col gap-3">

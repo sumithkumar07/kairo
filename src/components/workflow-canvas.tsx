@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AI_NODE_TYPE_MAPPING, AVAILABLE_NODES_CONFIG, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, Zap } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface WorkflowCanvasProps {
@@ -347,11 +347,27 @@ export function WorkflowCanvas({
           ))}
         </div>
 
-        {nodes.length === 0 && !isConnecting && (
+        {nodes.length === 0 && !isConnecting && !readOnly && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-muted-foreground text-lg">
-              {readOnly ? 'Workflow snapshot is empty.' : 'Generate a workflow, drag nodes, or load a saved one.'}
-            </p>
+            <div className="text-center p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm">
+                <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
+                    <Zap className="h-12 w-12 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground mb-1">Start Building Your Workflow</h3>
+                <p className="text-muted-foreground text-sm max-w-sm">
+                    Drag nodes from the library, or ask the AI assistant to generate a workflow from a prompt.
+                </p>
+            </div>
+          </div>
+        )}
+         {nodes.length === 0 && readOnly && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+             <div className="text-center p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm">
+              <h3 className="text-xl font-semibold text-foreground mb-1">Empty Workflow</h3>
+              <p className="text-muted-foreground text-sm max-w-sm">
+                This workflow snapshot does not contain any nodes.
+              </p>
+            </div>
           </div>
         )}
       </div>

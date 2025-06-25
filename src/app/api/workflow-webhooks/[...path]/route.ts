@@ -31,50 +31,26 @@ export async function POST(
 ) {
   try {
     const pathSuffix = params.path.join('/');
-    let requestBody: any = null;
-    const contentType = request.headers.get('content-type');
+    console.log(`[API Webhook] Received POST for pathSuffix: '${pathSuffix}'`);
 
-    if (contentType && contentType.includes('application/json')) {
-      try {
-        requestBody = await request.json();
-      } catch (e) {
-        console.warn('[API Webhook] Could not parse JSON body:', e);
-        // Attempt to read as text if JSON parsing fails but content-type was json
-        try {
-            const textBody = await request.text();
-            requestBody = textBody.trim() === '' ? null : textBody;
-        } catch (textErr) {
-            console.warn('[API Webhook] Could not read body as text after JSON parse failure:', textErr);
-            requestBody = null;
+    let requestBody: any = null;
+    try {
+      const bodyText = await request.text();
+      if (bodyText.trim()) {
+        const contentType = request.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          requestBody = JSON.parse(bodyText);
+        } else if (contentType.includes('application/x-www-form-urlencoded')) {
+          const params = new URLSearchParams(bodyText);
+          requestBody = Object.fromEntries(params.entries());
+        } else {
+          requestBody = bodyText; // Treat as plain text
         }
       }
-    } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
-        try {
-            const formData = await request.formData();
-            requestBody = Object.fromEntries(formData.entries());
-        } catch (e) {
-            console.warn('[API Webhook] Could not parse form-urlencoded body:', e);
-            requestBody = null;
-        }
-    } else if (contentType && contentType.startsWith('text/')) { 
-        try {
-            const textBody = await request.text();
-            requestBody = textBody.trim() === '' ? null : textBody;
-        } catch (e) {
-            console.warn('[API Webhook] Could not read text body:', e);
-            requestBody = null;
-        }
-    } else if (!contentType) { // No content-type, try to read as text
-        try {
-            const textBody = await request.text();
-            // If body is empty, it's fine, otherwise assign.
-            requestBody = textBody.trim() === '' ? null : textBody;
-        } catch (e) {
-            console.warn('[API Webhook] Could not read body as text (no content-type specified):', e);
-            requestBody = null; // Default to null if reading fails
-        }
+    } catch (e: any) {
+        console.warn(`[API Webhook] Could not parse request body for path '${pathSuffix}'. Error: ${e.message}. Treating body as null.`);
+        requestBody = null;
     }
-
 
     const requestHeaders: Record<string, string> = {};
     request.headers.forEach((value, key) => {
@@ -93,9 +69,6 @@ export async function POST(
             requestQuery[key] = value;
         }
     });
-
-
-    console.log(`[API Webhook] Received POST for pathSuffix: '${pathSuffix}'`);
 
     const workflowToExecute = await findWorkflowByWebhookPath(pathSuffix);
 
