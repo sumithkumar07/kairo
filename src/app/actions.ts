@@ -1,3 +1,4 @@
+
 'use server';
 
 import { 
@@ -25,7 +26,7 @@ import {
   type AssistantChatInput,
   type AssistantChatOutput,
 } from '@/ai/flows/assistant-chat-flow';
-import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, BranchConfig, OnErrorWebhookConfig, WorkflowExecutionResult, WorkflowRunRecord } from '@/types/workflow';
+import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, OnErrorWebhookConfig, WorkflowExecutionResult, WorkflowRunRecord } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
 import { Pool } from 'pg';
@@ -539,6 +540,41 @@ async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimul
 }
 
 
+const nodeExecutionFunctions: Record<string, Function> = {
+    webhookTrigger: executeWebhookTriggerNode,
+    httpRequest: executeHttpRequestNode,
+    aiTask: executeAiTaskNode,
+    parseJson: executeParseJsonNode,
+    sendEmail: executeSendEmailNode,
+    databaseQuery: executeDbQueryNode,
+    logMessage: executeLogMessageNode,
+    slackPostMessage: executeSlackPostMessageNode,
+    openAiChatCompletion: executeOpenAiChatCompletionNode,
+    githubCreateIssue: executeGithubCreateIssueNode,
+    googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) => 
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Google Sheets'),
+    stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) => 
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Stripe'),
+    hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'HubSpot'),
+    twilioSendSms: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Twilio'),
+    dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Dropbox'),
+    googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Google Calendar'),
+    youtubeFetchTrending: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
+    youtubeDownloadVideo: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
+    videoConvertToShorts: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Video'),
+    youtubeUploadShort: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
+    // ... add other node types here
+};
+
+
 // ================================================================= //
 // ===================== CORE EXECUTION ENGINE ===================== //
 // ================================================================= //
@@ -565,14 +601,16 @@ async function executeFlowInternal(
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode.`, type: 'info' });
   
     for (const node of executionOrder) {
-        currentWorkflowData[node.id] = { status: 'running', lastExecutionStatus: 'running' };
+        const initialNodeData = { ...(initialData?.[node.id] || {}), input: currentWorkflowData[node.id]?.input || {} };
+        currentWorkflowData[node.id] = { ...initialNodeData, status: 'running', lastExecutionStatus: 'running' };
+
         const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
         const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs);
 
         // Check for conditional execution
         if (resolvedConfig._flow_run_condition !== undefined && !evaluateCondition(String(resolvedConfig._flow_run_condition), nodeIdentifier, serverLogs)) {
-            currentWorkflowData[node.id] = { status: 'skipped', reason: `_flow_run_condition was falsy`, lastExecutionStatus: 'skipped' };
+            currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'skipped', reason: `_flow_run_condition was falsy`, lastExecutionStatus: 'skipped' };
             lastNodeOutput = currentWorkflowData[node.id];
             continue;
         }
@@ -583,59 +621,14 @@ async function executeFlowInternal(
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                // Here you would have a switch or a map to call the correct execution function based on node.type
+                const executionFn = nodeExecutionFunctions[node.type];
                 let nodeResult: any;
-                switch (node.type) {
-                    case 'webhookTrigger':
-                        nodeResult = await executeWebhookTriggerNode(node, resolvedConfig, isSimulationMode, initialData ? initialData[node.id] : null, serverLogs);
-                        break;
-                    case 'httpRequest':
-                        nodeResult = await executeHttpRequestNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                    case 'aiTask':
-                        nodeResult = await executeAiTaskNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                    case 'parseJson':
-                        nodeResult = await executeParseJsonNode(node, resolvedConfig, serverLogs);
-                        break;
-                    case 'sendEmail':
-                        nodeResult = await executeSendEmailNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                    case 'databaseQuery':
-                        nodeResult = await executeDbQueryNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                    case 'logMessage':
-                        nodeResult = await executeLogMessageNode(node, resolvedConfig, dataForResolution, serverLogs);
-                        break;
-                    // New Integration Nodes
-                    case 'slackPostMessage':
-                        nodeResult = await executeSlackPostMessageNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                    case 'openAiChatCompletion':
-                        nodeResult = await executeOpenAiChatCompletionNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                    case 'githubCreateIssue':
-                        nodeResult = await executeGithubCreateIssueNode(node, resolvedConfig, isSimulationMode, serverLogs);
-                        break;
-                     // Simulated Live Nodes
-                    case 'googleSheetsAppendRow':
-                        nodeResult = await executeSimulatedLiveNode(node, resolvedConfig, isSimulationMode, serverLogs, 'Google Sheets');
-                        break;
-                    case 'stripeCreatePaymentLink':
-                    case 'hubspotCreateContact':
-                    case 'twilioSendSms':
-                    case 'dropboxUploadFile':
-                    case 'googleCalendarListEvents':
-                    case 'youtubeFetchTrending':
-                    case 'youtubeDownloadVideo':
-                    case 'videoConvertToShorts':
-                    case 'youtubeUploadShort':
-                        nodeResult = await executeSimulatedLiveNode(node, resolvedConfig, isSimulationMode, serverLogs, node.type);
-                        break;
-                    default:
-                        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented. Returning simulated_config if available.`, type: 'info' });
-                        nodeResult = { output: resolvedConfig.simulated_config || `Execution not implemented for type: ${node.type}` };
-                        break;
+
+                if (executionFn) {
+                    nodeResult = await executionFn(node, resolvedConfig, isSimulationMode, initialData ? initialData[node.id] : null, serverLogs, dataForResolution);
+                } else {
+                    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented. Returning simulated_config if available.`, type: 'info' });
+                    nodeResult = { output: resolvedConfig.simulated_config || `Execution not implemented for type: ${node.type}` };
                 }
                 
                 finalNodeOutput = { ...nodeResult, status: 'success', lastExecutionStatus: 'success' };
@@ -658,7 +651,7 @@ async function executeFlowInternal(
                 if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
-        currentWorkflowData[node.id] = { ...finalNodeOutput };
+        currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], ...finalNodeOutput };
         lastNodeOutput = finalNodeOutput;
     }
 
@@ -710,13 +703,31 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
 export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean = false, initialData?: Record<string, any>): Promise<WorkflowExecutionResult> {
   const serverLogs: ServerLogOutput[] = [];
   const initialWorkflowDataWithStatus: Record<string, any> = {};
+
+  // Pre-populate with resolved inputs for each node
   workflow.nodes.forEach(node => {
-    initialWorkflowDataWithStatus[node.id] = { lastExecutionStatus: 'pending' };
+    const inputs: Record<string, any> = {};
+    const incomingConnections = workflow.connections.filter(c => c.targetNodeId === node.id);
+    incomingConnections.forEach(conn => {
+      const sourceData = initialWorkflowDataWithStatus[conn.sourceNodeId];
+      if (sourceData && conn.sourceHandle) {
+        const resolvedValue = resolveValue(`{{${conn.sourceNodeId}.${conn.sourceHandle}}}`, sourceData, []);
+        inputs[conn.targetHandle || 'input'] = resolvedValue;
+      }
+    });
+    initialWorkflowDataWithStatus[node.id] = { lastExecutionStatus: 'pending', input: inputs };
   });
+
 
   // If initialData is provided (e.g., from a webhook), merge it in.
   if (initialData) {
-    Object.assign(initialWorkflowDataWithStatus, initialData);
+    for (const nodeId in initialData) {
+      if (initialWorkflowDataWithStatus[nodeId]) {
+        initialWorkflowDataWithStatus[nodeId] = { ...initialWorkflowDataWithStatus[nodeId], ...initialData[nodeId] };
+      } else {
+        initialWorkflowDataWithStatus[nodeId] = initialData[nodeId];
+      }
+    }
   }
 
   const result = await executeFlowInternal(

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -112,13 +113,14 @@ const WorkflowNodeItemComponent = ({
       id={`node-${node.id}`}
       draggable={!readOnly}
       onDragStart={(e) => !isConnecting && !readOnly && onDragStartInternal(e, node.id)}
-      onClick={(e) => !(e.target as HTMLElement).closest('[data-handle-id]') && !readOnly && onClick(node.id)}
+      onClick={(e) => !(e.target as HTMLElement).closest('[data-handle-id]') && onClick(node.id)}
       className={cn(
         'workflow-node-item absolute shadow-lg transition-all duration-150 ease-in-out',
         'flex flex-col overflow-hidden bg-card border',
-        isConnecting ? 'cursor-crosshair' : (readOnly ? 'cursor-default' : 'cursor-grab hover:shadow-xl'),
+        isConnecting ? 'cursor-crosshair' : (readOnly ? 'cursor-pointer' : 'cursor-grab hover:shadow-xl'),
         nodeStyleClasses, 
         isSelected && !readOnly && 'ring-2 ring-offset-2 ring-offset-background ring-primary',
+        isSelected && readOnly && 'ring-2 ring-offset-2 ring-offset-background ring-blue-500',
       )}
       style={{ left: node.position.x, top: node.position.y, width: NODE_WIDTH, height: NODE_HEIGHT }}
     >

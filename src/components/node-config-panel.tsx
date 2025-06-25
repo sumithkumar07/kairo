@@ -11,9 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React, { useState } from 'react';
@@ -47,38 +46,55 @@ export function NodeConfigPanel({
   
   const [jsonValidationErrors, setJsonValidationErrors] = useState<Record<string, string | null>>({});
 
-  const handleInputChange = (fieldKey: string, value: any, isRetryField = false) => {
+  const handleConfigUpdate = (updater: (draft: Record<string, any>) => void) => {
+    const newConfig = produce(node.config, updater);
+    onConfigChange(node.id, newConfig);
+  };
+  
+  const handleInputChange = (fieldKey: string, value: any, isRetryField = false, isWebhookField = false) => {
     let valueToSet = value;
     const schema = nodeType?.configSchema?.[fieldKey];
 
-    if (schema?.type === 'json') {
+    if (schema?.type === 'json' || (isWebhookField && (fieldKey === 'headers' || fieldKey === 'bodyTemplate'))) {
       try {
-        if (String(valueToSet).trim() !== '') JSON.parse(String(valueToSet)); 
+        if (String(valueToSet).trim() !== '') JSON.parse(String(valueToSet));
         setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: null })); 
       } catch (e) {
         setJsonValidationErrors(prev => ({ ...prev, [fieldKey]: 'Invalid JSON format.' }));
       }
     }
 
-    if (schema?.type === 'number') {
-      valueToSet = value.trim() === '' ? undefined : parseFloat(value);
-      if (isNaN(valueToSet)) valueToSet = undefined;
+    if (schema?.type === 'number' || isRetryField && (fieldKey === 'attempts' || fieldKey === 'delayMs' || fieldKey === 'backoffFactor')) {
+        valueToSet = value.trim() === '' ? undefined : parseFloat(value);
+        if (isNaN(valueToSet)) valueToSet = undefined;
+    }
+     if (isRetryField && (fieldKey === 'retryOnStatusCodes' || fieldKey === 'retryOnErrorKeywords')) {
+      valueToSet = value.trim() === '' ? undefined : value.split(',').map((s: string) => s.trim()).filter(Boolean);
+      if (fieldKey === 'retryOnStatusCodes' && valueToSet) {
+        valueToSet = valueToSet.map((n: string) => parseInt(n, 10)).filter((n: number) => !isNaN(n));
+      }
     }
     
-    const newConfig = produce(node.config, draftConfig => {
+    handleConfigUpdate(draftConfig => {
       if (isRetryField) {
         if (!draftConfig.retry) draftConfig.retry = {};
         (draftConfig.retry as Record<string, any>)[fieldKey] = valueToSet;
         if (valueToSet === undefined || valueToSet === null || (typeof valueToSet === 'string' && valueToSet.trim() === '') || (Array.isArray(valueToSet) && valueToSet.length === 0) ) {
            delete (draftConfig.retry as Record<string, any>)[fieldKey];
+           if(Object.keys(draftConfig.retry).length === 0) delete draftConfig.retry;
         }
+      } else if (isWebhookField) {
+          if(!draftConfig.onErrorWebhook) draftConfig.onErrorWebhook = {};
+          (draftConfig.onErrorWebhook as Record<string, any>)[fieldKey] = valueToSet;
+          if (valueToSet === undefined || valueToSet === null || (typeof valueToSet === 'string' && valueToSet.trim() === '')) {
+            delete (draftConfig.onErrorWebhook as Record<string, any>)[fieldKey];
+            if(Object.keys(draftConfig.onErrorWebhook).length === 0) delete draftConfig.onErrorWebhook;
+          }
       } else {
         draftConfig[fieldKey] = valueToSet;
       }
     });
-    onConfigChange(node.id, newConfig);
   };
-
 
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     const currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
@@ -131,18 +147,7 @@ export function NodeConfigPanel({
   }, [node.config]);
 
   const currentRetryConfig: Partial<RetryConfig> = node.config.retry || {};
-
-  const handleRetryConfigChange = (field: keyof RetryConfig, value: string) => {
-    let processedValue: any = value;
-    if (field === 'attempts' || field === 'delayMs' || field === 'backoffFactor') {
-      processedValue = value.trim() === '' ? undefined : parseInt(value, 10);
-      if (isNaN(processedValue as number)) processedValue = undefined;
-    } else if (field === 'retryOnStatusCodes' || field === 'retryOnErrorKeywords') {
-      processedValue = value.trim() === '' ? [] : value.split(',').map(s => s.trim()).filter(Boolean);
-      if (field === 'retryOnStatusCodes') processedValue = processedValue.map((n: string) => parseInt(n, 10)).filter((n: number) => !isNaN(n));
-    }
-    handleInputChange(field, processedValue, true);
-  };
+  const currentWebhookConfig: Partial<OnErrorWebhookConfig> = node.config.onErrorWebhook || {};
 
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
@@ -242,24 +247,32 @@ export function NodeConfigPanel({
               </AccordionTrigger>
               <AccordionContent className="pt-2 space-y-3">
                   <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="retry-config" className="border-b-0">
-                      <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
+                    <AccordionItem value="retry-config" className="border rounded-md mb-2">
+                      <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded-t-md hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
                         <div className="flex items-center gap-2"><RotateCcwIcon className="h-4 w-4"/>Retry Configuration</div>
                       </AccordionTrigger>
-                      <AccordionContent className="pt-2 space-y-2 px-1">
-                        <div className="space-y-1"><Label className="text-xs">Attempts</Label><Input type="number" value={currentRetryConfig.attempts ?? ''} onChange={e => handleRetryConfigChange('attempts', e.target.value)} placeholder="e.g., 3" className="h-8 text-xs"/></div>
-                        <div className="space-y-1"><Label className="text-xs">Initial Delay (ms)</Label><Input type="number" value={currentRetryConfig.delayMs ?? ''} onChange={e => handleRetryConfigChange('delayMs', e.target.value)} placeholder="e.g., 1000" className="h-8 text-xs"/></div>
-                        <div className="space-y-1"><Label className="text-xs">Backoff Factor</Label><Input type="number" value={currentRetryConfig.backoffFactor ?? ''} onChange={e => handleRetryConfigChange('backoffFactor', e.target.value)} placeholder="e.g., 2" className="h-8 text-xs"/></div>
-                        <div className="space-y-1"><Label className="text-xs">Retry on Status Codes</Label><Input value={(currentRetryConfig.retryOnStatusCodes || []).join(', ')} onChange={e => handleRetryConfigChange('retryOnStatusCodes', e.target.value)} placeholder="500, 503, 429" className="h-8 text-xs"/></div>
-                        <div className="space-y-1"><Label className="text-xs">Retry on Error Keywords</Label><Input value={(currentRetryConfig.retryOnErrorKeywords || []).join(', ')} onChange={e => handleRetryConfigChange('retryOnErrorKeywords', e.target.value)} placeholder="timeout, unavailable" className="h-8 text-xs"/></div>
+                      <AccordionContent className="pt-2 space-y-2 px-2 border-t">
+                        <div className="space-y-1"><Label className="text-xs">Attempts</Label><Input type="number" value={currentRetryConfig.attempts ?? ''} onChange={e => handleInputChange('attempts', e.target.value, true)} placeholder="e.g., 3" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Initial Delay (ms)</Label><Input type="number" value={currentRetryConfig.delayMs ?? ''} onChange={e => handleInputChange('delayMs', e.target.value, true)} placeholder="e.g., 1000" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Backoff Factor</Label><Input type="number" value={currentRetryConfig.backoffFactor ?? ''} onChange={e => handleInputChange('backoffFactor', e.target.value, true)} placeholder="e.g., 2" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Retry on Status Codes (CSV)</Label><Input value={(currentRetryConfig.retryOnStatusCodes || []).join(', ')} onChange={e => handleInputChange('retryOnStatusCodes', e.target.value, true)} placeholder="500, 503, 429" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Retry on Error Keywords (CSV)</Label><Input value={(currentRetryConfig.retryOnErrorKeywords || []).join(', ')} onChange={e => handleInputChange('retryOnErrorKeywords', e.target.value, true)} placeholder="timeout, unavailable" className="h-8 text-xs"/></div>
                       </AccordionContent>
                     </AccordionItem>
-                    <AccordionItem value="webhook-config" className="border-b-0">
-                      <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
-                        <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4"/>On-Error Webhook</div>
+                    <AccordionItem value="webhook-config" className="border rounded-md">
+                      <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded-t-md hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
+                        <div className="flex items-center gap-2"><Webhook className="h-4 w-4"/>On-Error Webhook</div>
                       </AccordionTrigger>
-                      <AccordionContent className="pt-2 space-y-2 px-1">
-                        <p className="text-xs text-muted-foreground italic">Configuration for on-error webhooks would go here.</p>
+                      <AccordionContent className="pt-2 space-y-2 px-2 border-t">
+                        <div className="space-y-1"><Label className="text-xs">Webhook URL</Label><Input type="text" value={currentWebhookConfig.url ?? ''} onChange={e => handleInputChange('url', e.target.value, false, true)} placeholder="https://my-error-handler.com" className="h-8 text-xs"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Method</Label>
+                          <Select value={currentWebhookConfig.method ?? 'POST'} onValueChange={(value) => handleInputChange('method', value, false, true)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue/></SelectTrigger>
+                            <SelectContent><SelectItem value="POST">POST</SelectItem><SelectItem value="PUT">PUT</SelectItem></SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1"><Label className="text-xs">Headers (JSON)</Label><Textarea value={typeof currentWebhookConfig.headers === 'object' ? JSON.stringify(currentWebhookConfig.headers, null, 2) : currentWebhookConfig.headers ?? ''} onChange={e => handleInputChange('headers', e.target.value, false, true)} placeholder={'{\n  "X-API-Key": "{{env.ERROR_KEY}}"\n}'} className="h-20 text-xs font-mono"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Body Template (JSON)</Label><Textarea value={typeof currentWebhookConfig.bodyTemplate === 'object' ? JSON.stringify(currentWebhookConfig.bodyTemplate, null, 2) : currentWebhookConfig.bodyTemplate ?? ''} onChange={e => handleInputChange('bodyTemplate', e.target.value, false, true)} placeholder={'{\n  "error": "{{error_message}}"\n}'} className="h-24 text-xs font-mono"/></div>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
