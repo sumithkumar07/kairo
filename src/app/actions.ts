@@ -439,7 +439,7 @@ async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSi
         return { output: config.simulated_config || { ok: true, message: { ts: 'simulated_timestamp' } } };
     }
     
-    if (!config.token) throw new Error(`Slack Bot Token is not configured or resolved.`);
+    if (!config.token) throw new Error(`Slack Bot Token is not configured or resolved. Please set the credential placeholder {{credential.SlackBotToken}} and ensure the environment variable is available.`);
     if (!config.channel) throw new Error(`Slack channel is not configured or resolved.`);
     if (!config.text) throw new Error(`Slack message text is not configured or resolved.`);
     
@@ -471,7 +471,7 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
         return { output: config.simulated_config };
     }
 
-    if (!config.apiKey) throw new Error("OpenAI API Key is not configured or resolved.");
+    if (!config.apiKey) throw new Error("OpenAI API Key is not configured or resolved. Please set the credential placeholder {{credential.OpenAIKey}} and ensure the environment variable is available.");
     if (!config.messages) throw new Error("OpenAI messages are not configured or resolved.");
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -499,7 +499,7 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
         return { output: config.simulated_config };
     }
 
-    if (!config.token) throw new Error("GitHub Token is not configured or resolved.");
+    if (!config.token) throw new Error("GitHub Token is not configured or resolved. Please set the credential placeholder {{credential.GitHubToken}} and ensure the environment variable is available.");
     
     const url = `https://api.github.com/repos/${config.owner}/${config.repo}/issues`;
     const response = await fetch(url, {
