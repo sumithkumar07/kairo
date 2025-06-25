@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, UserPlus, LogOut, Bot, Settings } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, UserPlus, LogOut, Bot, Settings, Zap } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -173,7 +173,7 @@ export default function HomePage() {
               </div>
               <div className="bg-card p-6 rounded-xl shadow-xl hover:shadow-accent/30 hover:scale-[1.02] transition-all duration-300 ease-in-out flex flex-col items-center text-center">
                 <div className="p-3 bg-primary/10 rounded-full mb-4 shadow-inner flex items-center justify-center h-[80px] w-[80px]">
-                    <BrainCircuit className="h-12 w-12 text-primary" />
+                    <Zap className="h-12 w-12 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">AI-Powered Insights</h3>
                 <p className="text-muted-foreground text-sm flex-grow">Gain deeper understanding with AI-driven explanations and suggestions for optimization.</p>
