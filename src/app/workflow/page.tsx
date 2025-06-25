@@ -92,6 +92,7 @@ export default function WorkflowPage() {
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
+  const canvasOffsetStartRef = useRef({ x: 0, y: 0 });
   const [zoomLevel, setZoomLevel] = useState(1);
 
   const [isExplainingWorkflow, setIsExplainingWorkflow] = useState(false);
@@ -776,12 +777,48 @@ export default function WorkflowPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const isInputField = (target: EventTarget | null): boolean => {
-      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+  const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (!event) return;
+    const target = event.target;
+    if (target instanceof HTMLElement) {
+        if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
+            return;
+        }
     }
 
+    setSelectedNodeId(null);
+    setSelectedConnectionId(null);
+    setWorkflowExplanation(null);
+    if (isConnecting) {
+      handleCancelConnection();
+    }
+  }, [isConnecting, handleCancelConnection]);
+
+  const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
+    if (event.button !== 0) return;
+
+    const targetElement = event.target as HTMLElement;
+    if (targetElement.closest('.workflow-node-item') ||
+        targetElement.closest('[data-handle-id]') ||
+        targetElement.closest('[data-delete-connection-button="true"]') ||
+        targetElement.closest('[data-connection-click-target="true"]')
+        ) {
+        return;
+    }
+
+    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>);
+    if (!isConnecting) {
+      setIsPanning(true);
+      panStartRef.current = { x: event.clientX, y: event.clientY };
+      canvasOffsetStartRef.current = canvasOffset;
+    }
+  }, [handleCanvasClick, isConnecting, canvasOffset]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const isInputField = (target: EventTarget | null): boolean => {
+        return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+      }
       if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog || showSaveAsDialog || showOpenDialog || workflowToDeleteFromModal) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
@@ -942,6 +979,40 @@ export default function WorkflowPage() {
     isLoadingInitialSuggestion,
     initialSuggestionAttempted,
   ]);
+  
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isPanning) return;
+      event.preventDefault();
+
+      const dx = event.clientX - panStartRef.current.x;
+      const dy = event.clientY - panStartRef.current.y;
+      
+      setCanvasOffset({
+        x: canvasOffsetStartRef.current.x + dx,
+        y: canvasOffsetStartRef.current.y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      if (isPanning) {
+        setIsPanning(false);
+        saveHistory();
+      }
+    };
+
+    if (isPanning) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+    };
+  }, [isPanning, saveHistory]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
     if (nodeType.isAdvanced && !isProOrTrial) {
@@ -1063,7 +1134,7 @@ export default function WorkflowPage() {
     setInitialCanvasSuggestion(null);
   };
 
-  const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number; y: number }) => {
+  const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number, y: number }) => {
     setIsConnecting(true);
     setConnectionStartNodeId(startNodeId);
     setConnectionStartHandleId(startHandleId);
@@ -1079,43 +1150,6 @@ export default function WorkflowPage() {
       setConnectionPreviewPosition(mousePosition);
     }
   }, [isConnecting]);
-
-  const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    if (!event) return;
-    const target = event.target;
-    if (target instanceof HTMLElement) {
-        if (target.closest('[data-delete-connection-button="true"]') || target.closest('[data-connection-click-target="true"]')) {
-            return;
-        }
-    }
-
-    setSelectedNodeId(null);
-    setSelectedConnectionId(null);
-    setWorkflowExplanation(null);
-    if (isConnecting) {
-      handleCancelConnection();
-    }
-  }, [isConnecting, handleCancelConnection]);
-
-  const handleCanvasPanStart = useCallback((event: React.MouseEvent<Element, MouseEvent>) => {
-    if (event.button !== 0) return;
-
-    const targetElement = event.target as HTMLElement;
-    if (targetElement.closest('.workflow-node-item') ||
-        targetElement.closest('[data-handle-id]') ||
-        targetElement.closest('[data-delete-connection-button="true"]') ||
-        targetElement.closest('[data-connection-click-target="true"]')
-        ) {
-        return;
-    }
-
-    handleCanvasClick(event as React.MouseEvent<HTMLDivElement, MouseEvent>);
-    if (!isConnecting) {
-      setIsPanning(true);
-      panStartRef.current = { x: event.clientX, y: event.clientY };
-      document.body.style.cursor = 'grabbing';
-    }
-  }, [handleCanvasClick, isConnecting]);
 
   const handleConnectionClick = useCallback((connectionId: string) => {
     setSelectedConnectionId(connectionId);
