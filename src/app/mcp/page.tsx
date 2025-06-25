@@ -229,7 +229,7 @@ export default function MCPDashboardPage() {
                                 </div>
                                 <div>
                                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication</div>
-                                    <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your agent. This key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header of your requests (e.g., <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>).</p>
+                                    <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your agent. For this prototype, after generating a key, you must set it as an environment variable named <code className="text-xs bg-muted p-1 rounded font-mono">KAIRO_MCP_API_KEY</code> on the server. The key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header as <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>.</p>
                                     <div className="mt-4">
                                       {!apiKey ? (
                                           <Button onClick={handleGenerateKey}><KeyRound className="h-4 w-4 mr-2" />Generate API Key</Button>

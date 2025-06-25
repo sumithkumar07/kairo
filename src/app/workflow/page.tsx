@@ -212,7 +212,7 @@ export default function WorkflowPage() {
     setConnectionPreviewPosition(null);
   }, []);
 
-  const loadWorkflowIntoEditor = useCallback((workflowData: any, workflowName?: string) => {
+  const loadWorkflowIntoEditor = useCallback((workflowData: Workflow, workflowName?: string) => {
     if (!workflowData || !Array.isArray(workflowData.nodes) || !Array.isArray(workflowData.connections)) {
       throw new Error("Invalid workflow structure.");
     }
@@ -220,7 +220,11 @@ export default function WorkflowPage() {
     const loadedConnections = workflowData.connections || [];
     setNodes(loadedNodes);
     setConnections(loadedConnections);
-    nextNodeIdRef.current = workflowData.nextNodeId || Math.max(0, ...loadedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10))) + 1 || 1;
+    
+    // Calculate the nextNodeId based on the loaded nodes.
+    const maxId = Math.max(0, ...loadedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10)));
+    nextNodeIdRef.current = isFinite(maxId) ? maxId + 1 : 1;
+    
     setCanvasOffset(workflowData.canvasOffset || { x: 0, y: 0 });
     setZoomLevel(workflowData.zoomLevel || 1);
     setIsSimulationMode(workflowData.isSimulationMode === undefined ? true : workflowData.isSimulationMode);
@@ -231,6 +235,7 @@ export default function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
+    setChatHistory([]);
     
     currentWorkflowNameRef.current = workflowName || 'Untitled Workflow';
 
@@ -289,8 +294,8 @@ export default function WorkflowPage() {
       const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
       if (savedWorkflowJson) {
         try {
-          const savedWorkflow = JSON.parse(savedWorkflowJson);
-          loadWorkflowIntoEditor(savedWorkflow, savedWorkflow.name || 'Untitled Workflow');
+          const savedState = JSON.parse(savedWorkflowJson);
+          loadWorkflowIntoEditor(savedState.workflow, savedState.name || 'Untitled Workflow');
         } catch (error) {
           console.error("Error loading initial workflow:", error);
           localStorage.removeItem(CURRENT_WORKFLOW_KEY);
@@ -310,13 +315,12 @@ export default function WorkflowPage() {
         return;
       }
       
-      const workflowToSave: Workflow = { nodes, connections };
+      const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
       try {
         await saveWorkflowAction(currentWorkflowNameRef.current, workflowToSave);
         toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
         
-        const fullState = { name: currentWorkflowNameRef.current, workflow: workflowToSave, canvasOffset, zoomLevel, isSimulationMode };
-        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(fullState));
+        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
 
         saveHistory();
       } catch (e: any) {
@@ -340,13 +344,12 @@ export default function WorkflowPage() {
       return;
     }
 
-    const workflowToSave: Workflow = { nodes, connections };
+    const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
     try {
       await saveWorkflowAction(saveAsName, workflowToSave);
       currentWorkflowNameRef.current = saveAsName;
       
-      const fullState = { name: currentWorkflowNameRef.current, workflow: workflowToSave, canvasOffset, zoomLevel, isSimulationMode };
-      localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(fullState));
+      localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
 
       toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
       setShowSaveAsDialog(false);
@@ -410,8 +413,8 @@ export default function WorkflowPage() {
       });
       return;
     }
-    const { nodes: newNodes, connections: newConnections } = mapAiWorkflowToInternal(aiOutput);
-    loadWorkflowIntoEditor({ nodes: newNodes, connections: newConnections });
+    const workflow = mapAiWorkflowToInternal(aiOutput);
+    loadWorkflowIntoEditor(workflow);
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast, loadWorkflowIntoEditor]);
   
@@ -586,7 +589,7 @@ export default function WorkflowPage() {
         timestamp: new Date().toISOString(),
         status: hasErrors ? 'Failed' : 'Success',
         executionResult: result,
-        workflowSnapshot: { nodes, connections },
+        workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
       };
       
       await saveRunRecord(runRecord);
@@ -627,7 +630,7 @@ export default function WorkflowPage() {
             finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
             serverLogs: finalErrorLogs.map(l => ({ ...l, timestamp: new Date().toISOString()})) 
         },
-        workflowSnapshot: { nodes, connections },
+        workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
       };
       await saveRunRecord(errorRunRecord);
 
@@ -635,7 +638,7 @@ export default function WorkflowPage() {
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, executionLogs]);
+  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, executionLogs, canvasOffset, zoomLevel]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
@@ -1234,10 +1237,9 @@ export default function WorkflowPage() {
   }, [toast, loadWorkflowIntoEditor]);
 
   const handleExportWorkflow = useCallback(() => {
-    const workflowData = {
+    const workflowData: Workflow = {
       nodes,
       connections,
-      nextNodeId: nextNodeIdRef.current,
       canvasOffset,
       zoomLevel,
       isSimulationMode,
@@ -1270,18 +1272,18 @@ export default function WorkflowPage() {
           try {
             const content = e.target?.result as string;
             const importedData = JSON.parse(content);
-
-            const fileName = file.name.replace('.json', '');
-            loadWorkflowIntoEditor(importedData, fileName || 'Untitled Workflow');
-
-            const fullStateToSave = {
-              name: fileName || 'Untitled Workflow',
-              workflow: { nodes: importedData.nodes, connections: importedData.connections },
+            const workflowToLoad: Workflow = {
+              nodes: importedData.nodes || [],
+              connections: importedData.connections || [],
               canvasOffset: importedData.canvasOffset,
               zoomLevel: importedData.zoomLevel,
               isSimulationMode: importedData.isSimulationMode
             };
-            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify(fullStateToSave));
+
+            const fileName = file.name.replace('.json', '');
+            loadWorkflowIntoEditor(workflowToLoad, fileName || 'Untitled Workflow');
+
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: fileName || 'Untitled Workflow', workflow: workflowToLoad }));
             toast({ title: 'Workflow Imported', description: `Workflow "${fileName || 'Untitled Workflow'}" loaded from file and set as current.` });
 
           } catch (error: any) {

@@ -13,6 +13,25 @@ export async function POST(request: NextRequest) {
   let aiResponseText = '';
 
   try {
+    // --- API Key Authentication ---
+    const authHeader = request.headers.get('Authorization');
+    const expectedApiKey = `Bearer ${process.env.KAIRO_MCP_API_KEY}`;
+    
+    if (!process.env.KAIRO_MCP_API_KEY) {
+        console.error('[API Agent] FATAL: KAIRO_MCP_API_KEY is not set on the server.');
+        status = 'Failed';
+        aiResponseText = 'API authentication is not configured on the server.';
+        return NextResponse.json({ error: aiResponseText }, { status: 500 });
+    }
+    
+    if (!authHeader || authHeader !== expectedApiKey) {
+        console.warn(`[API Agent] Failed auth attempt. Provided: ${authHeader?.substring(0, 15)}...`);
+        status = 'Failed';
+        aiResponseText = 'Unauthorized. Invalid or missing API Key.';
+        return NextResponse.json({ error: aiResponseText }, { status: 401 });
+    }
+    // --- End Authentication ---
+
     const body = await request.json();
     const parsedInput = McpInputSchema.safeParse(body);
 

@@ -80,7 +80,13 @@ export async function getWorkflowByName(name: string): Promise<Workflow | null> 
 
   const exampleWorkflow = EXAMPLE_WORKFLOWS.find(wf => wf.name === name);
   if (exampleWorkflow) {
-    return { nodes: exampleWorkflow.nodes, connections: exampleWorkflow.connections };
+    return { 
+        nodes: exampleWorkflow.nodes, 
+        connections: exampleWorkflow.connections,
+        canvasOffset: { x: 0, y: 0 },
+        zoomLevel: 1,
+        isSimulationMode: true,
+    };
   }
 
   return null;
@@ -124,9 +130,15 @@ export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<Wor
   const allWorkflows = await readDataFromFile<StoredWorkflow>(WORKFLOWS_DB_PATH);
   const allExampleWorkflows: ExampleWorkflow[] = EXAMPLE_WORKFLOWS;
 
-  const combined = [
+  const combined: Workflow[] = [
     ...allWorkflows.map(uw => ({ ...uw.workflow, name: uw.name })), 
-    ...allExampleWorkflows
+    ...allExampleWorkflows.map(ew => ({
+        nodes: ew.nodes,
+        connections: ew.connections,
+        canvasOffset: {x: 0, y: 0},
+        zoomLevel: 1,
+        isSimulationMode: true,
+    }))
   ];
 
   for (const wf of combined) {

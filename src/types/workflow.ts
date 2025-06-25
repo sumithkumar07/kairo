@@ -54,6 +54,10 @@ export interface WorkflowConnection {
 export interface Workflow {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
+  // Add metadata for canvas state
+  canvasOffset?: { x: number; y: number };
+  zoomLevel?: number;
+  isSimulationMode?: boolean;
 }
 
 export interface ExampleWorkflow {
