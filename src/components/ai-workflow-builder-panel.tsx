@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, File as FileIcon, FilePlus } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, File as FileIcon, FilePlus, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -31,6 +31,8 @@ interface AIWorkflowBuilderPanelProps {
   onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
   onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
   onToggleAssistant: () => void;
+  onToggleNodeLibrary: () => void;
+  isNodeLibraryVisible: boolean;
   onSaveWorkflow: () => void;
   onSaveWorkflowAs: () => void;
   onOpenWorkflow: () => void;
@@ -77,6 +79,8 @@ export function AIWorkflowBuilderPanel({
   onNodeDragStop,
   onCanvasDrop,
   onToggleAssistant,
+  onToggleNodeLibrary,
+  isNodeLibraryVisible,
   onSaveWorkflow,
   onSaveWorkflowAs,
   onOpenWorkflow,
@@ -188,6 +192,18 @@ export function AIWorkflowBuilderPanel({
       <TooltipProvider delayDuration={200}>
         <div className="p-2 border-b bg-background/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
           <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleNodeLibrary}>
+                  {isNodeLibraryVisible ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{isNodeLibraryVisible ? 'Hide Node Library' : 'Show Node Library'}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Separator orientation="vertical" className="h-5" />
+
             <Menubar className="border-none bg-transparent p-0 h-auto">
                 <MenubarMenu>
                     <MenubarTrigger className="px-2.5 py-1.5 h-8">File</MenubarTrigger>

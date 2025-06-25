@@ -41,6 +41,7 @@ import { produce } from 'immer';
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
+const NODE_LIBRARY_VISIBLE_KEY = 'kairoNodeLibraryVisible';
 const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
 const CHAT_CONTEXT_MESSAGE_LIMIT = 6;
 const MIN_ZOOM = 0.25;
@@ -64,6 +65,7 @@ export default function WorkflowPage() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false);
   const [isAssistantVisible, setIsAssistantVisible] = useState(true);
+  const [isNodeLibraryVisible, setIsNodeLibraryVisible] = useState(true);
   const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
@@ -767,6 +769,10 @@ export default function WorkflowPage() {
     if (savedAssistantVisibility !== null) {
       setIsAssistantVisible(JSON.parse(savedAssistantVisibility));
     }
+    const savedNodeLibraryVisibility = localStorage.getItem(NODE_LIBRARY_VISIBLE_KEY);
+    if (savedNodeLibraryVisibility !== null) {
+      setIsNodeLibraryVisible(JSON.parse(savedNodeLibraryVisibility));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1127,6 +1133,14 @@ export default function WorkflowPage() {
     });
   };
 
+  const toggleNodeLibraryPanel = () => {
+    setIsNodeLibraryVisible(prev => {
+      const newVisibility = !prev;
+      localStorage.setItem(NODE_LIBRARY_VISIBLE_KEY, JSON.stringify(newVisibility));
+      return newVisibility;
+    });
+  };
+
   const selectedNodeType = useMemo(() => {
     if (!selectedNode) return undefined;
     return AVAILABLE_NODES_CONFIG.find(nt => nt.type === selectedNode.type);
@@ -1266,7 +1280,7 @@ export default function WorkflowPage() {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        <NodeLibrary availableNodes={AVAILABLE_NODES_CONFIG} />
+        {isNodeLibraryVisible && <NodeLibrary availableNodes={AVAILABLE_NODES_CONFIG} />}
         <AIWorkflowBuilderPanel
           nodes={nodes}
           connections={connections}
@@ -1280,6 +1294,8 @@ export default function WorkflowPage() {
           }}
           onCanvasDrop={addNodeToCanvas}
           onToggleAssistant={toggleAssistantPanel}
+          onToggleNodeLibrary={toggleNodeLibraryPanel}
+          isNodeLibraryVisible={isNodeLibraryVisible}
           onSaveWorkflow={handleSaveWorkflow}
           onSaveWorkflowAs={handleSaveWorkflowAs}
           onOpenWorkflow={handleOpenWorkflowDialog}
