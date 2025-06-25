@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -70,7 +69,8 @@ const WorkflowNodeItemComponent = ({
   const categoryStyling = getCanvasNodeStyling(node.category);
 
   const getStatusIndicator = () => {
-    if (!node.lastExecutionStatus || node.lastExecutionStatus === 'pending') return null;
+    const statusToUse = executionData?.lastExecutionStatus || node.lastExecutionStatus;
+    if (!statusToUse || statusToUse === 'pending') return null;
 
     const statusMap = {
       success: { Icon: CheckCircle2, color: 'text-green-400', tooltip: 'Successfully Executed' },
@@ -79,13 +79,13 @@ const WorkflowNodeItemComponent = ({
       skipped: { Icon: SkipForward, color: 'text-gray-500', tooltip: 'Execution Skipped' },
       partial_success: { Icon: AlertCircleIcon, color: 'text-yellow-400', tooltip: 'Partial Success' },
     };
-    const statusInfo = statusMap[node.lastExecutionStatus];
+    const statusInfo = statusMap[statusToUse];
     
     if (!statusInfo) return null;
     const { Icon, color, tooltip } = statusInfo;
     
     let finalTooltip = tooltip;
-    if (node.lastExecutionStatus === 'error' && executionData?.error_message) {
+    if (statusToUse === 'error' && executionData?.error_message) {
       finalTooltip = `Error: ${executionData.error_message}`;
     }
 
@@ -99,11 +99,13 @@ const WorkflowNodeItemComponent = ({
     );
   };
   
+  const nodeExecutionStatus = executionData?.lastExecutionStatus || node.lastExecutionStatus;
+
   let nodeStyleClasses = categoryStyling.nodeBorder;
-  if (node.lastExecutionStatus === 'error') nodeStyleClasses = 'ring-2 ring-destructive border-destructive/80';
+  if (nodeExecutionStatus === 'error') nodeStyleClasses = 'ring-2 ring-destructive border-destructive/80';
   else if (hasWarning && !readOnly) nodeStyleClasses = 'ring-1 ring-orange-500 border-orange-500/80';
-  else if (node.lastExecutionStatus === 'success') nodeStyleClasses = 'ring-1 ring-green-500/80 border-green-500/70';
-  else if (node.lastExecutionStatus === 'partial_success') nodeStyleClasses = 'ring-1 ring-yellow-500/80 border-yellow-500/70';
+  else if (nodeExecutionStatus === 'success') nodeStyleClasses = 'ring-1 ring-green-500/80 border-green-500/70';
+  else if (nodeExecutionStatus === 'partial_success') nodeStyleClasses = 'ring-1 ring-yellow-500/80 border-yellow-500/70';
 
   return (
     <Card
@@ -127,7 +129,7 @@ const WorkflowNodeItemComponent = ({
         </CardTitle>
         <div className="flex items-center gap-1 shrink-0">
           {getStatusIndicator()}
-          {hasWarning && node.lastExecutionStatus !== 'error' && !readOnly && ( 
+          {hasWarning && nodeExecutionStatus !== 'error' && !readOnly && ( 
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild><AlertTriangle className="h-3.5 w-3.5 text-yellow-300 shrink-0" /></TooltipTrigger>

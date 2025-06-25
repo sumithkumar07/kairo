@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
@@ -990,7 +989,7 @@ export default function WorkflowPage() {
       
       setCanvasOffset({
         x: canvasOffsetStartRef.current.x + dx,
-        y: canvasOffsetStartRef.current.y,
+        y: canvasOffsetStartRef.current.y + dy,
       });
     };
 

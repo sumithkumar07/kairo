@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
