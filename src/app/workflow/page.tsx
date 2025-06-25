@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
@@ -214,6 +215,7 @@ export default function WorkflowPage() {
 
   const loadWorkflowIntoEditor = useCallback((workflowData: Workflow, workflowName?: string) => {
     if (!workflowData || !Array.isArray(workflowData.nodes) || !Array.isArray(workflowData.connections)) {
+      console.error("Attempted to load invalid workflow structure:", workflowData);
       throw new Error("Invalid workflow structure.");
     }
     const loadedNodes = (workflowData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
@@ -298,9 +300,26 @@ export default function WorkflowPage() {
       if (savedWorkflowJson) {
         try {
           const savedState = JSON.parse(savedWorkflowJson);
-          loadWorkflowIntoEditor(savedState.workflow, savedState.name || 'Untitled Workflow');
+
+          // Check for the modern { name, workflow: { nodes, ... } } structure
+          if (savedState.workflow && Array.isArray(savedState.workflow.nodes)) {
+            loadWorkflowIntoEditor(savedState.workflow, savedState.name || 'Untitled Workflow');
+          } 
+          // Check for a legacy direct workflow structure { nodes, ... }
+          else if (Array.isArray(savedState.nodes)) {
+            console.warn("Migrating legacy workflow from localStorage.");
+            // Load the legacy workflow
+            loadWorkflowIntoEditor(savedState, 'Untitled Workflow');
+            // And immediately save it in the new format
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: 'Untitled Workflow', workflow: savedState }));
+          } 
+          // Handle invalid data by clearing it
+          else {
+            throw new Error("Invalid workflow data structure found in localStorage.");
+          }
+
         } catch (error) {
-          console.error("Error loading initial workflow:", error);
+          console.error("Error loading initial workflow from localStorage:", error);
           localStorage.removeItem(CURRENT_WORKFLOW_KEY);
           resetHistoryForNewWorkflow([], []);
         }
@@ -313,7 +332,7 @@ export default function WorkflowPage() {
 
   const handleSaveWorkflow = useCallback(async () => {
     if (typeof window !== 'undefined') {
-      if (currentWorkflowNameRef.current === 'Untitled Workflow') {
+      if (currentWorkflowNameRef.current === 'Untitled Workflow' && nodes.length > 0) {
         setSaveAsName(''); // Clear previous name for a fresh save
         setShowSaveAsDialog(true);
         return;
@@ -321,8 +340,12 @@ export default function WorkflowPage() {
       
       const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
       try {
-        await saveWorkflowAction(currentWorkflowNameRef.current, workflowToSave);
-        toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
+        if (currentWorkflowNameRef.current !== 'Untitled Workflow') {
+            await saveWorkflowAction(currentWorkflowNameRef.current, workflowToSave);
+            toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
+        } else {
+            toast({ title: 'Workflow Saved Locally', description: 'Changes have been saved to your browser.' });
+        }
         
         localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
 
@@ -1236,7 +1259,7 @@ export default function WorkflowPage() {
   }, [toast, saveHistory]);
 
   const handleConfirmClearCanvas = useCallback(() => {
-    loadWorkflowIntoEditor({ nodes: [], connections: [] }, 'Untitled Workflow');
+    loadWorkflowIntoEditor({ nodes: [], connections: [], canvasOffset: { x: 0, y: 0 }, zoomLevel: 1, isSimulationMode: true }, 'Untitled Workflow');
     toast({ title: 'Canvas Cleared', description: 'All nodes and connections have been removed.' });
     setShowClearCanvasConfirmDialog(false);
   }, [toast, loadWorkflowIntoEditor]);
