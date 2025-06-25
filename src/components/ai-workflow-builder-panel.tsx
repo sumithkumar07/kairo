@@ -20,6 +20,8 @@ import {
   MenubarShortcut,
   MenubarTrigger,
 } from "@/components/ui/menubar"
+import { ThemeToggle } from '@/components/theme-toggle';
+
 
 interface AIWorkflowBuilderPanelProps {
   nodes: WorkflowNode[];
@@ -288,6 +290,8 @@ export function AIWorkflowBuilderPanel({
             <Separator orientation="vertical" className="h-6 mx-1.5" />
 
             {getSubscriptionButton()}
+
+            <ThemeToggle />
           </div>
         </div>
       </TooltipProvider>

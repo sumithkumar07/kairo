@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils'; 
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Kairo',
@@ -16,17 +17,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning={true}> 
+    <html lang="en" suppressHydrationWarning={true}> 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className={cn("font-body antialiased", "bg-background text-foreground")} suppressHydrationWarning={true}>
-        <SubscriptionProvider>
-          {children}
-          <Toaster />
-        </SubscriptionProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SubscriptionProvider>
+            {children}
+            <Toaster />
+          </SubscriptionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
