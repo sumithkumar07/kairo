@@ -113,7 +113,7 @@ const WorkflowNodeItemComponent = ({
       onClick={(e) => !(e.target as HTMLElement).closest('[data-handle-id]') && !readOnly && onClick(node.id)}
       className={cn(
         'workflow-node-item absolute shadow-lg transition-all duration-150 ease-in-out',
-        'flex flex-col overflow-hidden bg-card/95 backdrop-blur-sm border',
+        'flex flex-col overflow-hidden bg-card border',
         isConnecting ? 'cursor-crosshair' : (readOnly ? 'cursor-default' : 'cursor-grab hover:shadow-xl'),
         nodeStyleClasses, 
         isSelected && !readOnly && 'ring-2 ring-offset-2 ring-offset-background ring-primary',
