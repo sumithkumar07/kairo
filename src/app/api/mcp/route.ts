@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { assistantChat, type AssistantChatInput } from '@/app/actions';
 import { z } from 'zod';
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     command = parsedInput.data.command;
-    console.log(`[API MCP] Received command: "${command}"`);
+    console.log(`[API Agent] Received command: "${command}"`);
     
     const chatInput: AssistantChatInput = {
       userMessage: command,
@@ -33,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const result = await assistantChat(chatInput);
     aiResponseText = result.aiResponse;
-    console.log(`[API MCP] AI Response: "${aiResponseText}"`);
+    console.log(`[API Agent] AI Response: "${aiResponseText}"`);
 
     // The AI assistant now returns a comprehensive response object.
     // For this simplified API, we will just return the textual response.
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     status = 'Failed';
     aiResponseText = error.message || 'An internal server error occurred.';
-    console.error('[API MCP] Error processing MCP request:', error);
+    console.error('[API Agent] Error processing request:', error);
     return NextResponse.json(
       { error: 'An internal server error occurred.', details: error.message },
       { status: 500 }

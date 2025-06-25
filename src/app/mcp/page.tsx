@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon } from 'lucide-react';
+import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon, Cpu } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import {
@@ -86,12 +85,12 @@ export default function MCPDashboardPage() {
 
   const handleAddTool = (tool: Tool) => {
     setConfiguredTools(prev => [...prev, tool]);
-    toast({ title: 'Tool Added', description: `"${tool.name}" has been added to your server.` });
+    toast({ title: 'Skill Added', description: `"${tool.name}" has been added to your agent.` });
   };
   
   const handleRemoveTool = (toolName: string) => {
     setConfiguredTools(prev => prev.filter(t => t.name !== toolName));
-    toast({ title: 'Tool Removed', description: `"${toolName}" has been removed from your server.` });
+    toast({ title: 'Skill Removed', description: `"${toolName}" has been removed from your agent.` });
   };
 
   const handleGenerateKey = () => {
@@ -130,27 +129,27 @@ export default function MCPDashboardPage() {
           <SidebarHeader>
               <div className="flex items-center gap-3 p-2">
                 <div className="p-2 bg-primary/10 rounded-lg">
-                    <Zap className="h-6 w-6 text-primary" />
+                    <Cpu className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                    <h2 className="text-base font-semibold">Kairo MCP</h2>
-                    <p className="text-xs text-muted-foreground">AI Command Control</p>
+                    <h2 className="text-base font-semibold">Kairo Agent Hub</h2>
+                    <p className="text-xs text-muted-foreground">Your AI's Command Center</p>
                 </div>
               </div>
           </SidebarHeader>
           <SidebarContent className="flex-1">
               <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton size="sm" onClick={() => toast({ title: 'Coming Soon!', description: 'The ability to create multiple MCP servers is planned for a future update.' })}>
+                    <SidebarMenuButton size="sm" onClick={() => toast({ title: 'Coming Soon!', description: 'The ability to create multiple AI Agents is planned for a future update.' })}>
                       <Plus className="h-4 w-4" />
-                      New MCP Server
+                      New AI Agent
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                    <Separator className="my-2" />
                   <SidebarMenuItem>
                     <SidebarMenuButton size="sm" isActive={true}>
-                      <Server className="h-4 w-4" />
-                      Cursor MCP Server
+                      <BotIcon className="h-4 w-4" />
+                      Default Agent
                     </SidebarMenuButton>
                   </SidebarMenuItem>
               </SidebarMenu>
@@ -169,40 +168,29 @@ export default function MCPDashboardPage() {
           </SidebarFooter>
       </Sidebar>
       <SidebarInset className="flex flex-col bg-background">
-        <Tabs defaultValue="configure" className="flex flex-col h-full">
+        <Tabs defaultValue="skills" className="flex flex-col h-full">
             <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-card px-4 shadow-sm sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
                 <div className="flex items-center gap-2">
                     <SidebarTrigger className="md:hidden"/>
-                    <h1 className="text-xl font-semibold">Cursor MCP Server</h1>
+                    <h1 className="text-xl font-semibold">Default AI Agent</h1>
                 </div>
                 <TabsList className="grid w-auto grid-cols-3 h-9">
-                  <TabsTrigger value="configure" className="text-xs px-3"><Settings className="h-4 w-4 mr-1.5" />Configure</TabsTrigger>
-                  <TabsTrigger value="connect" className="text-xs px-3"><Zap className="h-4 w-4 mr-1.5" />Connect</TabsTrigger>
-                  <TabsTrigger value="history" className="text-xs px-3"><History className="h-4 w-4 mr-1.5" />History</TabsTrigger>
+                  <TabsTrigger value="skills" className="text-xs px-3"><Settings className="h-4 w-4 mr-1.5" />Skills</TabsTrigger>
+                  <TabsTrigger value="connect" className="text-xs px-3"><Zap className="h-4 w-4 mr-1.5" />API Access</TabsTrigger>
+                  <TabsTrigger value="history" className="text-xs px-3"><History className="h-4 w-4 mr-1.5" />API History</TabsTrigger>
                 </TabsList>
             </header>
             <main className="flex-1 overflow-auto p-4 sm:p-6">
                 <div className="max-w-4xl mx-auto grid gap-6">
-                    <TabsContent value="configure" className="m-0 space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Client</CardTitle>
-                                <CardDescription className="text-xs">Choose which MCP client you want to use with this server.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Button variant="secondary" className="w-full justify-start border-primary/30 border ring-1 ring-primary/20">
-                                    <CheckCircle2 className="h-4 w-4 mr-2 text-primary" /> Kairo
-                                </Button>
-                            </CardContent>
-                        </Card>
+                    <TabsContent value="skills" className="m-0 space-y-6">
                         <Card>
                             <CardHeader>
                                 <div className="flex justify-between items-center">
                                     <div>
-                                        <CardTitle className="text-base">Tools</CardTitle>
-                                        <CardDescription className="text-xs">What your MCP server can do across various apps.</CardDescription>
+                                        <CardTitle className="text-base">Agent Skills</CardTitle>
+                                        <CardDescription className="text-xs">The capabilities your AI Agent can use to build workflows and interact with other apps.</CardDescription>
                                     </div>
-                                    <Button size="sm" variant="outline" onClick={() => setShowAddToolDialog(true)}><Plus className="h-4 w-4 mr-2" />Add tool</Button>
+                                    <Button size="sm" variant="outline" onClick={() => setShowAddToolDialog(true)}><Plus className="h-4 w-4 mr-2" />Add Skill</Button>
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -221,7 +209,7 @@ export default function MCPDashboardPage() {
                                         </div>
                                     ))}
                                     {configuredTools.length === 0 && (
-                                    <div className="text-center py-6 text-sm text-muted-foreground">No tools configured. Click "Add tool" to get started.</div>
+                                    <div className="text-center py-6 text-sm text-muted-foreground">No skills configured. Click "Add Skill" to get started.</div>
                                     )}
                                 </div>
                             </CardContent>
@@ -230,18 +218,18 @@ export default function MCPDashboardPage() {
                     <TabsContent value="connect" className="m-0">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Connect to MCP</CardTitle>
-                                <CardDescription>Use this information to connect your applications to the Kairo MCP.</CardDescription>
+                                <CardTitle>Programmatic API Access</CardTitle>
+                                <CardDescription>Use this information to control your Kairo AI Agent from your own applications via its API.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 <div>
-                                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API Endpoint</div>
+                                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent API Endpoint</div>
                                     <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono">/api/mcp</pre>
                                     <p className="text-xs text-muted-foreground mt-1">Send a POST request with a JSON body: <code className="text-xs bg-muted p-1 rounded font-mono">{`{ "command": "your prompt here" }`}</code></p>
                                 </div>
                                 <div>
                                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication</div>
-                                    <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your server. This key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header of your requests (e.g., <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>).</p>
+                                    <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your agent. This key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header of your requests (e.g., <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>).</p>
                                     <div className="mt-4">
                                       {!apiKey ? (
                                           <Button onClick={handleGenerateKey}><KeyRound className="h-4 w-4 mr-2" />Generate API Key</Button>
@@ -264,8 +252,8 @@ export default function MCPDashboardPage() {
                     <TabsContent value="history" className="m-0">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Command History</CardTitle>
-                                <CardDescription>A log of commands sent to the AI assistant via the MCP endpoint.</CardDescription>
+                                <CardTitle>API Command History</CardTitle>
+                                <CardDescription>A log of commands sent to the AI agent via its API endpoint.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {isLoadingHistory ? (
@@ -310,12 +298,12 @@ export default function MCPDashboardPage() {
     <Dialog open={showAddToolDialog} onOpenChange={setShowAddToolDialog}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a Tool</DialogTitle>
-          <DialogDescription>Select a tool to add to your MCP server, enabling new AI capabilities.</DialogDescription>
+          <DialogTitle>Add a Skill to your Agent</DialogTitle>
+          <DialogDescription>Select a capability to add to your AI Agent.</DialogDescription>
         </DialogHeader>
         <div className="py-2">
             {unconfiguredTools.length === 0 ? (
-              <p className="text-sm text-center text-muted-foreground py-4">All available tools have been added.</p>
+              <p className="text-sm text-center text-muted-foreground py-4">All available skills have been added.</p>
             ) : (
               <ScrollArea className="h-64 border rounded-md">
                   <div className="p-2 space-y-1">

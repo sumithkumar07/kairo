@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Defines Genkit tools for AI-driven workflow management.
@@ -48,7 +47,7 @@ export const listSavedWorkflowsTool = ai.defineTool(
     })),
   },
   async () => {
-    console.log('[MCP Tool] Listing all workflows from storage...');
+    console.log('[Agent Tool] Listing all workflows from storage...');
     return await listAllWorkflows();
   }
 );
@@ -64,7 +63,7 @@ export const getWorkflowDefinitionTool = ai.defineTool(
     }).optional(),
   },
   async ({ name }) => {
-    console.log(`[MCP Tool] Getting definition for workflow: ${name} from storage...`);
+    console.log(`[Agent Tool] Getting definition for workflow: ${name} from storage...`);
     const workflow = await getWorkflowByName(name);
     if (workflow) {
       // Cast the workflow nodes and connections to the input schemas.
@@ -91,7 +90,7 @@ export const runWorkflowTool = ai.defineTool(
         }),
     },
     async ({ nodes, connections }) => {
-        console.log(`[MCP Tool] Running workflow with ${nodes.length} nodes...`);
+        console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes...`);
         try {
             // FIX: Dynamic import to break circular dependency with actions.ts
             const { executeWorkflow } = await import('@/app/actions');
@@ -110,7 +109,7 @@ export const runWorkflowTool = ai.defineTool(
 
             return { status, summary };
         } catch (e: any) {
-            console.error(`[MCP Tool] Critical error running workflow: ${e.message}`);
+            console.error(`[Agent Tool] Critical error running workflow: ${e.message}`);
             return {
                 status: 'Failed',
                 summary: `A critical error occurred during workflow execution: ${e.message}`,
@@ -127,7 +126,7 @@ export const youtubeFindVideoTool = ai.defineTool({
     outputSchema: z.object({ videoId: z.string(), title: z.string() }),
 }, async ({ query }) => {
     // This is a placeholder implementation
-    console.log(`[MCP Tool - Placeholder] Finding YouTube video for query: ${query}`);
+    console.log(`[Agent Tool - Placeholder] Finding YouTube video for query: ${query}`);
     return { videoId: 'dQw4w9WgXcQ', title: 'Placeholder Video' };
 });
 
@@ -137,7 +136,7 @@ export const youtubeGetReportTool = ai.defineTool({
     inputSchema: z.object({ videoId: z.string() }),
     outputSchema: z.object({ views: z.number(), likes: z.number() }),
 }, async ({ videoId }) => {
-    console.log(`[MCP Tool - Placeholder] Getting report for YouTube video: ${videoId}`);
+    console.log(`[Agent Tool - Placeholder] Getting report for YouTube video: ${videoId}`);
     return { views: 1000000, likes: 50000 };
 });
 
@@ -147,6 +146,6 @@ export const googleDriveFindFileTool = ai.defineTool({
     inputSchema: z.object({ name: z.string() }),
     outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }),
 }, async ({ name }) => {
-    console.log(`[MCP Tool - Placeholder] Finding Google Drive file: ${name}`);
+    console.log(`[Agent Tool - Placeholder] Finding Google Drive file: ${name}`);
     return { fileId: '12345_placeholder_id', name: 'My Placeholder Document', mimeType: 'application/vnd.google-apps.document' };
 });
