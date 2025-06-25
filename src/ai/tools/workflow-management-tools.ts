@@ -9,7 +9,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { listAllWorkflows, getWorkflowByName } from '@/services/workflow-storage-service';
-import { executeWorkflow } from '@/app/actions';
 import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 
 // Schema for Workflow Nodes (simplified for tool input)
@@ -94,6 +93,8 @@ export const runWorkflowTool = ai.defineTool(
     async ({ nodes, connections }) => {
         console.log(`[MCP Tool] Running workflow with ${nodes.length} nodes...`);
         try {
+            // FIX: Dynamic import to break circular dependency with actions.ts
+            const { executeWorkflow } = await import('@/app/actions');
             const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, true);
             const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
             const status = hasErrors ? 'Failed' : 'Success';
