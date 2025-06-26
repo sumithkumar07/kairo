@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -69,14 +69,7 @@ export function AIWorkflowAssistantPanel({
   onAddSuggestedNode,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
-  const logsScrollAreaRef = useRef<HTMLDivElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (logsScrollAreaRef.current) {
-      logsScrollAreaRef.current.scrollTop = logsScrollAreaRef.current.scrollHeight;
-    }
-  }, [executionLogs]);
 
   useEffect(() => {
     if (chatScrollAreaRef.current) {
@@ -95,6 +88,100 @@ export function AIWorkflowAssistantPanel({
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
     : null;
 
+  const LogsTabContent = () => (
+    <>
+      <div className="flex justify-between items-center px-4 pt-3 pb-2">
+        <p className="text-xs text-muted-foreground">Server-side execution output.</p>
+        <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
+          <Trash2 className="mr-1.5 h-3 w-3" /> Clear
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 px-4 pb-2">
+        {executionLogs.length === 0 ? (
+          <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
+        ) : (
+          <div className="space-y-1.5 text-xs font-mono">
+            {executionLogs.map((log, index) => (
+              <div key={index} className={cn(
+                "p-1.5 rounded-sm text-opacity-90 break-words",
+                log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
+                log.type === 'success' && 'bg-green-500/10 text-green-300',
+                log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
+              )}>
+                <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
+                <span>{log.message}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </>
+  );
+
+  const ChatTabContent = () => (
+    <>
+      <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
+        <div className="space-y-3">
+          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
+            <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
+              <p className="font-semibold flex items-center gap-2 text-sm"><Wand2 className="h-4 w-4 text-primary" /> Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?</p>
+              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
+              <Button size="sm" onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs" disabled={currentIsLoadingAnyAIButChat || isChatLoading}>
+                Add {suggestedNodeConfig.name} Node <ChevronRight className="ml-auto h-4 w-4" />
+              </Button>
+            </Card>
+          )}
+          {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
+            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
+              <Loader2 className="h-4 w-4 animate-spin" /> <span>AI is thinking of a good starting point...</span>
+            </Card>
+          )}
+          {chatHistory.map((chat) => (
+            chat.sender === 'user' ? (
+              <div key={chat.id} className="flex items-end justify-end gap-2.5 mb-3">
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 bg-primary text-primary-foreground rounded-xl rounded-ee-none shadow">
+                  <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>
+                  <span className="text-xs text-primary-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                </div>
+                <User className="h-7 w-7 text-foreground rounded-full p-1 bg-muted shadow-sm shrink-0" />
+              </div>
+            ) : (
+              <div key={chat.id} className="flex items-end gap-2.5 mb-3">
+                <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-border bg-muted rounded-xl rounded-es-none shadow">
+                  <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
+                  <span className="text-xs text-muted-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                </div>
+              </div>
+            )
+          ))}
+          {isChatLoading && (
+            <div className="flex items-end gap-2.5 mb-3">
+              <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
+              <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-xl rounded-es-none shadow items-center">
+                <div className="flex space-x-1.5 items-center justify-center">
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.3s]"></span>
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.15s]"></span>
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse"></span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="p-3 border-t bg-background/80 space-y-1.5 flex flex-col mt-auto">
+        <Label htmlFor="ai-chat-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
+          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Chat with Kairo (or describe a workflow to generate)
+        </Label>
+        <div className="flex gap-2 items-end">
+          <Textarea id="ai-chat-textarea" placeholder="Ask about Kairo, or describe a workflow to generate..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]" rows={1} disabled={isChatLoading || currentIsLoadingAnyAIButChat} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} />
+          <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || !chatInput.trim()} className="h-auto py-2.5 self-end min-h-[40px]" size="default" title="Send message (Enter)">
+            {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
 
   if (workflowExplanation || isExplainingWorkflow) {
     return (
@@ -156,43 +243,6 @@ export function AIWorkflowAssistantPanel({
               </div>
           </div>
         </ScrollArea>
-        <Accordion type="single" collapsible className="w-full border-t mt-auto">
-          <AccordionItem value="logs" className="border-b-0">
-            <AccordionTrigger className="px-4 py-2.5 text-xs font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
-              <div className="flex items-center gap-2">
-                <ListChecks className="h-4 w-4" />
-                Execution Logs {isWorkflowRunning && <Loader2 className="h-3 w-3 animate-spin" />}
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="bg-muted/20">
-              <div className="flex justify-between items-center px-4 pt-2 pb-1">
-                <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
-                <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
-                  <Trash2 className="mr-1.5 h-3 w-3" /> Clear Logs
-                </Button>
-              </div>
-              <ScrollArea className="h-40 px-4 pb-2" viewportRef={logsScrollAreaRef}>
-                {executionLogs.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
-                ) : (
-                  <div className="space-y-1.5 text-xs font-mono">
-                    {executionLogs.map((log, index) => (
-                      <div key={index} className={cn(
-                        "p-1.5 rounded-sm text-opacity-90 break-words",
-                        log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                        log.type === 'success' && 'bg-green-500/10 text-green-300',
-                        log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
-                      )}>
-                        <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
-                        <span>{log.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
       </div>
     );
   }
@@ -217,43 +267,6 @@ export function AIWorkflowAssistantPanel({
                 <XCircle className="mr-2 h-4 w-4" /> Cancel Connection
             </Button>
         </div>
-         <Accordion type="single" collapsible className="w-full border-t mt-auto">
-          <AccordionItem value="logs" className="border-b-0">
-            <AccordionTrigger className="px-4 py-2.5 text-xs font-medium text-muted-foreground hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
-              <div className="flex items-center gap-2">
-                <ListChecks className="h-4 w-4" />
-                Execution Logs {isWorkflowRunning && <Loader2 className="h-3 w-3 animate-spin" />}
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="bg-muted/20">
-              <div className="flex justify-between items-center px-4 pt-2 pb-1">
-                <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
-                <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
-                  <Trash2 className="mr-1.5 h-3 w-3" /> Clear Logs
-                </Button>
-              </div>
-              <ScrollArea className="h-40 px-4 pb-2" viewportRef={logsScrollAreaRef}>
-                {executionLogs.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
-                ) : (
-                  <div className="space-y-1.5 text-xs font-mono">
-                    {executionLogs.map((log, index) => (
-                      <div key={index} className={cn(
-                        "p-1.5 rounded-sm text-opacity-90 break-words",
-                        log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                        log.type === 'success' && 'bg-green-500/10 text-green-300',
-                        log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
-                      )}>
-                        <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
-                        <span>{log.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
       </div>
     );
   }
@@ -263,179 +276,41 @@ export function AIWorkflowAssistantPanel({
   }
 
   return (
-    <Tabs defaultValue="chat" className="flex flex-col h-full bg-card">
-      <TabsList className="grid w-full grid-cols-2 rounded-none border-b h-auto p-0">
-        <TabsTrigger value="chat" className="py-2.5 text-xs font-semibold rounded-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
-          <Bot className="mr-2 h-4 w-4"/> AI Assistant
-        </TabsTrigger>
-        <TabsTrigger value="run" className="py-2.5 text-xs font-semibold rounded-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
-          <Power className="mr-2 h-4 w-4"/> Run & Status
-        </TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="chat" className="flex-grow flex flex-col overflow-hidden m-0">
-        <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
-          <div className="space-y-3">
-            {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
-              <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
-                  <p className="font-semibold flex items-center gap-2 text-sm">
-                    <Wand2 className="h-4 w-4 text-primary" />
-                    Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?
-                  </p>
-                  <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
-                  <Button
-                    size="sm"
-                    onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)}
-                    className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs"
-                    disabled={currentIsLoadingAnyAIButChat || isChatLoading}
-                  >
-                    Add {suggestedNodeConfig.name} Node
-                    <ChevronRight className="ml-auto h-4 w-4" />
-                  </Button>
-                </Card>
-            )}
-            {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
-                <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>AI is thinking of a good starting point...</span>
-                </Card>
-              )}
-            {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && !initialCanvasSuggestion && (
-                <div className="p-3 bg-primary/5 text-sm text-primary-foreground/80 border border-primary/10 rounded-md mb-3">
-                  AI could not suggest a starting point. Try describing your workflow in the prompt below or drag a node from the library.
-                </div>
-              )}
-            {chatHistory.map((chat) => (
-              chat.sender === 'user' ? (
-                <div key={chat.id} className="flex items-end justify-end gap-2.5 mb-3">
-                  <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 bg-primary text-primary-foreground rounded-xl rounded-ee-none shadow">
-                    <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>
-                    <span className="text-xs text-primary-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
-                  </div>
-                  <User className="h-7 w-7 text-foreground rounded-full p-1 bg-muted shadow-sm shrink-0" />
-                </div>
-              ) : (
-                <div key={chat.id} className="flex items-end gap-2.5 mb-3">
-                  <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
-                  <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-border bg-muted rounded-xl rounded-es-none shadow">
-                    <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
-                    <span className="text-xs text-muted-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
-                  </div>
-                </div>
-              )
-            ))}
-            {isChatLoading && (
-              <div className="flex items-end gap-2.5 mb-3">
-                <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
-                <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-xl rounded-es-none shadow items-center">
-                  <div className="flex space-x-1.5 items-center justify-center">
-                    <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.3s]"></span>
-                    <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.15s]"></span>
-                    <span className="h-2 w-2 bg-primary rounded-full animate-pulse"></span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-        <div className="p-3 border-t bg-background/80 space-y-1.5 flex flex-col mt-auto">
-          <Label htmlFor="ai-chat-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
-            <MessageSquare className="h-3.5 w-3.5 text-primary" /> Chat with Kairo (or describe a workflow to generate)
+    <div className="flex flex-col h-full bg-card">
+      <div className="p-3 border-b space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium flex items-center gap-2 select-none">
+            <Power className="h-4 w-4 text-muted-foreground" /> Run Controls
           </Label>
-          <div className="flex gap-2 items-end">
-            <Textarea
-              id="ai-chat-textarea"
-              placeholder="Ask about Kairo, or describe a workflow to generate..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]"
-              rows={1}
-              disabled={isChatLoading || currentIsLoadingAnyAIButChat}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }}
-            />
-            <Button
-              onClick={handleLocalChatSubmit}
-              disabled={isChatLoading || currentIsLoadingAnyAIButChat || !chatInput.trim()}
-              className="h-auto py-2.5 self-end min-h-[40px]"
-              size="default"
-              title="Send message (Enter)"
-            >
-              {isChatLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+          <div title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"} className="flex items-center space-x-2">
+            <TestTube2 className={cn("h-4 w-4", !isSimulationMode && "text-muted-foreground")} />
+            <Switch id="simulation-mode-switch" checked={!isSimulationMode} onCheckedChange={(checked) => onToggleSimulationMode(!checked)} aria-label="Toggle simulation mode" className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 data-[state=checked]:bg-green-600 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0.5" />
+            <AlertTriangle className={cn("h-4 w-4", isSimulationMode && "text-muted-foreground")} />
           </div>
         </div>
-      </TabsContent>
+        <Button onClick={onRunWorkflow} disabled={currentIsLoadingAnyAIButChat || isChatLoading} className="w-full h-9 text-sm">
+          {isWorkflowRunning ? <RotateCcw className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+          {isWorkflowRunning ? 'Executing...' : `Run ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
+        </Button>
+      </div>
 
-      <TabsContent value="run" className="flex-grow flex flex-col overflow-hidden m-0">
-        <div className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="simulation-mode-switch" className="text-sm font-medium flex items-center gap-2 cursor-pointer select-none">
-              <Settings2 className="h-4 w-4 text-muted-foreground" />
-              Run Mode
-            </Label>
-            <div title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"} className="flex items-center space-x-2">
-              <span className={cn("text-xs font-medium", !isSimulationMode && "text-muted-foreground")}>Simulate</span>
-              <Switch
-                  id="simulation-mode-switch"
-                  checked={!isSimulationMode}
-                  onCheckedChange={(checked) => onToggleSimulationMode(!checked)}
-                  aria-label="Toggle simulation mode"
-                  className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 data-[state=checked]:bg-green-600 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0.5"
-              />
-              <span className={cn("text-xs font-medium", isSimulationMode && "text-muted-foreground")}>Live</span>
-            </div>
-          </div>
-          <Button onClick={onRunWorkflow} disabled={currentIsLoadingAnyAIButChat || isChatLoading} className="w-full h-10 text-sm">
-            {isWorkflowRunning ? (
-              <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="mr-2 h-4 w-4" />
-            )}
-            {isWorkflowRunning ? 'Executing...' : `Run Workflow ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
-          </Button>
-        </div>
-        <Accordion type="single" collapsible defaultValue="logs" className="w-full border-t mt-auto">
-          <AccordionItem value="logs" className="border-b-0">
-            <AccordionTrigger className="px-4 py-2.5 text-sm font-semibold hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
-              <div className="flex items-center gap-2">
-                <ListChecks className="h-4 w-4" />
-                Execution Logs
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="bg-muted/20">
-              <div className="flex justify-between items-center px-4 pt-2 pb-1">
-                <p className="text-xs text-muted-foreground">Workflow execution output will appear here.</p>
-                <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
-                  <Trash2 className="mr-1.5 h-3 w-3" /> Clear Logs
-                </Button>
-              </div>
-              <ScrollArea className="h-56 px-4 pb-2" viewportRef={logsScrollAreaRef}>
-                {executionLogs.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
-                ) : (
-                  <div className="space-y-1.5 text-xs font-mono">
-                    {executionLogs.map((log, index) => (
-                      <div key={index} className={cn(
-                        "p-1.5 rounded-sm text-opacity-90 break-words",
-                        log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                        log.type === 'success' && 'bg-green-500/10 text-green-300',
-                        log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
-                      )}>
-                        <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
-                        <span>{log.message}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </TabsContent>
-    </Tabs>
+      <Tabs defaultValue="chat" className="flex-grow flex flex-col overflow-hidden">
+        <TabsList className="grid w-full grid-cols-2 rounded-none border-b h-auto p-0">
+          <TabsTrigger value="chat" className="py-2 text-xs font-semibold rounded-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
+            <Bot className="mr-2 h-4 w-4"/> AI Assistant
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="py-2 text-xs font-semibold rounded-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
+            <ListChecks className="mr-2 h-4 w-4"/> Execution Logs
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="chat" className="flex-grow flex flex-col overflow-hidden m-0">
+          <ChatTabContent />
+        </TabsContent>
+        <TabsContent value="logs" className="flex-grow flex flex-col overflow-hidden m-0">
+          <LogsTabContent />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
