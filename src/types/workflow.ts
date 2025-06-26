@@ -143,6 +143,7 @@ export interface ChatMessage {
   sender: 'user' | 'ai';
   message: string;
   timestamp: string;
+  imageDataUri?: string;
 }
 
 export interface McpCommandRecord {

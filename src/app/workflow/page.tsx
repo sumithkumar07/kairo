@@ -444,11 +444,11 @@ function WorkflowPage() {
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast, loadWorkflowIntoEditor]);
   
-  const handleChatSubmit = useCallback(async (messageContent: string, isSystemMessage: boolean = false) => {
-    if (!messageContent.trim()) {
+  const handleChatSubmit = useCallback(async (messageContent: string, isSystemMessage: boolean = false, imageDataUri?: string) => {
+    if (!messageContent.trim() && !imageDataUri) {
       toast({
         title: 'Message is empty',
-        description: 'Please enter a message to send to the AI.',
+        description: 'Please enter a message or attach an image to send to the AI.',
         variant: 'destructive',
       });
       return;
@@ -458,6 +458,7 @@ function WorkflowPage() {
       id: crypto.randomUUID(),
       sender: 'user',
       message: messageContent,
+      imageDataUri,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     
@@ -499,6 +500,7 @@ function WorkflowPage() {
 
       const chatResult = await assistantChat({ 
         userMessage: messageContent, 
+        imageDataUri,
         workflowContext: workflowContextForAI, 
         chatHistory: historyForAI,
         currentWorkflowNodes: currentWorkflowNodesForAI,
