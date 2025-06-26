@@ -13,14 +13,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import {
-  listSavedWorkflowsTool,
-  getWorkflowDefinitionTool,
-  runWorkflowTool,
-  youtubeFindVideoTool,
-  youtubeGetReportTool,
-  googleDriveFindFileTool
-} from '@/ai/tools/workflow-management-tools';
+import { ALL_AVAILABLE_TOOLS_MAP } from '@/ai/tools';
+import { getAgentConfig } from '@/services/workflow-storage-service';
+import type { Tool } from '@/types/workflow';
 
 // Minimal Schemas for workflow context analysis by the chat AI
 const MinimalWorkflowNodeSchema = z.object({
@@ -52,6 +47,7 @@ const AssistantChatInputSchema = z.object({
   })).optional().describe("Previous messages in the conversation to maintain context."),
   currentWorkflowNodes: z.array(MinimalWorkflowNodeSchema).optional().describe("The current list of nodes on the workflow canvas. Used for analysis if the user asks for help with their workflow. This data is provided as a structured JSON array in your input. Use this to understand the current workflow structure if asked to modify it."),
   currentWorkflowConnections: z.array(MinimalWorkflowConnectionSchema).optional().describe("The current list of connections on the workflow canvas. Used for analysis. This data is provided as a structured JSON array in your input. Use this to understand the current workflow structure if asked to modify it."),
+  enabledTools: z.array(z.string()).optional().describe("A list of tool names that the AI is currently configured to use. If not provided, the AI should use its default full set of capabilities."),
 });
 export type AssistantChatInput = z.infer<typeof AssistantChatInputSchema>;
 
@@ -71,27 +67,32 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
 }
 
 
-const chatPrompt = ai.definePrompt({
-  name: 'assistantChatPrompt',
-  input: {schema: AssistantChatInputSchema},
-  output: {schema: AssistantChatOutputSchema},
-  tools: [
-    listSavedWorkflowsTool,
-    getWorkflowDefinitionTool,
-    runWorkflowTool,
-    youtubeFindVideoTool,
-    youtubeGetReportTool,
-    googleDriveFindFileTool
-  ],
-  config: {
-    safetySettings: [ 
-      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
-  },
-  prompt: `You are Kairo, a friendly, conversational, and highly skilled AI assistant for a workflow automation tool. Your goal is to be a true partner to the user, helping them create, manage, and debug workflows through dialogue.
+async function getChatPrompt(enabledToolNames?: string[]) {
+  let toolsToUse = Array.from(ALL_AVAILABLE_TOOLS_MAP.values()).map(t => t.genkitTool);
+
+  if (enabledToolNames) {
+    console.log(`[Chat Flow] AI has a specific toolset configured with ${enabledToolNames.length} tools.`);
+    toolsToUse = enabledToolNames
+      .map(name => ALL_AVAILABLE_TOOLS_MAP.get(name)?.genkitTool)
+      .filter(Boolean) as any[];
+  } else {
+    console.log(`[Chat Flow] AI using default full toolset (${toolsToUse.length} tools).`);
+  }
+
+  return ai.definePrompt({
+    name: 'assistantChatPrompt_dynamic', // Name can be dynamic for debugging if needed
+    input: {schema: AssistantChatInputSchema},
+    output: {schema: AssistantChatOutputSchema},
+    tools: toolsToUse,
+    config: {
+      safetySettings: [ 
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+      ],
+    },
+    prompt: `You are Kairo, a friendly, conversational, and highly skilled AI assistant for a workflow automation tool. Your goal is to be a true partner to the user, helping them create, manage, and debug workflows through dialogue.
 
 You can also analyze images provided by the user. If the user uploads a diagram of a workflow, interpret it and offer to build it. If they upload a screenshot of an error message, analyze the error and suggest a solution or a workflow to handle it.
 
@@ -119,7 +120,7 @@ Your primary roles are:
     - If they confirm in the next turn, set \`isWorkflowGenerationRequest: true\` with the new prompt.
 
 4.  **Tool-Based Workflow Management & Information Gathering**:
-    - You have tools to interact with external services and manage Kairo workflows.
+    - You have tools to interact with external services and manage Kairo workflows. You can only use the tools provided in your configuration for this turn.
     - If a user's request requires information you don't have (e.g., the ID of their "latest video" or the name of a specific "report file"), **use your tools to find that information first.** 
     - Example: If the user says "Get the stats for my latest video and email them," you should first use the \`youtubeFindVideoTool\` with a query like "latest video from Kairo channel", then use the returned video ID with the \`youtubeGetReportTool\`. Finally, use the information gathered to create the \`workflowGenerationPrompt\`.
     - Use your tools when the user asks to **list**, **see details of**, or **run** a saved workflow.
@@ -152,7 +153,8 @@ User's Current Message: {{{userMessage}}}
 
 IMPORTANT: Your entire response MUST be ONLY a single, valid JSON object that strictly conforms to the AssistantChatOutputSchema. Do not add any explanatory text before or after the JSON.
 `
-});
+  });
+}
 
 /**
  * Genkit flow that orchestrates the chat logic. It calls the prompt and processes the response.
@@ -165,6 +167,9 @@ const assistantChatFlow = ai.defineFlow(
   },
   async (input): Promise<AssistantChatOutput> => {
     try {
+      // Dynamically get the prompt with the correct set of tools
+      const chatPrompt = await getChatPrompt(input.enabledTools);
+      
       const genkitResponse = await chatPrompt(input); 
       const result = genkitResponse.output; 
 

@@ -6,7 +6,8 @@ import {
   generateWorkflow,
 } from '@/app/actions';
 import { z } from 'zod';
-import { saveMcpCommand } from '@/services/workflow-storage-service';
+import { getAgentConfig, saveMcpCommand } from '@/services/workflow-storage-service';
+import type { Tool } from '@/types/workflow';
 
 const McpInputSchema = z.object({
   command: z.string(),
@@ -49,8 +50,13 @@ export async function POST(request: NextRequest) {
     command = parsedInput.data.command;
     console.log(`[API Agent] Received command: "${command}"`);
     
+    // Load the currently configured agent skills for the AI
+    const agentConfig = await getAgentConfig();
+
     const chatInput: AssistantChatInput = {
       userMessage: command,
+      // Pass the configured tools to the chat function
+      enabledTools: agentConfig.enabledTools,
       // No workflow context is provided, as this is a general command endpoint
     };
 

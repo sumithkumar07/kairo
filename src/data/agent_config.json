@@ -1,0 +1,13 @@
+
+[
+  {
+    "enabledTools": [
+      "listSavedWorkflows",
+      "getWorkflowDefinition",
+      "runWorkflow",
+      "youtubeFindVideo",
+      "youtubeGetReport",
+      "googleDriveFindFile"
+    ]
+  }
+]

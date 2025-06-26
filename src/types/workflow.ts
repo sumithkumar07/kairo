@@ -1,5 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
+import type { Tool as GenkitTool } from 'genkit';
 
 export interface RetryConfig {
   attempts: number; 
@@ -153,4 +154,16 @@ export type LogEntry = {
   message: string;
   type: 'info' | 'error' | 'success';
   data?: any;
+};
+
+export type Tool = {
+    name: string;
+    description: string;
+    icon: LucideIcon;
+    service: string;
+    genkitTool: GenkitTool<any, any>;
+};
+
+export type AgentConfig = {
+  enabledTools: string[]; // Array of tool names
 };

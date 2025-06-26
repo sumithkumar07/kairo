@@ -35,10 +35,27 @@ export default function HomePage() {
               <Link href="/contact">Contact</Link>
             </Button>
             <div className="w-px h-6 bg-border mx-2"></div>
-            {isLoggedIn ? (
-               <Button asChild>
-                  <Link href="/workflow">Go to App</Link>
-                </Button>
+            {isLoggedIn && user ? (
+               <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                          <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{user.email}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild><Link href="/workflow">Go to App</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Logout
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+             </DropdownMenu>
             ) : (
               <>
                 <Button variant="ghost" asChild>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon, Cpu, FileLock2, Info } from 'lucide-react';
@@ -11,25 +11,12 @@ import { AppLayout } from '@/components/app-layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { McpCommandRecord } from '@/types/workflow';
-import { getMcpHistory } from '@/services/workflow-storage-service';
+import type { McpCommandRecord, Tool } from '@/types/workflow';
+import { getMcpHistory, getAgentConfig, saveAgentConfig } from '@/services/workflow-storage-service';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { withAuth } from '@/components/auth/with-auth';
-import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
-
-type Tool = { name: string; description: string; icon: React.ElementType; service: string; };
-
-const ALL_AVAILABLE_TOOLS: Tool[] = AVAILABLE_NODES_CONFIG
-  .filter(node => node.category === 'integrations' || ['httpRequest', 'aiTask', 'databaseQuery', 'sendEmail'].includes(node.type))
-  .map(node => ({
-    name: node.name,
-    description: node.description || 'No description available.',
-    icon: node.icon,
-    service: node.category === 'integrations' ? (node.name.split(':')[0] || 'Kairo') : 'Kairo Core',
-  }));
-
-const INITIAL_TOOLS = ALL_AVAILABLE_TOOLS.slice(0, 3);
+import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
 
 const CREDENTIAL_INFO = [
   { name: 'GOOGLE_API_KEY', service: 'Google AI / Genkit', description: 'Required for all AI features like workflow generation, explanation, and the assistant chat. Obtain from Google Cloud Console.' },
@@ -45,14 +32,30 @@ const CREDENTIAL_INFO = [
 function MCPDashboardPage() {
   const { toast } = useToast();
 
-  const [configuredTools, setConfiguredTools] = useState<Tool[]>(INITIAL_TOOLS);
+  const [configuredTools, setConfiguredTools] = useState<Tool[]>([]);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [commandHistory, setCommandHistory] = useState<McpCommandRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showAddToolDialog, setShowAddToolDialog] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
+  const loadAgentConfig = useCallback(async () => {
+    setIsLoadingConfig(true);
+    try {
+      const config = await getAgentConfig();
+      const enabledTools = ALL_AVAILABLE_TOOLS.filter(tool => config.enabledTools.includes(tool.name));
+      setConfiguredTools(enabledTools);
+    } catch (e: any) {
+      toast({ title: 'Error', description: 'Could not load agent skill configuration.', variant: 'destructive' });
+    } finally {
+      setIsLoadingConfig(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
+    loadAgentConfig();
+
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
@@ -66,22 +69,29 @@ function MCPDashboardPage() {
       }
     };
     fetchHistory();
-  }, [toast]);
+  }, [toast, loadAgentConfig]);
   
   const unconfiguredTools = useMemo(() => {
     const configuredToolNames = new Set(configuredTools.map(t => t.name));
     return ALL_AVAILABLE_TOOLS.filter(t => !configuredToolNames.has(t.name));
   }, [configuredTools]);
 
-  const handleAddTool = (tool: Tool) => {
-    setConfiguredTools(prev => [...prev, tool]);
-    toast({ title: 'Skill Added', description: `"${tool.name}" has been added to your agent.` });
-  };
-  
-  const handleRemoveTool = (toolName: string) => {
-    setConfiguredTools(prev => prev.filter(t => t.name !== toolName));
-    toast({ title: 'Skill Removed', description: `"${toolName}" has been removed from your agent.` });
-  };
+  const handleToolToggle = useCallback(async (tool: Tool, isAdding: boolean) => {
+    const updatedToolNames = isAdding
+      ? [...configuredTools.map(t => t.name), tool.name]
+      : configuredTools.map(t => t.name).filter(name => name !== tool.name);
+    
+    try {
+      await saveAgentConfig({ enabledTools: updatedToolNames });
+      const newConfiguredTools = ALL_AVAILABLE_TOOLS.filter(t => updatedToolNames.includes(t.name));
+      setConfiguredTools(newConfiguredTools);
+      toast({ title: isAdding ? 'Skill Added' : 'Skill Removed', description: `"${tool.name}" has been ${isAdding ? 'added to' : 'removed from'} your agent.` });
+    } catch (e: any) {
+      toast({ title: 'Error Saving Config', description: 'Could not save the agent skill configuration.', variant: 'destructive' });
+      // Revert UI on failure
+      loadAgentConfig();
+    }
+  }, [configuredTools, toast, loadAgentConfig]);
 
   const handleGenerateKey = () => {
     setApiKey(`kairo_sk_${crypto.randomUUID().replace(/-/g, '')}`);
@@ -109,13 +119,13 @@ function MCPDashboardPage() {
   return (
     <AppLayout>
       <Tabs defaultValue="skills" className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-6">
+          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6">
               <h1 className="text-xl font-semibold">AI Agent Hub</h1>
-              <TabsList className="grid w-auto grid-cols-4 h-9">
-                <TabsTrigger value="skills" className="text-xs px-3"><Settings className="h-4 w-4 mr-1.5" />Skills</TabsTrigger>
-                <TabsTrigger value="credentials" className="text-xs px-3"><FileLock2 className="h-4 w-4 mr-1.5" />Credentials</TabsTrigger>
-                <TabsTrigger value="connect" className="text-xs px-3"><Zap className="h-4 w-4 mr-1.5" />API Access</TabsTrigger>
-                <TabsTrigger value="history" className="text-xs px-3"><History className="h-4 w-4 mr-1.5" />API History</TabsTrigger>
+              <TabsList className="grid w-auto grid-cols-2 md:grid-cols-4 h-9">
+                <TabsTrigger value="skills" className="text-xs px-2 sm:px-3"><Settings className="h-4 w-4 mr-1 sm:mr-1.5" />Skills</TabsTrigger>
+                <TabsTrigger value="credentials" className="text-xs px-2 sm:px-3"><FileLock2 className="h-4 w-4 mr-1 sm:mr-1.5" />Credentials</TabsTrigger>
+                <TabsTrigger value="connect" className="hidden md:inline-flex text-xs px-2 sm:px-3"><Zap className="h-4 w-4 mr-1 sm:mr-1.5" />API Access</TabsTrigger>
+                <TabsTrigger value="history" className="hidden md:inline-flex text-xs px-2 sm:px-3"><History className="h-4 w-4 mr-1 sm:mr-1.5" />API History</TabsTrigger>
               </TabsList>
           </header>
           <main className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/40">
@@ -133,20 +143,23 @@ function MCPDashboardPage() {
                           </CardHeader>
                           <CardContent>
                               <div className="space-y-2">
-                                  {configuredTools.map((tool) => (
-                                      <div key={tool.name} className="flex items-center gap-4 p-2 border rounded-lg bg-background hover:bg-muted/50">
-                                          <div className="p-1 bg-muted rounded-md">
-                                              <tool.icon className="h-5 w-5 text-muted-foreground" />
+                                  {isLoadingConfig ? (
+                                    <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading skills...</div>
+                                  ) : configuredTools.length > 0 ? (
+                                      configuredTools.map((tool) => (
+                                          <div key={tool.name} className="flex items-center gap-4 p-2 border rounded-lg bg-background hover:bg-muted/50">
+                                              <div className="p-1 bg-muted rounded-md">
+                                                  <tool.icon className="h-5 w-5 text-muted-foreground" />
+                                              </div>
+                                              <div className="flex-1">
+                                                  <p className="font-medium text-sm">{tool.name}</p>
+                                              </div>
+                                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToolToggle(tool, false)}>
+                                                  <X className="h-4 w-4 text-destructive" />
+                                              </Button>
                                           </div>
-                                          <div className="flex-1">
-                                              <p className="font-medium text-sm">{tool.name}</p>
-                                          </div>
-                                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveTool(tool.name)}>
-                                              <X className="h-4 w-4 text-destructive" />
-                                          </Button>
-                                      </div>
-                                  ))}
-                                  {configuredTools.length === 0 && (
+                                      ))
+                                  ) : (
                                   <div className="text-center py-6 text-sm text-muted-foreground">No skills configured. Click "Add Skill" to get started.</div>
                                   )}
                               </div>
@@ -313,7 +326,7 @@ console.log(data);`}
                               <p className="text-xs text-muted-foreground">{tool.service}</p>
                             </div>
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => handleAddTool(tool)}>Add</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleToolToggle(tool, true)}>Add</Button>
                         </div>
                       ))}
                     </div>

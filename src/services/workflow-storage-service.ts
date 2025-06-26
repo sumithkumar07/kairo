@@ -6,12 +6,14 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord } from '@/types/workflow';
+import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 
 const WORKFLOWS_DB_PATH = path.join(process.cwd(), 'src/data/user_workflows.json');
 const RUN_HISTORY_DB_PATH = path.join(process.cwd(), 'src/data/run_history.json');
 const MCP_HISTORY_DB_PATH = path.join(process.cwd(), 'src/data/mcp_command_history.json');
+const AGENT_CONFIG_DB_PATH = path.join(process.cwd(), 'src/data/agent_config.json');
+
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
 const MAX_MCP_HISTORY = 50; // Max number of MCP command records to keep
 
@@ -42,9 +44,10 @@ async function readDataFromFile<T>(filePath: string): Promise<T[]> {
   }
 }
 
-async function writeDataToFile<T>(filePath: string, data: T[]): Promise<void> {
+async function writeDataToFile<T>(filePath: string, data: T[] | T): Promise<void> {
   try {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    const dataToWrite = Array.isArray(data) ? data : [data];
+    await fs.writeFile(filePath, JSON.stringify(dataToWrite, null, 2), 'utf-8');
   } catch (error) {
     console.error(`[Storage Service] Error writing file ${filePath}:`, error);
     throw new Error(`Could not save data to ${path.basename(filePath)}.`);
@@ -195,4 +198,25 @@ export async function saveMcpCommand(record: McpCommandRecord): Promise<void> {
   history.unshift(record); // Add new record to the top
   const trimmedHistory = history.slice(0, MAX_MCP_HISTORY);
   await writeDataToFile<McpCommandRecord>(MCP_HISTORY_DB_PATH, trimmedHistory);
+}
+
+// ========================
+// Agent Configuration
+// ========================
+
+export async function getAgentConfig(): Promise<AgentConfig> {
+    try {
+        const data = await readDataFromFile<AgentConfig>(AGENT_CONFIG_DB_PATH);
+        if (data.length > 0) {
+            return data[0];
+        }
+    } catch (error) {
+        console.warn('[Storage Service] Could not read agent config, falling back to default.', error);
+    }
+    // Default config if file doesn't exist or is empty
+    return { enabledTools: ['listSavedWorkflows', 'getWorkflowDefinition', 'runWorkflow'] };
+}
+
+export async function saveAgentConfig(config: AgentConfig): Promise<void> {
+    await writeDataToFile<AgentConfig>(AGENT_CONFIG_DB_PATH, config);
 }
