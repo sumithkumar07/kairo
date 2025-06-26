@@ -203,6 +203,23 @@ function MCPDashboardPage() {
                                   <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono">/api/mcp</pre>
                                   <p className="text-xs text-muted-foreground mt-1">Send a POST request with a JSON body: <code className="text-xs bg-muted p-1 rounded font-mono">{`{ "command": "your prompt here" }`}</code></p>
                               </div>
+                              
+                              <div className="space-y-2">
+                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API Response Format</div>
+                                <p className="text-sm text-muted-foreground">The API returns a JSON object. If your command results in a workflow, the `action` will be `workflowGenerated` and the response will include the full workflow definition.</p>
+                                <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap">
+                                  {`// Example Response for Workflow Generation
+{
+  "aiResponse": "Certainly. I'll generate a workflow for that...",
+  "action": "workflowGenerated",
+  "workflow": {
+    "nodes": [...],
+    "connections": [...]
+  }
+}`}
+                                </pre>
+                              </div>
+
                               <div>
                                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication</div>
                                   <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your agent. For this prototype, after generating a key, you must set it as an environment variable named <code className="text-xs bg-muted p-1 rounded font-mono">KAIRO_MCP_API_KEY</code> on the server. The key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header as <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>.</p>
