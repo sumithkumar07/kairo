@@ -351,3 +351,5 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
+
+    
