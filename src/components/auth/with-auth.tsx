@@ -35,5 +35,3 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
     return <Component {...props} />;
   };
 }
-
-    

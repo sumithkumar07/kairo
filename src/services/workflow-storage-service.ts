@@ -196,5 +196,3 @@ export async function saveMcpCommand(record: McpCommandRecord): Promise<void> {
   const trimmedHistory = history.slice(0, MAX_MCP_HISTORY);
   await writeDataToFile<McpCommandRecord>(MCP_HISTORY_DB_PATH, trimmedHistory);
 }
-
-    
