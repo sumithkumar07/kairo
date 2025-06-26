@@ -40,6 +40,7 @@ import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { produce } from 'immer';
+import { withAuth } from '@/components/auth/with-auth';
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
@@ -60,7 +61,7 @@ interface HistoryEntry {
   zoomLevel: number;
 }
 
-export default function WorkflowPage() {
+function WorkflowPage() {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [connections, setConnections] = useState<WorkflowConnection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -311,7 +312,10 @@ export default function WorkflowPage() {
             localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: 'Untitled Workflow', workflow: savedState }));
           } 
           else {
-            throw new Error("Invalid workflow data structure found in localStorage.");
+            // Invalid data, clear it to prevent crash loop
+            console.error("Invalid workflow data structure found in localStorage. Clearing it.");
+            localStorage.removeItem(CURRENT_WORKFLOW_KEY);
+            resetHistoryForNewWorkflow([], []);
           }
 
         } catch (error) {
@@ -1590,3 +1594,5 @@ export default function WorkflowPage() {
     </AppLayout>
   );
 }
+
+export default withAuth(WorkflowPage);

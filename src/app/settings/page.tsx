@@ -8,8 +8,9 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { User, ShieldCheck, Paintbrush } from 'lucide-react';
 import Link from 'next/link';
+import { withAuth } from '@/components/auth/with-auth';
 
-export default function SettingsPage() {
+function SettingsPage() {
   const { user, currentTier } = useSubscription();
 
   return (
@@ -70,3 +71,5 @@ export default function SettingsPage() {
     </AppLayout>
   );
 }
+
+export default withAuth(SettingsPage);

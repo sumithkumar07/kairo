@@ -27,6 +27,7 @@ import { rerunWorkflowAction } from '@/app/actions';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/app-layout';
+import { withAuth } from '@/components/auth/with-auth';
 
 
 const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; className?: string; }) => {
@@ -43,7 +44,7 @@ const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; 
   }
 };
 
-export default function RunHistoryPage() {
+function RunHistoryPage() {
   const [runHistory, setRunHistory] = useState<WorkflowRunRecord[]>([]);
   const [selectedRun, setSelectedRun] = useState<WorkflowRunRecord | null>(null);
   const [selectedNodeInSnapshot, setSelectedNodeInSnapshot] = useState<WorkflowNode | null>(null);
@@ -280,3 +281,5 @@ export default function RunHistoryPage() {
     </AppLayout>
   );
 }
+
+export default withAuth(RunHistoryPage);

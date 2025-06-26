@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import { getMcpHistory } from '@/services/workflow-storage-service';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { withAuth } from '@/components/auth/with-auth';
 
 type Tool = { name: string; description: string; icon: React.ElementType; service: string; };
 
@@ -51,7 +52,7 @@ const CREDENTIAL_INFO = [
 ];
 
 
-export default function MCPDashboardPage() {
+function MCPDashboardPage() {
   const { user } = useSubscription();
   const { toast } = useToast();
 
@@ -304,3 +305,5 @@ export default function MCPDashboardPage() {
     </AppLayout>
   );
 }
+
+export default withAuth(MCPDashboardPage);

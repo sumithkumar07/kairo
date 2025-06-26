@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, Suspense } from 'react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,20 +10,15 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { Workflow, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
-  const { login, isLoggedIn } = useSubscription();
+function LoginComponent() {
+  const { login } = useSubscription();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
   const router = useRouter();
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      router.push('/workflow');
-    }
-  }, [isLoggedIn, router]);
+  const searchParams = useSearchParams();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,24 +38,9 @@ export default function LoginPage() {
       });
       return;
     }
-    login(email);
+    const redirectUrl = searchParams.get('redirect_url');
+    login(email, redirectUrl);
   };
-
-  if (isLoggedIn) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/30 p-4">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Redirecting...</CardTitle>
-            <CardDescription>You are already logged in.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-             <LogIn className="h-12 w-12 text-primary mx-auto animate-pulse" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
@@ -134,4 +114,13 @@ export default function LoginPage() {
       </footer>
     </div>
   );
+}
+
+// Wrap the component with Suspense to use useSearchParams
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <LoginComponent />
+        </Suspense>
+    );
 }

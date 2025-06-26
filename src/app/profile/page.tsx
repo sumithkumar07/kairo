@@ -6,45 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow, Edit } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { AppLayout } from '@/components/app-layout';
+import { withAuth } from '@/components/auth/with-auth';
 
-export default function ProfilePage() {
+function ProfilePage() {
   const { 
     user, 
-    isLoggedIn, 
     logout, 
     currentTier, 
     trialEndDate, 
     daysRemainingInTrial,
     isProOrTrial,
   } = useSubscription();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoggedIn) {
-      router.push('/login');
-    }
-  }, [isLoggedIn, router]);
-
-  if (!isLoggedIn || !user) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col items-center justify-center flex-1 bg-gradient-to-br from-background to-muted/30 p-4">
-          <Card className="w-full max-w-md shadow-xl">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Loading Profile...</CardTitle>
-              <CardDescription>Please wait or log in.</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <User className="h-12 w-12 text-primary mx-auto animate-pulse" />
-            </CardContent>
-          </Card>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>
@@ -62,7 +35,7 @@ export default function ProfilePage() {
                 <Mail className="h-5 w-5 text-primary shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Email Address</p>
-                  <p className="font-medium text-foreground break-all">{user.email}</p>
+                  <p className="font-medium text-foreground break-all">{user?.email}</p>
                 </div>
               </div>
             </div>
@@ -107,3 +80,6 @@ export default function ProfilePage() {
     </AppLayout>
   );
 }
+
+
+export default withAuth(ProfilePage);
