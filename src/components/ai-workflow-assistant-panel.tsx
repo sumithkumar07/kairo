@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle, Paperclip, X } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -14,8 +14,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import type { ChatMessage } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 
 interface AIWorkflowAssistantPanelProps {
   isCanvasEmpty: boolean;
@@ -31,7 +29,7 @@ interface AIWorkflowAssistantPanelProps {
   isSimulationMode: boolean;
   chatHistory: ChatMessage[];
   isChatLoading: boolean;
-  onChatSubmit: (message: string, isSystemMessage?: boolean, imageDataUri?: string) => void;
+  onChatSubmit: (message: string, isSystemMessage?: boolean) => void;
   onClearChat: () => void;
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
@@ -65,10 +63,7 @@ export function AIWorkflowAssistantPanel({
   onAddSuggestedNode,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
-  const [imageToSend, setImageToSend] = useState<{ preview: string; dataUri: string } | null>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (chatScrollAreaRef.current) {
@@ -77,29 +72,9 @@ export function AIWorkflowAssistantPanel({
   }, [chatHistory]);
 
   const handleLocalChatSubmit = () => {
-    if (!chatInput.trim() && !imageToSend) return;
-    onChatSubmit(chatInput, false, imageToSend?.dataUri);
+    if (!chatInput.trim()) return;
+    onChatSubmit(chatInput);
     setChatInput('');
-    setImageToSend(null);
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 4 * 1024 * 1024) { // 4MB limit
-        toast({ title: 'File too large', description: 'Please select an image smaller than 4MB.', variant: 'destructive' });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUri = e.target?.result as string;
-        setImageToSend({ preview: URL.createObjectURL(file), dataUri });
-      };
-      reader.onerror = () => {
-        toast({ title: 'Error reading file', description: 'Could not read the selected image.', variant: 'destructive' });
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const currentIsLoadingAnyAIButChat = isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
@@ -238,8 +213,7 @@ export function AIWorkflowAssistantPanel({
             chat.sender === 'user' ? (
               <div key={chat.id} className="flex items-start justify-end gap-2.5">
                 <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 bg-primary text-primary-foreground rounded-s-xl rounded-ee-xl shadow">
-                  {chat.imageDataUri && <Image src={chat.imageDataUri} alt="User upload" width={300} height={200} className="rounded-lg mb-2" />}
-                  {chat.message && <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>}
+                  <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>
                   <span className="text-xs text-primary-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
                 </div>
                 <div className="p-1.5 bg-muted rounded-full shadow-sm shrink-0">
@@ -274,28 +248,11 @@ export function AIWorkflowAssistantPanel({
           )}
         </div>
       </ScrollArea>
-      <div className="p-3 border-t bg-background/80 space-y-2.5 flex flex-col mt-auto">
-        {imageToSend && (
-          <div className="relative w-24 h-24 rounded-md overflow-hidden border shadow-sm">
-            <Image src={imageToSend.preview} alt="Image preview" layout="fill" objectFit="cover" />
-            <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setImageToSend(null)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-        <div className="flex gap-2 items-end">
-          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
-          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="self-end min-h-[40px]" title="Attach image" disabled={isChatLoading || currentIsLoadingAnyAIButChat}>
-             <Paperclip className="h-4 w-4" />
-          </Button>
-          <Textarea id="ai-chat-textarea" placeholder="Ask about Kairo, or describe a workflow to generate..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]" rows={1} disabled={isChatLoading || currentIsLoadingAnyAIButChat} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} />
-          <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || (!chatInput.trim() && !imageToSend)} className="h-auto py-2.5 self-end min-h-[40px]" size="default" title="Send message (Enter)">
-            {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-         <div className="text-xs text-center text-muted-foreground px-2">
-            You can also drag & drop an image onto the chat box.
-          </div>
+      <div className="p-3 border-t bg-background/80 flex gap-2 items-center mt-auto">
+        <Textarea id="ai-chat-textarea" placeholder="Ask about Kairo, or describe a workflow..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 text-sm resize-none" rows={1} disabled={isChatLoading || currentIsLoadingAnyAIButChat} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} />
+        <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || !chatInput.trim()} size="icon" title="Send message (Enter)">
+          {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
       </div>
     </div>
   );
