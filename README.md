@@ -60,7 +60,7 @@ Create a `.env.local` file in the project root for local development, or set the
 ### Live Webhook Trigger (`webhookTrigger` node)
 
 *   **Base URL:** Live webhooks are exposed at `/api/workflow-webhooks/YOUR_PATH_SUFFIX`. Replace `YOUR_PATH_SUFFIX` with the value configured in the `webhookTrigger` node.
-*   **Workflow Storage:** For a webhook to be triggered in a live environment, the workflow containing it **must be saved to the server** (using the "Save As..." or "Save" feature in the editor). Workflows saved only to the browser's local storage are not accessible by the webhook API route.
+*   **Workflow Storage:** For a webhook to be triggered in a live environment, the workflow containing it **must be saved to the server** (using the "Save As..." or "Save" feature in the editor). Workflows saved only to your browser's local storage are not accessible by the webhook API route.
 *   **Security Token:** If a `securityToken` (e.g., `{{credential.MyWebhookSecret}}`) is configured in the `webhookTrigger` node, the incoming live request must include an `X-Webhook-Token` header with the matching resolved secret value.
 
 ### AI Agent Hub API (`/api/mcp`)

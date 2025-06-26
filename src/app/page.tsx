@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, LogIn, Cpu, Settings, Menu } from 'lucide-react';
+import { Workflow, BrainCircuit, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, LogIn, UserPlus, Cpu, Settings, Menu } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
