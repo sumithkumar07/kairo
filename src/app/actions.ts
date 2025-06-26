@@ -286,7 +286,7 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
         const resolvedBody = webhookConfig.bodyTemplate ? resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext) : {};
         
         // Fire-and-forget fetch call
-        await fetch(webhookConfig.url, {
+        fetch(webhookConfig.url, {
             method: webhookConfig.method || 'POST',
             headers: resolvedHeaders,
             body: JSON.stringify(resolvedBody),
@@ -659,7 +659,8 @@ async function executeFlowInternal(
 
         let finalNodeOutput: any = { status: 'pending', lastExecutionStatus: 'pending' };
         const retryConfig: RetryConfig | undefined = resolvedConfig.retry;
-        const maxAttempts = retryConfig?.attempts || 1;
+        let maxAttempts = retryConfig?.attempts || 1;
+        if (isSimulationMode) maxAttempts = 1; // Don't actually retry in simulation mode
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
@@ -869,5 +870,3 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
         return { success: false, message: e.message };
     }
 }
-
-    

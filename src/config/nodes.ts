@@ -775,8 +775,8 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'webhook trigger': 'webhookTrigger',
   'http webhook': 'webhookTrigger',
   'incoming webhook': 'webhookTrigger',
-  'webhook': 'httpRequest', 
-  'http trigger': 'httpRequest', 
+  'webhook': 'webhookTrigger',
+  'http trigger': 'webhookTrigger', 
   'schedule': 'schedule',
   'cron': 'schedule',
   'cron job': 'schedule',
@@ -1129,5 +1129,3 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
-
-    
