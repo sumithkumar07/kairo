@@ -218,5 +218,3 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
-
-    

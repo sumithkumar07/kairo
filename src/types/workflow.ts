@@ -146,3 +146,11 @@ export interface McpCommandRecord {
   response: string;
   status: 'Success' | 'Failed';
 }
+
+// Keep this for backwards compatibility with older stored workflows if needed, but new types are preferred.
+export type LogEntry = {
+  timestamp: string;
+  message: string;
+  type: 'info' | 'error' | 'success';
+  data?: any;
+};
