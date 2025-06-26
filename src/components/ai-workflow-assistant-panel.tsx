@@ -40,7 +40,7 @@ interface AIWorkflowAssistantPanelProps {
   workflowExplanation: string | null;
   onClearExplanation: () => void;
   initialCanvasSuggestion: SuggestNextNodeOutput | null;
-  isLoadingSuggestion: boolean; 
+  isLoadingSuggestion: boolean;
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
 }
 
@@ -66,7 +66,7 @@ export function AIWorkflowAssistantPanel({
   workflowExplanation,
   onClearExplanation,
   initialCanvasSuggestion,
-  isLoadingSuggestion, 
+  isLoadingSuggestion,
   onAddSuggestedNode,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
@@ -237,7 +237,7 @@ export function AIWorkflowAssistantPanel({
               <p className="ml-2.5 text-sm text-muted-foreground">AI is analyzing...</p>
             </div>
           ) : workflowExplanation ? (
-            <Card className="p-3 bg-accent/10 text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border-accent/20 shadow-sm break-words">
+            <Card className="p-3 bg-accent/20 dark:bg-accent/10 text-sm text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border-accent/20 shadow-sm break-words">
               {workflowExplanation}
             </Card>
           ) : (
@@ -351,3 +351,5 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
+
+    
