@@ -11,17 +11,14 @@ import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import type { LogEntry, ChatMessage } from '@/types/workflow';
+import type { ChatMessage } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
 interface AIWorkflowAssistantPanelProps {
   isCanvasEmpty: boolean;
-  executionLogs: LogEntry[];
-  onClearLogs: () => void;
   isWorkflowRunning: boolean;
   selectedNodeId: string | null;
   selectedConnectionId: string | null;
@@ -46,8 +43,6 @@ interface AIWorkflowAssistantPanelProps {
 
 export function AIWorkflowAssistantPanel({
   isCanvasEmpty,
-  executionLogs,
-  onClearLogs,
   isWorkflowRunning,
   selectedNodeId,
   selectedConnectionId,
@@ -305,5 +300,3 @@ export function AIWorkflowAssistantPanel({
     </div>
   );
 }
-
-    

@@ -109,13 +109,6 @@ export interface AvailableNodeType {
   isAdvanced?: boolean; // Added for Pro tier feature gating
 }
 
-export interface LogEntry {
-  timestamp: string; 
-  message: string;
-  type: 'info' | 'error' | 'success';
-}
-
-// ServerLogOutput now includes a server-generated timestamp (ISO string)
 export interface ServerLogOutput {
   timestamp: string; // ISO string
   message: string;

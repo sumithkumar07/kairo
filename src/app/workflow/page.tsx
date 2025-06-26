@@ -1420,8 +1420,6 @@ function WorkflowPage() {
                 ) : (
                   <AIWorkflowAssistantPanel
                     isCanvasEmpty={nodes.length === 0}
-                    executionLogs={[]}
-                    onClearLogs={()=>{}}
                     onRunWorkflow={handleRunWorkflow}
                     onToggleSimulationMode={handleToggleSimulationMode}
                     isSimulationMode={isSimulationMode}
