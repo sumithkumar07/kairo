@@ -69,7 +69,6 @@ function WorkflowPage() {
   const [isLoadingAiWorkflow, setIsLoadingAiWorkflow] = useState(false);
   const [isAssistantVisible, setIsAssistantVisible] = useState(true);
   const [isNodeLibraryVisible, setIsNodeLibraryVisible] = useState(true);
-  const [executionLogs, setExecutionLogs] = useState<LogEntry[]>([]);
   const [isWorkflowRunning, setIsWorkflowRunning] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -236,7 +235,6 @@ function WorkflowPage() {
 
     setSelectedNodeId(null);
     setSelectedConnectionId(null);
-    setExecutionLogs([]);
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
@@ -589,16 +587,9 @@ function WorkflowPage() {
   
     setIsWorkflowRunning(true);
     setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
-    const runModeMessage = isSimulationMode ? 'Simulation Mode' : 'Live Mode';
-    setExecutionLogs(prevLogs => [{ timestamp: new Date().toLocaleTimeString(), message: `Workflow execution started in ${runModeMessage}...`, type: 'info' }]);
   
     try {
       const result: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {});
-      const newLogs: LogEntry[] = result.serverLogs.map(log => ({
-        ...log,
-        timestamp: new Date(log.timestamp).toLocaleTimeString(),
-      }));
-      setExecutionLogs(prevLogs => [...prevLogs, ...newLogs]);
   
       const updatedNodes = nodes.map(existingNode => {
         const executedNodeData = result.finalWorkflowData[existingNode.id];
@@ -641,11 +632,6 @@ function WorkflowPage() {
   
     } catch (error: any) {
       const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
-      const finalErrorLogs = [
-        ...executionLogs,
-        { timestamp: new Date().toLocaleTimeString(), message: `Execution Error: ${errorMessage}`, type: 'error' as const },
-      ];
-      setExecutionLogs(finalErrorLogs);
       setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
       saveHistory();
       
@@ -656,7 +642,7 @@ function WorkflowPage() {
         status: 'Failed',
         executionResult: { 
             finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
-            serverLogs: finalErrorLogs.map(l => ({ ...l, timestamp: new Date().toISOString()})) 
+            serverLogs: [{timestamp: new Date().toISOString(), message: `Execution Error: ${errorMessage}`, type: 'error'}]
         },
         workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
       };
@@ -666,7 +652,7 @@ function WorkflowPage() {
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, executionLogs, canvasOffset, zoomLevel]);
+  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, canvasOffset, zoomLevel]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
@@ -1251,14 +1237,7 @@ function WorkflowPage() {
     });
   }, [toast]);
 
-  const handleClearLogs = useCallback(() => {
-    setExecutionLogs([]);
-    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
-    toast({ title: 'Logs Cleared', description: 'Execution logs have been cleared and node statuses reset.' });
-    saveHistory();
-  }, [toast, saveHistory]);
-
-  const handleConfirmClearCanvas = useCallback(() => {
+  const handleClearCanvas = useCallback(() => {
     loadWorkflowIntoEditor({ nodes: [], connections: [], canvasOffset: { x: 0, y: 0 }, zoomLevel: 1, isSimulationMode: true }, 'Untitled Workflow');
     toast({ title: 'Canvas Cleared', description: 'All nodes and connections have been removed.' });
     setShowClearCanvasConfirmDialog(false);
@@ -1439,8 +1418,9 @@ function WorkflowPage() {
                 ) : (
                   <AIWorkflowAssistantPanel
                     isCanvasEmpty={nodes.length === 0}
-                    executionLogs={executionLogs}
-                    onClearLogs={handleClearLogs}
+                    onRunWorkflow={handleRunWorkflow}
+                    onToggleSimulationMode={handleToggleSimulationMode}
+                    isSimulationMode={isSimulationMode}
                     isWorkflowRunning={isWorkflowRunning}
                     selectedNodeId={selectedNodeId}
                     selectedConnectionId={selectedConnectionId}
@@ -1448,9 +1428,6 @@ function WorkflowPage() {
                     onDeselectConnection={() => setSelectedConnectionId(null)}
                     isConnecting={isConnecting}
                     onCancelConnection={handleCancelConnection}
-                    onRunWorkflow={handleRunWorkflow}
-                    onToggleSimulationMode={handleToggleSimulationMode}
-                    isSimulationMode={isSimulationMode}
                     chatHistory={chatHistory}
                     isChatLoading={isChatLoading}
                     onChatSubmit={handleChatSubmit}
@@ -1494,7 +1471,7 @@ function WorkflowPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setShowClearCanvasConfirmDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmClearCanvas} className={buttonVariants({ variant: "destructive" })}>
+              <AlertDialogAction onClick={handleClearCanvas} className={buttonVariants({ variant: "destructive" })}>
                 Clear Canvas
               </AlertDialogAction>
             </AlertDialogFooter>
