@@ -12,7 +12,7 @@ import { saveRunRecord } from '@/services/workflow-storage-service';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, X, Bot, MessageSquareText, SaveAll, File, FolderOpen, List, History, FilePlus, Save } from 'lucide-react';
+import { Loader2, Trash2, X, Bot, MessageSquareText, SaveAll, File, FolderOpen, List, History, FilePlus, Save, Zap } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -28,6 +28,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppLayout } from '@/components/app-layout';
 
 
 import { NodeLibrary } from '@/components/node-library';
@@ -216,14 +218,14 @@ export default function WorkflowPage() {
   const loadWorkflowIntoEditor = useCallback((workflowData: Workflow, workflowName?: string) => {
     if (!workflowData || !Array.isArray(workflowData.nodes) || !Array.isArray(workflowData.connections)) {
       console.error("Attempted to load invalid workflow structure:", workflowData);
-      throw new Error("Invalid workflow structure.");
+      toast({ title: 'Load Error', description: 'The selected workflow file has an invalid structure.', variant: 'destructive' });
+      return;
     }
     const loadedNodes = (workflowData.nodes || []).map((n: WorkflowNode) => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] }));
     const loadedConnections = workflowData.connections || [];
     setNodes(loadedNodes);
     setConnections(loadedConnections);
     
-    // Calculate the nextNodeId based on the loaded nodes.
     const maxId = Math.max(0, ...loadedNodes.map((n: WorkflowNode) => parseInt(n.id.split('_').pop() || '0', 10)));
     nextNodeIdRef.current = isFinite(maxId) ? maxId + 1 : 1;
     
@@ -243,7 +245,7 @@ export default function WorkflowPage() {
     document.title = `${currentWorkflowNameRef.current} - Kairo`;
 
     resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
-  }, [resetHistoryForNewWorkflow]);
+  }, [resetHistoryForNewWorkflow, toast]);
 
 
   const loadSavedWorkflowsIndex = useCallback(async () => {
@@ -266,7 +268,6 @@ export default function WorkflowPage() {
       const loadedData = await loadWorkflowAction(workflowName);
       if (loadedData) {
         loadWorkflowIntoEditor(loadedData.workflow, loadedData.name);
-        // Persist to local storage to make it the "current" workflow on refresh
         localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: loadedData.name, workflow: loadedData.workflow }));
         toast({ title: 'Workflow Loaded', description: `Workflow "${workflowName}" is now active in the editor.` });
         setShowOpenDialog(false);
@@ -301,19 +302,14 @@ export default function WorkflowPage() {
         try {
           const savedState = JSON.parse(savedWorkflowJson);
 
-          // Check for the modern { name, workflow: { nodes, ... } } structure
           if (savedState.workflow && Array.isArray(savedState.workflow.nodes)) {
             loadWorkflowIntoEditor(savedState.workflow, savedState.name || 'Untitled Workflow');
           } 
-          // Check for a legacy direct workflow structure { nodes, ... }
           else if (Array.isArray(savedState.nodes)) {
             console.warn("Migrating legacy workflow from localStorage.");
-            // Load the legacy workflow
             loadWorkflowIntoEditor(savedState, 'Untitled Workflow');
-            // And immediately save it in the new format
             localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: 'Untitled Workflow', workflow: savedState }));
           } 
-          // Handle invalid data by clearing it
           else {
             throw new Error("Invalid workflow data structure found in localStorage.");
           }
@@ -333,7 +329,7 @@ export default function WorkflowPage() {
   const handleSaveWorkflow = useCallback(async () => {
     if (typeof window !== 'undefined') {
       if (currentWorkflowNameRef.current === 'Untitled Workflow' && nodes.length > 0) {
-        setSaveAsName(''); // Clear previous name for a fresh save
+        setSaveAsName(''); 
         setShowSaveAsDialog(true);
         return;
       }
@@ -1327,243 +1323,270 @@ export default function WorkflowPage() {
     input.click();
   }, [toast, loadWorkflowIntoEditor]);
 
+  const EmptyCanvas = () => (
+    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+      <Card className="p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm max-w-lg">
+        <CardHeader>
+          <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
+              <Zap className="h-12 w-12 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-semibold text-foreground mb-1">Start Building Your Workflow</CardTitle>
+          <p className="text-muted-foreground text-sm">
+              Drag nodes from the library, or ask the AI assistant to generate a workflow from a prompt.
+          </p>
+        </CardHeader>
+        <CardContent className="mt-4">
+          <p className="text-sm font-semibold mb-3">Or start with an example:</p>
+          <div className="flex gap-3 justify-center">
+              <Button variant="outline" size="sm" onClick={() => handleLoadNamedWorkflow('Conditional Email Sender')}>Conditional Email</Button>
+              <Button variant="outline" size="sm" onClick={() => handleLoadNamedWorkflow('Content Summarization & Email')}>Content Summarization</Button>
+              <Button variant="outline" size="sm" onClick={() => handleLoadNamedWorkflow('Database User Onboarding')}>Database Onboarding</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1 && historyIndex !== -1;
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
-      {isLoadingAiWorkflow && (
-        <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="ml-4 text-lg text-foreground">
-            AI is generating your workflow...
-          </p>
-        </div>
-      )}
-
-      <div className="flex flex-1 overflow-hidden">
-        {isNodeLibraryVisible && <NodeLibrary availableNodes={AVAILABLE_NODES_CONFIG} />}
-        <AIWorkflowBuilderPanel
-          nodes={nodes}
-          connections={connections}
-          selectedNodeId={selectedNodeId}
-          selectedConnectionId={selectedConnectionId}
-          onNodeClick={handleNodeClick}
-          onConnectionClick={handleConnectionClick}
-          onNodeDragStop={(nodeId, position) => {
-            updateNodePosition(nodeId, position);
-            saveHistory();
-          }}
-          onCanvasDrop={addNodeToCanvas}
-          onToggleAssistant={toggleAssistantPanel}
-          onToggleNodeLibrary={toggleNodeLibraryPanel}
-          isNodeLibraryVisible={isNodeLibraryVisible}
-          onSaveWorkflow={handleSaveWorkflow}
-          onSaveWorkflowAs={handleSaveWorkflowAs}
-          onOpenWorkflow={handleOpenWorkflowDialog}
-          onNewWorkflow={() => setShowClearCanvasConfirmDialog(true)}
-          onExportWorkflow={handleExportWorkflow}
-          onImportWorkflow={handleImportWorkflow}
-          workflowName={currentWorkflowNameRef.current}
-          isConnecting={isConnecting}
-          onStartConnection={handleStartConnection}
-          onCompleteConnection={handleCompleteConnection}
-          onUpdateConnectionPreview={handleUpdateConnectionPreview}
-          connectionPreview={{
-            startNodeId: connectionStartNodeId,
-            startHandleId: connectionStartHandleId,
-            previewPosition: connectionPreviewPosition,
-          }}
-          onCanvasClick={handleCanvasClick}
-          onCanvasPanStart={handleCanvasPanStart}
-          canvasOffset={canvasOffset}
-          isPanningForCursor={isPanning}
-          connectionStartNodeId={connectionStartNodeId}
-          connectionStartHandleId={connectionStartHandleId}
-          zoomLevel={zoomLevel}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-  
-          onResetView={handleResetView}
-          onExplainWorkflow={handleGetWorkflowExplanation}
-          isExplainingWorkflow={isExplainingWorkflow}
-          onUndo={handleUndo}
-          canUndo={canUndo}
-          onRedo={handleRedo}
-          canRedo={canRedo}
-          toast={toast}
-          onDeleteSelectedConnection={handleDeleteSelectedConnection}
-        />
-
-        {isAssistantVisible && (
-          <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
-             {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
-                <NodeConfigPanel
-                  node={selectedNode}
-                  nodeType={selectedNodeType}
-                  onConfigChange={handleNodeConfigChange}
-                  onNodeNameChange={handleNodeNameChange}
-                  onNodeDescriptionChange={handleNodeDescriptionChange}
-                  onDeleteNode={handleDeleteNode}
-                  suggestedNextNodeInfo={suggestedNextNodeInfo}
-                  isLoadingSuggestion={isLoadingSuggestion}
-                  onAddSuggestedNode={handleAddSuggestedNode}
-                />
-              ) : (
-                <AIWorkflowAssistantPanel
-                  isCanvasEmpty={nodes.length === 0}
-                  executionLogs={executionLogs}
-                  onClearLogs={handleClearLogs}
-                  isWorkflowRunning={isWorkflowRunning}
-                  selectedNodeId={selectedNodeId}
-                  selectedConnectionId={selectedConnectionId}
-                  onDeleteSelectedConnection={handleDeleteSelectedConnection}
-                  onDeselectConnection={() => setSelectedConnectionId(null)}
-                  isConnecting={isConnecting}
-                  onCancelConnection={handleCancelConnection}
-                  onRunWorkflow={handleRunWorkflow}
-                  onToggleSimulationMode={handleToggleSimulationMode}
-                  isSimulationMode={isSimulationMode}
-                  chatHistory={chatHistory}
-                  isChatLoading={isChatLoading}
-                  onChatSubmit={handleChatSubmit}
-                  onClearChat={() => setChatHistory([])}
-                  isExplainingWorkflow={isExplainingWorkflow}
-                  workflowExplanation={workflowExplanation}
-                  onClearExplanation={() => {
-                      setWorkflowExplanation(null);
-                  }}
-                  initialCanvasSuggestion={initialCanvasSuggestion}
-                  isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
-                  onAddSuggestedNode={handleAddSuggestedNode}
-                />
-              )}
-          </aside>
-        )}
-      </div>
-      <AlertDialog open={showDeleteNodeConfirmDialog} onOpenChange={setShowDeleteNodeConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Node?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this node and its connections? This action can be undone using the Undo feature (Ctrl+Z).
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDeleteNode}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteNode} className={buttonVariants({ variant: "destructive" })}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={showClearCanvasConfirmDialog} onOpenChange={setShowClearCanvasConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>New Workflow?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will clear the canvas. Any unsaved changes will be lost. This action can be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowClearCanvasConfirmDialog(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClearCanvas} className={buttonVariants({ variant: "destructive" })}>
-              Clear Canvas
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <Dialog open={showSaveAsDialog} onOpenChange={setShowSaveAsDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Save Workflow As</DialogTitle>
-            <DialogDescription>
-              Enter a name for your workflow. This will save the current state of the canvas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="save-as-name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="save-as-name"
-                value={saveAsName}
-                onChange={(e) => setSaveAsName(e.target.value)}
-                className="col-span-3"
-                placeholder="e.g., My Awesome Automation"
-                onKeyDown={(e) => { if (e.key === 'Enter') confirmSaveAsWorkflow(); }}
-              />
-            </div>
+    <AppLayout>
+      <div className="flex h-full flex-col bg-background text-foreground overflow-hidden">
+        {isLoadingAiWorkflow && (
+          <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-4 text-lg text-foreground">
+              AI is generating your workflow...
+            </p>
           </div>
-          <DialogFooter>
-            <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button type="button" onClick={confirmSaveAsWorkflow}>
-                <SaveAll className="mr-2 h-4 w-4" /> Save Workflow
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Open Workflow</DialogTitle>
-                <DialogDescription>Select a previously saved workflow to load it into the editor.</DialogDescription>
-            </DialogHeader>
-            <div className="py-2">
-                {savedWorkflows.length === 0 ? (
-                    <p className="text-sm text-center text-muted-foreground py-4">No saved workflows found.</p>
+        )}
+
+        <div className="flex flex-1 overflow-hidden">
+          {isNodeLibraryVisible && <NodeLibrary availableNodes={AVAILABLE_NODES_CONFIG} />}
+          <AIWorkflowBuilderPanel
+            nodes={nodes}
+            connections={connections}
+            selectedNodeId={selectedNodeId}
+            selectedConnectionId={selectedConnectionId}
+            onNodeClick={handleNodeClick}
+            onConnectionClick={handleConnectionClick}
+            onNodeDragStop={(nodeId, position) => {
+              updateNodePosition(nodeId, position);
+              saveHistory();
+            }}
+            onCanvasDrop={addNodeToCanvas}
+            onToggleAssistant={toggleAssistantPanel}
+            onToggleNodeLibrary={toggleNodeLibraryPanel}
+            isNodeLibraryVisible={isNodeLibraryVisible}
+            onSaveWorkflow={handleSaveWorkflow}
+            onSaveWorkflowAs={handleSaveWorkflowAs}
+            onOpenWorkflow={handleOpenWorkflowDialog}
+            onNewWorkflow={() => setShowClearCanvasConfirmDialog(true)}
+            onExportWorkflow={handleExportWorkflow}
+            onImportWorkflow={handleImportWorkflow}
+            workflowName={currentWorkflowNameRef.current}
+            isConnecting={isConnecting}
+            onStartConnection={handleStartConnection}
+            onCompleteConnection={handleCompleteConnection}
+            onUpdateConnectionPreview={handleUpdateConnectionPreview}
+            connectionPreview={{
+              startNodeId: connectionStartNodeId,
+              startHandleId: connectionStartHandleId,
+              previewPosition: connectionPreviewPosition,
+            }}
+            onCanvasClick={handleCanvasClick}
+            onCanvasPanStart={handleCanvasPanStart}
+            canvasOffset={canvasOffset}
+            isPanningForCursor={isPanning}
+            connectionStartNodeId={connectionStartNodeId}
+            connectionStartHandleId={connectionStartHandleId}
+            zoomLevel={zoomLevel}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+    
+            onResetView={handleResetView}
+            onExplainWorkflow={handleGetWorkflowExplanation}
+            isExplainingWorkflow={isExplainingWorkflow}
+            onUndo={handleUndo}
+            canUndo={canUndo}
+            onRedo={handleRedo}
+            canRedo={canRedo}
+            toast={toast}
+            onDeleteSelectedConnection={handleDeleteSelectedConnection}
+            EmptyCanvasComponent={<EmptyCanvas />}
+          />
+
+          {isAssistantVisible && (
+            <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
+              {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
+                  <NodeConfigPanel
+                    node={selectedNode}
+                    nodeType={selectedNodeType}
+                    onConfigChange={handleNodeConfigChange}
+                    onNodeNameChange={handleNodeNameChange}
+                    onNodeDescriptionChange={handleNodeDescriptionChange}
+                    onDeleteNode={handleDeleteNode}
+                    suggestedNextNodeInfo={suggestedNextNodeInfo}
+                    isLoadingSuggestion={isLoadingSuggestion}
+                    onAddSuggestedNode={handleAddSuggestedNode}
+                  />
                 ) : (
-                    <ScrollArea className="h-64 border rounded-md">
-                        <div className="p-2 space-y-1">
-                            {savedWorkflows.map(wf => (
-                                <div key={wf.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <div className='flex flex-col'>
-                                      <span className="text-sm font-medium truncate" title={wf.name}>{wf.name}</span>
-                                      <span className="text-xs text-muted-foreground">{wf.type}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      {wf.type === 'user' && (
-                                        <Button variant="destructive" size="icon" className="h-7 w-7" onClick={(e) => {e.stopPropagation(); setWorkflowToDeleteFromModal(wf.name); }}>
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      )}
-                                      <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadNamedWorkflow(wf.name)}>
-                                        Load
-                                      </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
+                  <AIWorkflowAssistantPanel
+                    isCanvasEmpty={nodes.length === 0}
+                    executionLogs={executionLogs}
+                    onClearLogs={handleClearLogs}
+                    isWorkflowRunning={isWorkflowRunning}
+                    selectedNodeId={selectedNodeId}
+                    selectedConnectionId={selectedConnectionId}
+                    onDeleteSelectedConnection={handleDeleteSelectedConnection}
+                    onDeselectConnection={() => setSelectedConnectionId(null)}
+                    isConnecting={isConnecting}
+                    onCancelConnection={handleCancelConnection}
+                    onRunWorkflow={handleRunWorkflow}
+                    onToggleSimulationMode={handleToggleSimulationMode}
+                    isSimulationMode={isSimulationMode}
+                    chatHistory={chatHistory}
+                    isChatLoading={isChatLoading}
+                    onChatSubmit={handleChatSubmit}
+                    onClearChat={() => setChatHistory([])}
+                    isExplainingWorkflow={isExplainingWorkflow}
+                    workflowExplanation={workflowExplanation}
+                    onClearExplanation={() => {
+                        setWorkflowExplanation(null);
+                    }}
+                    initialCanvasSuggestion={initialCanvasSuggestion}
+                    isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
+                    onAddSuggestedNode={handleAddSuggestedNode}
+                  />
                 )}
+            </aside>
+          )}
+        </div>
+        <AlertDialog open={showDeleteNodeConfirmDialog} onOpenChange={setShowDeleteNodeConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Node?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this node and its connections? This action can be undone using the Undo feature (Ctrl+Z).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={cancelDeleteNode}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteNode} className={buttonVariants({ variant: "destructive" })}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={showClearCanvasConfirmDialog} onOpenChange={setShowClearCanvasConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>New Workflow?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will clear the canvas. Any unsaved changes will be lost. This action can be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowClearCanvasConfirmDialog(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmClearCanvas} className={buttonVariants({ variant: "destructive" })}>
+                Clear Canvas
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Dialog open={showSaveAsDialog} onOpenChange={setShowSaveAsDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Save Workflow As</DialogTitle>
+              <DialogDescription>
+                Enter a name for your workflow. This will save the current state of the canvas.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="save-as-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="save-as-name"
+                  value={saveAsName}
+                  onChange={(e) => setSaveAsName(e.target.value)}
+                  className="col-span-3"
+                  placeholder="e.g., My Awesome Automation"
+                  onKeyDown={(e) => { if (e.key === 'Enter') confirmSaveAsWorkflow(); }}
+                />
+              </div>
             </div>
             <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="outline">Close</Button>
-                </DialogClose>
+              <DialogClose asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="button" onClick={confirmSaveAsWorkflow}>
+                  <SaveAll className="mr-2 h-4 w-4" /> Save Workflow
+              </Button>
             </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <AlertDialog open={!!workflowToDeleteFromModal} onOpenChange={(open) => !open && setWorkflowToDeleteFromModal(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Workflow "{workflowToDeleteFromModal}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this workflow? This action cannot be undone and will be permanently removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setWorkflowToDeleteFromModal(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteWorkflowFromModal} className={buttonVariants({ variant: "destructive" })}>
-              Delete Workflow
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={showOpenDialog} onOpenChange={setShowOpenDialog}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle>Open Workflow</DialogTitle>
+                  <DialogDescription>Select a previously saved workflow to load it into the editor.</DialogDescription>
+              </DialogHeader>
+              <div className="py-2">
+                  {savedWorkflows.length === 0 ? (
+                      <p className="text-sm text-center text-muted-foreground py-4">No saved workflows found.</p>
+                  ) : (
+                      <ScrollArea className="h-64 border rounded-md">
+                          <div className="p-2 space-y-1">
+                              {savedWorkflows.map(wf => (
+                                  <div key={wf.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                      <div className='flex flex-col'>
+                                        <span className="text-sm font-medium truncate" title={wf.name}>{wf.name}</span>
+                                        <span className="text-xs text-muted-foreground">{wf.type}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        {wf.type === 'user' && (
+                                          <Button variant="destructive" size="icon" className="h-7 w-7" onClick={(e) => {e.stopPropagation(); setWorkflowToDeleteFromModal(wf.name); }}>
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        )}
+                                        <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadNamedWorkflow(wf.name)}>
+                                          Load
+                                        </Button>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      </ScrollArea>
+                  )}
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild>
+                      <Button type="button" variant="outline">Close</Button>
+                  </DialogClose>
+              </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <AlertDialog open={!!workflowToDeleteFromModal} onOpenChange={(open) => !open && setWorkflowToDeleteFromModal(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Workflow "{workflowToDeleteFromModal}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this workflow? This action cannot be undone and will be permanently removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setWorkflowToDeleteFromModal(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteWorkflowFromModal} className={buttonVariants({ variant: "destructive" })}>
+                Delete Workflow
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </AppLayout>
   );
 }

@@ -8,6 +8,7 @@ import { CheckCircle, Workflow, ShieldCheck, Star, LogIn, UserPlus } from 'lucid
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription'; 
+import { AppLayout } from '@/components/app-layout';
 
 export default function SubscriptionsPage() {
   const { 
@@ -57,24 +58,8 @@ export default function SubscriptionsPage() {
   };
   
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-3xl font-bold text-primary flex items-center">
-            <Workflow className="h-8 w-8 mr-2" />
-            Kairo
-          </Link>
-          <nav>
-            <Button variant="ghost" asChild>
-                <Link href="/workflow">
-                  Workflow Editor
-                </Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <AppLayout>
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-muted/40">
         <section className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
             Choose Your Kairo Plan
@@ -176,13 +161,6 @@ export default function SubscriptionsPage() {
             </p>
         </section>
       </main>
-
-      <footer className="text-center py-10 border-t mt-12">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
-          <Link href="/contact" className="ml-2 text-primary hover:underline font-medium">Contact Us</Link>
-        </p>
-      </footer>
-    </div>
+    </AppLayout>
   );
 }

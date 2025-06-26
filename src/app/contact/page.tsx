@@ -5,27 +5,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Workflow, Mail, Home } from 'lucide-react';
+import { AppLayout } from '@/components/app-layout';
 
 export default function ContactPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-3xl font-bold text-primary flex items-center">
-            <Workflow className="h-8 w-8 mr-2" />
-            Kairo
-          </Link>
-          <nav>
-            <Button variant="ghost" asChild>
-              <Link href="/workflow">
-                Workflow Editor
-              </Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
-
-      <main className="flex-1 flex items-center justify-center p-4">
+    <AppLayout>
+      <div className="flex flex-col flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
           <CardHeader className="text-center border-b pb-6">
             <Mail className="h-16 w-16 text-primary mx-auto mb-4 p-2 bg-primary/10 rounded-full" />
@@ -74,13 +59,7 @@ export default function ContactPage() {
             </Button>
           </CardFooter>
         </Card>
-      </main>
-
-      <footer className="text-center py-10 border-t mt-12">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
-        </p>
-      </footer>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

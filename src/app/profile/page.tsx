@@ -8,6 +8,7 @@ import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow, Edit } from 'l
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { AppLayout } from '@/components/app-layout';
 
 export default function ProfilePage() {
   const { 
@@ -29,43 +30,25 @@ export default function ProfilePage() {
 
   if (!isLoggedIn || !user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-background to-muted/30 p-4">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Loading Profile...</CardTitle>
-            <CardDescription>Please wait or log in.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-             <User className="h-12 w-12 text-primary mx-auto animate-pulse" />
-          </CardContent>
-        </Card>
-      </div>
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center flex-1 bg-gradient-to-br from-background to-muted/30 p-4">
+          <Card className="w-full max-w-md shadow-xl">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Loading Profile...</CardTitle>
+              <CardDescription>Please wait or log in.</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <User className="h-12 w-12 text-primary mx-auto animate-pulse" />
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-3xl font-bold text-primary flex items-center">
-            <Workflow className="h-8 w-8 mr-2" />
-            Kairo
-          </Link>
-          <nav className="space-x-2">
-             <Button variant="ghost" asChild>
-                <Link href="/workflow">
-                    Workflow Editor
-                </Link>
-            </Button>
-            <Button variant="outline" onClick={logout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          </nav>
-        </div>
-      </header>
-
-      <main className="flex-1 flex items-center justify-center p-4">
+    <AppLayout>
+      <div className="flex-1 flex items-center justify-center p-4 bg-muted/40">
         <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
           <CardHeader className="text-center border-b pb-4">
             <User className="h-16 w-16 text-primary mx-auto mb-3 p-2 bg-primary/10 rounded-full" />
@@ -120,13 +103,7 @@ export default function ProfilePage() {
             </Button>
           </CardFooter>
         </Card>
-      </main>
-
-      <footer className="text-center py-10 border-t mt-12">
-        <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Kairo. Automate intelligently.
-        </p>
-      </footer>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

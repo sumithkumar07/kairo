@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function HomePage() {
-  const { isLoggedIn, logout } = useSubscription();
+  const { isLoggedIn, logout, user } = useSubscription();
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -39,15 +39,23 @@ export default function HomePage() {
             </Button>
 
             {isLoggedIn ? (
-              <>
-                <Button variant="ghost" asChild size="sm" className="text-sm font-medium">
-                  <Link href="/profile">Profile</Link>
-                </Button>
-                <Button variant="outline" size="sm" onClick={logout} className="text-sm">
-                  <LogOut className="h-4 w-4 mr-1.5" />
-                  Logout
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <UserPlus className="h-4 w-4 mr-1.5" />
+                    {user?.email}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <Button variant="ghost" asChild size="sm" className="text-sm font-medium">
@@ -77,7 +85,12 @@ export default function HomePage() {
                   {isLoggedIn ? (
                     <>
                       <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-                      <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Logout
+                      </DropdownMenuItem>
                     </>
                   ) : (
                     <>

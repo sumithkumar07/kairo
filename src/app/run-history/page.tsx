@@ -26,6 +26,7 @@ import * as WorkflowStorage from '@/services/workflow-storage-service';
 import { rerunWorkflowAction } from '@/app/actions';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AppLayout } from '@/components/app-layout';
 
 
 const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; className?: string; }) => {
@@ -188,38 +189,31 @@ export default function RunHistoryPage() {
 
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-muted/30">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-3xl font-bold text-primary flex items-center"><Workflow className="h-8 w-8 mr-2" />Kairo</Link>
-          <nav><Button variant="outline" asChild><Link href="/workflow"><Edit3 className="mr-2 h-4 w-4" />Workflow Editor</Link></Button></nav>
-        </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <section className="mb-10">
+    <AppLayout>
+      <main className="flex-1 flex flex-col p-6 bg-muted/40">
+        <section className="mb-6">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-3">Run History</h1>
-              <p className="max-w-2xl text-lg text-muted-foreground">Review past executions of your workflows, inspect their data, and re-run failed jobs.</p>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Run History</h1>
+              <p className="max-w-2xl text-muted-foreground">Review past executions, inspect data, and re-run failed jobs.</p>
             </div>
-            <Button variant="destructive" onClick={() => setShowClearConfirm(true)} disabled={runHistory.length === 0 || isLoading}><Trash2 className="mr-2 h-4 w-4" />Clear History</Button>
+            <Button variant="outline" onClick={() => setShowClearConfirm(true)} disabled={runHistory.length === 0 || isLoading}><Trash2 className="mr-2 h-4 w-4" />Clear History</Button>
           </div>
         </section>
 
         {isLoading ? (
-          <div className="text-center py-16 bg-card shadow-lg rounded-lg"><Loader2 className="h-12 w-12 text-primary mx-auto animate-spin" /><p className="mt-4 text-muted-foreground">Loading Run History...</p></div>
+          <div className="text-center py-16 flex-1 flex flex-col items-center justify-center bg-card shadow-lg rounded-lg"><Loader2 className="h-12 w-12 text-primary mx-auto animate-spin" /><p className="mt-4 text-muted-foreground">Loading Run History...</p></div>
         ) : runHistory.length === 0 ? (
-          <div className="text-center py-16 bg-card shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
+          <div className="text-center py-16 flex-1 flex flex-col items-center justify-center bg-card shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
             <History className="h-20 w-20 text-muted-foreground mx-auto mb-5 opacity-70" />
             <p className="text-2xl text-muted-foreground font-semibold">No run history found.</p>
             <p className="text-md text-muted-foreground mt-3 mb-8">Go to the <Link href="/workflow" className="text-primary hover:underline font-medium">Workflow Editor</Link> and run a workflow to see its history here.</p>
             <Button asChild><Link href="/workflow"><Workflow className="mr-2 h-4 w-4" /> Go to Editor</Link></Button>
           </div>
         ) : (
-          <Card className="shadow-lg">
-            <CardContent className="p-0">
-              <ScrollArea className="h-[60vh]">
+          <Card className="shadow-sm flex-1 flex flex-col">
+            <CardContent className="p-0 flex-1">
+              <ScrollArea className="h-full">
                 <div className="divide-y divide-border">
                   {runHistory.map((run) => (
                     <div key={run.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
@@ -238,8 +232,6 @@ export default function RunHistoryPage() {
           </Card>
         )}
       </main>
-
-      <footer className="text-center py-10 border-t mt-12"><p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Kairo. Automate intelligently.</p></footer>
       
       {selectedRun && (
         <Dialog open={!!selectedRun} onOpenChange={(open) => !open && handleCloseDialog()}>
@@ -285,6 +277,6 @@ export default function RunHistoryPage() {
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={clearHistory} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Yes, Clear History</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AppLayout>
   );
 }
