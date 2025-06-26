@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useMemo, useState, memo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { Search, ShieldCheck, Star } from 'lucide-react';
+import { Search, ShieldCheck } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getCanvasNodeStyling } from '@/config/nodes';
@@ -23,7 +23,7 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setSearchTerm(inputValue);
-    }, 300); 
+    }, 200); 
 
     return () => {
       clearTimeout(handler);
