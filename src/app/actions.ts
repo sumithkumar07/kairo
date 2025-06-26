@@ -87,12 +87,10 @@ function resolveValue(
     const firstPart = pathParts[0];
     let dataFound = false;
     let dataAtPath: any;
-    let resolutionSource = '';
 
     // Check additionalContexts first (e.g., errorContext for webhooks, item for forEach)
     if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
       dataAtPath = additionalContexts[firstPart];
-      resolutionSource = 'additionalContext';
       let contextFound = true;
       for (let i = 1; i < pathParts.length; i++) {
         const part = pathParts[i];
@@ -112,7 +110,6 @@ function resolveValue(
       dataAtPath = process.env[envVarName];
       if (dataAtPath !== undefined) {
         dataFound = true;
-        resolutionSource = 'env';
       } else {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Env var '${envVarName}' not found for placeholder '${placeholder}'.`, type: 'info' });
       }
@@ -125,7 +122,6 @@ function resolveValue(
         dataAtPath = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`] || process.env[`${credentialName}_TOKEN`];
         if (dataAtPath !== undefined) {
             dataFound = true;
-            resolutionSource = 'credential(env_fallback)';
         } else {
             serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Credential '${credentialName}' not found via env fallback.`, type: 'info' });
         }
@@ -134,7 +130,6 @@ function resolveValue(
     // Finally, check workflowData (node outputs)
     if (!dataFound && workflowData.hasOwnProperty(firstPart)) {
         dataAtPath = workflowData[firstPart];
-        resolutionSource = 'workflowData';
         let wfDataFound = true;
         for (let i = 1; i < pathParts.length; i++) {
             const part = pathParts[i];
@@ -457,8 +452,14 @@ async function executeFormatDateNode(config: any): Promise<any> {
     const formatString = config.outputFormatString || 'yyyy-MM-dd HH:mm:ss';
     return { output_data: { formattedDate: format(date, formatString) } };
 }
-// Add other new utility execution functions here...
 
+async function executeDelayNode(config: any, isSimulationMode: boolean): Promise<any> {
+  const delayMs = config.delayMs || 0;
+  if (!isSimulationMode && delayMs > 0) {
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+  return { output: config.input }; 
+}
 
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
@@ -587,6 +588,7 @@ const nodeExecutionFunctions: Record<string, Function> = {
     concatenateStrings: executeConcatenateStringsNode,
     stringSplit: executeStringSplitNode,
     formatDate: executeFormatDateNode,
+    delay: executeDelayNode,
     // Add other utility functions when implemented
     
     // Integration Nodes
@@ -613,7 +615,6 @@ const nodeExecutionFunctions: Record<string, Function> = {
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Video'),
     youtubeUploadShort: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
-    // ... add other node types here
 };
 
 
@@ -628,7 +629,6 @@ async function executeFlowInternal(
   currentWorkflowData: Record<string, any>, 
   serverLogs: ServerLogOutput[],
   isSimulationMode: boolean,
-  initialData?: Record<string, any>, // Data from external trigger, e.g., webhook
   parentWorkflowData?: Record<string, any> // Data from a parent flow (for sub-flows)
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any, flowError?: string }> {
   
@@ -643,8 +643,7 @@ async function executeFlowInternal(
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode.`, type: 'info' });
   
     for (const node of executionOrder) {
-        const initialNodeData = { ...(initialData?.[node.id] || {}), input: currentWorkflowData[node.id]?.input || {} };
-        currentWorkflowData[node.id] = { ...initialNodeData, status: 'running', lastExecutionStatus: 'running' };
+        currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
 
         const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
@@ -668,7 +667,7 @@ async function executeFlowInternal(
                 let nodeResult: any;
 
                 if (executionFn) {
-                    nodeResult = await executionFn(node, resolvedConfig, isSimulationMode, initialData ? initialData[node.id] : null, serverLogs, dataForResolution);
+                    nodeResult = await executionFn(node, resolvedConfig, isSimulationMode, serverLogs, dataForResolution);
                 } else {
                     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented. Returning simulated_config if available.`, type: 'info' });
                     nodeResult = { output: resolvedConfig.simulated_config || `Execution not implemented for type: ${node.type}` };
@@ -745,42 +744,34 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
 
 export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean = false, initialData?: Record<string, any>): Promise<WorkflowExecutionResult> {
   const serverLogs: ServerLogOutput[] = [];
-  const initialWorkflowDataWithStatus: Record<string, any> = {};
+  const initialWorkflowData: Record<string, any> = {};
 
-  // Pre-populate with resolved inputs for each node
-  workflow.nodes.forEach(node => {
-    const inputs: Record<string, any> = {};
-    const incomingConnections = workflow.connections.filter(c => c.targetNodeId === node.id);
-    incomingConnections.forEach(conn => {
-      const sourceData = initialWorkflowDataWithStatus[conn.sourceNodeId];
-      if (sourceData && conn.sourceHandle) {
-        const resolvedValue = resolveValue(`{{${conn.sourceNodeId}.${conn.sourceHandle}}}`, sourceData, []);
-        inputs[conn.targetHandle || 'input'] = resolvedValue;
-      }
-    });
-    initialWorkflowDataWithStatus[node.id] = { lastExecutionStatus: 'pending', input: inputs };
-  });
-
-
-  // If initialData is provided (e.g., from a webhook), merge it in.
+  // Pre-populate with initial trigger data if available
   if (initialData) {
     for (const nodeId in initialData) {
-      if (initialWorkflowDataWithStatus[nodeId]) {
-        initialWorkflowDataWithStatus[nodeId] = { ...initialWorkflowDataWithStatus[nodeId], ...initialData[nodeId] };
-      } else {
-        initialWorkflowDataWithStatus[nodeId] = initialData[nodeId];
+      if (workflow.nodes.some(n => n.id === nodeId)) {
+        initialWorkflowData[nodeId] = initialData[nodeId];
       }
     }
   }
+
+  // Pre-populate all nodes with pending status
+  workflow.nodes.forEach(node => {
+    if (!initialWorkflowData[node.id]) {
+      initialWorkflowData[node.id] = { lastExecutionStatus: 'pending' };
+    } else {
+      initialWorkflowData[node.id].lastExecutionStatus = 'pending';
+    }
+  });
+
 
   const result = await executeFlowInternal(
     "main", 
     workflow.nodes, 
     workflow.connections, 
-    initialWorkflowDataWithStatus, 
+    initialWorkflowData, 
     serverLogs, 
     isSimulationMode,
-    initialData
   );
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
