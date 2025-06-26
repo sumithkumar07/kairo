@@ -112,114 +112,6 @@ export function AIWorkflowAssistantPanel({
     ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
     : null;
 
-  const LogsTabContent = () => (
-    <>
-      <div className="flex justify-between items-center px-4 pt-3 pb-2">
-        <p className="text-xs text-muted-foreground">Server-side execution output.</p>
-        <Button variant="ghost" size="xs" onClick={onClearLogs} disabled={executionLogs.length === 0 || isWorkflowRunning} className="h-6 text-xs">
-          <Trash2 className="mr-1.5 h-3 w-3" /> Clear
-        </Button>
-      </div>
-      <ScrollArea className="flex-1 px-4 pb-2">
-        {executionLogs.length === 0 ? (
-          <p className="text-xs text-muted-foreground/70 italic py-2 break-words">No logs yet. Run the workflow to see output.</p>
-        ) : (
-          <div className="space-y-1.5 text-xs font-mono">
-            {executionLogs.map((log, index) => (
-              <div key={index} className={cn(
-                "p-1.5 rounded-sm text-opacity-90 break-words",
-                log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90',
-                log.type === 'success' && 'bg-green-500/10 text-green-300',
-                log.type === 'info' && 'bg-primary/5 text-primary-foreground/80'
-              )}>
-                <span className="font-medium opacity-70 mr-1.5">[{log.timestamp || new Date().toLocaleTimeString()}]</span>
-                <span>{log.message}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
-    </>
-  );
-
-  const ChatTabContent = () => (
-    <>
-      <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
-        <div className="space-y-3">
-          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
-            <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
-              <p className="font-semibold flex items-center gap-2 text-sm"><Wand2 className="h-4 w-4 text-primary" /> Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?</p>
-              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
-              <Button size="sm" onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs" disabled={currentIsLoadingAnyAIButChat || isChatLoading}>
-                Add {suggestedNodeConfig.name} Node <ChevronRight className="ml-auto h-4 w-4" />
-              </Button>
-            </Card>
-          )}
-          {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
-            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
-              <Loader2 className="h-4 w-4 animate-spin" /> <span>AI is thinking of a good starting point...</span>
-            </Card>
-          )}
-          {chatHistory.map((chat) => (
-            chat.sender === 'user' ? (
-              <div key={chat.id} className="flex items-end justify-end gap-2.5 mb-3">
-                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 bg-primary text-primary-foreground rounded-xl rounded-ee-none shadow">
-                  {chat.imageDataUri && <Image src={chat.imageDataUri} alt="User upload" width={300} height={200} className="rounded-lg mb-2" />}
-                  {chat.message && <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>}
-                  <span className="text-xs text-primary-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
-                </div>
-                <User className="h-7 w-7 text-foreground rounded-full p-1 bg-muted shadow-sm shrink-0" />
-              </div>
-            ) : (
-              <div key={chat.id} className="flex items-end gap-2.5 mb-3">
-                <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
-                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-border bg-muted rounded-xl rounded-es-none shadow">
-                  <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
-                  <span className="text-xs text-muted-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
-                </div>
-              </div>
-            )
-          ))}
-          {isChatLoading && (
-            <div className="flex items-end gap-2.5 mb-3">
-              <Bot className="h-7 w-7 text-primary rounded-full p-1 bg-primary/10 shadow-sm shrink-0" />
-              <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-xl rounded-es-none shadow items-center">
-                <div className="flex space-x-1.5 items-center justify-center">
-                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.3s]"></span>
-                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.15s]"></span>
-                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse"></span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-      <div className="p-3 border-t bg-background/80 space-y-2.5 flex flex-col mt-auto">
-        {imageToSend && (
-          <div className="relative w-24 h-24 rounded-md overflow-hidden border shadow-sm">
-            <Image src={imageToSend.preview} alt="Image preview" layout="fill" objectFit="cover" />
-            <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setImageToSend(null)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-        <Label htmlFor="ai-chat-textarea" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 pl-0.5">
-          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Chat with Kairo (or describe a workflow to generate)
-        </Label>
-        <div className="flex gap-2 items-end">
-          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
-          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="self-end min-h-[40px]" title="Attach image" disabled={isChatLoading || currentIsLoadingAnyAIButChat}>
-             <Paperclip className="h-4 w-4" />
-          </Button>
-          <Textarea id="ai-chat-textarea" placeholder="Ask about Kairo, or describe a workflow to generate..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]" rows={1} disabled={isChatLoading || currentIsLoadingAnyAIButChat} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} />
-          <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || (!chatInput.trim() && !imageToSend)} className="h-auto py-2.5 self-end min-h-[40px]" size="default" title="Send message (Enter)">
-            {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </div>
-      </div>
-    </>
-  );
-
   if (workflowExplanation || isExplainingWorkflow) {
     return (
       <div className="flex flex-col h-full">
@@ -331,23 +223,87 @@ export function AIWorkflowAssistantPanel({
         </Button>
       </div>
 
-      <Tabs defaultValue="chat" className="flex-grow flex flex-col overflow-hidden">
-        <TabsList className="grid w-full grid-cols-2 rounded-none border-b h-auto p-0">
-          <TabsTrigger value="chat" className="py-2 text-xs font-semibold rounded-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
-            <Bot className="mr-2 h-4 w-4"/> AI Assistant
-          </TabsTrigger>
-          <TabsTrigger value="logs" className="py-2 text-xs font-semibold rounded-none data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary">
-            <ListChecks className="mr-2 h-4 w-4"/> Execution Logs
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="chat" className="flex-grow flex flex-col overflow-hidden m-0">
-          <ChatTabContent />
-        </TabsContent>
-        <TabsContent value="logs" className="flex-grow flex flex-col overflow-hidden m-0">
-          <LogsTabContent />
-        </TabsContent>
-      </Tabs>
+       <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
+        <div className="space-y-4">
+          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
+            <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
+              <p className="font-semibold flex items-center gap-2 text-sm"><Wand2 className="h-4 w-4 text-primary" /> Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?</p>
+              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
+              <Button size="sm" onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs" disabled={currentIsLoadingAnyAIButChat || isChatLoading}>
+                Add {suggestedNodeConfig.name} Node <ChevronRight className="ml-auto h-4 w-4" />
+              </Button>
+            </Card>
+          )}
+          {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
+            <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
+              <Loader2 className="h-4 w-4 animate-spin" /> <span>AI is thinking of a good starting point...</span>
+            </Card>
+          )}
+          {chatHistory.map((chat) => (
+            chat.sender === 'user' ? (
+              <div key={chat.id} className="flex items-start justify-end gap-2.5">
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 bg-primary text-primary-foreground rounded-s-xl rounded-ee-xl shadow">
+                  {chat.imageDataUri && <Image src={chat.imageDataUri} alt="User upload" width={300} height={200} className="rounded-lg mb-2" />}
+                  {chat.message && <p className="text-sm font-normal whitespace-pre-wrap break-words">{chat.message}</p>}
+                  <span className="text-xs text-primary-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                </div>
+                <div className="p-1.5 bg-muted rounded-full shadow-sm shrink-0">
+                    <User className="h-5 w-5 text-foreground" />
+                </div>
+              </div>
+            ) : (
+              <div key={chat.id} className="flex items-start gap-2.5">
+                <div className="p-1.5 bg-primary/10 rounded-full shadow-sm shrink-0">
+                    <Bot className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-border bg-muted rounded-e-xl rounded-es-xl shadow">
+                  <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
+                  <span className="text-xs text-muted-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                </div>
+              </div>
+            )
+          ))}
+          {isChatLoading && (
+            <div className="flex items-end gap-2.5">
+              <div className="p-1.5 bg-primary/10 rounded-full shadow-sm shrink-0">
+                  <Bot className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col w-full max-w-[80px] leading-1.5 p-3.5 border-border bg-muted rounded-e-xl rounded-es-xl shadow items-center">
+                <div className="flex space-x-1.5 items-center justify-center">
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.3s]"></span>
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse [animation-delay:-0.15s]"></span>
+                  <span className="h-2 w-2 bg-primary rounded-full animate-pulse"></span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+      <div className="p-3 border-t bg-background/80 space-y-2.5 flex flex-col mt-auto">
+        {imageToSend && (
+          <div className="relative w-24 h-24 rounded-md overflow-hidden border shadow-sm">
+            <Image src={imageToSend.preview} alt="Image preview" layout="fill" objectFit="cover" />
+            <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setImageToSend(null)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        <div className="flex gap-2 items-end">
+          <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
+          <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="self-end min-h-[40px]" title="Attach image" disabled={isChatLoading || currentIsLoadingAnyAIButChat}>
+             <Paperclip className="h-4 w-4" />
+          </Button>
+          <Textarea id="ai-chat-textarea" placeholder="Ask about Kairo, or describe a workflow to generate..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 text-sm resize-none min-h-[40px] max-h-[120px]" rows={1} disabled={isChatLoading || currentIsLoadingAnyAIButChat} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} />
+          <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || (!chatInput.trim() && !imageToSend)} className="h-auto py-2.5 self-end min-h-[40px]" size="default" title="Send message (Enter)">
+            {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
+         <div className="text-xs text-center text-muted-foreground px-2">
+            You can also drag & drop an image onto the chat box.
+          </div>
+      </div>
     </div>
   );
 }
+
+    
