@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, File as FileIcon, FilePlus, PanelLeftOpen, PanelLeftClose, ChevronsUpDown } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, FileIcon, FilePlus, PanelLeftOpen, PanelLeftClose, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -278,5 +278,3 @@ isExplainingWorkflow,
     </main>
   );
 }
-
-    
