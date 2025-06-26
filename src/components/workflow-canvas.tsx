@@ -39,6 +39,8 @@ interface WorkflowCanvasProps {
   onDeleteSelectedConnection?: () => void;
   readOnly?: boolean;
   executionData?: Record<string, any>;
+  canvasOffset?: { x: number, y: number };
+  zoomLevel?: number;
 }
 
 export function WorkflowCanvas({
