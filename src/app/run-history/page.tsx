@@ -33,8 +33,10 @@ const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; 
   try {
     const obj = JSON.parse(jsonString);
     const highlighted = JSON.stringify(obj, null, 2).replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
-      let cls = 'text-green-400';
-      if (/^"/.test(match)) cls = /:$/.test(match) ? 'text-cyan-400' : 'text-amber-400';
+      let cls = 'text-green-400 dark:text-green-400';
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'text-cyan-400 dark:text-cyan-300' : 'text-amber-400 dark:text-amber-300';
+      }
       return `<span class="${cls}">${match}</span>`;
     });
     return <pre className={cn("text-xs p-2", className)} dangerouslySetInnerHTML={{ __html: highlighted }} />;
@@ -176,7 +178,7 @@ function RunHistoryPage() {
               {logs.length === 0 ? <p className="text-xs text-muted-foreground/70 italic py-2">No logs recorded.</p> : (
                   <div className="space-y-1.5 text-xs font-mono p-1">
                   {logs.map((log, index) => (
-                      <div key={index} className={cn("p-1.5 rounded-sm text-opacity-90 break-words", log.type === 'error' && 'bg-destructive/10 text-destructive-foreground/90', log.type === 'success' && 'bg-green-500/10 text-green-300', log.type === 'info' && 'bg-primary/5 text-primary-foreground/80' )}>
+                      <div key={index} className={cn("p-1.5 rounded-sm break-words", log.type === 'error' && 'bg-destructive/10 text-destructive', log.type === 'success' && 'bg-green-500/10 text-green-600 dark:text-green-400', log.type === 'info' && 'bg-primary/5 text-muted-foreground' )}>
                       <span className="font-medium opacity-70 mr-1.5">[{log.timestamp}]</span><span>{log.message}</span>
                       </div>
                   ))}
