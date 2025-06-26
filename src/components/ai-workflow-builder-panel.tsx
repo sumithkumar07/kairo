@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, File as FileIcon, FilePlus, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Zap, Bot, Save, FolderOpen, ZoomIn, ZoomOut, Minus, Plus, MessageSquareText, Undo2, Redo2, Sparkles, Loader2, Trash2, UploadCloud, DownloadCloud, RefreshCw, ShieldQuestion, Link as LinkIcon, LogIn, UserPlus, SaveAll, List, User, History, File as FileIcon, FilePlus, PanelLeftOpen, PanelLeftClose, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -19,7 +19,7 @@ import {
   MenubarSeparator,
   MenubarShortcut,
   MenubarTrigger,
-} from "@/components/ui/menubar"
+} from "@/components/ui/menubar";
 import { ThemeToggle } from '@/components/theme-toggle';
 
 
@@ -107,7 +107,7 @@ export function AIWorkflowBuilderPanel({
   onZoomOut,
   onResetView,
   onExplainWorkflow,
-  isExplainingWorkflow,
+isExplainingWorkflow,
   onUndo,
   canUndo,
   onRedo,
@@ -137,13 +137,70 @@ export function AIWorkflowBuilderPanel({
     if (!isProOrTrial) {
       return `Workflow explanation is a Pro feature. ${!isLoggedIn ? 'Sign up for a trial.' : 'Upgrade your plan.'}`;
     }
-    return "Let AI explain this workflow (Ctrl+E).";
+    return "Let AI explain this workflow";
   };
 
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center p-2 bg-background/80 backdrop-blur-sm">
+            <Menubar className="rounded-md border shadow-sm">
+                <MenubarMenu>
+                    <MenubarTrigger>File</MenubarTrigger>
+                    <MenubarContent>
+                        <MenubarItem onClick={onNewWorkflow}>New <MenubarShortcut>Ctrl+N</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onOpenWorkflow}>Open... <MenubarShortcut>Ctrl+O</MenubarShortcut></MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem onClick={onSaveWorkflow} disabled={!hasWorkflow}>Save <MenubarShortcut>Ctrl+S</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onSaveWorkflowAs} disabled={!hasWorkflow}>Save As... <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut></MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem onClick={onImportWorkflow}>Import from File...</MenubarItem>
+                        <MenubarItem onClick={onExportWorkflow} disabled={!hasWorkflow}>Export to File...</MenubarItem>
+                    </MenubarContent>
+                </MenubarMenu>
+                <MenubarMenu>
+                    <MenubarTrigger>Edit</MenubarTrigger>
+                    <MenubarContent>
+                        <MenubarItem onClick={onUndo} disabled={!canUndo}>Undo <MenubarShortcut>Ctrl+Z</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onRedo} disabled={!canRedo}>Redo <MenubarShortcut>Ctrl+Y</MenubarShortcut></MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem onClick={onDeleteSelectedConnection} disabled={!selectedConnectionId}>Delete Connection <MenubarShortcut>Del</MenubarShortcut></MenubarItem>
+                    </MenubarContent>
+                </MenubarMenu>
+                <MenubarMenu>
+                    <MenubarTrigger>View</MenubarTrigger>
+                    <MenubarContent>
+                        <MenubarItem onClick={onToggleNodeLibrary}>Toggle Node Library</MenubarItem>
+                        <MenubarItem onClick={onToggleAssistant}>Toggle AI Assistant</MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem onClick={onZoomIn}>Zoom In <MenubarShortcut>Ctrl+=</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onZoomOut}>Zoom Out <MenubarShortcut>Ctrl+-</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onResetView}>Reset View</MenubarItem>
+                        <MenubarSeparator />
+                        <MenubarItem><ThemeToggle /></MenubarItem>
+                    </MenubarContent>
+                </MenubarMenu>
+                <MenubarMenu>
+                    <MenubarTrigger>Actions</MenubarTrigger>
+                    <MenubarContent>
+                        <MenubarItem onClick={handleExplainWorkflowClick} disabled={!hasWorkflow || isExplainingWorkflow || !isProOrTrial}>
+                            {isExplainingWorkflow ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
+                            Explain Workflow
+                        </MenubarItem>
+                    </MenubarContent>
+                </MenubarMenu>
+            </Menubar>
+            <div className="mx-auto text-sm text-muted-foreground font-medium truncate px-4" title={workflowName}>
+                {workflowName}
+            </div>
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" className="md:hidden" size="icon" onClick={onToggleNodeLibrary}>
+                    {isNodeLibraryVisible ? <PanelLeftClose /> : <PanelLeftOpen />}
+                </Button>
+            </div>
+      </div>
+      
+      <div className="absolute top-14 right-4 z-10 flex items-center gap-2">
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -171,7 +228,6 @@ export function AIWorkflowBuilderPanel({
             </Tooltip>
           </TooltipProvider>
       </div>
-      
 
       {hasWorkflow || isConnecting ? (
         <WorkflowCanvas
@@ -216,28 +272,6 @@ export function AIWorkflowBuilderPanel({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left"><p>Toggle AI Assistant Panel</p></TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full shadow-lg w-12 h-12 bg-card hover:bg-accent"
-                  onClick={handleExplainWorkflowClick}
-                  disabled={!hasWorkflow || isExplainingWorkflow || !isProOrTrial}
-                  title={getExplainWorkflowTooltipContent()}
-                >
-                  {isExplainingWorkflow ? <Loader2 className="h-5 w-5 animate-spin"/> :
-                   !isProOrTrial ? <ShieldQuestion className="h-5 w-5 text-muted-foreground" /> : <MessageSquareText className="h-5 w-5" />}
-                </Button>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p className="text-xs">{getExplainWorkflowTooltipContent()}</p>
-            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>

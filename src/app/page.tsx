@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, UserPlus, LogOut, Bot, Settings, Zap, Cpu } from 'lucide-react';
+import { Workflow, BrainCircuit, CheckCircle, ArrowRight, Rocket, GitFork, GaugeCircle, Puzzle, Brain, UserPlus, LogIn, Bot, Settings, Zap, Cpu } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -26,36 +26,16 @@ export default function HomePage() {
           </Link>
           <nav className="hidden md:flex items-center gap-1 sm:gap-2">
             <Button variant="ghost" asChild className="text-sm font-medium">
-              <Link href="/workflow">Workflow Editor</Link>
-            </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium">
-              <Link href="/run-history">Run History</Link>
+              <Link href="/subscriptions">Subscriptions</Link>
             </Button>
              <Button variant="ghost" asChild className="text-sm font-medium">
-              <Link href="/mcp">Agent Hub</Link>
-            </Button>
-            <Button variant="ghost" asChild className="text-sm font-medium">
-              <Link href="/subscriptions">Subscriptions</Link>
+              <Link href="/contact">Contact</Link>
             </Button>
 
             {isLoggedIn ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <UserPlus className="h-4 w-4 mr-1.5" />
-                    {user?.email}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-                  <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+               <Button asChild size="sm" className="text-sm">
+                  <Link href="/workflow">Go to App</Link>
+                </Button>
             ) : (
               <>
                 <Button variant="ghost" asChild size="sm" className="text-sm font-medium">
@@ -88,7 +68,7 @@ export default function HomePage() {
                       <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={logout}>
-                        <LogOut className="h-4 w-4 mr-2" />
+                        <LogIn className="mr-2 h-4 w-4" />
                         Logout
                       </DropdownMenuItem>
                     </>
@@ -107,7 +87,7 @@ export default function HomePage() {
 
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8">
         <section className="text-center py-16 md:py-24">
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6 bg-clip-text text-transparent bg-gradient-to-br from-gray-200 to-gray-500">
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6 bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/60 dark:from-gray-200 dark:to-gray-500">
             Intelligent Automation, <span className="text-primary">Visually Designed</span>
           </h1>
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-muted-foreground mb-10">

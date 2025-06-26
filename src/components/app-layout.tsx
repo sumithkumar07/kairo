@@ -8,7 +8,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { Workflow, History, Cpu, Settings, LogOut, User, LifeBuoy } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { ThemeToggle } from './theme-toggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 
 interface NavLinkProps {
   href: string;
@@ -64,31 +72,42 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
           <NavLink href="/settings" label="Settings" icon={Settings} />
-          {isLoggedIn ? (
-             <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-lg"
-                        aria-label="Logout"
-                        onClick={logout}
-                    >
-                        <LogOut className="size-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={5}>
-                    Logout
-                  </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+           {isLoggedIn && user ? (
+             <DropdownMenu>
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="rounded-lg mt-auto">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" sideOffset={5}>Profile & Logout</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <DropdownMenuContent side="right" align="end">
+                     <DropdownMenuItem asChild>
+                        <Link href="/profile" className='cursor-pointer'>
+                            <User className="mr-2 h-4 w-4" />
+                            <span>Profile</span>
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className='cursor-pointer'>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+             </DropdownMenu>
           ) : (
             <NavLink href="/login" label="Login" icon={User} />
           )}
         </nav>
       </aside>
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14 h-screen">
+      <div className="flex flex-col sm:gap-4 sm:pl-14 h-screen">
         {children}
       </div>
     </div>
