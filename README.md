@@ -1,17 +1,18 @@
 
 # Kairo - AI Workflow Automation
 
-Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI.
+Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This feature-rich prototype includes an interactive visual editor, AI-driven workflow generation, a live debugging history, and a programmatic API for agent control.
 
 ## Key Features
 
-*   **AI-Powered Workflow Generation**: Describe your desired automation in plain text, and Kairo's AI will draft an initial workflow for you.
+*   **AI-Powered Workflow Generation**: Describe your desired automation in plain text, and Kairo's AI will draft an initial workflow for you on the canvas.
 *   **Visual Workflow Editor**: A drag-and-drop interface to build and modify workflows by connecting various functional nodes.
-*   **Node Library**: A collection of pre-built nodes for common tasks like HTTP requests, email sending, data parsing, AI tasks, conditional logic, and more.
-*   **Simulation Mode**: Test your workflows with mock data before deploying them for live execution.
-*   **AI Assistant**: Get suggestions for next steps, explanations for existing workflows, and help with node configuration.
-*   **Local Workflow Storage**: Save and load your workflows directly in your browser.
-*   **Subscription Tiers**: (Simulated) Free and Pro tiers with different feature access.
+*   **Node Library**: A collection of pre-built nodes for common tasks like HTTP requests, email sending, data parsing, AI tasks, conditional logic, loops, parallel execution, and more.
+*   **Live & Simulation Modes**: Test your workflows with mock data in "Simulation Mode" before switching to "Live Mode" for execution with real data and services.
+*   **AI Assistant Panel**: Get suggestions for next steps, explanations for existing workflows, and help with node configuration through a conversational chat interface.
+*   **Visual Run History & Debugging**: Review past workflow executions with a visual representation of the workflow, including the status of each node and the data that flowed through it. Re-run failed workflows with one click.
+*   **AI Agent Hub**: Configure your AI agent's skills (available tools/nodes), view credential requirements, and get an API key to control the agent programmatically.
+*   **Local & Server-Side Storage**: Save your workflows to your browser's local storage for quick access, or save them to the server to make them available for live webhook triggers.
 
 ## Getting Started
 
@@ -19,50 +20,54 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 2.  Clone the repository.
 3.  Install dependencies: `npm install` or `yarn install`.
 4.  **Set up Environment Variables**:
-    *   Create a `.env.local` file in the root directory by copying `.env` (if it's empty, just create the file).
-    *   Refer to the "Important Considerations for Live Mode & Deployment" section below for essential variables needed for live features. **Pay special attention to `GOOGLE_API_KEY` for AI features.**
-5.  Run the development server: `npm run dev` or `yarn dev`.
+    *   Create a `.env.local` file in the root directory by copying `.env`.
+    *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `GOOGLE_API_KEY` for AI features.**
+5.  Run the development server: `npm run dev`
 6.  Open [http://localhost:3000](http://localhost:3000) (or your configured port) in your browser.
 
-The main workflow editor is accessible at the `/workflow` route. Explore the homepage for an overview and navigation links.
+The main workflow editor is accessible at the `/workflow` route.
 
-## Important Considerations for Live Mode & Deployment
-
-When you switch a workflow from "Simulation Mode" to "Live Mode", or deploy this application, certain features will require environment variables to be properly configured.
-
-### Essential Environment Variables
+## Environment Variables Setup
 
 Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment:
 
-*   **Genkit AI Features (`aiTask` node, AI suggestions, AI Assistant Chat, etc.):**
-    *   **`GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`**
-        *   **CRITICAL for AI functionality.** You **MUST** provide a valid Google Cloud API key here.
-        *   This key needs to be associated with a Google Cloud Project where the "Generative Language API" (sometimes referred to as "Vertex AI API" or similar, e.g., `generativelanguage.googleapis.com`) is enabled.
-        *   If Genkit is deployed to a Google Cloud environment (like Cloud Run, App Engine) that has Application Default Credentials (ADC) correctly configured with permissions for the Generative Language API, this variable might not be strictly necessary as Genkit might pick up ADC. However, for local development or non-Google Cloud deployments, this environment variable is the primary way to authenticate.
-        *   **Troubleshooting AI Assistant Errors:** If the AI Assistant frequently responds with "There's an issue with the AI service configuration. Please contact support if this persists." or "An unexpected error occurred...", a missing, invalid, or incorrectly configured `GOOGLE_API_KEY` (or the API not being enabled in your GCP project) is the most common cause. Double-check your key and project settings.
+*   **Genkit AI Features (All AI functionality):**
+    *   `GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`
+        *   **CRITICAL for ALL AI functionality.** You **MUST** provide a valid Google Cloud API key associated with a project where the "Generative Language API" is enabled.
+        *   If the AI Assistant responds with errors about "AI service configuration", a missing or invalid `GOOGLE_API_KEY` is the most common cause.
+
+*   **AI Agent Hub API:**
+    *   `KAIRO_MCP_API_KEY=YOUR_SECRET_API_KEY`
+        *   A secret key you define. This key is used to authenticate requests to the `/api/mcp` endpoint, allowing you to programmatically control the AI agent.
+
 *   **Database Queries (`databaseQuery` node in Live Mode):**
     *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`
         *   Replace with your actual PostgreSQL connection string.
+
 *   **Email Sending (`sendEmail` node in Live Mode):**
     *   `EMAIL_HOST="your_smtp_host"`
-    *   `EMAIL_PORT="your_smtp_port"` (e.g., 587 or 465)
+    *   `EMAIL_PORT="your_smtp_port"`
     *   `EMAIL_USER="your_smtp_username"`
     *   `EMAIL_PASS="your_smtp_password"`
-    *   `EMAIL_FROM="notifications@example.com"` (The "From" address for emails)
-    *   `EMAIL_SECURE="true"` (Use `true` for SSL/TLS, `false` for non-secure or STARTTLS on some ports)
+    *   `EMAIL_FROM="notifications@example.com"`
+    *   `EMAIL_SECURE="true"` (Use `true` for SSL/TLS)
+
 *   **Credential Placeholders (`{{credential.NAME}}`):**
-    *   The application currently simulates a Credential Manager. Placeholders like `{{credential.MyApiKey}}` or `{{credential.MyDatabaseConnection}}` will attempt to resolve by looking for an environment variable named `MyApiKey` or `MyDatabaseConnection` respectively.
-    *   For example, if your workflow uses `{{credential.OpenAI_API_Key}}`, you should set an environment variable: `OpenAI_API_Key="your_actual_openai_key"`.
-*   **Custom Environment Variables (`{{env.NAME}}`):**
-    *   If your workflows reference custom environment variables like `{{env.MY_CUSTOM_SETTING}}`, ensure these are also defined (e.g., `MY_CUSTOM_SETTING="some_value"`).
+    *   The application simulates a Credential Manager by resolving placeholders like `{{credential.MyApiKey}}` to environment variables named `MyApiKey`. For example, if a node uses `{{credential.OpenAI_API_Key}}`, you must set an environment variable: `OpenAI_API_Key="your_actual_key"`. The Agent Hub's "Credentials" tab lists common keys used by the available nodes.
+
+## Live Mode & Deployment Considerations
 
 ### Live Webhook Trigger (`webhookTrigger` node)
 
 *   **Base URL:** Live webhooks are exposed at `/api/workflow-webhooks/YOUR_PATH_SUFFIX`. Replace `YOUR_PATH_SUFFIX` with the value configured in the `webhookTrigger` node.
-*   **Current Limitation:** The API route (`src/app/api/workflow-webhooks/[...path]/route.ts`) that handles incoming webhooks is currently designed to execute workflows found within the `EXAMPLE_WORKFLOWS` array (defined in `src/config/example-workflows.ts`) or user-saved workflows stored on the server's file system (`src/data/user_workflows.json`).
-    *   This means if you create a new workflow with a `webhookTrigger` node and save it (which saves to your browser's local storage), that specific user-created workflow **will not be directly triggerable by external HTTP calls in a deployed environment.**
-    *   To test live webhooks, you would typically modify one of the existing example workflows that already includes a `webhookTrigger` or ensure your custom workflow's path suffix matches one defined in an example and that the example is configured to meet your testing needs.
-    *   A robust solution for user-defined, live-triggered webhooks would require a backend database to store and retrieve user workflows, which is beyond the current prototype's scope.
+*   **Workflow Storage:** For a webhook to be triggered in a live environment, the workflow containing it **must be saved to the server** (using the "Save As..." or "Save" feature in the editor). Workflows saved only to the browser's local storage are not accessible by the webhook API route.
 *   **Security Token:** If a `securityToken` (e.g., `{{credential.MyWebhookSecret}}`) is configured in the `webhookTrigger` node, the incoming live request must include an `X-Webhook-Token` header with the matching resolved secret value.
+
+### AI Agent Hub API (`/api/mcp`)
+
+*   To interact with the agent API, send a `POST` request to `/api/mcp`.
+*   You must include an `Authorization` header with the value `Bearer YOUR_KAIRO_MCP_API_KEY`.
+*   The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
+*   The AI will process the command and can generate and return a full workflow definition in the JSON response.
 
 By keeping these points in mind, you can more effectively test and utilize the live mode capabilities of Kairo.

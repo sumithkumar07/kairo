@@ -26,7 +26,7 @@ export default function SignupPage() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 p-4">
        <div className="absolute top-8 left-8">
-        <Link href="/" className="text-2xl font-bold text-primary flex items-center gap-2">
+        <Link href="/" className="text-2xl font-bold text-primary flex items-center gap-2 transition-opacity hover:opacity-80">
           <Workflow className="h-6 w-6" />
           Kairo
         </Link>

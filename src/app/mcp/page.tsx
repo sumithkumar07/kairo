@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon, Cpu, FileLock2, Info } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
@@ -33,10 +33,10 @@ const INITIAL_TOOLS = ALL_AVAILABLE_TOOLS.slice(0, 3);
 
 const CREDENTIAL_INFO = [
   { name: 'GOOGLE_API_KEY', service: 'Google AI / Genkit', description: 'Required for all AI features like workflow generation, explanation, and the assistant chat. Obtain from Google Cloud Console.' },
+  { name: 'KAIRO_MCP_API_KEY', service: 'Kairo Agent Hub', description: 'A secret key you define and set here, then use for authenticating API requests to the Agent Hub.' },
   { name: 'SLACK_BOT_TOKEN', service: 'Slack', description: 'Required for the "Post Message" node to send messages to Slack. Starts with "xoxb-".' },
   { name: 'OPENAI_API_KEY', service: 'OpenAI', description: 'Required for the "OpenAI Chat Completion" node. Obtain from your OpenAI account dashboard.' },
   { name: 'GITHUB_TOKEN', service: 'GitHub', description: 'A Personal Access Token (PAT) with "repo" scope, required for the "Create Issue" node.' },
-  { name: 'KAIRO_MCP_API_KEY', service: 'Kairo Agent Hub', description: 'A secret key you define and set here, then use for authenticating API requests to the Agent Hub.' },
   { name: 'DB_CONNECTION_STRING', service: 'PostgreSQL', description: 'Connection string for the "Database Query" node, e.g., "postgresql://user:pass@host:port/db".' },
   { name: 'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM', service: 'Email', description: 'SMTP server details required for the "Send Email" node to work in Live Mode.' },
 ];
@@ -190,27 +190,10 @@ function MCPDashboardPage() {
                               <div>
                                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent API Endpoint</div>
                                   <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono">/api/mcp</pre>
-                                  <p className="text-xs text-muted-foreground mt-1">Send a POST request with a JSON body: <code className="text-xs bg-muted p-1 rounded font-mono">{`{ "command": "your prompt here" }`}</code></p>
                               </div>
                               
-                              <div className="space-y-2">
-                                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API Response Format</div>
-                                <p className="text-sm text-muted-foreground">The API returns a JSON object. If your command results in a workflow, the `action` will be `workflowGenerated` and the response will include the full workflow definition.</p>
-                                <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap">
-                                  {`// Example Response for Workflow Generation
-{
-  "aiResponse": "Certainly. I'll generate a workflow for that...",
-  "action": "workflowGenerated",
-  "workflow": {
-    "nodes": [...],
-    "connections": [...]
-  }
-}`}
-                                </pre>
-                              </div>
-
                               <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication</div>
+                                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication & Usage</div>
                                   <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your agent. For this prototype, after generating a key, you must set it as an environment variable named <code className="text-xs bg-muted p-1 rounded font-mono">KAIRO_MCP_API_KEY</code> on the server. The key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header as <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>.</p>
                                   <div className="mt-4">
                                     {!apiKey ? (
@@ -227,6 +210,40 @@ function MCPDashboardPage() {
                                         </div>
                                     )}
                                   </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="text-sm font-medium">API Examples</div>
+                                <Tabs defaultValue="curl" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2 h-9">
+                                        <TabsTrigger value="curl" className="text-xs">cURL</TabsTrigger>
+                                        <TabsTrigger value="fetch" className="text-xs">JavaScript Fetch</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="curl">
+                                        <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
+                                            {`curl -X POST "http://localhost:3000/api/mcp" \\
+-H "Authorization: Bearer ${apiKey || 'YOUR_KAIRO_MCP_API_KEY'}" \\
+-H "Content-Type: application/json" \\
+-d '{"command": "Generate a workflow to get the weather and email it."}'`}
+                                        </pre>
+                                    </TabsContent>
+                                    <TabsContent value="fetch">
+                                        <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
+                                            {`const response = await fetch('http://localhost:3000/api/mcp', {
+  method: 'POST',
+  headers: {
+    'Authorization': \`Bearer ${apiKey || 'YOUR_KAIRO_MCP_API_KEY'}\`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    command: 'Generate a workflow to get the weather and email it.'
+  })
+});
+
+const data = await response.json();
+console.log(data);`}
+                                        </pre>
+                                    </TabsContent>
+                                </Tabs>
                               </div>
                           </CardContent>
                       </Card>
