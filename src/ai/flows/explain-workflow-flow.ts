@@ -44,9 +44,16 @@ export async function explainWorkflow(input: ExplainWorkflowInput): Promise<Expl
   return explainWorkflowFlow(input);
 }
 
+// A specific schema for the prompt's input, accepting JSON strings.
+const ExplainWorkflowPromptInputSchema = z.object({
+  nodesJson: z.string().describe('JSON string representing the list of all workflow nodes.'),
+  connectionsJson: z.string().describe('JSON string representing the list of all connections between nodes.'),
+});
+
+
 const workflowExplainerPrompt = ai.definePrompt({
   name: 'workflowExplainerPrompt',
-  input: {schema: ExplainWorkflowInputSchema},
+  input: {schema: ExplainWorkflowPromptInputSchema},
   output: {schema: ExplainWorkflowOutputSchema},
   prompt: `You are an expert AI technical analyst. Your task is to analyze the provided workflow structure (nodes and connections) and generate a high-level natural language summary.
 The summary should be clear, concise, and easy for a non-technical user to understand, while still being accurate for a technical user.
@@ -67,12 +74,12 @@ The output should be a human-readable explanation that helps someone understand 
 
 Workflow Nodes:
 \`\`\`json
-{{{jsonEncode nodes}}}
+{{{nodesJson}}}
 \`\`\`
 
 Workflow Connections:
 \`\`\`json
-{{{jsonEncode connections}}}
+{{{connectionsJson}}}
 \`\`\`
 
 Based on the nodes and connections, provide your explanation:
@@ -89,12 +96,17 @@ const explainWorkflowFlow = ai.defineFlow(
     if (!input.nodes || input.nodes.length === 0) {
       return { explanation: "The workflow is empty. There is nothing to explain." };
     }
-    const {output} = await workflowExplainerPrompt(input);
+    
+    // Prepare the input for the prompt by stringifying the arrays.
+    const promptInput = {
+      nodesJson: JSON.stringify(input.nodes, null, 2),
+      connectionsJson: JSON.stringify(input.connections, null, 2),
+    };
+
+    const {output} = await workflowExplainerPrompt(promptInput);
     if (!output) {
       throw new Error("AI failed to generate an explanation for the workflow.");
     }
     return output;
   }
 );
-
-
