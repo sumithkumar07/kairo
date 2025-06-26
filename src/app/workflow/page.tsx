@@ -1361,7 +1361,7 @@ function WorkflowPage() {
             isConnecting={isConnecting}
             onStartConnection={handleStartConnection}
             onCompleteConnection={handleCompleteConnection}
-            onUpdateConnectionPreview={onUpdateConnectionPreview}
+            onUpdateConnectionPreview={handleUpdateConnectionPreview}
             connectionPreview={{
               startNodeId: connectionStartNodeId,
               startHandleId: connectionStartHandleId,
