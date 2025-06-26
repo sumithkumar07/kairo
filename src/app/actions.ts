@@ -827,7 +827,7 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): 
   return genkitGenerateWorkflowFromPrompt(input);
 }
 export async function suggestNextWorkflowNode(clientInput: { workflowContext: string; currentNodeType?: string }): Promise<SuggestNextNodeOutput> {
-  const inputForGenkit: SuggestNextNodeInput = { ...clientInput, availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description, category: n.category })) };
+  const inputForGenkit: SuggestNextNodeInput = { ...clientInput, availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description || '', category: n.category })) };
   return genkitSuggestNextNode(inputForGenkit);
 }
 export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput): Promise<string> {

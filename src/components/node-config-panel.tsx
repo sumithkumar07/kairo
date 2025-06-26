@@ -304,5 +304,3 @@ export function NodeConfigPanel({
     </Card>
   );
 }
-
-    

@@ -2,17 +2,17 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, LogEntry, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction } from '@/app/actions';
-import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
+import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { saveRunRecord } from '@/services/workflow-storage-service';
 
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, X, Bot, MessageSquareText, SaveAll, File, FolderOpen, List, History, FilePlus, Save, Zap } from 'lucide-react';
+import { Loader2, Trash2, X, Bot, SaveAll, File, FolderOpen, Save, Zap } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -28,7 +28,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/app-layout';
 
 
@@ -1311,25 +1310,15 @@ function WorkflowPage() {
 
   const EmptyCanvas = () => (
     <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-      <Card className="p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm max-w-lg">
-        <CardHeader>
-          <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
-              <Zap className="h-12 w-12 text-primary" />
-          </div>
-          <CardTitle className="text-2xl font-semibold text-foreground mb-1">Start Building Your Workflow</CardTitle>
-          <p className="text-muted-foreground text-sm">
-              Drag nodes from the library, or ask the AI assistant to generate a workflow from a prompt.
-          </p>
-        </CardHeader>
-        <CardContent className="mt-4">
-          <p className="text-sm font-semibold mb-3">Or start with an example:</p>
-          <div className="flex gap-3 justify-center">
-              <Button variant="outline" size="sm" onClick={() => handleLoadNamedWorkflow('Conditional Email Sender')}>Conditional Email</Button>
-              <Button variant="outline" size="sm" onClick={() => handleLoadNamedWorkflow('Content Summarization & Email')}>Content Summarization</Button>
-              <Button variant="outline" size="sm" onClick={() => handleLoadNamedWorkflow('Database User Onboarding')}>Database Onboarding</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm max-w-lg text-center">
+        <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
+            <Zap className="h-12 w-12 text-primary" />
+        </div>
+        <h3 className="text-2xl font-semibold text-foreground mb-1">Start Building Your Workflow</h3>
+        <p className="text-muted-foreground text-sm">
+            Drag nodes from the library, or ask the AI assistant to generate a workflow from a prompt.
+        </p>
+      </div>
     </div>
   );
 
