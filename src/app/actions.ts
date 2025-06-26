@@ -234,7 +234,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
               case '!=':  return val1 != val2;
               case '<':   return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 < val2 : String(val1) < String(val2);
               case '>':   return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 > val2 : String(val1) > String(val2);
-              case '<=':  return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 <= val2 : String(val1) <= String(val2);
+              case '<=':  return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 <= val2 : String(val1) <= val2;
               case '>=':  return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 >= val2 : String(val1) >= String(val2);
           }
       }

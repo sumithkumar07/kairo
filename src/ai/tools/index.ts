@@ -9,6 +9,7 @@ import {
   googleDriveFindFileTool,
 } from './workflow-management-tools';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
+import { FileIcon } from 'lucide-react';
 
 // This map will hold all tools available to the AI, keyed by their name.
 export const ALL_AVAILABLE_TOOLS_MAP = new Map<string, Tool>();
@@ -29,7 +30,7 @@ const createTool = (
 // Create and register tools from workflow-management-tools.ts
 const kairoIcon = AVAILABLE_NODES_CONFIG.find(n => n.type === 'workflowNode')?.icon!;
 const youtubeIcon = AVAILABLE_NODES_CONFIG.find(n => n.type === 'youtubeFetchTrending')?.icon!;
-const gdriveIcon = AVAILABLE_NODES_CONFIG.find(n => n.type === 'dropboxUploadFile')?.icon!; // Using Dropbox icon as a stand-in
+const gdriveIcon = FileIcon; 
 
 ALL_AVAILABLE_TOOLS_MAP.set(listSavedWorkflowsTool.name, createTool(listSavedWorkflowsTool, kairoIcon, 'Kairo'));
 ALL_AVAILABLE_TOOLS_MAP.set(getWorkflowDefinitionTool.name, createTool(getWorkflowDefinitionTool, kairoIcon, 'Kairo'));
