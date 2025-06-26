@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -49,6 +50,7 @@ function RunHistoryPage() {
   const [runHistory, setRunHistory] = useState<WorkflowRunRecord[]>([]);
   const [selectedRun, setSelectedRun] = useState<WorkflowRunRecord | null>(null);
   const [selectedNodeInSnapshot, setSelectedNodeInSnapshot] = useState<WorkflowNode | null>(null);
+  const [activeDetailTab, setActiveDetailTab] = useState('logs');
   const [isRerunning, setIsRerunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -119,48 +121,54 @@ function RunHistoryPage() {
     });
   }
 
+  const handleNodeClickInSnapshot = (nodeId: string) => {
+    setSelectedNodeInSnapshot(selectedRun?.workflowSnapshot.nodes.find(n => n.id === nodeId) || null);
+    setActiveDetailTab('data');
+  };
+
   const handleCloseDialog = () => {
     setSelectedRun(null);
     setSelectedNodeInSnapshot(null);
+    setActiveDetailTab('logs');
   };
 
   const renderNodeRunData = () => {
-    if (!selectedNodeInSnapshot || !selectedRun) return null;
-
+    if (!selectedNodeInSnapshot || !selectedRun) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-4">
+          <p className="text-sm text-muted-foreground">Select a node on the canvas to view its execution data.</p>
+        </div>
+      );
+    }
+    
     const nodeData = selectedRun.executionResult.finalWorkflowData[selectedNodeInSnapshot.id];
-    if (!nodeData) return <p className="text-sm text-muted-foreground p-4">No execution data found for this node.</p>;
+    if (!nodeData) return <div className="p-4 text-sm text-muted-foreground">No execution data found for this node.</div>;
 
     const { input, lastExecutionStatus, error_message, ...outputs } = nodeData;
 
     return (
-      <div className="flex flex-col h-full">
-        <div className="p-3 border-b bg-muted/30">
-          <h3 className="font-semibold text-foreground flex items-center gap-2"><Database className="h-4 w-4 text-primary"/>Node Data: {selectedNodeInSnapshot.name}</h3>
-          <p className="text-xs text-muted-foreground">Snapshot of data for this node during the run.</p>
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-4">
+           <div>
+              <h4 className="font-medium text-sm mb-1.5">Status</h4>
+              <p className="text-sm font-mono p-2 bg-background rounded-md">{lastExecutionStatus || 'unknown'}</p>
+           </div>
+           {error_message && (
+              <div>
+                <h4 className="font-medium text-sm mb-1.5 text-destructive">Error Message</h4>
+                <p className="text-sm font-mono p-2 bg-destructive/10 text-destructive rounded-md">{error_message}</p>
+              </div>
+           )}
+           <div>
+              <h4 className="font-medium text-sm mb-1.5">Inputs</h4>
+              <JsonSyntaxHighlighter jsonString={JSON.stringify(input || {}, null, 2)} className="bg-background rounded-md"/>
+           </div>
+           <div>
+              <h4 className="font-medium text-sm mb-1.5">Outputs</h4>
+              <JsonSyntaxHighlighter jsonString={JSON.stringify(outputs || {}, null, 2)} className="bg-background rounded-md"/>
+           </div>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="p-3 space-y-4">
-             <div>
-                <h4 className="font-medium text-sm mb-1.5">Status</h4>
-                <p className="text-sm font-mono p-2 bg-background rounded-md">{lastExecutionStatus || 'unknown'}</p>
-             </div>
-             {error_message && (
-                <div>
-                  <h4 className="font-medium text-sm mb-1.5 text-destructive">Error Message</h4>
-                  <p className="text-sm font-mono p-2 bg-destructive/10 text-destructive rounded-md">{error_message}</p>
-                </div>
-             )}
-             <div>
-                <h4 className="font-medium text-sm mb-1.5">Inputs</h4>
-                <JsonSyntaxHighlighter jsonString={JSON.stringify(input || {}, null, 2)} className="bg-background rounded-md"/>
-             </div>
-             <div>
-                <h4 className="font-medium text-sm mb-1.5">Outputs</h4>
-                <JsonSyntaxHighlighter jsonString={JSON.stringify(outputs || {}, null, 2)} className="bg-background rounded-md"/>
-             </div>
-          </div>
-        </ScrollArea>
-      </div>
+      </ScrollArea>
     );
   }
 
@@ -169,23 +177,17 @@ function RunHistoryPage() {
     const logs = selectedRun.executionResult.serverLogs.map(log => ({ ...log, timestamp: new Date(log.timestamp).toLocaleTimeString() }));
 
     return (
-       <div className="flex flex-col h-full">
-          <div className="p-3 border-b bg-muted/30">
-            <h3 className="font-semibold text-foreground flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary"/>Execution Logs</h3>
-            <p className="text-xs text-muted-foreground">Server-side logs from the workflow execution.</p>
-          </div>
-          <ScrollArea className="flex-1 p-2">
-              {logs.length === 0 ? <p className="text-xs text-muted-foreground/70 italic py-2">No logs recorded.</p> : (
-                  <div className="space-y-1.5 text-xs font-mono p-1">
-                  {logs.map((log, index) => (
-                      <div key={index} className={cn("p-1.5 rounded-sm break-words", log.type === 'error' && 'bg-destructive/10 text-destructive', log.type === 'success' && 'bg-green-500/10 text-green-600 dark:text-green-400', log.type === 'info' && 'bg-primary/5 text-muted-foreground' )}>
-                      <span className="font-medium opacity-70 mr-1.5">[{log.timestamp}]</span><span>{log.message}</span>
-                      </div>
-                  ))}
+       <ScrollArea className="flex-1 p-2">
+          {logs.length === 0 ? <p className="text-xs text-muted-foreground/70 italic py-2 text-center">No logs recorded.</p> : (
+              <div className="space-y-1.5 text-xs font-mono p-1">
+              {logs.map((log, index) => (
+                  <div key={index} className={cn("p-1.5 rounded-sm break-words", log.type === 'error' && 'bg-destructive/10 text-destructive', log.type === 'success' && 'bg-green-500/10 text-green-600 dark:text-green-400', log.type === 'info' && 'bg-primary/5 text-muted-foreground' )}>
+                  <span className="font-medium opacity-70 mr-1.5">[{log.timestamp}]</span><span>{log.message}</span>
                   </div>
-              )}
-          </ScrollArea>
-       </div>
+              ))}
+              </div>
+          )}
+      </ScrollArea>
     );
   }
 
@@ -259,14 +261,41 @@ function RunHistoryPage() {
                         connections={selectedRun.workflowSnapshot.connections}
                         executionData={selectedRun.executionResult.finalWorkflowData}
                         readOnly={true}
-                        onNodeClick={(nodeId) => setSelectedNodeInSnapshot(selectedRun.workflowSnapshot.nodes.find(n => n.id === nodeId) || null)}
+                        onNodeClick={handleNodeClickInSnapshot}
                         selectedNodeId={selectedNodeInSnapshot?.id}
                         canvasOffset={selectedRun.workflowSnapshot.canvasOffset}
                         zoomLevel={selectedRun.workflowSnapshot.zoomLevel}
                     />
                 </div>
-                <div className="col-span-1 flex flex-col gap-3 overflow-hidden border rounded-md">
-                   {selectedNodeInSnapshot ? renderNodeRunData() : renderLogs()}
+                <div className="col-span-1 flex flex-col overflow-hidden border rounded-md bg-card">
+                  <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="flex-1 flex flex-col">
+                    <div className="p-2 border-b">
+                      <TabsList className="grid w-full grid-cols-2 h-9">
+                        <TabsTrigger value="logs" className="text-xs gap-1.5"><ListChecks className="h-4 w-4"/>Logs</TabsTrigger>
+                        <TabsTrigger value="data" className="text-xs gap-1.5" disabled={!selectedNodeInSnapshot}>
+                          <Database className="h-4 w-4"/>Node Data
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                    <TabsContent value="logs" className="flex-1 overflow-hidden mt-0">
+                       <div className="flex flex-col h-full">
+                          <div className="p-3 border-b bg-muted/30">
+                            <h3 className="font-semibold text-foreground flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary"/>Execution Logs</h3>
+                            <p className="text-xs text-muted-foreground">Server-side logs from the workflow execution.</p>
+                          </div>
+                          {renderLogs()}
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="data" className="flex-1 overflow-hidden mt-0">
+                       <div className="flex flex-col h-full">
+                          <div className="p-3 border-b bg-muted/30">
+                            <h3 className="font-semibold text-foreground flex items-center gap-2"><Database className="h-4 w-4 text-primary"/>Node Data: {selectedNodeInSnapshot?.name}</h3>
+                            <p className="text-xs text-muted-foreground">Snapshot of data for this node during the run.</p>
+                          </div>
+                          {renderNodeRunData()}
+                       </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
             </div>
             <DialogFooter className="pt-4 border-t">
@@ -276,7 +305,6 @@ function RunHistoryPage() {
                         {isRerunning ? 'Re-running...' : 'Re-run Failed Workflow'}
                     </Button>
                 )}
-                <Button onClick={() => setSelectedNodeInSnapshot(null)} variant="secondary" disabled={!selectedNodeInSnapshot}>View Logs</Button>
                 <DialogClose asChild><Button type="button" variant="default">Close</Button></DialogClose>
             </DialogFooter>
           </DialogContent>
