@@ -431,6 +431,35 @@ async function executeLogMessageNode(node: WorkflowNode, config: any, workflowDa
     return { output: finalMessage };
 }
 
+// === NEW UTILITY NODE EXECUTION FUNCTIONS ===
+async function executeToUpperCaseNode(config: any): Promise<any> {
+    if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
+    return { output_data: config.inputString.toUpperCase() };
+}
+async function executeToLowerCaseNode(config: any): Promise<any> {
+    if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
+    return { output_data: config.inputString.toLowerCase() };
+}
+async function executeConcatenateStringsNode(config: any): Promise<any> {
+    if (!Array.isArray(config.stringsToConcatenate)) throw new Error('Input must be an array of strings.');
+    const separator = config.separator || '';
+    return { output_data: config.stringsToConcatenate.join(separator) };
+}
+async function executeStringSplitNode(config: any): Promise<any> {
+    if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
+    const delimiter = config.delimiter || ',';
+    return { output_data: { array: config.inputString.split(delimiter) } };
+}
+async function executeFormatDateNode(config: any): Promise<any> {
+    if (!config.inputDateString) throw new Error('Input date string is required.');
+    const date = parseISO(config.inputDateString);
+    if (isNaN(date.getTime())) throw new Error('Invalid input date string.');
+    const formatString = config.outputFormatString || 'yyyy-MM-dd HH:mm:ss';
+    return { output_data: { formattedDate: format(date, formatString) } };
+}
+// Add other new utility execution functions here...
+
+
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
 async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
@@ -439,7 +468,8 @@ async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSi
         return { output: config.simulated_config || { ok: true, message: { ts: 'simulated_timestamp' } } };
     }
     
-    if (!config.token) throw new Error(`Slack Bot Token is not configured or resolved. Please set the credential placeholder {{credential.SlackBotToken}} and ensure the environment variable is available.`);
+    const token = resolveValue(config.token, {}, serverLogs);
+    if (!token) throw new Error(`Slack Bot Token is not configured or resolved. Please set the credential placeholder {{credential.SlackBotToken}} and ensure the environment variable is available.`);
     if (!config.channel) throw new Error(`Slack channel is not configured or resolved.`);
     if (!config.text) throw new Error(`Slack message text is not configured or resolved.`);
     
@@ -447,7 +477,7 @@ async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSi
         method: 'POST',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': `Bearer ${config.token}`,
+            'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
             channel: config.channel,
@@ -471,14 +501,15 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
         return { output: config.simulated_config };
     }
 
-    if (!config.apiKey) throw new Error("OpenAI API Key is not configured or resolved. Please set the credential placeholder {{credential.OpenAIKey}} and ensure the environment variable is available.");
+    const apiKey = resolveValue(config.apiKey, {}, serverLogs);
+    if (!apiKey) throw new Error("OpenAI API Key is not configured or resolved. Please set the credential placeholder {{credential.OpenAIKey}} and ensure the environment variable is available.");
     if (!config.messages) throw new Error("OpenAI messages are not configured or resolved.");
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.apiKey}`,
+            'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
             model: config.model,
@@ -498,15 +529,16 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GITHUB] SIMULATION: Would create issue in ${config.owner}/${config.repo}.`, type: 'info' });
         return { output: config.simulated_config };
     }
-
-    if (!config.token) throw new Error("GitHub Token is not configured or resolved. Please set the credential placeholder {{credential.GitHubToken}} and ensure the environment variable is available.");
+    
+    const token = resolveValue(config.token, {}, serverLogs);
+    if (!token) throw new Error("GitHub Token is not configured or resolved. Please set the credential placeholder {{credential.GitHubToken}} and ensure the environment variable is available.");
     
     const url = `https://api.github.com/repos/${config.owner}/${config.repo}/issues`;
     const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `token ${config.token}`,
+            'Authorization': `token ${token}`,
         },
         body: JSON.stringify({
             title: config.title,
@@ -548,6 +580,16 @@ const nodeExecutionFunctions: Record<string, Function> = {
     sendEmail: executeSendEmailNode,
     databaseQuery: executeDbQueryNode,
     logMessage: executeLogMessageNode,
+
+    // Utility Nodes
+    toUpperCase: executeToUpperCaseNode,
+    toLowerCase: executeToLowerCaseNode,
+    concatenateStrings: executeConcatenateStringsNode,
+    stringSplit: executeStringSplitNode,
+    formatDate: executeFormatDateNode,
+    // Add other utility functions when implemented
+    
+    // Integration Nodes
     slackPostMessage: executeSlackPostMessageNode,
     openAiChatCompletion: executeOpenAiChatCompletionNode,
     githubCreateIssue: executeGithubCreateIssueNode,
@@ -827,3 +869,5 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
         return { success: false, message: e.message };
     }
 }
+
+    
