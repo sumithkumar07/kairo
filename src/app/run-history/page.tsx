@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -238,8 +237,18 @@ function RunHistoryPage() {
         <Dialog open={!!selectedRun} onOpenChange={(open) => !open && handleCloseDialog()}>
           <DialogContent className="max-w-7xl w-[90vw] h-[90vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle className="text-xl">Run Details: {selectedRun.workflowName}</DialogTitle>
-              <DialogDescription>Executed on {format(new Date(selectedRun.timestamp), 'PPpp')}</DialogDescription>
+               <div className="flex justify-between items-start">
+                <div>
+                    <DialogTitle className="text-xl">Run Details: {selectedRun.workflowName}</DialogTitle>
+                    <DialogDescription>Executed on {format(new Date(selectedRun.timestamp), 'PPpp')}</DialogDescription>
+                </div>
+                <div className={cn("flex items-center gap-2 text-base font-semibold px-3 py-1 rounded-full",
+                  selectedRun.status === 'Success' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-destructive/10 text-destructive dark:bg-destructive/40'
+                )}>
+                  {selectedRun.status === 'Success' ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                  <span>{selectedRun.status}</span>
+                </div>
+              </div>
             </DialogHeader>
             <div className="grid grid-cols-3 gap-4 flex-1 overflow-hidden">
                 <div className="col-span-2 border rounded-md relative bg-muted/20 dot-grid-background">

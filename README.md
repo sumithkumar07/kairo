@@ -71,3 +71,34 @@ Create a `.env.local` file in the project root for local development, or set the
 *   The AI will process the command and can generate and return a full workflow definition in the JSON response.
 
 By keeping these points in mind, you can more effectively test and utilize the live mode capabilities of Kairo.
+
+## Project Structure
+
+A brief overview of the key directories in the project:
+
+-   `/src/app`: Contains all the Next.js pages and API routes for the application.
+-   `/src/ai`: The heart of the AI functionality, containing Genkit flows (`/flows`) and tools (`/tools`).
+-   `/src/components`: Reusable React components, including UI components from shadcn/ui.
+-   `/src/config`: Static configuration files for nodes (`nodes.ts`) and example workflows.
+-   `/src/contexts`: React Context providers for managing global state like subscriptions.
+-   `/src/services`: Server-side logic for interacting with the file-based "database".
+-   `/src/types`: TypeScript type definitions used throughout the application.
+-   `/src/lib`: Utility functions, including `cn` for classnames and workflow logic helpers.
+-   `/src/data`: Acts as a simple file-based database for user workflows, run history, and agent configuration.
+
+## Known Limitations
+
+This prototype is highly functional but has some limitations to be aware of before deploying to a large-scale production environment:
+
+*   **File-Based Storage**: The application uses JSON files in the `/src/data` directory as its database. This is simple and effective for demonstration and small-scale use but is not suitable for a multi-user, high-concurrency production environment. It can be prone to race conditions if multiple server instances are used. The app is currently configured for a single instance (`maxInstances: 1` in `apphosting.yaml`) to mitigate this.
+*   **No Automated Tests**: The project does not currently include a testing framework (e.g., Jest, Playwright). For a production-grade application, a comprehensive test suite would be essential.
+
+## Future Enhancements
+
+Here are some ideas for future development to build upon Kairo's foundation:
+
+*   **Database Migration**: Upgrade the file-based storage in `workflow-storage-service.ts` to a robust database like Firestore or a managed PostgreSQL instance for scalability and reliability.
+*   **Real-time Collaboration**: Implement features for multiple users to collaborate on the same workflow in real-time.
+*   **Credential Manager UI**: Build a secure UI for managing credentials instead of relying solely on environment variables.
+*   **Expanded Node Library**: Continuously add new integration and utility nodes to expand the platform's capabilities.
+*   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
