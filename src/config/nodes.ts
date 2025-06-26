@@ -1031,99 +1031,101 @@ export const getDataTransformIcon = (transformType?: string): LucideIcon => {
 };
 
 export const getCanvasNodeStyling = (category: AvailableNodeType['category']) => {
+  const common = {
+    headerTextColor: 'dark:text-white text-slate-800',
+  };
+
   switch (category) {
     case 'trigger':
       return {
-        headerBg: 'bg-rose-900/50',
-        headerIconColor: 'text-rose-300',
-        headerTextColor: 'text-rose-200',
-        nodeBorder: 'border-rose-800/70',
-        inputHandleColor: 'bg-rose-500',
-        inputHandleBorder: 'border-rose-400',
-        outputHandleColor: 'bg-rose-500',
-        outputHandleBorder: 'border-rose-400',
+        ...common,
+        headerBg: 'bg-rose-100 dark:bg-rose-900/40',
+        headerIconColor: 'text-rose-600 dark:text-rose-400',
+        nodeBorder: 'border-rose-300 dark:border-rose-700/60',
+        inputHandleColor: 'bg-rose-500 dark:bg-rose-400',
+        inputHandleBorder: 'border-rose-600 dark:border-rose-300',
+        outputHandleColor: 'bg-rose-500 dark:bg-rose-400',
+        outputHandleBorder: 'border-rose-600 dark:border-rose-300',
       };
     case 'action':
       return {
-        headerBg: 'bg-sky-900/50',
-        headerIconColor: 'text-sky-300',
-        headerTextColor: 'text-sky-200',
-        nodeBorder: 'border-sky-800/70',
-        inputHandleColor: 'bg-sky-500',
-        inputHandleBorder: 'border-sky-400',
-        outputHandleColor: 'bg-sky-500',
-        outputHandleBorder: 'border-sky-400',
+        ...common,
+        headerBg: 'bg-sky-100 dark:bg-sky-900/40',
+        headerIconColor: 'text-sky-600 dark:text-sky-400',
+        nodeBorder: 'border-sky-300 dark:border-sky-700/60',
+        inputHandleColor: 'bg-sky-500 dark:bg-sky-400',
+        inputHandleBorder: 'border-sky-600 dark:border-sky-300',
+        outputHandleColor: 'bg-sky-500 dark:bg-sky-400',
+        outputHandleBorder: 'border-sky-600 dark:border-sky-300',
       };
     case 'integrations':
        return {
-        headerBg: 'bg-teal-900/50',
-        headerIconColor: 'text-teal-300',
-        headerTextColor: 'text-teal-200',
-        nodeBorder: 'border-teal-800/70',
-        inputHandleColor: 'bg-teal-500',
-        inputHandleBorder: 'border-teal-400',
-        outputHandleColor: 'bg-teal-500',
-        outputHandleBorder: 'border-teal-400',
+        ...common,
+        headerBg: 'bg-teal-100 dark:bg-teal-900/40',
+        headerIconColor: 'text-teal-600 dark:text-teal-400',
+        nodeBorder: 'border-teal-300 dark:border-teal-700/60',
+        inputHandleColor: 'bg-teal-500 dark:bg-teal-400',
+        inputHandleBorder: 'border-teal-600 dark:border-teal-300',
+        outputHandleColor: 'bg-teal-500 dark:bg-teal-400',
+        outputHandleBorder: 'border-teal-600 dark:border-teal-300',
       };
     case 'io':
       return {
-        headerBg: 'bg-slate-700/50',
-        headerIconColor: 'text-slate-300',
-        headerTextColor: 'text-slate-200',
-        nodeBorder: 'border-slate-600/70',
-        inputHandleColor: 'bg-slate-500',
-        inputHandleBorder: 'border-slate-400',
-        outputHandleColor: 'bg-slate-500',
-        outputHandleBorder: 'border-slate-400',
+        ...common,
+        headerBg: 'bg-slate-200 dark:bg-slate-800/60',
+        headerIconColor: 'text-slate-600 dark:text-slate-400',
+        nodeBorder: 'border-slate-300 dark:border-slate-600/80',
+        inputHandleColor: 'bg-slate-500 dark:bg-slate-400',
+        inputHandleBorder: 'border-slate-600 dark:border-slate-300',
+        outputHandleColor: 'bg-slate-500 dark:bg-slate-400',
+        outputHandleBorder: 'border-slate-600 dark:border-slate-300',
       };
     case 'logic':
       return {
-        headerBg: 'bg-amber-900/40',
-        headerIconColor: 'text-amber-300',
-        headerTextColor: 'text-amber-200',
-        nodeBorder: 'border-amber-800/60',
-        inputHandleColor: 'bg-amber-500',
-        inputHandleBorder: 'border-amber-400',
-        outputHandleColor: 'bg-amber-500',
-        outputHandleBorder: 'border-amber-400',
+        ...common,
+        headerBg: 'bg-amber-100 dark:bg-amber-900/40',
+        headerIconColor: 'text-amber-600 dark:text-amber-400',
+        nodeBorder: 'border-amber-300 dark:border-amber-700/60',
+        inputHandleColor: 'bg-amber-500 dark:bg-amber-400',
+        inputHandleBorder: 'border-amber-600 dark:border-amber-300',
+        outputHandleColor: 'bg-amber-500 dark:bg-amber-400',
+        outputHandleBorder: 'border-amber-600 dark:border-amber-300',
       };
     case 'ai':
       return {
-        headerBg: 'bg-violet-900/50',
-        headerIconColor: 'text-violet-300',
-        headerTextColor: 'text-violet-200',
-        nodeBorder: 'border-violet-800/70',
-        inputHandleColor: 'bg-violet-500',
-        inputHandleBorder: 'border-violet-400',
-        outputHandleColor: 'bg-violet-500',
-        outputHandleBorder: 'border-violet-400',
+        ...common,
+        headerBg: 'bg-violet-100 dark:bg-violet-900/40',
+        headerIconColor: 'text-violet-600 dark:text-violet-400',
+        nodeBorder: 'border-violet-300 dark:border-violet-700/60',
+        inputHandleColor: 'bg-violet-500 dark:bg-violet-400',
+        inputHandleBorder: 'border-violet-600 dark:border-violet-300',
+        outputHandleColor: 'bg-violet-500 dark:bg-violet-400',
+        outputHandleBorder: 'border-violet-600 dark:border-violet-300',
       };
     case 'group':
     case 'iteration':
     case 'control':
     case 'interaction':
         return {
-          headerBg: 'bg-emerald-900/50',
-          headerIconColor: 'text-emerald-300',
-          headerTextColor: 'text-emerald-200',
-          nodeBorder: 'border-emerald-800/70',
-          inputHandleColor: 'bg-emerald-500',
-          inputHandleBorder: 'border-emerald-400',
-          outputHandleColor: 'bg-emerald-500',
-          outputHandleBorder: 'border-emerald-400',
+          ...common,
+          headerBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+          headerIconColor: 'text-emerald-600 dark:text-emerald-400',
+          nodeBorder: 'border-emerald-300 dark:border-emerald-700/60',
+          inputHandleColor: 'bg-emerald-500 dark:bg-emerald-400',
+          inputHandleBorder: 'border-emerald-600 dark:border-emerald-300',
+          outputHandleColor: 'bg-emerald-500 dark:bg-emerald-400',
+          outputHandleBorder: 'border-emerald-600 dark:border-emerald-300',
         };
     default:
       return {
-        headerBg: 'bg-gray-700/50',
-        headerIconColor: 'text-gray-300',
-        headerTextColor: 'text-gray-200',
-        nodeBorder: 'border-gray-600/70',
-        inputHandleColor: 'bg-gray-500',
-        inputHandleBorder: 'border-gray-400',
-        outputHandleColor: 'bg-gray-500',
-        outputHandleBorder: 'border-gray-400',
+        ...common,
+        headerBg: 'bg-gray-200 dark:bg-gray-800/60',
+        headerIconColor: 'text-gray-600 dark:text-gray-400',
+        nodeBorder: 'border-gray-300 dark:border-gray-600/80',
+        inputHandleColor: 'bg-gray-500 dark:bg-gray-400',
+        inputHandleBorder: 'border-gray-600 dark:border-gray-300',
+        outputHandleColor: 'bg-gray-500 dark:bg-gray-400',
+        outputHandleBorder: 'border-gray-600 dark:border-gray-300',
       };
   }
 };
-
-    
