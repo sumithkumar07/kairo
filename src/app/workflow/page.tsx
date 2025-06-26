@@ -996,6 +996,7 @@ function WorkflowPage() {
     initialCanvasSuggestion,
     isLoadingInitialSuggestion,
     initialSuggestionAttempted,
+    isLoadingSuggestion // Added missing dependency
   ]);
   
   useEffect(() => {
@@ -1575,3 +1576,5 @@ function WorkflowPage() {
 }
 
 export default withAuth(WorkflowPage);
+
+    
