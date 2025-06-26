@@ -29,12 +29,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLayout } from '@/components/app-layout';
-
-
-import { NodeLibrary } from '@/components/node-library';
+import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
-import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
+import { NodeLibrary } from '@/components/node-library';
 
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
