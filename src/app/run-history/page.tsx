@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, Play, RefreshCw, AlertTriangle, Database, Bot } from 'lucide-react';
-import type { WorkflowRunRecord, LogEntry, WorkflowNode } from '@/types/workflow';
+import type { WorkflowRunRecord, WorkflowNode } from '@/types/workflow';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -283,3 +283,5 @@ function RunHistoryPage() {
 }
 
 export default withAuth(RunHistoryPage);
+
+    

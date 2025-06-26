@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Workflow, History, Cpu, Settings, LogOut, User, LifeBuoy } from 'lucide-react';
+import { Workflow, History, Cpu, Settings, LogOut, User } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -113,3 +113,5 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+    

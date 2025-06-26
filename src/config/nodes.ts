@@ -1129,3 +1129,5 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
+
+    

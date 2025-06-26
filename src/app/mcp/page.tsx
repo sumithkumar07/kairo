@@ -1,12 +1,10 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Workflow, User, Server, Settings, History, Tv, ListChecks, Play, Zap, Plus, MoreHorizontal, Youtube, FolderGit2, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon, Cpu, FileLock2, Info } from 'lucide-react';
+import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon, Cpu, FileLock2, Info } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/app-layout';
@@ -17,27 +15,19 @@ import type { McpCommandRecord } from '@/types/workflow';
 import { getMcpHistory } from '@/services/workflow-storage-service';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
 import { withAuth } from '@/components/auth/with-auth';
+import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 
 type Tool = { name: string; description: string; icon: React.ElementType; service: string; };
 
-const ALL_AVAILABLE_TOOLS: Tool[] = [
-    { name: 'Workflow: List Saved', description: 'Lists all available saved workflows.', icon: ListChecks, service: 'Kairo' },
-    { name: 'Workflow: Get Definition', description: 'Retrieves the structure of a specific workflow.', icon: Tv, service: 'Kairo' },
-    { name: 'Workflow: Run', description: 'Executes a workflow and returns the result.', icon: Play, service: 'Kairo' },
-    { name: 'YouTube: Find Video', description: 'Finds a YouTube video based on a search query.', icon: Youtube, service: 'YouTube' },
-    { name: 'YouTube: Get Report', description: 'Gets a report for a YouTube video.', icon: Youtube, service: 'YouTube' },
-    { name: 'Google Drive: Find File', description: 'Finds a file or folder in Google Drive by name.', icon: FolderGit2, service: 'Google Drive' },
-    { name: 'Google Sheets: Append Row', description: 'Appends a new row to a Google Sheet.', icon: SheetIcon, service: 'Google Sheets'},
-    { name: 'Slack: Post Message', description: 'Sends a message to a Slack channel.', icon: MessageSquare, service: 'Slack'},
-    { name: 'OpenAI: Chat Completion', description: 'Generates text using an OpenAI model.', icon: BotIcon, service: 'OpenAI'},
-    { name: 'Stripe: Create Payment Link', description: 'Creates a new payment link in Stripe.', icon: CreditCard, service: 'Stripe'},
-    { name: 'HubSpot: Create Contact', description: 'Creates a new contact in HubSpot.', icon: UserPlus, service: 'HubSpot'},
-    { name: 'Twilio: Send SMS', description: 'Sends an SMS message via Twilio.', icon: Smartphone, service: 'Twilio'},
-    { name: 'GitHub: Create Issue', description: 'Creates a new issue in a GitHub repository.', icon: Github, service: 'GitHub'},
-    { name: 'Dropbox: Upload File', description: 'Uploads a file to Dropbox.', icon: UploadCloud, service: 'Dropbox'},
-];
+const ALL_AVAILABLE_TOOLS: Tool[] = AVAILABLE_NODES_CONFIG
+  .filter(node => node.category === 'integrations' || ['httpRequest', 'aiTask', 'databaseQuery', 'sendEmail'].includes(node.type))
+  .map(node => ({
+    name: node.name,
+    description: node.description || 'No description available.',
+    icon: node.icon,
+    service: node.category === 'integrations' ? (node.name.split(':')[0] || 'Kairo') : 'Kairo Core',
+  }));
 
 const INITIAL_TOOLS = ALL_AVAILABLE_TOOLS.slice(0, 3);
 
@@ -53,7 +43,6 @@ const CREDENTIAL_INFO = [
 
 
 function MCPDashboardPage() {
-  const { user } = useSubscription();
   const { toast } = useToast();
 
   const [configuredTools, setConfiguredTools] = useState<Tool[]>(INITIAL_TOOLS);
@@ -324,3 +313,5 @@ function MCPDashboardPage() {
 }
 
 export default withAuth(MCPDashboardPage);
+
+    
