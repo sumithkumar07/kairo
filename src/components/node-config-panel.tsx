@@ -30,6 +30,8 @@ interface NodeConfigPanelProps {
   suggestedNextNodeInfo: { suggestion: SuggestNextNodeOutput; forNodeId: string } | null;
   isLoadingSuggestion: boolean;
   onAddSuggestedNode: (nodeTypeString: string) => void;
+  onGenerateTestData: (nodeId: string, configField: string) => void;
+  isGeneratingTestDataFor?: string | null;
 }
 
 export function NodeConfigPanel({ 
@@ -41,7 +43,9 @@ export function NodeConfigPanel({
   onDeleteNode,
   suggestedNextNodeInfo,
   isLoadingSuggestion,
-  onAddSuggestedNode
+  onAddSuggestedNode,
+  onGenerateTestData,
+  isGeneratingTestDataFor,
 }: NodeConfigPanelProps) {
   
   const [jsonValidationErrors, setJsonValidationErrors] = useState<Record<string, string | null>>({});
@@ -149,6 +153,49 @@ export function NodeConfigPanel({
   const currentRetryConfig: Partial<RetryConfig> = node.config.retry || {};
   const currentWebhookConfig: Partial<OnErrorWebhookConfig> = node.config.onErrorWebhook || {};
 
+  const renderParameters = () => {
+    if (!nodeType?.configSchema || Object.keys(nodeType.configSchema).filter(k => k !== 'retry' && k !== 'onErrorWebhook').length === 0) {
+      return <p className="text-xs text-muted-foreground italic text-center py-2">No specific configuration parameters for this node.</p>;
+    }
+  
+    return Object.entries(nodeType.configSchema)
+      .filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook')
+      .map(([key, schema]) => {
+        const canGenerateAiData = [
+          'simulatedResponse', 'simulatedStatusCode', 'simulatedRequestBody',
+          'simulatedRequestHeaders', 'simulatedRequestQuery', 'simulatedOutput',
+          'simulatedResults', 'simulatedRowCount', 'simulatedMessageId',
+          'simulatedFileEvent', 'simulated_config'
+        ].includes(key);
+        const isLoading = isGeneratingTestDataFor === key;
+  
+        return (
+          <div key={key} className="space-y-1">
+            {schema.type !== 'boolean' ? (
+              <div className="flex justify-between items-center">
+                <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>
+                {canGenerateAiData && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-auto"
+                    onClick={() => onGenerateTestData(node.id, key)}
+                    disabled={isLoading}
+                    title={`Generate test data for ${key}`}
+                  >
+                    {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 text-primary" />}
+                  </Button>
+                )}
+              </div>
+            ) : null}
+            {renderFormField(key, schema)}
+            {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-1">{schema.helperText}</p>}
+            {jsonValidationErrors[key] && <p className="text-xs text-destructive mt-1">{jsonValidationErrors[key]}</p>}
+          </div>
+        );
+      });
+  };
+
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
       <CardHeader className="px-4 pt-4 pb-3 border-b">
@@ -199,18 +246,7 @@ export function NodeConfigPanel({
                 <div className="flex items-center gap-2"><Anchor className="h-4 w-4"/>Parameters</div>
               </AccordionTrigger>
               <AccordionContent className="pt-2 space-y-3">
-                 {nodeType?.configSchema && Object.keys(nodeType.configSchema).filter(k => k !== 'retry' && k !== 'onErrorWebhook').length > 0 ? (
-                  Object.entries(nodeType.configSchema).filter(([key]) => key !== 'retry' && key !== 'onErrorWebhook').map(([key, schema]) => (
-                    <div key={key} className="space-y-1">
-                      {schema.type !== 'boolean' && <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>}
-                      {renderFormField(key, schema)}
-                      {schema.helperText && <p className="text-xs text-muted-foreground/80 mt-1">{schema.helperText}</p>}
-                      {jsonValidationErrors[key] && <p className="text-xs text-destructive mt-1">{jsonValidationErrors[key]}</p>}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-muted-foreground italic text-center py-2">No specific configuration parameters for this node.</p>
-                )}
+                 {renderParameters()}
               </AccordionContent>
             </AccordionItem>
 
@@ -271,8 +307,8 @@ export function NodeConfigPanel({
                             <SelectContent><SelectItem value="POST">POST</SelectItem><SelectItem value="PUT">PUT</SelectItem></SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1"><Label className="text-xs">Headers (JSON)</Label><Textarea value={typeof currentWebhookConfig.headers === 'object' ? JSON.stringify(currentWebhookConfig.headers, null, 2) : currentWebhookConfig.headers ?? ''} onChange={e => handleInputChange('headers', e.target.value, false, true)} placeholder={'{\n  "X-API-Key": "{{env.ERROR_KEY}}"\n}'} className="h-20 text-xs font-mono"/></div>
-                        <div className="space-y-1"><Label className="text-xs">Body Template (JSON)</Label><Textarea value={typeof currentWebhookConfig.bodyTemplate === 'object' ? JSON.stringify(currentWebhookConfig.bodyTemplate, null, 2) : currentWebhookConfig.bodyTemplate ?? ''} onChange={e => handleInputChange('bodyTemplate', e.target.value, false, true)} placeholder={'{\n  "error": "{{error_message}}"\n}'} className="h-24 text-xs font-mono"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Headers (JSON)</Label><Textarea value={typeof currentWebhookConfig.headers === 'object' ? JSON.stringify(currentWebhookConfig.headers, null, 2) : currentWebhookConfig.headers ?? ''} onChange={e => handleInputChange('headers', e.target.value, false, true)} placeholder={'{\\n  "X-API-Key": "{{env.ERROR_KEY}}"\\n}'} className="h-20 text-xs font-mono"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Body Template (JSON)</Label><Textarea value={typeof currentWebhookConfig.bodyTemplate === 'object' ? JSON.stringify(currentWebhookConfig.bodyTemplate, null, 2) : currentWebhookConfig.bodyTemplate ?? ''} onChange={e => handleInputChange('bodyTemplate', e.target.value, false, true)} placeholder={'{\\n  "error": "{{error_message}}"\\n}'} className="h-24 text-xs font-mono"/></div>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>

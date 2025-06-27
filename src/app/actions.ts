@@ -26,6 +26,11 @@ import {
   type AssistantChatInput,
   type AssistantChatOutput,
 } from '@/ai/flows/assistant-chat-flow';
+import {
+  generateTestDataForNode as genkitGenerateTestData,
+  type GenerateTestDataInput,
+  type GenerateTestDataOutput
+} from '@/ai/flows/generate-test-data-flow';
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, OnErrorWebhookConfig, WorkflowExecutionResult, WorkflowRunRecord } from '@/types/workflow';
 import { ai } from '@/ai/genkit'; 
 import nodemailer from 'nodemailer';
@@ -836,6 +841,9 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
   const enhancementResult = await genkitEnhanceUserPrompt({ originalPrompt: input.originalPrompt });
   const promptForGeneration = enhancementResult?.enhancedPrompt || input.originalPrompt;
   return generateWorkflow({ prompt: promptForGeneration });
+}
+export async function generateTestDataForNode(input: GenerateTestDataInput): Promise<GenerateTestDataOutput> {
+  return genkitGenerateTestData(input);
 }
 export async function listWorkflowsAction(): Promise<{ name: string; type: 'example' | 'user' }[]> {
   const workflows = await WorkflowStorage.listAllWorkflows();

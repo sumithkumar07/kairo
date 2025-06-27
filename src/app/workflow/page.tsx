@@ -5,7 +5,8 @@ import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction } from '@/app/actions';
+import type { GenerateTestDataInput } from '@/ai/flows/generate-test-data-flow';
+import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode } from '@/app/actions';
 import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { saveRunRecord } from '@/services/workflow-storage-service';
@@ -111,6 +112,8 @@ function WorkflowPage() {
   const [showOpenDialog, setShowOpenDialog] = useState(false);
   const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowMetadata[]>([]);
   const [workflowToDeleteFromModal, setWorkflowToDeleteFromModal] = useState<string | null>(null);
+
+  const [isGeneratingTestDataFor, setIsGeneratingTestDataFor] = useState<string|null>(null);
 
 
   const selectedNode = useMemo(() => {
@@ -550,6 +553,46 @@ function WorkflowPage() {
     }
   }, [chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast]);
 
+
+  const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
+    setNodes(prevNodes => produce(prevNodes, draft => {
+        const node = draft.find(n => n.id === nodeId);
+        if (node) node.config = newConfig;
+      }));
+    saveHistory();
+  }, [saveHistory]);
+
+  const handleGenerateTestData = useCallback(async (nodeId: string, configField: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    setIsGeneratingTestDataFor(configField);
+    try {
+        const fieldsToGenerate = [configField];
+        if (node.type === 'httpRequest' && configField === 'simulatedResponse') {
+            fieldsToGenerate.push('simulatedStatusCode');
+        }
+
+        const input: GenerateTestDataInput = {
+            nodeType: node.type,
+            nodeName: node.name,
+            nodeDescription: node.description,
+            configFieldsToGenerate: fieldsToGenerate,
+            workflowContext: `This node is part of a workflow named '${currentWorkflowNameRef.current}'. Use this context to generate relevant data.`
+        };
+
+        const result = await generateTestDataForNode(input);
+        
+        if (result.generatedData) {
+            handleNodeConfigChange(nodeId, { ...node.config, ...result.generatedData });
+            toast({ title: 'Test Data Generated', description: `AI has populated test data for ${fieldsToGenerate.join(' and ')}.` });
+        }
+    } catch (error: any) {
+      toast({ title: 'AI Error', description: `Failed to generate test data: ${error.message}`, variant: 'destructive' });
+    } finally {
+      setIsGeneratingTestDataFor(null);
+    }
+  }, [nodes, handleNodeConfigChange, toast]);
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
@@ -1116,14 +1159,6 @@ function WorkflowPage() {
     }));
   }, []);
 
-  const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
-    setNodes(prevNodes => produce(prevNodes, draft => {
-        const node = draft.find(n => n.id === nodeId);
-        if (node) node.config = newConfig;
-      }));
-    saveHistory();
-  }, [saveHistory]);
-
   const handleNodeNameChange = useCallback((nodeId: string, newName: string) => {
      setNodes(prevNodes => produce(prevNodes, draft => {
         const node = draft.find(n => n.id === nodeId);
@@ -1402,6 +1437,8 @@ function WorkflowPage() {
                     suggestedNextNodeInfo={suggestedNextNodeInfo}
                     isLoadingSuggestion={isLoadingSuggestion}
                     onAddSuggestedNode={handleAddSuggestedNode}
+                    onGenerateTestData={handleGenerateTestData}
+                    isGeneratingTestDataFor={isGeneratingTestDataFor}
                   />
                 ) : (
                   <AIWorkflowAssistantPanel
