@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
-import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, Play, RefreshCw, AlertTriangle, Database, Bot } from 'lucide-react';
+import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, RefreshCw, AlertTriangle, Database, Bot } from 'lucide-react';
 import type { WorkflowRunRecord, WorkflowNode } from '@/types/workflow';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -299,12 +299,15 @@ function RunHistoryPage() {
                 </div>
             </div>
             <DialogFooter className="pt-4 border-t">
-                {selectedRun.status === 'Failed' && (
-                    <Button variant="outline" disabled={isRerunning} onClick={() => handleRerun(selectedRun.id)}>
-                        {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                        {isRerunning ? 'Re-running...' : 'Re-run Failed Workflow'}
-                    </Button>
-                )}
+                <Button 
+                    variant="outline" 
+                    disabled={isRerunning || !selectedRun.workflowSnapshot} 
+                    onClick={() => handleRerun(selectedRun.id)}
+                    title={!selectedRun.workflowSnapshot ? "Cannot re-run a workflow without a saved snapshot." : "Re-run this workflow with the same initial data."}
+                >
+                    {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
+                    {isRerunning ? 'Re-running...' : 'Re-run Workflow'}
+                </Button>
                 <DialogClose asChild><Button type="button" variant="default">Close</Button></DialogClose>
             </DialogFooter>
           </DialogContent>
