@@ -166,3 +166,5 @@ export type Tool = {
 export type AgentConfig = {
   enabledTools: string[]; // Array of tool names
 };
+
+    
