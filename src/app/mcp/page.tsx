@@ -21,11 +21,17 @@ import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
 const CREDENTIAL_INFO = [
   { name: 'GOOGLE_API_KEY', service: 'Google AI / Genkit', description: 'Required for all AI features like workflow generation, explanation, and the assistant chat. Obtain from Google Cloud Console.' },
   { name: 'KAIRO_MCP_API_KEY', service: 'Kairo Agent Hub', description: 'A secret key you define and set here, then use for authenticating API requests to the Agent Hub.' },
+  { name: 'DB_CONNECTION_STRING', service: 'PostgreSQL', description: 'Connection string for the "Database Query" node, e.g., "postgresql://user:pass@host:port/db".' },
+  { name: 'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM', service: 'Email', description: 'SMTP server details required for the "Send Email" node to work in Live Mode.' },
   { name: 'SLACK_BOT_TOKEN', service: 'Slack', description: 'Required for the "Post Message" node to send messages to Slack. Starts with "xoxb-".' },
   { name: 'OPENAI_API_KEY', service: 'OpenAI', description: 'Required for the "OpenAI Chat Completion" node. Obtain from your OpenAI account dashboard.' },
   { name: 'GITHUB_TOKEN', service: 'GitHub', description: 'A Personal Access Token (PAT) with "repo" scope, required for the "Create Issue" node.' },
-  { name: 'DB_CONNECTION_STRING', service: 'PostgreSQL', description: 'Connection string for the "Database Query" node, e.g., "postgresql://user:pass@host:port/db".' },
-  { name: 'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM', service: 'Email', description: 'SMTP server details required for the "Send Email" node to work in Live Mode.' },
+  { name: 'STRIPE_API_KEY', service: 'Stripe', description: 'Required for Stripe nodes (currently simulated). Obtain from your Stripe dashboard.' },
+  { name: 'HUBSPOT_API_KEY', service: 'HubSpot', description: 'Required for HubSpot nodes (currently simulated). Obtain from your HubSpot developer settings.' },
+  { name: 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN', service: 'Twilio', description: 'Required for Twilio SMS nodes (currently simulated). Find these in your Twilio console.' },
+  { name: 'DROPBOX_TOKEN', service: 'Dropbox', description: 'An access token for Dropbox API calls (currently simulated).' },
+  { name: 'YOUTUBE_API_KEY', service: 'YouTube', description: 'Required for YouTube Data API nodes (currently simulated).' },
+
 ];
 
 
@@ -343,4 +349,3 @@ console.log(data);`}
 }
 
 export default withAuth(MCPDashboardPage);
-

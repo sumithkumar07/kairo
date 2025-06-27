@@ -349,4 +349,3 @@ console.log(data);`}
 }
 
 export default withAuth(MCPDashboardPage);
-
