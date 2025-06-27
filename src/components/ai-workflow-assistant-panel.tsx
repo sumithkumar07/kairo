@@ -14,6 +14,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import type { ChatMessage } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface AIWorkflowAssistantPanelProps {
   isCanvasEmpty: boolean;
@@ -191,6 +193,27 @@ export function AIWorkflowAssistantPanel({
           {isWorkflowRunning ? <RotateCcw className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
           {isWorkflowRunning ? 'Executing...' : `Run ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
         </Button>
+      </div>
+
+      <div className="p-3 border-b flex items-center justify-between">
+        <Label className="text-sm font-medium flex items-center gap-2 select-none">
+          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          AI Assistant Chat
+        </Label>
+        {chatHistory.length > 0 && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClearChat} title="Clear chat history">
+                  <Trash2 className="h-4 w-4 text-destructive/80 hover:text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Clear chat history</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
        <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
