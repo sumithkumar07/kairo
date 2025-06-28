@@ -301,11 +301,18 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
 // ================================================================= //
 // Note: Each function returns the output object for the node.
 
-async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimulationMode: boolean, initialData: any, serverLogs: ServerLogOutput[]): Promise<any> {
-    const liveTriggerData = (!isSimulationMode && initialData) ? initialData : null;
-    if (liveTriggerData) {
+async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+    const liveTriggerData = (!isSimulationMode && allWorkflowData && allWorkflowData[node.id]) ? allWorkflowData[node.id] : null;
+
+    // Check if liveTriggerData exists and has a key property to ensure it's actual trigger data, not just an empty object.
+    if (liveTriggerData && liveTriggerData.requestBody !== undefined) { 
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] LIVE TRIGGER. Using data from API route.`, type: 'info' });
-        return { requestBody: liveTriggerData.requestBody, requestHeaders: liveTriggerData.requestHeaders, requestQuery: liveTriggerData.requestQuery };
+        return { 
+            requestBody: liveTriggerData.requestBody, 
+            requestHeaders: liveTriggerData.requestHeaders, 
+            requestQuery: liveTriggerData.requestQuery, 
+            status: 'success' 
+        };
     }
     
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Using simulated data.`, type: 'info' });
@@ -316,7 +323,7 @@ async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimu
     return { requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery };
 }
 
-async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE HTTPREQUEST] SIMULATION: Would make ${config.method || 'GET'} request to ${config.url}`, type: 'info' });
         const simStatusCode = config.simulatedStatusCode || 200;
@@ -348,7 +355,7 @@ async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulat
     return { response: parsedHttpResponse, status_code: response.status };
 }
 
-async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AITASK] SIMULATION: Would send prompt to model ${config.model || 'default'}.`, type: 'info' });
         return { output: config.simulatedOutput || "Simulated AI output." };
@@ -359,7 +366,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     return { output: genkitResponse.text }; 
 }
 
-async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     let dataToParse: any;
     if (typeof config.jsonString === 'string') {
         if (config.jsonString.trim() === '') dataToParse = {};
@@ -385,7 +392,7 @@ async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs:
     return { output: extractedValue };
 }
 
-async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SENDEMAIL] SIMULATION: Would send email to ${config.to}.`, type: 'info' });
         return { messageId: config.simulatedMessageId || 'simulated-email-id-default' };
@@ -400,7 +407,7 @@ async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulatio
     return { messageId: info.messageId };
 }
 
-async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DATABASEQUERY] SIMULATION: Would execute query.`, type: 'info' });
         return { results: config.simulatedResults || [], rowCount: config.simulatedRowCount || (config.simulatedResults?.length || 0) };
@@ -423,34 +430,34 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
     }
 }
 
-async function executeLogMessageNode(node: WorkflowNode, config: any, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-    const resolvedMessage = resolveValue(config?.message, workflowData, serverLogs); // Resolve placeholders in the message
+    const resolvedMessage = resolveValue(config?.message, allWorkflowData, serverLogs); // Resolve placeholders in the message
     const finalMessage = typeof resolvedMessage === 'object' ? JSON.stringify(resolvedMessage, null, 2) : resolvedMessage;
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${finalMessage}`, type: 'info' });
     return { output: finalMessage };
 }
 
 // === NEW UTILITY NODE EXECUTION FUNCTIONS ===
-async function executeToUpperCaseNode(config: any): Promise<any> {
+async function executeToUpperCaseNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
     return { output_data: config.inputString.toUpperCase() };
 }
-async function executeToLowerCaseNode(config: any): Promise<any> {
+async function executeToLowerCaseNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
     return { output_data: config.inputString.toLowerCase() };
 }
-async function executeConcatenateStringsNode(config: any): Promise<any> {
+async function executeConcatenateStringsNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (!Array.isArray(config.stringsToConcatenate)) throw new Error('Input must be an array of strings.');
     const separator = config.separator || '';
     return { output_data: config.stringsToConcatenate.join(separator) };
 }
-async function executeStringSplitNode(config: any): Promise<any> {
+async function executeStringSplitNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
     const delimiter = config.delimiter || ',';
     return { output_data: { array: config.inputString.split(delimiter) } };
 }
-async function executeFormatDateNode(config: any): Promise<any> {
+async function executeFormatDateNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (!config.inputDateString) throw new Error('Input date string is required.');
     const date = parseISO(config.inputDateString);
     if (isNaN(date.getTime())) throw new Error('Invalid input date string.');
@@ -458,7 +465,7 @@ async function executeFormatDateNode(config: any): Promise<any> {
     return { output_data: { formattedDate: format(date, formatString) } };
 }
 
-async function executeDelayNode(config: any, isSimulationMode: boolean): Promise<any> {
+async function executeDelayNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
   const delayMs = config.delayMs || 0;
   if (!isSimulationMode && delayMs > 0) {
     await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -468,7 +475,7 @@ async function executeDelayNode(config: any, isSimulationMode: boolean): Promise
 
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
-async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SLACK] SIMULATION: Would post message to channel ${config.channel}.`, type: 'info' });
         return { output: config.simulated_config || { ok: true, message: { ts: 'simulated_timestamp' } } };
@@ -501,7 +508,7 @@ async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSi
     return { output: responseData };
 }
 
-async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE OPENAI] SIMULATION: Would send prompt to model ${config.model}.`, type: 'info' });
         return { output: config.simulated_config };
@@ -530,7 +537,7 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
     return { output: responseData };
 }
 
-async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]): Promise<any> {
+async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GITHUB] SIMULATION: Would create issue in ${config.owner}/${config.repo}.`, type: 'info' });
         return { output: config.simulated_config };
@@ -560,7 +567,7 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
 }
 
 // Simulated Live Mode for complex auth integrations
-async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], serviceName: string): Promise<any> {
+async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, serviceName: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] SIMULATION: Returning simulated data.`, type: 'info' });
         return { output: config.simulated_config || {} };
@@ -600,26 +607,26 @@ const nodeExecutionFunctions: Record<string, Function> = {
     slackPostMessage: executeSlackPostMessageNode,
     openAiChatCompletion: executeOpenAiChatCompletionNode,
     githubCreateIssue: executeGithubCreateIssueNode,
-    googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) => 
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Google Sheets'),
-    stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) => 
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Stripe'),
-    hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'HubSpot'),
-    twilioSendSms: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Twilio'),
-    dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Dropbox'),
-    googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Google Calendar'),
-    youtubeFetchTrending: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
-    youtubeDownloadVideo: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
-    videoConvertToShorts: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'Video'),
-    youtubeUploadShort: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[]) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, 'YouTube'),
+    googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) => 
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Google Sheets'),
+    stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) => 
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Stripe'),
+    hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'HubSpot'),
+    twilioSendSms: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Twilio'),
+    dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Dropbox'),
+    googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Google Calendar'),
+    youtubeFetchTrending: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'YouTube'),
+    youtubeDownloadVideo: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'YouTube'),
+    videoConvertToShorts: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Video'),
+    youtubeUploadShort: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'YouTube'),
 };
 
 
@@ -869,5 +876,3 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
         return { success: false, message: e.message };
     }
 }
-
-    

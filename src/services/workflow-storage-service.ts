@@ -131,27 +131,18 @@ export async function deleteWorkflowByName(name: string): Promise<void> {
 }
 
 export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<Workflow | null> {
+  // Only search user-saved workflows, as examples aren't meant for live execution.
   const allWorkflows = await readDataFromFile<StoredWorkflow>(WORKFLOWS_DB_PATH);
-  const allExampleWorkflows: ExampleWorkflow[] = EXAMPLE_WORKFLOWS;
 
-  const combined: Workflow[] = [
-    ...allWorkflows.map(uw => ({ ...uw.workflow, name: uw.name })), 
-    ...allExampleWorkflows.map(ew => ({
-        nodes: ew.nodes,
-        connections: ew.connections,
-        canvasOffset: {x: 0, y: 0},
-        zoomLevel: 1,
-        isSimulationMode: true,
-    }))
-  ];
-
-  for (const wf of combined) {
-    const hasMatchingTrigger = wf.nodes.some(
-      n => n.type === 'webhookTrigger' && n.config?.pathSuffix === pathSuffix
-    );
-    if (hasMatchingTrigger) {
-      console.log(`[Storage Service] Found workflow '${(wf as any).name || 'User Workflow'}' for webhook path: ${pathSuffix}`);
-      return { nodes: wf.nodes, connections: wf.connections };
+  for (const wf of allWorkflows) {
+    if (wf.workflow.nodes) {
+        const hasMatchingTrigger = wf.workflow.nodes.some(
+          n => n.type === 'webhookTrigger' && n.config?.pathSuffix === pathSuffix
+        );
+        if (hasMatchingTrigger) {
+          console.log(`[Storage Service] Found workflow '${wf.name}' for webhook path: ${pathSuffix}`);
+          return wf.workflow;
+        }
     }
   }
 
@@ -220,5 +211,3 @@ export async function getAgentConfig(): Promise<AgentConfig> {
 export async function saveAgentConfig(config: AgentConfig): Promise<void> {
     await writeDataToFile<AgentConfig>(AGENT_CONFIG_DB_PATH, config);
 }
-
-    

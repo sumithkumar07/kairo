@@ -1,2 +1,209 @@
-
-[]
+[
+  {
+    "id": "eae9263c-e58b-4d62-b332-ec913e733ad9",
+    "workflowName": "Content Summarization & Email",
+    "timestamp": "2025-06-28T11:20:30.115Z",
+    "status": "Failed",
+    "executionResult": {
+      "serverLogs": [
+        {
+          "timestamp": "2025-06-28T11:20:30.393Z",
+          "message": "[ENGINE/main] Starting execution in SIMULATION mode.",
+          "type": "info"
+        },
+        {
+          "timestamp": "2025-06-28T11:20:30.394Z",
+          "message": "[ENGINE/main] Node 'Start Summarization' (ID: trigger_summarize) FAILED permanently: serverLogs.push is not a function",
+          "type": "error"
+        },
+        {
+          "timestamp": "2025-06-28T11:20:30.394Z",
+          "message": "[NODE HTTPREQUEST] SIMULATION: Would make GET request to {{trigger_summarize.requestBody.article_url}}",
+          "type": "info"
+        },
+        {
+          "timestamp": "2025-06-28T11:20:30.394Z",
+          "message": "[NODE AITASK] SIMULATION: Would send prompt to model googleai/gemini-1.5-flash-latest.",
+          "type": "info"
+        },
+        {
+          "timestamp": "2025-06-28T11:20:30.394Z",
+          "message": "[RESOLVE_VALUE] Env var 'SUMMARY_RECIPIENT_EMAIL' not found for placeholder '{{env.SUMMARY_RECIPIENT_EMAIL}}'.",
+          "type": "info"
+        },
+        {
+          "timestamp": "2025-06-28T11:20:30.394Z",
+          "message": "[NODE SENDEMAIL] SIMULATION: Would send email to {{env.SUMMARY_RECIPIENT_EMAIL}}.",
+          "type": "info"
+        }
+      ],
+      "finalWorkflowData": {
+        "trigger_summarize": {
+          "lastExecutionStatus": "error",
+          "status": "error",
+          "error_message": "serverLogs.push is not a function"
+        },
+        "fetch_article_summarize": {
+          "lastExecutionStatus": "success",
+          "status": "success",
+          "response": {
+            "title": "The Future of AI",
+            "content": "Artificial intelligence is rapidly evolving. This article explores various aspects including machine learning, natural language processing, and ethical considerations. It highlights potential breakthroughs and challenges ahead. The impact on society could be transformative."
+          },
+          "status_code": 200
+        },
+        "summarize_ai_task": {
+          "lastExecutionStatus": "success",
+          "status": "success",
+          "output": "AI is evolving fast, with breakthroughs in ML and NLP, presenting both opportunities and ethical challenges for society."
+        },
+        "email_summary": {
+          "lastExecutionStatus": "success",
+          "status": "success",
+          "messageId": "sim-email-summary-id"
+        }
+      }
+    },
+    "workflowSnapshot": {
+      "nodes": [
+        {
+          "id": "trigger_summarize",
+          "type": "webhookTrigger",
+          "name": "Start Summarization",
+          "description": "Trigger to start the content summarization process.",
+          "position": {
+            "x": 50,
+            "y": 50
+          },
+          "config": {
+            "pathSuffix": "summarize-content-trigger",
+            "simulatedRequestBody": "{\"article_url\": \"https://example.com/article-to-summarize\"}",
+            "simulatedRequestHeaders": "{}",
+            "simulatedRequestQuery": "{}"
+          },
+          "inputHandles": [],
+          "outputHandles": [
+            "requestBody",
+            "requestHeaders",
+            "requestQuery",
+            "status",
+            "error_message"
+          ],
+          "category": "trigger",
+          "aiExplanation": "Simulates a trigger (e.g., new article event) with a dummy article URL.",
+          "lastExecutionStatus": "pending"
+        },
+        {
+          "id": "fetch_article_summarize",
+          "type": "httpRequest",
+          "name": "Fetch Article Content",
+          "description": "Simulates fetching content of an article.",
+          "position": {
+            "x": 50,
+            "y": 190
+          },
+          "config": {
+            "url": "{{trigger_summarize.requestBody.article_url}}",
+            "method": "GET",
+            "simulatedResponse": "{\"title\": \"The Future of AI\", \"content\": \"Artificial intelligence is rapidly evolving. This article explores various aspects including machine learning, natural language processing, and ethical considerations. It highlights potential breakthroughs and challenges ahead. The impact on society could be transformative.\"}",
+            "simulatedStatusCode": 200
+          },
+          "inputHandles": [
+            "input"
+          ],
+          "outputHandles": [
+            "response",
+            "status_code",
+            "error_message",
+            "status"
+          ],
+          "category": "action",
+          "aiExplanation": "Simulates fetching article data. In a real scenario, this would fetch actual content from the URL provided by the trigger.",
+          "lastExecutionStatus": "pending"
+        },
+        {
+          "id": "summarize_ai_task",
+          "type": "aiTask",
+          "name": "Summarize Content (AI)",
+          "description": "Uses AI to summarize the fetched article content.",
+          "position": {
+            "x": 50,
+            "y": 330
+          },
+          "config": {
+            "prompt": "Summarize the following article content in two sentences: {{fetch_article_summarize.response.content}}",
+            "model": "googleai/gemini-1.5-flash-latest",
+            "simulatedOutput": "AI is evolving fast, with breakthroughs in ML and NLP, presenting both opportunities and ethical challenges for society."
+          },
+          "inputHandles": [
+            "input"
+          ],
+          "outputHandles": [
+            "output",
+            "status",
+            "error_message"
+          ],
+          "category": "ai",
+          "aiExplanation": "Sends the article content to an AI model for summarization. Uses the content from the fetch_article_summarize node.",
+          "lastExecutionStatus": "pending"
+        },
+        {
+          "id": "email_summary",
+          "type": "sendEmail",
+          "name": "Email Article Summary",
+          "description": "Emails the generated summary.",
+          "position": {
+            "x": 50,
+            "y": 470
+          },
+          "config": {
+            "to": "{{env.SUMMARY_RECIPIENT_EMAIL}}",
+            "subject": "AI Summary: {{fetch_article_summarize.response.title}}",
+            "body": "Here is the AI-generated summary for the article \"{{fetch_article_summarize.response.title}}\":\n\n{{summarize_ai_task.output}}\n\nOriginal URL: {{trigger_summarize.requestBody.article_url}}",
+            "simulatedMessageId": "sim-email-summary-id"
+          },
+          "inputHandles": [
+            "input"
+          ],
+          "outputHandles": [
+            "messageId",
+            "status",
+            "error_message"
+          ],
+          "category": "action",
+          "aiExplanation": "Emails the AI-generated summary. The recipient email should be set via the {{env.SUMMARY_RECIPIENT_EMAIL}} environment variable. It uses the article title and summary from previous steps.",
+          "lastExecutionStatus": "pending"
+        }
+      ],
+      "connections": [
+        {
+          "id": "conn_s1",
+          "sourceNodeId": "trigger_summarize",
+          "sourceHandle": "requestBody",
+          "targetNodeId": "fetch_article_summarize",
+          "targetHandle": "input"
+        },
+        {
+          "id": "conn_s2",
+          "sourceNodeId": "fetch_article_summarize",
+          "sourceHandle": "response",
+          "targetNodeId": "summarize_ai_task",
+          "targetHandle": "input"
+        },
+        {
+          "id": "conn_s3",
+          "sourceNodeId": "summarize_ai_task",
+          "sourceHandle": "output",
+          "targetNodeId": "email_summary",
+          "targetHandle": "input"
+        }
+      ],
+      "canvasOffset": {
+        "x": 0,
+        "y": 0
+      },
+      "zoomLevel": 1,
+      "isSimulationMode": true
+    }
+  }
+]
