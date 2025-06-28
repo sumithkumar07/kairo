@@ -71,7 +71,7 @@ function ProfilePage() {
                 <Edit className="mr-2 h-4 w-4" /> Manage Subscription
               </Link>
             </Button>
-             <Button onClick={logout} variant="outline" className="w-full" disabled={user?.isDemoUser}>
+             <Button onClick={logout} variant="outline" className="w-full">
               <LogOut className="mr-2 h-4 w-4" /> Logout
             </Button>
           </CardFooter>

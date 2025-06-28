@@ -9,19 +9,17 @@ import { AppLayout } from '@/components/app-layout';
 
 export function withAuth<P extends object>(Component: React.ComponentType<P>) {
   return function WithAuth(props: P) {
-    const { isLoggedIn, isAuthLoading, user } = useSubscription();
+    const { isLoggedIn, isAuthLoading } = useSubscription();
     const router = useRouter();
     const pathname = usePathname();
 
-    const isDemoUser = user?.isDemoUser === true;
-
     useEffect(() => {
-      if (!isAuthLoading && !isLoggedIn && !isDemoUser) {
+      if (!isAuthLoading && !isLoggedIn) {
         router.push(`/login?redirect_url=${pathname}`);
       }
-    }, [isLoggedIn, isAuthLoading, router, pathname, isDemoUser]);
+    }, [isLoggedIn, isAuthLoading, router, pathname]);
 
-    if (isAuthLoading || (!isLoggedIn && !isDemoUser)) {
+    if (isAuthLoading || !isLoggedIn) {
       return (
         <AppLayout>
             <div className="flex-1 flex items-center justify-center">

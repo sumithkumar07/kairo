@@ -13,7 +13,6 @@ import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 interface User {
   email: string;
   uid: string;
-  isDemoUser?: boolean;
 }
 
 interface SubscriptionContextType {
@@ -30,17 +29,10 @@ interface SubscriptionContextType {
   isProOrTrial: boolean;
   daysRemainingInTrial: number | null;
   isAuthLoading: boolean;
-  isSupabaseConfigured: boolean; // Changed from isFirebaseConfigured
+  isSupabaseConfigured: boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
-
-const DEMO_USER: User = {
-  email: 'user@kairo.demo',
-  uid: 'demo-user-uid',
-  isDemoUser: true,
-};
-
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -58,12 +50,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     let isProEquivalent = false;
     let daysLeft: number | null = null;
     
-    if (user?.isDemoUser) {
-        tier = 'Pro Trial';
-        activeFeatures = PRO_TIER_FEATURES;
-        isProEquivalent = true;
-        daysLeft = 15;
-    } else if (isLoggedIn) {
+    if (isLoggedIn) {
       if (hasPurchasedPro) {
         tier = 'Pro';
         activeFeatures = PRO_TIER_FEATURES;
@@ -82,7 +69,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     return { tier, features: activeFeatures, isProOrTrial: isProEquivalent, daysRemainingInTrial: daysLeft };
-  }, [isLoggedIn, trialEndDate, hasPurchasedPro, user]);
+  }, [isLoggedIn, trialEndDate, hasPurchasedPro]);
 
   const { tier: currentTier, features, isProOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
@@ -110,7 +97,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem(`kairo_trialEnd_${data.user.id}`, newTrialEndDate.toISOString());
       localStorage.removeItem(`kairo_proStatus_${data.user.id}`);
       
-      // setUser is handled by onAuthStateChange, but we can optimistically set it
       setUser({ email: data.user.email!, uid: data.user.id });
       setTrialEndDate(newTrialEndDate);
       setHasPurchasedPro(false);
@@ -140,10 +126,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, [toast, router, showSupabaseNotConfiguredToast]);
 
   const logout = useCallback(async () => {
-    if (user?.isDemoUser) {
-        toast({ title: 'Demo Mode', description: 'Logout is not available in demo mode.' });
-        return;
-    }
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
         return;
@@ -155,13 +137,9 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       toast({ title: 'Logout Failed', description: error.message, variant: 'destructive' });
     }
-  }, [toast, router, user, showSupabaseNotConfiguredToast]);
+  }, [toast, router, showSupabaseNotConfiguredToast]);
 
   const upgradeToPro = useCallback(() => {
-    if (user?.isDemoUser) {
-        toast({ title: 'Demo Mode', description: 'Cannot upgrade in demo mode.' });
-        return;
-    }
     if (!user || !isSupabaseConfigured) {
       showSupabaseNotConfiguredToast();
       router.push('/login');
@@ -176,7 +154,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
-      setUser(DEMO_USER);
       setIsAuthLoading(false);
       return;
     }
