@@ -6,10 +6,19 @@ import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscriptio
 import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { auth } from '@/lib/firebase';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  type User as FirebaseUser,
+} from 'firebase/auth';
 
 
 interface User {
   email: string;
+  uid: string;
 }
 
 interface SubscriptionContextType {
@@ -19,8 +28,8 @@ interface SubscriptionContextType {
   user: User | null;
   trialEndDate: Date | null;
   hasPurchasedPro: boolean;
-  login: (email: string, redirectUrl?: string | null) => void;
-  signup: (email: string, redirectUrl?: string | null) => void;
+  login: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
+  signup: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
   logout: () => void;
   upgradeToPro: () => void;
   isProOrTrial: boolean;
@@ -32,12 +41,13 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [trialEndDate, setTrialEndDate] = useState<Date | null>(null);
   const [hasPurchasedPro, setHasPurchasedPro] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+
+  const isLoggedIn = !!user;
 
   const calculateCurrentTierAndFeatures = useCallback(() => {
     let tier: SubscriptionTier = 'Free';
@@ -68,133 +78,98 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const { tier: currentTier, features, isProOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
-  const persistUserState = useCallback(() => {
-    if (typeof window === 'undefined' || !user?.email) return;
-
-    if (hasPurchasedPro) {
-      localStorage.setItem(`kairo_proStatus_${user.email}`, 'true');
-      localStorage.removeItem(`kairo_trialEnd_${user.email}`);
-    } else if (trialEndDate) {
-      localStorage.setItem(`kairo_trialEnd_${user.email}`, trialEndDate.toISOString());
-      localStorage.removeItem(`kairo_proStatus_${user.email}`);
-    } else {
-      localStorage.removeItem(`kairo_proStatus_${user.email}`);
-      localStorage.removeItem(`kairo_trialEnd_${user.email}`);
-    }
-  }, [user, trialEndDate, hasPurchasedPro]);
-  
-  useEffect(() => {
-    persistUserState();
-  }, [persistUserState]);
-
-
-  const signup = useCallback((email: string, redirectUrl?: string | null) => {
+  const signup = useCallback(async (email: string, password: string, redirectUrl?: string | null) => {
     if (typeof window === 'undefined') return;
-    const newUser = { email };
-    setIsLoggedIn(true);
-    setUser(newUser);
-    const newTrialEndDate = new Date();
-    newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
-    setTrialEndDate(newTrialEndDate);
-    setHasPurchasedPro(false);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      const newTrialEndDate = new Date();
+      newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
+      
+      localStorage.setItem(`kairo_trialEnd_${firebaseUser.uid}`, newTrialEndDate.toISOString());
+      localStorage.removeItem(`kairo_proStatus_${firebaseUser.uid}`);
+      
+      // State will be set by onAuthStateChanged, but we can optimistically set it here for faster UI updates
+      setUser({ email: firebaseUser.email!, uid: firebaseUser.uid });
+      setTrialEndDate(newTrialEndDate);
+      setHasPurchasedPro(false);
 
-    localStorage.setItem(`kairo_trialEnd_${email}`, newTrialEndDate.toISOString());
-    localStorage.removeItem(`kairo_proStatus_${email}`);
-    localStorage.setItem('kairo_lastLoggedInUser', email);
-
-    toast({ title: 'Signup Successful!', description: 'Your 15-day Pro trial has started.' });
-    router.push(redirectUrl || '/workflow');
+      toast({ title: 'Signup Successful!', description: 'Your 15-day Pro trial has started.' });
+      router.push(redirectUrl || '/workflow');
+    } catch (error: any) {
+      console.error("Signup error", error);
+      toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
+    }
   }, [toast, router]);
 
-  const login = useCallback((email: string, redirectUrl?: string | null) => {
+  const login = useCallback(async (email: string, password: string, redirectUrl?: string | null) => {
     if (typeof window === 'undefined') return;
-    const newUser = { email };
-    setIsLoggedIn(true);
-    setUser(newUser);
-
-    const storedTrialEnd = localStorage.getItem(`kairo_trialEnd_${email}`);
-    const storedProStatus = localStorage.getItem(`kairo_proStatus_${email}`);
-
-    if (storedProStatus === 'true') {
-        setHasPurchasedPro(true);
-        setTrialEndDate(null);
-    } else if (storedTrialEnd) {
-        setTrialEndDate(new Date(storedTrialEnd));
-    } else {
-        const newTrialEndDate = new Date();
-        newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
-        setTrialEndDate(newTrialEndDate);
-        setHasPurchasedPro(false);
-        localStorage.setItem(`kairo_trialEnd_${email}`, newTrialEndDate.toISOString());
-        localStorage.removeItem(`kairo_proStatus_${email}`);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle setting user state.
+      toast({ title: 'Login Successful!', description: 'Welcome back!' });
+      router.push(redirectUrl || '/workflow');
+    } catch (error: any) {
+      console.error("Login error", error);
+      toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
     }
-    
-    toast({ title: 'Login Successful!', description: 'Welcome back!' });
-    localStorage.setItem('kairo_lastLoggedInUser', email);
-    router.push(redirectUrl || '/workflow');
   }, [toast, router]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     if (typeof window === 'undefined') return;
-
-    if (user?.email) {
-      localStorage.removeItem(`kairo_trialEnd_${user.email}`);
-      localStorage.removeItem(`kairo_proStatus_${user.email}`);
+    try {
+      await signOut(auth);
+      // onAuthStateChanged will clear user state
+      router.push('/');
+      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
+    } catch (error: any) {
+      toast({ title: 'Logout Failed', description: error.message, variant: 'destructive' });
     }
-
-    setIsLoggedIn(false);
-    setUser(null);
-    setTrialEndDate(null); 
-    setHasPurchasedPro(false);
-    localStorage.removeItem('kairo_lastLoggedInUser');
-    
-    toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-    router.push('/');
-  }, [toast, router, user]);
+  }, [toast, router]);
 
   const upgradeToPro = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (!isLoggedIn || !user) {
+    if (typeof window === 'undefined' || !user) {
       toast({ title: 'Login Required', description: 'Please log in or sign up to upgrade.', variant: 'destructive' });
       router.push('/login');
       return;
     }
     setHasPurchasedPro(true);
     setTrialEndDate(null);
+    localStorage.setItem(`kairo_proStatus_${user.uid}`, 'true');
+    localStorage.removeItem(`kairo_trialEnd_${user.uid}`);
     toast({ title: 'Upgrade Successful!', description: 'You now have full access to Pro features.' });
-  }, [isLoggedIn, user, toast, router]);
+  }, [user, toast, router]);
 
   useEffect(() => {
-    const restoreSession = () => {
-      try {
-        const lastUserEmail = localStorage.getItem('kairo_lastLoggedInUser');
-        if (lastUserEmail) {
-          const newUser = { email: lastUserEmail };
-          setUser(newUser);
-          setIsLoggedIn(true);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      setIsAuthLoading(true);
+      if (firebaseUser && firebaseUser.email) {
+        const storedProStatus = localStorage.getItem(`kairo_proStatus_${firebaseUser.uid}`);
+        const storedTrialEnd = localStorage.getItem(`kairo_trialEnd_${firebaseUser.uid}`);
+        
+        setUser({ email: firebaseUser.email, uid: firebaseUser.uid });
 
-          const storedTrialEnd = localStorage.getItem(`kairo_trialEnd_${lastUserEmail}`);
-          const storedProStatus = localStorage.getItem(`kairo_proStatus_${lastUserEmail}`);
-
-          if (storedProStatus === 'true') {
-            setHasPurchasedPro(true);
-            setTrialEndDate(null);
-          } else if (storedTrialEnd) {
-            setTrialEndDate(new Date(storedTrialEnd));
-          }
+        if (storedProStatus === 'true') {
+          setHasPurchasedPro(true);
+          setTrialEndDate(null);
+        } else if (storedTrialEnd) {
+          setTrialEndDate(new Date(storedTrialEnd));
+        } else {
+          // Fallback for users that existed before trial logic, or if something was cleared.
+          setTrialEndDate(null);
+          setHasPurchasedPro(false);
         }
-      } catch (error) {
-        console.error("Error restoring session:", error);
-        // Clear potentially corrupted storage
-        localStorage.removeItem('kairo_lastLoggedInUser');
-      } finally {
-        setIsAuthLoading(false);
+      } else {
+        // User is signed out
+        setUser(null);
+        setTrialEndDate(null);
+        setHasPurchasedPro(false);
       }
-    };
+      setIsAuthLoading(false);
+    });
 
-    if (typeof window !== 'undefined') {
-      restoreSession();
-    }
+    return () => unsubscribe();
   }, []);
 
   return (

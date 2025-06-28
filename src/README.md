@@ -21,7 +21,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 3.  Install dependencies: `npm install` or `yarn install`.
 4.  **Set up Environment Variables**:
     *   Create a `.env.local` file in the root directory by copying `.env`.
-    *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `GOOGLE_API_KEY` for AI features.**
+    *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `GOOGLE_API_KEY` for AI features and `NEXT_PUBLIC_FIREBASE_*` for authentication.**
 5.  Run the development server: `npm run dev`
 6.  Open [http://localhost:3000](http://localhost:3000) (or your configured port) in your browser.
 
@@ -30,6 +30,16 @@ The main workflow editor is accessible at the `/workflow` route.
 ## Environment Variables Setup
 
 Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment:
+
+*   **Firebase Authentication (Required for user login/signup):**
+    *   To enable user signup and login, you must set up a Firebase project and enable Email/Password authentication in the Firebase console.
+    *   Create a `.env.local` file and add your Firebase project's web configuration:
+    *   `NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_KEY"`
+    *   `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="YOUR_DOMAIN"`
+    *   `NEXT_PUBLIC_FIREBASE_PROJECT_ID="YOUR_PROJECT_ID"`
+    *   `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="YOUR_BUCKET"`
+    *   `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="YOUR_SENDER_ID"`
+    *   `NEXT_PUBLIC_FIREBASE_APP_ID="YOUR_APP_ID"`
 
 *   **Genkit AI Features (All AI functionality):**
     *   `GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`

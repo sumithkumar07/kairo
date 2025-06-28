@@ -8,18 +8,21 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Workflow } from 'lucide-react';
+import { Workflow, Loader2 } from 'lucide-react';
 
 export default function SignupPage() {
-  const { signup } = useSubscription();
+  const { signup, isAuthLoading } = useSubscription();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     const redirectUrl = searchParams.get('redirect_url');
-    signup(email, redirectUrl);
+    await signup(email, password, redirectUrl);
+    setIsLoading(false);
   };
 
   return (
@@ -46,6 +49,7 @@ export default function SignupPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading || isAuthLoading}
               />
             </div>
             <div className="space-y-2">
@@ -56,11 +60,15 @@ export default function SignupPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading || isAuthLoading}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full" type="submit">Sign Up</Button>
+            <Button className="w-full" type="submit" disabled={isLoading || isAuthLoading}>
+              {(isLoading || isAuthLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign Up
+            </Button>
             <p className="text-xs text-center text-muted-foreground">
               Already have an account?{' '}
               <Link href="/login" className="underline text-primary hover:text-primary/80">
