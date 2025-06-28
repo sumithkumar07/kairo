@@ -13,7 +13,7 @@ import { Workflow, Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function LoginPage() {
-  const { login, isAuthLoading, isFirebaseConfigured } = useSubscription();
+  const { login, isAuthLoading, isSupabaseConfigured } = useSubscription();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('user@kairo.com');
   const [password, setPassword] = useState('password');
@@ -27,7 +27,7 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  const isFormDisabled = isLoading || isAuthLoading || !isFirebaseConfigured;
+  const isFormDisabled = isLoading || isAuthLoading || !isSupabaseConfigured;
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 p-4">
@@ -44,12 +44,12 @@ export default function LoginPage() {
             <CardDescription>Enter your credentials to access your workflows.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!isFirebaseConfigured && (
+            {!isSupabaseConfigured && (
               <Alert variant="destructive" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-300 [&>svg]:text-yellow-500 dark:[&>svg]:text-yellow-400">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle className="font-semibold">Demo Mode Active</AlertTitle>
                 <AlertDescription className="text-xs">
-                  Firebase is not configured. Real authentication is disabled.
+                  Supabase is not configured. Real authentication is disabled.
                   You can explore the app with full features.{' '}
                   <Link href="/workflow" className="font-bold underline hover:opacity-80">
                     Go to editor.

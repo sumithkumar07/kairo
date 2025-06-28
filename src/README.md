@@ -21,7 +21,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 3.  Install dependencies: `npm install` or `yarn install`.
 4.  **Set up Environment Variables**:
     *   Create a `.env.local` file in the root directory by copying `.env`.
-    *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `GOOGLE_API_KEY` for AI features and `NEXT_PUBLIC_FIREBASE_*` for authentication.**
+    *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for authentication, and `GOOGLE_API_KEY` for AI features.**
 5.  Run the development server: `npm run dev`
 6.  Open [http://localhost:3000](http://localhost:3000) (or your configured port) in your browser.
 
@@ -31,16 +31,12 @@ The main workflow editor is accessible at the `/workflow` route.
 
 Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment:
 
-*   **Firebase Authentication (Optional - Enables Real User Accounts):**
+*   **Supabase Authentication (Optional - Enables Real User Accounts):**
     *   If you do **not** provide these variables, the application will run in a **fully-featured demo mode** with a temporary user account.
-    *   To enable real user signup and login, you must set up a Firebase project and enable Email/Password authentication in the Firebase console.
-    *   Create a `.env.local` file and add your Firebase project's web configuration:
-    *   `NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_KEY"`
-    *   `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="YOUR_DOMAIN"`
-    *   `NEXT_PUBLIC_FIREBASE_PROJECT_ID="YOUR_PROJECT_ID"`
-    *   `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="YOUR_BUCKET"`
-    *   `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="YOUR_SENDER_ID"`
-    *   `NEXT_PUBLIC_FIREBASE_APP_ID="YOUR_APP_ID"`
+    *   To enable real user signup and login, you must set up a Supabase project. In your Supabase project dashboard, navigate to "Project Settings" > "API". You will find your Project URL and anon public key there.
+    *   Create a `.env.local` file and add your Supabase credentials:
+    *   `NEXT_PUBLIC_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"`
+    *   `NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_PUBLIC_KEY"`
 
 *   **Genkit AI Features (All AI functionality):**
     *   `GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`
@@ -53,7 +49,7 @@ Create a `.env.local` file in the project root for local development, or set the
 
 *   **Database Queries (`databaseQuery` node in Live Mode):**
     *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`
-        *   Replace with your actual PostgreSQL connection string.
+        *   Replace with your actual PostgreSQL connection string. You can get this from your Supabase project dashboard under "Project Settings" > "Database" > "Connection string". Choose the "URI" option for direct connections.
 
 *   **Email Sending (`sendEmail` node in Live Mode):**
     *   `EMAIL_HOST="your_smtp_host"`
