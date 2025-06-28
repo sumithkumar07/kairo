@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -8,23 +9,25 @@ import { AppLayout } from '@/components/app-layout';
 
 export function withAuth<P extends object>(Component: React.ComponentType<P>) {
   return function WithAuth(props: P) {
-    const { isLoggedIn, isAuthLoading } = useSubscription();
+    const { isLoggedIn, isAuthLoading, user } = useSubscription();
     const router = useRouter();
     const pathname = usePathname();
 
+    const isDemoUser = user?.isDemoUser === true;
+
     useEffect(() => {
-      if (!isAuthLoading && !isLoggedIn) {
+      if (!isAuthLoading && !isLoggedIn && !isDemoUser) {
         router.push(`/login?redirect_url=${pathname}`);
       }
-    }, [isLoggedIn, isAuthLoading, router, pathname]);
+    }, [isLoggedIn, isAuthLoading, router, pathname, isDemoUser]);
 
-    if (isAuthLoading || !isLoggedIn) {
+    if (isAuthLoading || (!isLoggedIn && !isDemoUser)) {
       return (
         <AppLayout>
             <div className="flex-1 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4 text-center">
                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Loading Your Workspace...</p>
+                    <p className="text-muted-foreground">Verifying access...</p>
                 </div>
             </div>
         </AppLayout>

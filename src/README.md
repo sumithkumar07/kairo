@@ -31,8 +31,9 @@ The main workflow editor is accessible at the `/workflow` route.
 
 Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment:
 
-*   **Firebase Authentication (Required for user login/signup):**
-    *   To enable user signup and login, you must set up a Firebase project and enable Email/Password authentication in the Firebase console.
+*   **Firebase Authentication (Optional - Enables Real User Accounts):**
+    *   If you do **not** provide these variables, the application will run in a **fully-featured demo mode** with a temporary user account.
+    *   To enable real user signup and login, you must set up a Firebase project and enable Email/Password authentication in the Firebase console.
     *   Create a `.env.local` file and add your Firebase project's web configuration:
     *   `NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_KEY"`
     *   `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="YOUR_DOMAIN"`

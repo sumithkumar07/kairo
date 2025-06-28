@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -8,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Workflow, Loader2 } from 'lucide-react';
+import { Workflow, Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function SignupPage() {
-  const { signup, isAuthLoading } = useSubscription();
+  const { signup, isAuthLoading, isFirebaseConfigured } = useSubscription();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +26,8 @@ export default function SignupPage() {
     await signup(email, password, redirectUrl);
     setIsLoading(false);
   };
+
+  const isFormDisabled = isLoading || isAuthLoading || !isFirebaseConfigured;
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 p-4">
@@ -40,6 +44,19 @@ export default function SignupPage() {
             <CardDescription>Start your 15-day Pro trial. No credit card required.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {!isFirebaseConfigured && (
+              <Alert variant="destructive" className="bg-yellow-500/10 border-yellow-500/30 text-yellow-700 dark:text-yellow-300 [&>svg]:text-yellow-500 dark:[&>svg]:text-yellow-400">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle className="font-semibold">Demo Mode Active</AlertTitle>
+                <AlertDescription className="text-xs">
+                  Firebase is not configured. User creation is disabled. 
+                  You can explore the app with full features.{' '}
+                  <Link href="/workflow" className="font-bold underline hover:opacity-80">
+                    Go to editor.
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -49,7 +66,7 @@ export default function SignupPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading || isAuthLoading}
+                disabled={isFormDisabled}
               />
             </div>
             <div className="space-y-2">
@@ -60,12 +77,12 @@ export default function SignupPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading || isAuthLoading}
+                disabled={isFormDisabled}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full" type="submit" disabled={isLoading || isAuthLoading}>
+            <Button className="w-full" type="submit" disabled={isFormDisabled}>
               {(isLoading || isAuthLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign Up
             </Button>

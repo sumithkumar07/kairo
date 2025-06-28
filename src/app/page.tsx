@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -17,6 +18,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function HomePage() {
   const { isLoggedIn, logout, user } = useSubscription();
+  const isDemoUser = user?.isDemoUser === true;
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -41,7 +43,7 @@ export default function HomePage() {
                       <Avatar className="h-8 w-8">
                           <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <span className="font-medium">{user.email}</span>
+                      <span className="font-medium">{user.email}{isDemoUser && " (Demo)"}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -49,7 +51,7 @@ export default function HomePage() {
                     <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout}>
+                    <DropdownMenuItem onClick={logout} disabled={isDemoUser}>
                         <LogIn className="mr-2 h-4 w-4" />
                         Logout
                     </DropdownMenuItem>
@@ -82,7 +84,7 @@ export default function HomePage() {
                         <div className="flex flex-col space-y-1">
                           <p className="text-sm font-medium leading-none">Signed in as</p>
                           <p className="text-xs leading-none text-muted-foreground truncate">
-                            {user.email}
+                            {user.email}{isDemoUser && " (Demo)"}
                           </p>
                         </div>
                       </DropdownMenuLabel>
@@ -101,7 +103,7 @@ export default function HomePage() {
                       <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
                       <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={logout}>
+                      <DropdownMenuItem onClick={logout} disabled={isDemoUser}>
                         <LogIn className="mr-2 h-4 w-4" />
                         Logout
                       </DropdownMenuItem>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -70,7 +71,7 @@ function ProfilePage() {
                 <Edit className="mr-2 h-4 w-4" /> Manage Subscription
               </Link>
             </Button>
-             <Button onClick={logout} variant="outline" className="w-full">
+             <Button onClick={logout} variant="outline" className="w-full" disabled={user?.isDemoUser}>
               <LogOut className="mr-2 h-4 w-4" /> Logout
             </Button>
           </CardFooter>
