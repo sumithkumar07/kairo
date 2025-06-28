@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -349,5 +348,3 @@ console.log(data);`}
 }
 
 export default withAuth(MCPDashboardPage);
-
-    

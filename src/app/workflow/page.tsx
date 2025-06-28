@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
@@ -1376,8 +1375,8 @@ function WorkflowPage() {
             connections={connections}
             selectedNodeId={selectedNodeId}
             selectedConnectionId={selectedConnectionId}
-            onNodeClick={handleNodeClick}
-            onConnectionClick={handleConnectionClick}
+            onNodeClick={onNodeClick}
+            onConnectionClick={onConnectionClick}
             onNodeDragStop={(nodeId, position) => {
               updateNodePosition(nodeId, position);
               saveHistory();
@@ -1394,7 +1393,7 @@ function WorkflowPage() {
             onImportWorkflow={handleImportWorkflow}
             workflowName={currentWorkflowNameRef.current}
             isConnecting={isConnecting}
-            onStartConnection={handleStartConnection}
+            onStartConnection={onStartConnection}
             onCompleteConnection={handleCompleteConnection}
             onUpdateConnectionPreview={handleUpdateConnectionPreview}
             connectionPreview={{

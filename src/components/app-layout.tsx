@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -113,5 +112,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-    
