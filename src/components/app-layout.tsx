@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarInset,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard } from 'lucide-react';
@@ -106,7 +107,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               )}
             </SidebarFooter>
         </Sidebar>
-        <div className="flex-1 flex flex-col h-screen">
+        <SidebarInset>
             <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6 sm:hidden">
                 <Link
                     href="/"
@@ -159,8 +160,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </DropdownMenu>
                 </div>
             </header>
-            <div className="flex-1 h-[calc(100vh-3.5rem)] sm:h-screen">{children}</div>
-        </div>
+            {children}
+        </SidebarInset>
     </SidebarProvider>
   );
 }

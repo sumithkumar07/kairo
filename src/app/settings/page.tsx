@@ -15,7 +15,7 @@ function SettingsPage() {
 
   return (
     <AppLayout>
-      <main className="flex-1 flex flex-col p-6 bg-muted/40">
+      <div className="flex-1 flex flex-col p-6 bg-muted/40">
         <section className="mb-6">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Settings</h1>
           <p className="max-w-2xl text-muted-foreground">Manage your account and application settings.</p>
@@ -67,7 +67,7 @@ function SettingsPage() {
           </Card>
 
         </div>
-      </main>
+      </div>
     </AppLayout>
   );
 }

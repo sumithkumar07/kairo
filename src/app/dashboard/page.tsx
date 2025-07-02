@@ -90,7 +90,7 @@ function DashboardPage() {
     
     return (
         <AppLayout>
-            <main className="flex-1 flex flex-col p-4 sm:p-6 bg-muted/40 overflow-auto">
+            <div className="flex-1 flex flex-col p-4 sm:p-6 bg-muted/40 overflow-auto">
                 <header className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                         Welcome back, {user?.email.split('@')[0]}!
@@ -201,7 +201,7 @@ function DashboardPage() {
                         </CardFooter>
                     </Card>
                 </div>
-            </main>
+            </div>
         </AppLayout>
     );
 }

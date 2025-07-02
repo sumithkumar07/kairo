@@ -194,7 +194,7 @@ function RunHistoryPage() {
 
   return (
     <AppLayout>
-      <main className="flex-1 flex flex-col p-6 bg-muted/40">
+      <div className="flex-1 flex flex-col p-6 bg-muted/40">
         <section className="mb-6">
           <div className="flex justify-between items-start">
             <div>
@@ -235,7 +235,7 @@ function RunHistoryPage() {
             </CardContent>
           </Card>
         )}
-      </main>
+      </div>
       
       {selectedRun && (
         <Dialog open={!!selectedRun} onOpenChange={(open) => !open && handleCloseDialog()}>

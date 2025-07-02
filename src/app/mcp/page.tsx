@@ -165,7 +165,7 @@ function MCPDashboardPage() {
                 <TabsTrigger value="history" className="hidden md:inline-flex text-xs px-2 sm:px-3"><History className="h-4 w-4 mr-1 sm:mr-1.5" />API History</TabsTrigger>
               </TabsList>
           </header>
-          <main className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/40">
+          <div className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/40">
               <div className="max-w-4xl mx-auto grid gap-6">
                   <TabsContent value="skills" className="m-0 space-y-6">
                       <Card>
@@ -358,7 +358,7 @@ console.log(data);`}
                       </Card>
                   </TabsContent>
               </div>
-          </main>
+          </div>
       </Tabs>
       <Dialog open={showAddToolDialog} onOpenChange={setShowAddToolDialog}>
         <DialogContent className="sm:max-w-md">
