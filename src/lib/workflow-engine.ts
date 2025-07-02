@@ -37,13 +37,13 @@ function getDbPool() {
 // =================== WORKFLOW UTILITY FUNCTIONS ================== //
 // ================================================================= //
 
-// Placeholder resolvers and condition evaluators remain the same...
-function resolveValue(
+async function resolveValue(
   value: any,
   workflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
+  userId: string,
   additionalContexts?: Record<string, any>
-): any {
+): Promise<any> {
   if (typeof value !== 'string') {
     return value;
   }
@@ -52,94 +52,105 @@ function resolveValue(
   let resolvedValue = value;
   let match;
 
-  while ((match = placeholderRegex.exec(value)) !== null) {
-    const placeholder = match[0];
-    const path = match[1];
-    const pathParts = path.split('.');
+  // Use a while loop to handle multiple placeholders in a single string
+  const matches = Array.from(value.matchAll(placeholderRegex));
 
-    if (pathParts.length === 0) continue;
+  for (const match of matches) {
+      const placeholder = match[0];
+      const path = match[1];
+      const pathParts = path.split('.');
 
-    const firstPart = pathParts[0];
-    let dataFound = false;
-    let dataAtPath: any;
+      if (pathParts.length === 0) continue;
 
-    // Check additionalContexts first (e.g., errorContext for webhooks, item for forEach)
-    if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
-      dataAtPath = additionalContexts[firstPart];
-      let contextFound = true;
-      for (let i = 1; i < pathParts.length; i++) {
-        const part = pathParts[i];
-        if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
-          dataAtPath = dataAtPath[part];
-        } else {
-          contextFound = false;
-          break;
-        }
+      const firstPart = pathParts[0];
+      let dataFound = false;
+      let dataAtPath: any;
+      
+      // 1. Check additionalContexts (e.g., item for forEach, error details for webhooks)
+      if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
+          dataAtPath = additionalContexts[firstPart];
+          let contextFound = true;
+          for (let i = 1; i < pathParts.length; i++) {
+              const part = pathParts[i];
+              if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
+                  dataAtPath = dataAtPath[part];
+              } else {
+                  contextFound = false;
+                  break;
+              }
+          }
+          if (contextFound) dataFound = true;
       }
-      if (contextFound) dataFound = true;
-    }
 
-    // Then check environment variables
-    if (!dataFound && firstPart === 'env' && pathParts.length >= 2) {
-      const envVarName = pathParts.slice(1).join('.');
-      dataAtPath = process.env[envVarName];
-      if (dataAtPath !== undefined) {
-        dataFound = true;
-      } else {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Env var '${envVarName}' not found for placeholder '${placeholder}'.`, type: 'info' });
+      // 2. Check for 'credential' placeholder
+      if (!dataFound && firstPart === 'credential' && pathParts.length >= 2) {
+          const credentialName = pathParts.slice(1).join('.');
+          // Attempt to fetch from the secure Credential Manager first
+          const credentialValue = await WorkflowStorage.getCredentialValueByNameForUser(credentialName, userId);
+
+          if (credentialValue !== null) {
+              dataAtPath = credentialValue;
+              dataFound = true;
+          } else {
+              // Fallback to environment variables for local development convenience
+              dataAtPath = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`] || process.env[`${credentialName}_TOKEN`];
+              if (dataAtPath !== undefined) {
+                  dataFound = true;
+                  serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Credential '${credentialName}' resolved from environment variable as a fallback.`, type: 'info' });
+              } else {
+                  serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Credential '${credentialName}' not found in Credential Manager or environment variables.`, type: 'info' });
+              }
+          }
       }
-    }
 
-    // Then check credentials (with env fallback)
-    if (!dataFound && firstPart === 'credential' && pathParts.length >= 2) {
-        const credentialName = pathParts.slice(1).join('.');
-        // This is a simplified fallback for development. A real system would use a secure credential store.
-        dataAtPath = process.env[credentialName] || process.env[`${credentialName}_API_KEY`] || process.env[`${credentialName}_SECRET`] || process.env[`${credentialName}_TOKEN`];
-        if (dataAtPath !== undefined) {
-            dataFound = true;
-        } else {
-            serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Credential '${credentialName}' not found via env fallback.`, type: 'info' });
-        }
-    }
-
-    // Finally, check workflowData (node outputs)
-    if (!dataFound && workflowData.hasOwnProperty(firstPart)) {
-        dataAtPath = workflowData[firstPart];
-        let wfDataFound = true;
-        for (let i = 1; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
-                dataAtPath = dataAtPath[part];
-            } else {
-                wfDataFound = false;
-                break;
-            }
-        }
-        if (wfDataFound) dataFound = true;
-    }
-
-    if (dataFound) {
-      // If the entire value is just one placeholder, return the resolved data in its original type.
-      // Otherwise, stringify and replace within the larger string.
-      if (placeholder === value) {
-        resolvedValue = dataAtPath;
-      } else {
-        const replacementValue = (typeof dataAtPath === 'object' && dataAtPath !== null)
-          ? JSON.stringify(dataAtPath)
-          : String(dataAtPath ?? '');
-        resolvedValue = resolvedValue.replace(placeholder, replacementValue);
+      // 3. Check for 'env' placeholder
+      if (!dataFound && firstPart === 'env' && pathParts.length >= 2) {
+          const envVarName = pathParts.slice(1).join('.');
+          dataAtPath = process.env[envVarName];
+          if (dataAtPath !== undefined) {
+              dataFound = true;
+          } else {
+              serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Env var '${envVarName}' not found for placeholder '${placeholder}'.`, type: 'info' });
+          }
       }
-    }
+
+      // 4. Check workflowData (node outputs)
+      if (!dataFound && workflowData.hasOwnProperty(firstPart)) {
+          dataAtPath = workflowData[firstPart];
+          let wfDataFound = true;
+          for (let i = 1; i < pathParts.length; i++) {
+              const part = pathParts[i];
+              if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
+                  dataAtPath = dataAtPath[part];
+              } else {
+                  wfDataFound = false;
+                  break;
+              }
+          }
+          if (wfDataFound) dataFound = true;
+      }
+
+      if (dataFound) {
+          if (placeholder === value) { // If the entire value is just one placeholder
+              return dataAtPath;
+          }
+          const replacementValue = (typeof dataAtPath === 'object' && dataAtPath !== null)
+              ? JSON.stringify(dataAtPath)
+              : String(dataAtPath ?? '');
+          resolvedValue = resolvedValue.replace(placeholder, replacementValue);
+      }
   }
+
   return resolvedValue;
 }
 
-function resolveNodeConfig(
+async function resolveNodeConfig(
   nodeConfig: Record<string, any>,
   workflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
+  userId: string,
   additionalContexts?: Record<string, any>
-): Record<string, any> {
+): Promise<Record<string, any>> {
   const resolvedConfig: Record<string, any> = {};
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
@@ -150,13 +161,18 @@ function resolveNodeConfig(
         resolvedConfig[key] = value;
       } else if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
          // Resolve placeholders inside the webhook config, but not the whole object itself.
-         resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts);
+         resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, additionalContexts);
       } else if (Array.isArray(value)) {
-        resolvedConfig[key] = value.map(item => (typeof item === 'object' && item !== null) ? resolveNodeConfig(item, workflowData, serverLogs, additionalContexts) : resolveValue(item, workflowData, serverLogs, additionalContexts));
+        resolvedConfig[key] = await Promise.all(
+          value.map(item => (typeof item === 'object' && item !== null) 
+              ? resolveNodeConfig(item, workflowData, serverLogs, userId, additionalContexts) 
+              : resolveValue(item, workflowData, serverLogs, userId, additionalContexts)
+          )
+        );
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = resolveNodeConfig(value, workflowData, serverLogs, additionalContexts);
+        resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, additionalContexts);
       } else {
-        resolvedConfig[key] = resolveValue(value, workflowData, serverLogs, additionalContexts);
+        resolvedConfig[key] = await resolveValue(value, workflowData, serverLogs, userId, additionalContexts);
       }
     }
   }
@@ -221,7 +237,7 @@ function evaluateCondition(conditionString: string, nodeIdentifier: string, serv
   }
 }
 
-async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, webhookConfigInput: OnErrorWebhookConfig | string, workflowData: Record<string, any>, serverLogs: ServerLogOutput[]) {
+async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, webhookConfigInput: OnErrorWebhookConfig | string, workflowData: Record<string, any>, serverLogs: ServerLogOutput[], userId: string) {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
 
     let webhookConfig: OnErrorWebhookConfig;
@@ -247,13 +263,13 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
     };
 
     try {
-        const resolvedHeaders = webhookConfig.headers ? resolveNodeConfig(webhookConfig.headers, workflowData, serverLogs, errorContext) : {};
+        const resolvedHeaders = webhookConfig.headers ? await resolveNodeConfig(webhookConfig.headers, workflowData, serverLogs, userId, errorContext) : {};
         // Default content type to JSON if a body is provided
         if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
             resolvedHeaders['Content-Type'] = 'application/json';
         }
 
-        const resolvedBody = webhookConfig.bodyTemplate ? resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, errorContext) : {};
+        const resolvedBody = webhookConfig.bodyTemplate ? await resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, userId, errorContext) : {};
 
         // Fire-and-forget fetch call
         fetch(webhookConfig.url, {
@@ -271,7 +287,7 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
 // ================================================================= //
 // Note: Each function returns the output object for the node.
 
-async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     const liveTriggerData = (!isSimulationMode && allWorkflowData && allWorkflowData[node.id]) ? allWorkflowData[node.id] : null;
 
     if (liveTriggerData && liveTriggerData.requestBody !== undefined) {
@@ -300,7 +316,7 @@ async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimu
     return { requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery, status: 'success' };
 }
 
-async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE HTTPREQUEST] SIMULATION: Would make ${config.method || 'GET'} request to ${config.url}`, type: 'info' });
         const simStatusCode = config.simulatedStatusCode || 200;
@@ -332,7 +348,7 @@ async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulat
     return { response: parsedHttpResponse, status_code: response.status };
 }
 
-async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AITASK] SIMULATION: Would send prompt to model ${config.model || 'default'}.`, type: 'info' });
         return { output: config.simulatedOutput || "Simulated AI output." };
@@ -343,7 +359,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     return { output: genkitResponse.text };
 }
 
-async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     let dataToParse: any;
     if (typeof config.jsonString === 'string') {
         if (config.jsonString.trim() === '') dataToParse = {};
@@ -369,7 +385,7 @@ async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs:
     return { output: extractedValue };
 }
 
-async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SENDEMAIL] SIMULATION: Would send email to ${config.to}.`, type: 'info' });
         return { messageId: config.simulatedMessageId || 'simulated-email-id-default' };
@@ -384,15 +400,15 @@ async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulatio
     return { messageId: info.messageId };
 }
 
-async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DATABASEQUERY] SIMULATION: Would execute query.`, type: 'info' });
         return { results: config.simulatedResults || [], rowCount: config.simulatedRowCount || (config.simulatedResults?.length || 0) };
     }
 
-    const resolvedConnectionString = resolveValue("{{env.DB_CONNECTION_STRING}}", {}, serverLogs);
+    const resolvedConnectionString = await resolveValue("{{credential.DatabaseConnectionString}}", {}, serverLogs, userId) || process.env.DB_CONNECTION_STRING;
     if (!resolvedConnectionString) {
-       throw new Error("DB_CONNECTION_STRING environment variable is not set or not resolved. It's required for database queries in Live Mode.");
+       throw new Error("Database connection string not found. Set it in the Credential Manager as 'DatabaseConnectionString' or as a DB_CONNECTION_STRING environment variable.");
     }
 
     const pool = getDbPool();
@@ -407,34 +423,34 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
     }
 }
 
-async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-    const resolvedMessage = resolveValue(config?.message, allWorkflowData, serverLogs); // Resolve placeholders in the message
+    const resolvedMessage = await resolveValue(config?.message, allWorkflowData, serverLogs, userId); // Resolve placeholders in the message
     const finalMessage = typeof resolvedMessage === 'object' ? JSON.stringify(resolvedMessage, null, 2) : resolvedMessage;
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${finalMessage}`, type: 'info' });
     return { output: finalMessage };
 }
 
 // === NEW UTILITY NODE EXECUTION FUNCTIONS ===
-async function executeToUpperCaseNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeToUpperCaseNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
     return { output_data: config.inputString.toUpperCase() };
 }
-async function executeToLowerCaseNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeToLowerCaseNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
     return { output_data: config.inputString.toLowerCase() };
 }
-async function executeConcatenateStringsNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeConcatenateStringsNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (!Array.isArray(config.stringsToConcatenate)) throw new Error('Input must be an array of strings.');
     const separator = config.separator || '';
     return { output_data: config.stringsToConcatenate.join(separator) };
 }
-async function executeStringSplitNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeStringSplitNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (typeof config.inputString !== 'string') throw new Error('Input must be a string.');
     const delimiter = config.delimiter || ',';
     return { output_data: { array: config.inputString.split(delimiter) } };
 }
-async function executeFormatDateNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeFormatDateNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (!config.inputDateString) throw new Error('Input date string is required.');
     const date = parseISO(config.inputDateString);
     if (isNaN(date.getTime())) throw new Error('Invalid input date string.');
@@ -442,7 +458,7 @@ async function executeFormatDateNode(node: WorkflowNode, config: any, isSimulati
     return { output_data: { formattedDate: format(date, formatString) } };
 }
 
-async function executeDelayNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeDelayNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
   const delayMs = config.delayMs || 0;
   if (!isSimulationMode && delayMs > 0) {
     await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -452,14 +468,14 @@ async function executeDelayNode(node: WorkflowNode, config: any, isSimulationMod
 
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
-async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SLACK] SIMULATION: Would post message to channel ${config.channel}.`, type: 'info' });
         return { output: config.simulated_config || { ok: true, message: { ts: 'simulated_timestamp' } } };
     }
 
-    const token = resolveValue(config.token, {}, serverLogs);
-    if (!token) throw new Error(`Slack Bot Token is not configured or resolved. Please set the credential placeholder {{credential.SlackBotToken}} and ensure the environment variable is available.`);
+    const token = await resolveValue(config.token, {}, serverLogs, userId);
+    if (!token) throw new Error(`Slack Bot Token is not configured or resolved. Please set the credential placeholder {{credential.SlackBotToken}} and ensure the credential or environment variable is available.`);
     if (!config.channel) throw new Error(`Slack channel is not configured or resolved.`);
     if (!config.text) throw new Error(`Slack message text is not configured or resolved.`);
 
@@ -485,14 +501,14 @@ async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSi
     return { output: responseData };
 }
 
-async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE OPENAI] SIMULATION: Would send prompt to model ${config.model}.`, type: 'info' });
         return { output: config.simulated_config };
     }
 
-    const apiKey = resolveValue(config.apiKey, {}, serverLogs);
-    if (!apiKey) throw new Error("OpenAI API Key is not configured or resolved. Please set the credential placeholder {{credential.OpenAIKey}} and ensure the environment variable is available.");
+    const apiKey = await resolveValue(config.apiKey, {}, serverLogs, userId);
+    if (!apiKey) throw new Error("OpenAI API Key is not configured or resolved. Please set the credential placeholder {{credential.OpenAIKey}} and ensure the credential or environment variable is available.");
     if (!config.messages) throw new Error("OpenAI messages are not configured or resolved.");
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -514,14 +530,14 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
     return { output: responseData };
 }
 
-async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
+async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GITHUB] SIMULATION: Would create issue in ${config.owner}/${config.repo}.`, type: 'info' });
         return { output: config.simulated_config };
     }
 
-    const token = resolveValue(config.token, {}, serverLogs);
-    if (!token) throw new Error("GitHub Token is not configured or resolved. Please set the credential placeholder {{credential.GitHubToken}} and ensure the environment variable is available.");
+    const token = await resolveValue(config.token, {}, serverLogs, userId);
+    if (!token) throw new Error("GitHub Token is not configured or resolved. Please set the credential placeholder {{credential.GitHubToken}} and ensure the credential or environment variable is available.");
 
     const url = `https://api.github.com/repos/${config.owner}/${config.repo}/issues`;
     const response = await fetch(url, {
@@ -544,7 +560,7 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
 }
 
 // Simulated Live Mode for complex auth integrations
-async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, serviceName: string): Promise<any> {
+async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string, serviceName: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] SIMULATION: Returning simulated data.`, type: 'info' });
         return { output: config.simulated_config || {} };
@@ -584,26 +600,26 @@ const nodeExecutionFunctions: Record<string, Function> = {
     slackPostMessage: executeSlackPostMessageNode,
     openAiChatCompletion: executeOpenAiChatCompletionNode,
     githubCreateIssue: executeGithubCreateIssueNode,
-    googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Google Sheets'),
-    stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Stripe'),
-    hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'HubSpot'),
-    twilioSendSms: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Twilio'),
-    dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Dropbox'),
-    googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Google Calendar'),
-    youtubeFetchTrending: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'YouTube'),
-    youtubeDownloadVideo: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'YouTube'),
-    videoConvertToShorts: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'Video'),
-    youtubeUploadShort: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, 'YouTube'),
+    googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Sheets'),
+    stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Stripe'),
+    hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'HubSpot'),
+    twilioSendSms: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Twilio'),
+    dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Dropbox'),
+    googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Calendar'),
+    youtubeFetchTrending: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'YouTube'),
+    youtubeDownloadVideo: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'YouTube'),
+    videoConvertToShorts: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Video'),
+    youtubeUploadShort: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
+        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'YouTube'),
 };
 
 
@@ -618,6 +634,7 @@ async function executeFlowInternal(
   currentWorkflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
   isSimulationMode: boolean,
+  userId: string,
   parentWorkflowData?: Record<string, any> // Data from a parent flow (for sub-flows)
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any, flowError?: string }> {
 
@@ -629,7 +646,7 @@ async function executeFlowInternal(
         return { finalWorkflowData: currentWorkflowData, serverLogs, flowError: sortError };
     }
 
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode.`, type: 'info' });
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode for user ${userId}.`, type: 'info' });
 
     for (const node of executionOrder) {
         const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
@@ -654,7 +671,7 @@ async function executeFlowInternal(
         currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
 
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
-        const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs);
+        const resolvedConfig = await resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, userId);
 
         // Check for conditional execution
         if (resolvedConfig._flow_run_condition !== undefined && !evaluateCondition(String(resolvedConfig._flow_run_condition), nodeIdentifier, serverLogs)) {
@@ -674,7 +691,7 @@ async function executeFlowInternal(
                 let nodeResult: any;
 
                 if (executionFn) {
-                    nodeResult = await executionFn(node, resolvedConfig, isSimulationMode, serverLogs, dataForResolution);
+                    nodeResult = await executionFn(node, resolvedConfig, isSimulationMode, serverLogs, dataForResolution, userId);
                 } else {
                     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Node type '${node.type}' not implemented. Returning simulated_config if available.`, type: 'info' });
                     nodeResult = { output: resolvedConfig.simulated_config || `Execution not implemented for type: ${node.type}` };
@@ -690,7 +707,7 @@ async function executeFlowInternal(
                     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED permanently: ${errorDetails}`, type: 'error' });
                     // Handle on-error webhook if configured
                     if (resolvedConfig.onErrorWebhook) {
-                        await handleOnErrorWebhook(node, errorDetails, resolvedConfig.onErrorWebhook, dataForResolution, serverLogs);
+                        await handleOnErrorWebhook(node, errorDetails, resolvedConfig.onErrorWebhook, dataForResolution, serverLogs, userId);
                     }
                     break;
                 }
@@ -746,7 +763,7 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
 }
 
 
-export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean = false, initialData?: Record<string, any>): Promise<WorkflowExecutionResult> {
+export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean, userId: string, initialData?: Record<string, any>): Promise<WorkflowExecutionResult> {
   const serverLogs: ServerLogOutput[] = [];
   const initialWorkflowData: Record<string, any> = {};
 
@@ -776,6 +793,7 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
     initialWorkflowData,
     serverLogs,
     isSimulationMode,
+    userId
   );
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };

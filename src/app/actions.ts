@@ -31,17 +31,31 @@ import {
   type GenerateTestDataInput,
   type GenerateTestDataOutput
 } from '@/ai/flows/generate-test-data-flow';
-import type { Workflow, WorkflowRunRecord } from '@/types/workflow';
+import type { Workflow, WorkflowRunRecord, ManagedCredential } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 
 // ================================================================= //
 // ========================= PUBLIC ACTIONS ======================== //
 // ================================================================= //
 
+async function getUserIdOrThrow(): Promise<string> {
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({ cookies: () => cookieStore });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        throw new Error('User not authenticated.');
+    }
+    return user.id;
+}
+
+
 export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRecord> {
+  const userId = await getUserIdOrThrow();
   const originalRun = await WorkflowStorage.getRunRecordById(runId);
   if (!originalRun) {
     throw new Error('Run record not found.');
@@ -57,6 +71,7 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
   const result = await executeWorkflow(
     originalRun.workflowSnapshot,
     !isLiveMode, // Run in simulation if original was simulation, live if original was live
+    userId,
     originalRun.initialData
   );
 
@@ -75,6 +90,24 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
   await WorkflowStorage.saveRunRecord(newRunRecord);
 
   return newRunRecord;
+}
+
+export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode: boolean): Promise<WorkflowRunRecord> {
+    const userId = await getUserIdOrThrow();
+    const result = await executeWorkflow(workflow, isSimulationMode, userId);
+    const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+    
+    const newRunRecord: WorkflowRunRecord = {
+        id: crypto.randomUUID(),
+        workflowName: `Manual Run: ${new Date().toISOString()}`,
+        timestamp: new Date().toISOString(),
+        status: hasErrors ? 'Failed' : 'Success',
+        executionResult: result,
+        workflowSnapshot: workflow,
+    };
+    
+    await WorkflowStorage.saveRunRecord(newRunRecord);
+    return newRunRecord;
 }
 
 
@@ -124,6 +157,30 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
     try {
         await WorkflowStorage.deleteWorkflowByName(name);
         return { success: true, message: `Workflow "${name}" deleted.` };
+    } catch (e: any) {
+        return { success: false, message: e.message };
+    }
+}
+
+// Credential Management Actions
+export async function listCredentialsAction(): Promise<Omit<ManagedCredential, 'value'>[]> {
+    return WorkflowStorage.getCredentialsForUser();
+}
+
+export async function saveCredentialAction(name: string, value: string, service?: string): Promise<{ success: boolean; message: string; }> {
+    try {
+        const userId = await getUserIdOrThrow();
+        await WorkflowStorage.saveCredential({ name, value, service, user_id: userId, created_at: new Date().toISOString() });
+        return { success: true, message: 'Credential saved successfully.' };
+    } catch (e: any) {
+        return { success: false, message: e.message };
+    }
+}
+
+export async function deleteCredentialAction(id: string): Promise<{ success: boolean; message: string; }> {
+    try {
+        await WorkflowStorage.deleteCredential(id);
+        return { success: true, message: 'Credential deleted.' };
     } catch (e: any) {
         return { success: false, message: e.message };
     }

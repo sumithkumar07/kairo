@@ -1,4 +1,3 @@
-
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This feature-rich prototype includes an interactive visual editor, AI-driven workflow generation, a live debugging history, and a programmatic API for agent control.
@@ -129,6 +128,21 @@ CREATE TABLE public.agent_config (
 ALTER TABLE public.agent_config ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to manage their own agent config" ON public.agent_config FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- Create the table for storing managed credentials
+CREATE TABLE public.credentials (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    name character varying NOT NULL,
+    value text NOT NULL, -- In a production system, this should be encrypted.
+    service character varying,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT credentials_pkey PRIMARY KEY (id),
+    CONSTRAINT credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
+    CONSTRAINT credentials_user_id_name_key UNIQUE (user_id, name)
+);
+ALTER TABLE public.credentials ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow users to manage their own credentials" ON public.credentials FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 -- Create a PostgreSQL function to securely search for a workflow by its webhook path
 -- This function can be called via RPC and respects Row Level Security.
 CREATE OR REPLACE FUNCTION find_workflow_by_webhook_path(path_suffix_to_find text)
@@ -151,7 +165,7 @@ $$;
 
 ### Optional: Live Mode Node Configurations
 
-These variables are only needed if you use the corresponding nodes in **Live Mode**.
+These variables are only needed if you use the corresponding nodes in **Live Mode** and do not use the built-in Credential Manager.
 
 *   **Database Query Node**:
     *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`: PostgreSQL connection string. Get this from your Supabase project dashboard ("Project Settings" > "Database").
@@ -165,7 +179,11 @@ These variables are only needed if you use the corresponding nodes in **Live Mod
 
 ### Credential Placeholders (`{{credential.NAME}}`)
 
-The application simulates a Credential Manager by resolving placeholders like `{{credential.MyApiKey}}` to environment variables named `MyApiKey`. For example, if a node uses `{{credential.OpenAI_API_Key}}`, you must set an environment variable: `OpenAI_API_Key="your_actual_key"`. The Agent Hub's "Credentials" tab lists common keys used by the available nodes.
+The application includes a UI-driven **Credential Manager** in the **AI Agent Hub**. This allows you to securely save and manage API keys and other secrets. When you create a credential with the name `MyApiKey`, you can reference it in any node configuration using the placeholder `{{credential.MyApiKey}}`.
+
+For local development, the system will fall back to resolving these placeholders from your `.env.local` file. For example, if `{{credential.OpenAI_API_Key}}` is used in a node but not found in the Credential Manager for your user, the app will look for an environment variable named `OpenAI_API_Key`.
+
+> **Security Warning**: In this prototype, credentials saved to the database via the UI are stored as plain text. For a production application, you **must** implement a robust encryption mechanism (e.g., using a service like HashiCorp Vault, AWS KMS, or Google Cloud KMS) to encrypt these secrets at rest.
 
 ## Deployment Checklist
 
@@ -207,10 +225,11 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 
 *   **Single Instance Deployment**: To prevent potential race conditions, deploying as a single instance is recommended.
 *   **No Automated Tests**: The project does not currently include a testing framework (e.g., Jest, Playwright).
+*   **Plain-text Credentials**: Credentials saved in the database via the UI are not encrypted in this prototype.
 
 ## Future Enhancements
 
 *   **Real-time Collaboration**: Implement features for multiple users to collaborate on the same workflow in real-time.
-*   **Credential Manager UI**: Build a secure UI for managing credentials, storing them encrypted in the database.
+*   **Encrypted Credential Storage**: Integrate a secure encryption/decryption mechanism for credentials stored in the database.
 *   **Expanded Node Library**: Continuously add new integration and utility nodes.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.

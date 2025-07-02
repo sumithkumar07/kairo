@@ -4,34 +4,29 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, MessageSquare, CreditCard, Github, UserPlus, Smartphone, Sheet as SheetIcon, UploadCloud, Bot as BotIcon, Cpu, FileLock2, Info } from 'lucide-react';
+import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, Info, Trash2 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/app-layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { McpCommandRecord, Tool } from '@/types/workflow';
+import type { McpCommandRecord, Tool, ManagedCredential } from '@/types/workflow';
 import { getMcpHistory, getAgentConfig, saveAgentConfig } from '@/services/workflow-storage-service';
+import { listCredentialsAction, saveCredentialAction, deleteCredentialAction } from '@/app/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { withAuth } from '@/components/auth/with-auth';
 import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-const CREDENTIAL_INFO = [
-  { name: 'GOOGLE_API_KEY', service: 'Google AI / Genkit', description: 'Required for all AI features like workflow generation, explanation, and the assistant chat. Obtain from Google Cloud Console.' },
-  { name: 'KAIRO_MCP_API_KEY', service: 'Kairo Agent Hub', description: 'A secret key you define and set here, then use for authenticating API requests to the Agent Hub.' },
-  { name: 'DB_CONNECTION_STRING', service: 'PostgreSQL', description: 'Connection string for the "Database Query" node, e.g., "postgresql://user:pass@host:port/db".' },
-  { name: 'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM', service: 'Email', description: 'SMTP server details required for the "Send Email" node to work in Live Mode.' },
-  { name: 'SLACK_BOT_TOKEN', service: 'Slack', description: 'Required for the "Post Message" node to send messages to Slack. Starts with "xoxb-".' },
-  { name: 'OPENAI_API_KEY', service: 'OpenAI', description: 'Required for the "OpenAI Chat Completion" node. Obtain from your OpenAI account dashboard.' },
-  { name: 'GITHUB_TOKEN', service: 'GitHub', description: 'A Personal Access Token (PAT) with "repo" scope, required for the "Create Issue" node.' },
-  { name: 'STRIPE_API_KEY', service: 'Stripe', description: 'Required for Stripe nodes (currently simulated). Obtain from your Stripe dashboard.' },
-  { name: 'HUBSPOT_API_KEY', service: 'HubSpot', description: 'Required for HubSpot nodes (currently simulated). Obtain from your HubSpot developer settings.' },
-  { name: 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN', service: 'Twilio', description: 'Required for Twilio SMS nodes (currently simulated). Find these in your Twilio console.' },
-  { name: 'DROPBOX_TOKEN', service: 'Dropbox', description: 'An access token for Dropbox API calls (currently simulated).' },
-  { name: 'YOUTUBE_API_KEY', service: 'YouTube', description: 'Required for YouTube Data API nodes (currently simulated).' },
-
+const STATIC_CREDENTIAL_INFO = [
+  { name: 'GOOGLE_API_KEY', service: 'Google AI / Genkit', description: 'Required for all AI features. Best set as an environment variable.' },
+  { name: 'KAIRO_MCP_API_KEY', service: 'Kairo Agent Hub', description: 'A secret key you define as an environment variable for authenticating API requests to this Hub.' },
+  { name: 'DB_CONNECTION_STRING', service: 'PostgreSQL', description: 'Connection string for the "Database Query" node, if not using the Credential Manager.' },
+  { name: 'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM', service: 'Email', description: 'SMTP server details for the "Send Email" node, if not using the Credential Manager.' },
 ];
 
 
@@ -46,6 +41,12 @@ function MCPDashboardPage() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
+  // New state for credentials
+  const [credentials, setCredentials] = useState<Omit<ManagedCredential, 'value'>[]>([]);
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
+  const [showAddCredentialDialog, setShowAddCredentialDialog] = useState(false);
+  const [credentialToDeleteId, setCredentialToDeleteId] = useState<string | null>(null);
+
   const loadAgentConfig = useCallback(async () => {
     setIsLoadingConfig(true);
     try {
@@ -58,9 +59,22 @@ function MCPDashboardPage() {
       setIsLoadingConfig(false);
     }
   }, [toast]);
+  
+  const loadCredentials = useCallback(async () => {
+    setIsLoadingCredentials(true);
+    try {
+        const creds = await listCredentialsAction();
+        setCredentials(creds);
+    } catch (e: any) {
+        toast({ title: 'Error Loading Credentials', description: e.message, variant: 'destructive' });
+    } finally {
+        setIsLoadingCredentials(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     loadAgentConfig();
+    loadCredentials();
 
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
@@ -75,7 +89,7 @@ function MCPDashboardPage() {
       }
     };
     fetchHistory();
-  }, [toast, loadAgentConfig]);
+  }, [toast, loadAgentConfig, loadCredentials]);
   
   const unconfiguredTools = useMemo(() => {
     const configuredToolNames = new Set(configuredTools.map(t => t.name));
@@ -113,6 +127,23 @@ function MCPDashboardPage() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleDeleteCredential = async () => {
+    if (!credentialToDeleteId) return;
+    try {
+        const result = await deleteCredentialAction(credentialToDeleteId);
+        if (result.success) {
+            toast({ title: 'Credential Deleted', description: 'The credential has been removed.' });
+            setCredentials(prev => prev.filter(c => c.id !== credentialToDeleteId));
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (e: any) {
+        toast({ title: 'Error', description: `Failed to delete credential: ${e.message}`, variant: 'destructive' });
+    } finally {
+        setCredentialToDeleteId(null);
+    }
+  };
+
   const getStatusIndicator = (status: 'Success' | 'Failed') => {
       const styles = {
           Success: { Icon: CheckCircle2, color: 'text-green-500' },
@@ -129,7 +160,7 @@ function MCPDashboardPage() {
               <h1 className="text-xl font-semibold">AI Agent Hub</h1>
               <TabsList className="grid w-auto grid-cols-2 md:grid-cols-4 h-9">
                 <TabsTrigger value="skills" className="text-xs px-2 sm:px-3"><Settings className="h-4 w-4 mr-1 sm:mr-1.5" />Skills</TabsTrigger>
-                <TabsTrigger value="credentials" className="text-xs px-2 sm:px-3"><FileLock2 className="h-4 w-4 mr-1 sm:mr-1.5" />Credentials</TabsTrigger>
+                <TabsTrigger value="credentials" className="text-xs px-2 sm:px-3"><KeyRound className="h-4 w-4 mr-1 sm:mr-1.5" />Credentials</TabsTrigger>
                 <TabsTrigger value="connect" className="hidden md:inline-flex text-xs px-2 sm:px-3"><Zap className="h-4 w-4 mr-1 sm:mr-1.5" />API Access</TabsTrigger>
                 <TabsTrigger value="history" className="hidden md:inline-flex text-xs px-2 sm:px-3"><History className="h-4 w-4 mr-1 sm:mr-1.5" />API History</TabsTrigger>
               </TabsList>
@@ -174,29 +205,47 @@ function MCPDashboardPage() {
                   </TabsContent>
                   <TabsContent value="credentials" className="m-0 space-y-6">
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Credential Setup Guide</CardTitle>
-                        <CardDescription>
-                          Kairo workflows use placeholders like <code className="text-xs bg-muted p-1 rounded font-mono">{`{{credential.MyApiKey}}`}</code> for sensitive values. 
-                          This app securely loads these values from server environment variables.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="p-3 border rounded-lg bg-blue-500/10 text-blue-800 dark:text-blue-200 text-sm flex items-start gap-3">
-                          <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                          <p>
-                            To set these up, create a <code className="text-xs font-mono p-1 rounded bg-blue-500/15">.env.local</code> file in the project's root directory and add each key-value pair, like: <code className="text-xs font-mono p-1 rounded bg-blue-500/15">SLACK_BOT_TOKEN="xoxb-..."</code>.
-                          </p>
-                        </div>
-                        <div className="mt-4 space-y-3">
-                          {CREDENTIAL_INFO.map(cred => (
-                            <div key={cred.name} className="p-3 border rounded-lg bg-background">
-                              <p className="font-mono text-sm font-semibold text-primary">{cred.name}</p>
-                              <p className="text-sm text-muted-foreground mt-1">{cred.description}</p>
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle>Credential Manager</CardTitle>
+                                    <CardDescription>
+                                        Securely store API keys and secrets. Referenced in nodes via <code className="text-xs bg-muted p-1 rounded font-mono">{`{{credential.NAME}}`}</code>.
+                                    </CardDescription>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => setShowAddCredentialDialog(true)}><Plus className="h-4 w-4 mr-2" />Add Credential</Button>
                             </div>
-                          ))}
-                        </div>
-                      </CardContent>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="p-3 mb-4 border rounded-lg bg-yellow-500/10 text-yellow-800 dark:text-yellow-200 text-sm flex items-start gap-3">
+                                <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                                <p>
+                                    <strong>Warning:</strong> In this prototype, credentials are saved as plain text in the database. For production, you must implement proper encryption (e.g., using a KMS).
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                {isLoadingCredentials ? (
+                                    <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading credentials...</div>
+                                ) : credentials.length > 0 ? (
+                                    credentials.map((cred) => (
+                                        <div key={cred.id} className="flex items-center gap-4 p-3 border rounded-lg bg-background hover:bg-muted/50">
+                                            <div className="p-2 bg-muted rounded-md">
+                                                <KeyRound className="h-5 w-5 text-muted-foreground" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-sm">{cred.name}</p>
+                                                <p className="text-xs text-muted-foreground">{cred.service || 'General'}</p>
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCredentialToDeleteId(cred.id)}>
+                                                <Trash2 className="h-4 w-4 text-destructive/80 hover:text-destructive" />
+                                            </Button>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-6 text-sm text-muted-foreground">No credentials saved. Click "Add Credential" to store an API key or secret.</div>
+                                )}
+                            </div>
+                        </CardContent>
                     </Card>
                   </TabsContent>
                   <TabsContent value="connect" className="m-0">
@@ -344,8 +393,95 @@ console.log(data);`}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AddCredentialDialog 
+        open={showAddCredentialDialog} 
+        onOpenChange={setShowAddCredentialDialog}
+        onSave={async (name, value, service) => {
+            const result = await saveCredentialAction(name, value, service);
+            if (result.success) {
+                toast({ title: "Credential Saved", description: result.message });
+                loadCredentials();
+                return true;
+            } else {
+                toast({ title: "Save Failed", description: result.message, variant: "destructive" });
+                return false;
+            }
+        }}
+      />
+      <AlertDialog open={!!credentialToDeleteId} onOpenChange={(open) => !open && setCredentialToDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Credential?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this credential? This action cannot be undone. Any workflow using it will fail until it's re-added.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCredentialToDeleteId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCredential} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Yes, Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
+
+function AddCredentialDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (name: string, value: string, service?: string) => Promise<boolean> }) {
+  const [name, setName] = useState('');
+  const [value, setValue] = useState('');
+  const [service, setService] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim() || !value.trim()) {
+        alert("Name and Value are required.");
+        return;
+    }
+    setIsSaving(true);
+    const success = await onSave(name, value, service);
+    setIsSaving(false);
+    if (success) {
+        onOpenChange(false);
+        setName('');
+        setValue('');
+        setService('');
+    }
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Add New Credential</DialogTitle>
+          <DialogDescription>
+            Save an API key or other secret. It will be stored in the database.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="cred-name" className="text-right">Name</Label>
+            <Input id="cred-name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" placeholder="e.g., MyOpenAIKey" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="cred-value" className="text-right">Value</Label>
+            <Input id="cred-value" type="password" value={value} onChange={(e) => setValue(e.target.value)} className="col-span-3" placeholder="Paste your secret value here" />
+          </div>
+           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="cred-service" className="text-right">Service</Label>
+            <Input id="cred-service" value={service} onChange={(e) => setService(e.target.value)} className="col-span-3" placeholder="Optional, e.g., OpenAI" />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+          <Button type="submit" onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Credential
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default withAuth(MCPDashboardPage);

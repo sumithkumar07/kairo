@@ -5,7 +5,7 @@
  */
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata } from '@/types/workflow';
+import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
@@ -340,5 +340,84 @@ export async function saveAgentConfig(config: AgentConfig): Promise<void> {
     if (error) {
         console.error(`[Storage Service] Error saving agent config:`, error);
         throw new Error(`Could not save agent config: ${error.message}`);
+    }
+}
+
+
+// ========================
+// Credential Management
+// ========================
+
+export async function getCredentialsForUser(): Promise<Omit<ManagedCredential, 'value'>[]> {
+    const supabase = await getSupabaseClient();
+    const userId = await getUserId();
+
+    const { data, error } = await supabase
+        .from('credentials')
+        .select('id, name, service, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('[Storage Service] Error fetching credentials:', error);
+        throw new Error('Could not fetch credentials.');
+    }
+    return data;
+}
+
+export async function getCredentialValueByNameForUser(name: string, userId: string): Promise<string | null> {
+    const supabase = await getSupabaseClient();
+    
+    const { data, error } = await supabase
+        .from('credentials')
+        .select('value')
+        .eq('user_id', userId)
+        .eq('name', name)
+        .single();
+    
+    if (error || !data) {
+        if (error && error.code !== 'PGRST116') {
+            console.error(`[Storage Service] Error fetching value for credential '${name}':`, error);
+        }
+        return null;
+    }
+    // In a real system, you would decrypt the value here before returning it.
+    return data.value;
+}
+
+export async function saveCredential(credential: Omit<ManagedCredential, 'id'>): Promise<void> {
+    const supabase = await getSupabaseClient();
+    
+    // In a real system, you would encrypt `credential.value` here before saving.
+    const { error } = await supabase.from('credentials').upsert(
+        { 
+            user_id: credential.user_id,
+            name: credential.name,
+            value: credential.value, // Stored as plain text in this prototype
+            service: credential.service,
+            created_at: credential.created_at
+        },
+        { onConflict: 'user_id, name' }
+    );
+    
+    if (error) {
+        console.error(`[Storage Service] Error saving credential '${credential.name}':`, error);
+        throw new Error('Could not save credential. A credential with this name may already exist.');
+    }
+}
+
+export async function deleteCredential(id: string): Promise<void> {
+    const supabase = await getSupabaseClient();
+    const userId = await getUserId();
+    
+    const { error } = await supabase
+        .from('credentials')
+        .delete()
+        .eq('user_id', userId)
+        .eq('id', id);
+        
+    if (error) {
+        console.error(`[Storage Service] Error deleting credential ID '${id}':`, error);
+        throw new Error('Could not delete credential.');
     }
 }

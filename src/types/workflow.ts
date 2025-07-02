@@ -167,4 +167,12 @@ export type AgentConfig = {
   enabledTools: string[]; // Array of tool names
 };
 
+export interface ManagedCredential {
+  id: string;
+  name: string;
+  value: string; // This would be encrypted in a real production system
+  service?: string;
+  created_at: string;
+  user_id: string;
+}
     
