@@ -61,7 +61,7 @@ const WorkflowNodeItemComponent = ({
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
     
-    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
+    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (index + 1);
     const xOnNode = isOutput ? NODE_WIDTH : 0;
     
     return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };
@@ -204,5 +204,3 @@ const WorkflowNodeItemComponent = ({
 
 export const WorkflowNodeItem = React.memo(WorkflowNodeItemComponent);
 WorkflowNodeItem.displayName = 'WorkflowNodeItem';
-
-    
