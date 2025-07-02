@@ -6,7 +6,7 @@ import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, Ser
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import type { GenerateTestDataInput } from '@/ai/flows/generate-test-data-flow';
-import { executeWorkflow, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode } from '@/app/actions';
+import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode } from '@/app/actions';
 import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { saveRunRecord } from '@/services/workflow-storage-service';
@@ -639,10 +639,10 @@ function WorkflowPage() {
     setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
   
     try {
-      const result: WorkflowExecutionResult = await executeWorkflow({ nodes, connections }, isSimulationMode, {});
+      const result: WorkflowRunRecord = await runWorkflowFromEditor({ nodes, connections }, isSimulationMode);
   
       const updatedNodes = nodes.map(existingNode => {
-        const executedNodeData = result.finalWorkflowData[existingNode.id];
+        const executedNodeData = result.executionResult.finalWorkflowData[existingNode.id];
         if (executedNodeData && executedNodeData.lastExecutionStatus) {
           return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
         }
@@ -651,21 +651,11 @@ function WorkflowPage() {
       setNodes(updatedNodes);
       saveHistory();
 
-      const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
-      const runRecord: WorkflowRunRecord = {
-        id: crypto.randomUUID(),
-        workflowName: currentWorkflowNameRef.current,
-        timestamp: new Date().toISOString(),
-        status: hasErrors ? 'Failed' : 'Success',
-        executionResult: result,
-        workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
-      };
-      
-      await saveRunRecord(runRecord);
+      const hasErrors = result.status === 'Failed';
 
       let systemMessage = '';
       if(hasErrors) {
-        const errorDetails = Object.entries(result.finalWorkflowData)
+        const errorDetails = Object.entries(result.executionResult.finalWorkflowData)
           .filter(([_, value]) => (value as any).lastExecutionStatus === 'error')
           .map(([key, value]) => {
             const node = nodes.find(n => n.id === key);

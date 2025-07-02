@@ -106,7 +106,7 @@ export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode
         workflowSnapshot: workflow,
     };
     
-    await WorkflowStorage.saveRunRecord(newRunRecord);
+    await WorkflowStorage.saveRunRecord(newRunRecord, userId);
     return newRunRecord;
 }
 
