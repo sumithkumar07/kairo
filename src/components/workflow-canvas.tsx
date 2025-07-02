@@ -31,11 +31,9 @@ interface WorkflowCanvasProps {
   } | null;
   onCanvasClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
   onCanvasPanStart?: (event: React.MouseEvent) => void;
-  canvasOffset?: { x: number; y: number };
   isPanningForCursor?: boolean;
   connectionStartNodeId?: string | null;
   connectionStartHandleId?: string | null;
-  zoomLevel?: number;
   onDeleteSelectedConnection?: () => void;
   readOnly?: boolean;
   executionData?: Record<string, any>;
@@ -377,3 +375,5 @@ export function WorkflowCanvas({
     </ScrollArea>
   );
 }
+
+    
