@@ -82,20 +82,21 @@ export const getWorkflowDefinitionTool = ai.defineTool(
 export const runWorkflowTool = ai.defineTool(
     {
         name: 'runWorkflow',
-        description: 'Executes a given workflow definition in simulation mode and returns the result.',
+        description: 'Executes a given workflow definition and returns the result. Can be run in "simulation" or "live" mode.',
         inputSchema: z.object({
             nodes: z.array(WorkflowNodeInputSchema).describe("The array of nodes in the workflow."),
             connections: z.array(WorkflowConnectionInputSchema).describe("The array of connections between the nodes."),
+            isSimulation: z.boolean().optional().default(true).describe("Whether to run in simulation mode (default) or live mode. Live mode may interact with real external services."),
         }),
         outputSchema: z.object({
             status: z.string().describe("The final status of the workflow execution ('Success' or 'Failed')."),
             summary: z.string().describe("A brief summary of the execution, including any error messages."),
         }),
     },
-    async ({ nodes, connections }) => {
-        console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes...`);
+    async ({ nodes, connections, isSimulation }) => {
+        console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes in ${isSimulation ? 'simulation' : 'live'} mode...`);
         try {
-            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, true);
+            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation);
             const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
             const status = hasErrors ? 'Failed' : 'Success';
 
