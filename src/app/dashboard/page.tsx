@@ -1,9 +1,8 @@
-
 'use client';
 
 import { AppLayout } from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { withAuth } from '@/components/auth/with-auth';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { ArrowRight, CheckCircle2, Clock, FilePlus, History, Loader2, Workflow, XCircle } from 'lucide-react';
