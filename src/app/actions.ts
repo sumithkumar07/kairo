@@ -128,5 +128,3 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
         return { success: false, message: e.message };
     }
 }
-
-    
