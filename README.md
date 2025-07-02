@@ -32,28 +32,22 @@ The main workflow editor is accessible at the `/workflow` route.
 
 ## Environment Variables Setup
 
-Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment:
+Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment.
 
-*   **Supabase (Authentication & Database):**
-    *   You **must** set up a Supabase project and provide the following variables.
-    *   In your Supabase project dashboard, navigate to "Project Settings" > "API". You will find your Project URL and anon public key there.
-    *   `NEXT_PUBLIC_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"`
-    *   `NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_PUBLIC_KEY"`
+### Core App Configuration
+These are **essential** for the app to function correctly.
 
-*   **Genkit AI Features (All AI functionality):**
-    *   `GOOGLE_API_KEY=YOUR_GOOGLE_CLOUD_API_KEY`
-        *   **CRITICAL for ALL AI functionality.** You **MUST** provide a valid Google Cloud API key associated with a project where the "Generative Language API" is enabled.
-        *   If the AI Assistant responds with errors about "AI service configuration", a missing or invalid `GOOGLE_API_KEY` is the most common cause.
+*   `NEXT_PUBLIC_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"`: **Required** for user accounts and database storage.
+*   `NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_PUBLIC_KEY"`: **Required** for user accounts and database storage.
+*   `GOOGLE_API_KEY="YOUR_GOOGLE_CLOUD_API_KEY"`: **Required** for all AI features (workflow generation, assistant chat, etc.).
+*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`: A secret key you define. Required to use the AI Agent Hub's programmatic API.
 
-*   **AI Agent Hub API:**
-    *   `KAIRO_MCP_API_KEY=YOUR_SECRET_API_KEY`
-        *   A secret key you define. This key is used to authenticate requests to the `/api/mcp` endpoint, allowing you to programmatically control the AI agent.
+### Live Mode Node Configurations
+These variables are only needed if you use the corresponding nodes in **Live Mode**.
 
-*   **Database Queries (`databaseQuery` node in Live Mode):**
-    *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`
-        *   Replace with your actual PostgreSQL connection string. You can get this from your Supabase project dashboard under "Project Settings" > "Database" > "Connection string". Choose the "URI" option for direct connections.
-
-*   **Email Sending (`sendEmail` node in Live Mode):**
+*   **Database Query Node**:
+    *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`: PostgreSQL connection string. Get this from your Supabase project dashboard ("Project Settings" > "Database").
+*   **Send Email Node**:
     *   `EMAIL_HOST="your_smtp_host"`
     *   `EMAIL_PORT="your_smtp_port"`
     *   `EMAIL_USER="your_smtp_username"`
@@ -61,8 +55,8 @@ Create a `.env.local` file in the project root for local development, or set the
     *   `EMAIL_FROM="notifications@example.com"`
     *   `EMAIL_SECURE="true"` (Use `true` for SSL/TLS)
 
-*   **Credential Placeholders (`{{credential.NAME}}`):**
-    *   The application simulates a Credential Manager by resolving placeholders like `{{credential.MyApiKey}}` to environment variables named `MyApiKey`. For example, if a node uses `{{credential.OpenAI_API_Key}}`, you must set an environment variable: `OpenAI_API_Key="your_actual_key"`. The Agent Hub's "Credentials" tab lists common keys used by the available nodes.
+### Credential Placeholders (`{{credential.NAME}}`)
+The application simulates a Credential Manager by resolving placeholders like `{{credential.MyApiKey}}` to environment variables named `MyApiKey`. For example, if a node uses `{{credential.OpenAI_API_Key}}`, you must set an environment variable: `OpenAI_API_Key="your_actual_key"`. The Agent Hub's "Credentials" tab lists common keys used by the available nodes.
 
 ## Production Database Setup (Supabase)
 
