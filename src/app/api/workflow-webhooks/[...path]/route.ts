@@ -1,8 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { executeWorkflow } from '@/app/actions';
 import type { Workflow, WorkflowNode, WorkflowRunRecord } from '@/types/workflow';
 import { findWorkflowByWebhookPath, saveRunRecord } from '@/services/workflow-storage-service';
+import { executeWorkflow } from '@/lib/workflow-engine';
+
 
 // Helper function to resolve potential placeholders in the security token
 function resolveSecurityToken(tokenValue: string | undefined): string | undefined {

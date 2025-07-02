@@ -131,19 +131,22 @@ CREATE POLICY "Allow users to manage their own agent config" ON public.agent_con
 
 -- Create a PostgreSQL function to securely search for a workflow by its webhook path
 -- This function can be called via RPC and respects Row Level Security.
-create or replace function find_workflow_by_webhook_path(path_suffix_to_find text)
-returns jsonb
-language plpgsql
-security definer
-as $$
-begin
-  return (
-    select w.workflow_data
-    from public.workflows as w
-    where w.workflow_data->'nodes' @> jsonb_build_array(jsonb_build_object('type', 'webhookTrigger', 'config', jsonb_build_object('pathSuffix', path_suffix_to_find)))
-    limit 1
-  );
-end;
+CREATE OR REPLACE FUNCTION find_workflow_by_webhook_path(path_suffix_to_find text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER AS $$
+DECLARE
+  found_workflow_data jsonb;
+BEGIN
+  SELECT w.workflow_data INTO found_workflow_data
+  FROM public.workflows AS w,
+       jsonb_array_elements(w.workflow_data->'nodes') AS node
+  WHERE node->>'type' = 'webhookTrigger'
+    AND node->'config'->>'pathSuffix' = path_suffix_to_find
+  LIMIT 1;
+
+  RETURN found_workflow_data;
+END;
 $$;
 ```
 
