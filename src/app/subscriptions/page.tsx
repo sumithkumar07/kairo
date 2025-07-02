@@ -8,7 +8,8 @@ import { CheckCircle, Workflow, ShieldCheck, Star, LogIn, UserPlus } from 'lucid
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription'; 
-import { AppLayout } from '@/components/app-layout';
+import { MarketingHeader } from '@/components/marketing-header';
+import { MarketingFooter } from '@/components/marketing-footer';
 
 export default function SubscriptionsPage() {
   const { 
@@ -58,7 +59,8 @@ export default function SubscriptionsPage() {
   };
   
   return (
-    <AppLayout>
+    <div className="flex flex-col min-h-screen bg-background">
+      <MarketingHeader />
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-muted/40">
         <section className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-4">
@@ -161,6 +163,7 @@ export default function SubscriptionsPage() {
             </p>
         </section>
       </main>
-    </AppLayout>
+      <MarketingFooter />
+    </div>
   );
 }

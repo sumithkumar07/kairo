@@ -4,13 +4,15 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Workflow, Mail, Home } from 'lucide-react';
-import { AppLayout } from '@/components/app-layout';
+import { Mail, Home } from 'lucide-react';
+import { MarketingHeader } from '@/components/marketing-header';
+import { MarketingFooter } from '@/components/marketing-footer';
 
 export default function ContactPage() {
   return (
-    <AppLayout>
-      <div className="flex flex-col flex-1 items-center justify-center p-4">
+    <div className="flex flex-col min-h-screen bg-background">
+      <MarketingHeader />
+      <main className="flex flex-col flex-1 items-center justify-center p-4 bg-muted/40">
         <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
           <CardHeader className="text-center border-b pb-6">
             <Mail className="h-16 w-16 text-primary mx-auto mb-4 p-2 bg-primary/10 rounded-full" />
@@ -59,7 +61,8 @@ export default function ContactPage() {
             </Button>
           </CardFooter>
         </Card>
-      </div>
-    </AppLayout>
+      </main>
+      <MarketingFooter />
+    </div>
   );
 }

@@ -4,7 +4,7 @@
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, ShieldCheck, CalendarDays, LogOut, Workflow, Edit } from 'lucide-react';
+import { User, Mail, ShieldCheck, CalendarDays, LogOut, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
