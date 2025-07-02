@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Workflow, History, Cpu, Settings, LogOut, User } from 'lucide-react';
+import { Workflow, History, Cpu, Settings, LogOut, User, Menu } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -14,102 +14,153 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarTrigger,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarInset,
+} from '@/components/ui/sidebar';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
-interface NavLinkProps {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-}
+const navItems = [
+  { href: '/workflow', label: 'Workflow Editor', icon: Workflow },
+  { href: '/run-history', label: 'Run History', icon: History },
+  { href: '/mcp', label: 'AI Agent Hub', icon: Cpu },
+  { href: '/settings', label: 'Settings', icon: Settings },
+];
 
-const NavLink = ({ href, label, icon: Icon }: NavLinkProps) => {
-  const pathname = usePathname();
-  const isActive = pathname === href;
-
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            asChild
-            variant={isActive ? 'secondary' : 'ghost'}
-            size="icon"
-            className={cn("rounded-lg", isActive && "text-primary")}
-            aria-label={label}
-          >
-            <Link href={href}>
-              <Icon className="size-5" />
-            </Link>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={5}>
-          {label}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-};
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, user, logout } = useSubscription();
+  const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-        <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-          <Link
-            href="/"
-            className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-          >
-            <Workflow className="h-4 w-4 transition-all group-hover:scale-110" />
-            <span className="sr-only">Kairo</span>
-          </Link>
-          <NavLink href="/workflow" label="Workflow Editor" icon={Workflow} />
-          <NavLink href="/run-history" label="Run History" icon={History} />
-          <NavLink href="/mcp" label="AI Agent Hub" icon={Cpu} />
-        </nav>
-        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-          <NavLink href="/settings" label="Settings" icon={Settings} />
-           {isLoggedIn && user ? (
-             <DropdownMenu>
-                <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="rounded-lg mt-auto">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                </Button>
-                            </DropdownMenuTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" sideOffset={5}>Profile & Logout</TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-                <DropdownMenuContent side="right" align="end">
-                     <DropdownMenuItem asChild>
-                        <Link href="/profile" className='cursor-pointer'>
-                            <User className="mr-2 h-4 w-4" />
-                            <span>Profile</span>
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className='cursor-pointer'>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Logout</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-             </DropdownMenu>
-          ) : (
-            <NavLink href="/login" label="Login" icon={User} />
-          )}
-        </nav>
-      </aside>
-      <div className="flex flex-col sm:gap-4 sm:pl-14 h-screen">
-        {children}
-      </div>
-    </div>
+    <SidebarProvider>
+        <Sidebar>
+            <SidebarHeader>
+                <Link href="/" className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base">
+                    <Workflow className="h-4 w-4 transition-all group-hover:scale-110" />
+                    <span className="sr-only">Kairo</span>
+                </Link>
+            </SidebarHeader>
+            <SidebarContent>
+                <SidebarMenu>
+                    {navItems.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                            <SidebarMenuButton
+                                asChild
+                                isActive={pathname === item.href}
+                                tooltip={{
+                                    children: item.label,
+                                    side: 'right',
+                                }}
+                            >
+                                <Link href={item.href}>
+                                    <item.icon />
+                                    <span>{item.label}</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
+            </SidebarContent>
+            <SidebarFooter>
+              {isLoggedIn && user ? (
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="rounded-lg mt-auto">
+                          <Avatar className="h-8 w-8">
+                              <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="end">
+                         <DropdownMenuItem asChild>
+                            <Link href="/profile" className='cursor-pointer'>
+                                <User className="mr-2 h-4 w-4" />
+                                <span>Profile</span>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={logout} className='cursor-pointer'>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Logout</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                 </DropdownMenu>
+              ) : (
+                <SidebarMenuButton asChild tooltip={{ children: "Login", side: "right" }}>
+                  <Link href="/login">
+                    <User />
+                    <span>Login</span>
+                  </Link>
+                </SidebarMenuButton>
+              )}
+            </SidebarFooter>
+        </Sidebar>
+        <SidebarInset>
+             <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6 sm:hidden">
+                <Link
+                    href="/"
+                    className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+                  >
+                    <Workflow className="h-4 w-4 transition-all group-hover:scale-110" />
+                    <span className="sr-only">Kairo</span>
+                </Link>
+                <div className="flex items-center gap-2">
+                    <ThemeToggle />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon">
+                            <Menu className="h-5 w-5" />
+                            <span className="sr-only">Toggle navigation menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            {isLoggedIn && user && (
+                                <>
+                                  <DropdownMenuLabel className="font-normal">
+                                    <div className="flex flex-col space-y-1">
+                                      <p className="text-sm font-medium leading-none">Signed in as</p>
+                                      <p className="text-xs leading-none text-muted-foreground truncate">
+                                        {user.email}
+                                      </p>
+                                    </div>
+                                  </DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                </>
+                            )}
+                            {navItems.map(item => (
+                                <DropdownMenuItem key={`mobile-${item.href}`} asChild><Link href={item.href}>{item.label}</Link></DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            {isLoggedIn ? (
+                              <>
+                                <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                                <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                                  <LogOut className="mr-2 h-4 w-4" />
+                                  Logout
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
+                              <DropdownMenuItem asChild><Link href="/login">Log In</Link></DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </header>
+            <div className="flex-1 h-full">{children}</div>
+        </SidebarInset>
+    </SidebarProvider>
   );
 }
