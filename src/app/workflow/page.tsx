@@ -121,18 +121,6 @@ function WorkflowPage() {
   }, [nodes, selectedNodeId]);
 
   useEffect(() => {
-    const storedHistory = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
-    if (storedHistory) {
-      try {
-        setChatHistory(JSON.parse(storedHistory));
-      } catch (error) {
-        console.error("Failed to parse chat history from localStorage:", error);
-        localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY); 
-      }
-    }
-  }, []); 
-
-  useEffect(() => {
     if (chatHistory.length > 0) {
       localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(chatHistory));
     } else {
@@ -238,7 +226,6 @@ function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-    setChatHistory([]); // Clear chat history when loading a new workflow
     
     currentWorkflowNameRef.current = workflowName || 'Untitled Workflow';
     document.title = `${currentWorkflowNameRef.current} - Kairo`;
@@ -297,6 +284,19 @@ function WorkflowPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
+      const storedChatHistoryJson = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+      
+      // Load chat history if it exists
+      if (storedChatHistoryJson) {
+        try {
+          setChatHistory(JSON.parse(storedChatHistoryJson));
+        } catch (error) {
+          console.error("Failed to parse chat history from localStorage:", error);
+          localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
+        }
+      }
+
+      // Load workflow if it exists
       if (savedWorkflowJson) {
         try {
           const savedState = JSON.parse(savedWorkflowJson);
@@ -310,7 +310,6 @@ function WorkflowPage() {
             localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: 'Untitled Workflow', workflow: savedState }));
           } 
           else {
-            // Invalid data, clear it to prevent crash loop
             console.error("Invalid workflow data structure found in localStorage. Clearing it.");
             localStorage.removeItem(CURRENT_WORKFLOW_KEY);
             resetHistoryForNewWorkflow([], []);
@@ -322,7 +321,19 @@ function WorkflowPage() {
           resetHistoryForNewWorkflow([], []);
         }
       } else {
+        // No workflow saved, this is a fresh canvas
         resetHistoryForNewWorkflow([], []);
+        
+        // If there's also no chat history, show the welcome message
+        if (!storedChatHistoryJson) {
+          const welcomeMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sender: 'ai',
+            message: "Welcome to Kairo! I'm your AI assistant. To get started, you can either drag nodes from the library on the left, or simply describe the workflow you'd like me to build for you in the chat below.",
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setChatHistory([welcomeMessage]);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
