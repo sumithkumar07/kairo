@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle, Paperclip, X } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -31,7 +31,7 @@ interface AIWorkflowAssistantPanelProps {
   isSimulationMode: boolean;
   chatHistory: ChatMessage[];
   isChatLoading: boolean;
-  onChatSubmit: (message: string, isSystemMessage?: boolean) => void;
+  onChatSubmit: (message: string, imageDataUri?: string) => void;
   onClearChat: () => void;
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
@@ -65,6 +65,8 @@ export function AIWorkflowAssistantPanel({
   onAddSuggestedNode,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,10 +76,31 @@ export function AIWorkflowAssistantPanel({
   }, [chatHistory]);
 
   const handleLocalChatSubmit = () => {
-    if (!chatInput.trim()) return;
-    onChatSubmit(chatInput);
+    if (!chatInput.trim() && !attachedImage) return;
+    onChatSubmit(chatInput, attachedImage || undefined);
     setChatInput('');
+    setAttachedImage(null);
   };
+  
+  const handleAttachImage = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 4 * 1024 * 1024) { // 4MB limit
+        alert('File is too large. Please select an image under 4MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
 
   const currentIsLoadingAnyAIButChat = isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
   const suggestedNodeConfig = initialCanvasSuggestion?.suggestedNode
@@ -271,11 +294,40 @@ export function AIWorkflowAssistantPanel({
           )}
         </div>
       </ScrollArea>
-      <div className="p-3 border-t bg-background/80 flex gap-2 items-center mt-auto">
-        <Textarea id="ai-chat-textarea" placeholder="Ask about Kairo, or describe a workflow..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 text-sm resize-none" rows={1} disabled={isChatLoading || currentIsLoadingAnyAIButChat} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} />
-        <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || !chatInput.trim()} size="icon" title="Send message (Enter)">
-          {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+      <div className="p-3 border-t bg-background/80 flex flex-col gap-2 mt-auto">
+        {attachedImage && (
+          <div className="relative group w-full p-2 border rounded-md bg-muted">
+            <img src={attachedImage} alt="Attached preview" className="max-h-24 w-auto rounded-md mx-auto" />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+              onClick={() => setAttachedImage(null)}
+              title="Remove image"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+        <div className="flex w-full gap-2 items-center">
+          <Textarea 
+            id="ai-chat-textarea" 
+            placeholder="Ask a question or describe a workflow..." 
+            value={chatInput} 
+            onChange={(e) => setChatInput(e.target.value)} 
+            className="flex-1 text-sm resize-none" 
+            rows={1} 
+            disabled={isChatLoading || currentIsLoadingAnyAIButChat} 
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleLocalChatSubmit(); } }} 
+          />
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+          <Button onClick={handleAttachImage} disabled={isChatLoading || currentIsLoadingAnyAIButChat} variant="ghost" size="icon" title="Attach Image">
+            <Paperclip className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleLocalChatSubmit} disabled={isChatLoading || currentIsLoadingAnyAIButChat || (!chatInput.trim() && !attachedImage)} size="icon" title="Send message (Enter)">
+            {isChatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );

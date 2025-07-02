@@ -455,11 +455,11 @@ function WorkflowPage() {
     toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
   }, [mapAiWorkflowToInternal, toast, loadWorkflowIntoEditor]);
   
-  const handleChatSubmit = useCallback(async (messageContent: string, isSystemMessage: boolean = false) => {
-    if (!messageContent.trim()) {
+  const handleChatSubmit = useCallback(async (messageContent: string, imageDataUri?: string, isSystemMessage: boolean = false) => {
+    if (!messageContent.trim() && !imageDataUri) {
       toast({
         title: 'Message is empty',
-        description: 'Please enter a message to send to the AI.',
+        description: 'Please enter a message or attach an image to send to the AI.',
         variant: 'destructive',
       });
       return;
@@ -510,6 +510,7 @@ function WorkflowPage() {
 
       const chatResult = await assistantChat({ 
         userMessage: messageContent, 
+        imageDataUri,
         workflowContext: workflowContextForAI, 
         chatHistory: historyForAI,
         currentWorkflowNodes: currentWorkflowNodesForAI,
@@ -607,7 +608,7 @@ function WorkflowPage() {
 
   const handleRunWorkflow = useCallback(async () => {
     if (nodes.length === 0) {
-      await handleChatSubmit("The user tried to run an empty workflow. Please ask them to add some nodes or describe what they want to build.", true);
+      await handleChatSubmit("The user tried to run an empty workflow. Please ask them to add some nodes or describe what they want to build.", undefined, true);
       return;
     }
   
@@ -631,7 +632,7 @@ function WorkflowPage() {
     if (validationErrors.length > 0) {
       const errorSummary = validationErrors.join('\n');
       const systemMessage = `The workflow failed pre-run validation. Please analyze these issues and help the user fix them:\n\nValidation Errors:\n${errorSummary}`;
-      await handleChatSubmit(systemMessage, true);
+      await handleChatSubmit(systemMessage, undefined, true);
       setIsWorkflowRunning(false);
       return;
     }
@@ -678,7 +679,7 @@ function WorkflowPage() {
         systemMessage = `I just ran the workflow and it completed successfully! Can you confirm everything looks good?`;
       }
       
-      await handleChatSubmit(systemMessage, true);
+      await handleChatSubmit(systemMessage, undefined, true);
   
   
     } catch (error: any) {
@@ -699,7 +700,7 @@ function WorkflowPage() {
       };
       await saveRunRecord(errorRunRecord);
 
-      await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, true);
+      await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, undefined, true);
     } finally {
       setIsWorkflowRunning(false);
     }
@@ -1466,7 +1467,7 @@ function WorkflowPage() {
                     onCancelConnection={handleCancelConnection}
                     chatHistory={chatHistory}
                     isChatLoading={isChatLoading}
-                    onChatSubmit={handleChatSubmit}
+                    onChatSubmit={(message, image) => handleChatSubmit(message, image)}
                     onClearChat={() => setChatHistory([])}
                     isExplainingWorkflow={isExplainingWorkflow}
                     workflowExplanation={workflowExplanation}
