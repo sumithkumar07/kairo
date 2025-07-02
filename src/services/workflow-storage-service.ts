@@ -134,18 +134,21 @@ export async function deleteWorkflowByName(name: string): Promise<void> {
   }
 }
 
-export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<Workflow | null> {
+export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<{ workflow: Workflow; userId: string; } | null> {
   const supabase = await getSupabaseClient();
-  // Note: This searches across all users' workflows. A securityToken in the webhook node is recommended.
+  // Note: This RPC searches across all users' workflows. A securityToken in the webhook node is recommended.
   const { data, error } = await supabase
-      .rpc('find_workflow_by_webhook_path', { path_suffix_to_find: pathSuffix });
+      .rpc('find_workflow_by_webhook_path', { path_suffix_to_find: pathSuffix })
+      .single();
 
   if (error) {
-      console.error('[Storage Service] Error in RPC find_workflow_by_webhook_path:', error);
+      if (error.code !== 'PGRST116') { // Don't log "No rows found" as an error
+        console.error('[Storage Service] Error in RPC find_workflow_by_webhook_path:', error);
+      }
       return null;
   }
 
-  return data ? (data as Workflow) : null;
+  return data ? { workflow: data.workflow_data_result, userId: data.user_id_result } : null;
 }
 
 
@@ -210,11 +213,12 @@ export async function getRunRecordById(id: string): Promise<WorkflowRunRecord | 
   };
 }
 
-export async function saveRunRecord(record: WorkflowRunRecord): Promise<void> {
+export async function saveRunRecord(record: WorkflowRunRecord, recordUserId?: string): Promise<void> {
     const supabase = await getSupabaseClient();
-    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const userId = recordUserId || (await supabase.auth.getUser()).data.user?.id;
+    
     if (!userId) {
-        console.warn("[Storage Service] Anonymous user tried to save a run record. Record not saved.");
+        console.warn("[Storage Service] No user ID provided or found in session. Run record not saved.");
         return;
     }
 
@@ -338,5 +342,3 @@ export async function saveAgentConfig(config: AgentConfig): Promise<void> {
         throw new Error(`Could not save agent config: ${error.message}`);
     }
 }
-
-    

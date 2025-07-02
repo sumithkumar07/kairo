@@ -1,3 +1,4 @@
+
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This feature-rich prototype includes an interactive visual editor, AI-driven workflow generation, a live debugging history, and a programmatic API for agent control.
@@ -131,20 +132,17 @@ CREATE POLICY "Allow users to manage their own agent config" ON public.agent_con
 -- Create a PostgreSQL function to securely search for a workflow by its webhook path
 -- This function can be called via RPC and respects Row Level Security.
 CREATE OR REPLACE FUNCTION find_workflow_by_webhook_path(path_suffix_to_find text)
-RETURNS jsonb
+RETURNS TABLE(user_id_result uuid, workflow_data_result jsonb)
 LANGUAGE plpgsql
 SECURITY DEFINER AS $$
-DECLARE
-  found_workflow_data jsonb;
 BEGIN
-  SELECT w.workflow_data INTO found_workflow_data
+  RETURN QUERY
+  SELECT w.user_id, w.workflow_data
   FROM public.workflows AS w,
        jsonb_array_elements(w.workflow_data->'nodes') AS node
   WHERE node->>'type' = 'webhookTrigger'
     AND node->'config'->>'pathSuffix' = path_suffix_to_find
   LIMIT 1;
-
-  RETURN found_workflow_data;
 END;
 $$;
 ```

@@ -71,12 +71,14 @@ export async function POST(
         }
     });
 
-    const workflowToExecute = await findWorkflowByWebhookPath(pathSuffix);
+    const findResult = await findWorkflowByWebhookPath(pathSuffix);
 
-    if (!workflowToExecute) {
+    if (!findResult) {
       console.error(`[API Webhook] No workflow configured for pathSuffix: ${pathSuffix}`);
       return NextResponse.json({ message: 'Webhook path not configured for any workflow' }, { status: 404 });
     }
+    
+    const { workflow: workflowToExecute, userId } = findResult;
 
     const webhookTriggerNode = workflowToExecute.nodes.find(
       (n: WorkflowNode) => n.type === 'webhookTrigger' && n.config?.pathSuffix === pathSuffix
@@ -131,7 +133,7 @@ export async function POST(
         initialData: initialDataForWorkflow,
         workflowSnapshot: workflowToExecute,
       };
-      await saveRunRecord(runRecord);
+      await saveRunRecord(runRecord, userId);
 
       if (hasErrors) {
          return NextResponse.json(
