@@ -21,14 +21,14 @@ import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { findPlaceholdersInObject } from '@/lib/workflow-utils';
+import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 
-const STATIC_CREDENTIAL_INFO = [
-  { name: 'GOOGLE_API_KEY', service: 'Google AI / Genkit', description: 'Required for all AI features. Best set as an environment variable.' },
-  { name: 'KAIRO_MCP_API_KEY', service: 'Kairo Agent Hub', description: 'A secret key you define as an environment variable for authenticating API requests to this Hub.' },
-  { name: 'DB_CONNECTION_STRING', service: 'PostgreSQL', description: 'Connection string for the "Database Query" node, if not using the Credential Manager.' },
-  { name: 'EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM', service: 'Email', description: 'SMTP server details for the "Send Email" node, if not using the Credential Manager.' },
-];
-
+interface RequiredCredentialInfo {
+  name: string;
+  nodes: string[];
+  service: string;
+}
 
 function MCPDashboardPage() {
   const { toast } = useToast();
@@ -46,6 +46,30 @@ function MCPDashboardPage() {
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
   const [showAddCredentialDialog, setShowAddCredentialDialog] = useState(false);
   const [credentialToDeleteId, setCredentialToDeleteId] = useState<string | null>(null);
+
+  const requiredCredentials = useMemo(() => {
+    const requiredMap = new Map<string, RequiredCredentialInfo>();
+    
+    AVAILABLE_NODES_CONFIG.forEach(node => {
+        const placeholders = findPlaceholdersInObject(node.defaultConfig);
+        placeholders.secrets.forEach(secretName => {
+            if (!requiredMap.has(secretName)) {
+                requiredMap.set(secretName, {
+                    name: secretName,
+                    nodes: [],
+                    service: node.name.split(':')[0] // Simple service name from node name
+                });
+            }
+            const info = requiredMap.get(secretName)!;
+            if (!info.nodes.includes(node.name)) {
+                info.nodes.push(node.name);
+            }
+        });
+    });
+
+    return Array.from(requiredMap.values());
+  }, []);
+
 
   const loadAgentConfig = useCallback(async () => {
     setIsLoadingConfig(true);
@@ -244,6 +268,26 @@ function MCPDashboardPage() {
                                 ) : (
                                     <div className="text-center py-6 text-sm text-muted-foreground">No credentials saved. Click "Add Credential" to store an API key or secret.</div>
                                 )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Required Credentials Guide</CardTitle>
+                            <CardDescription>A guide to credentials used by nodes in the Node Library.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                {requiredCredentials.map(info => (
+                                    <div key={info.name} className="p-3 border rounded-lg bg-muted/30">
+                                        <p className="font-semibold text-sm text-foreground">{info.service}</p>
+                                        <p className="text-xs text-muted-foreground mb-1.5">Used by: {info.nodes.join(', ')}</p>
+                                        <p className="text-sm">
+                                            Create a credential named <code className="text-xs bg-background p-1 rounded font-mono text-amber-600 dark:text-amber-400">{info.name}</code> to use this integration.
+                                        </p>
+                                    </div>
+                                ))}
+                                {requiredCredentials.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No nodes require credentials.</p>}
                             </div>
                         </CardContent>
                     </Card>

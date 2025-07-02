@@ -1,3 +1,4 @@
+
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This feature-rich prototype includes an interactive visual editor, AI-driven workflow generation, a live debugging history, and a programmatic API for agent control.
@@ -10,7 +11,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Live & Simulation Modes**: Test your workflows with mock data in "Simulation Mode" before switching to "Live Mode" for execution with real data and services.
 *   **AI Assistant Panel**: Get suggestions for next steps, explanations for existing workflows, and help with node configuration through a conversational chat interface.
 *   **Visual Run History & Debugging**: Review past workflow executions with a visual representation of the workflow, including the status of each node and the data that flowed through it. Re-run failed workflows with one click.
-*   **AI Agent Hub**: Configure your AI agent's skills (available tools/nodes), view credential requirements, and get an API key to control the agent programmatically.
+*   **AI Agent Hub**: Configure your AI agent's skills (available tools/nodes), manage credentials securely, and get an API key to control the agent programmatically.
 *   **Cloud & Example Storage**: Save your workflows to your Supabase cloud database for persistent storage, or load pre-built example workflows to explore features.
 
 ## Technology Stack
@@ -163,25 +164,13 @@ $$;
 
 ---
 
-### Optional: Live Mode Node Configurations
+### Step 3: Configure Credentials for Live Mode
 
-These variables are only needed if you use the corresponding nodes in **Live Mode** and do not use the built-in Credential Manager.
+The application includes a UI-driven **Credential Manager** in the **AI Agent Hub** (under the "Credentials" tab). This is the recommended way to securely save and manage API keys and other secrets. When you create a credential with the name `MyApiKey`, you can reference it in any node configuration using the placeholder `{{credential.MyApiKey}}`.
 
-*   **Database Query Node**:
-    *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`: PostgreSQL connection string. Get this from your Supabase project dashboard ("Project Settings" > "Database").
-*   **Send Email Node**:
-    *   `EMAIL_HOST="your_smtp_host"`
-    *   `EMAIL_PORT="your_smtp_port"`
-    *   `EMAIL_USER="your_smtp_username"`
-    *   `EMAIL_PASS="your_smtp_password"`
-    *   `EMAIL_FROM="notifications@example.com"`
-    *   `EMAIL_SECURE="true"` (Use `true` for SSL/TLS)
+The Agent Hub provides a **"Required Credentials Guide"** that automatically inspects all available nodes and tells you which credentials you need to add for specific integrations (e.g., `StripeApiKey` for Stripe nodes).
 
-### Credential Placeholders (`{{credential.NAME}}`)
-
-The application includes a UI-driven **Credential Manager** in the **AI Agent Hub**. This allows you to securely save and manage API keys and other secrets. When you create a credential with the name `MyApiKey`, you can reference it in any node configuration using the placeholder `{{credential.MyApiKey}}`.
-
-For local development, the system will fall back to resolving these placeholders from your `.env.local` file. For example, if `{{credential.OpenAI_API_Key}}` is used in a node but not found in the Credential Manager for your user, the app will look for an environment variable named `OpenAI_API_Key`.
+For local development, the system will fall back to resolving these `{{credential.NAME}}` placeholders from your `.env.local` file if a matching credential is not found in the manager. For example, if `{{credential.OpenAI_API_Key}}` is used in a node but not found in the Credential Manager for your user, the app will look for an environment variable named `OpenAI_API_Key`.
 
 > **Security Warning**: In this prototype, credentials saved to the database via the UI are stored as plain text. For a production application, you **must** implement a robust encryption mechanism (e.g., using a service like HashiCorp Vault, AWS KMS, or Google Cloud KMS) to encrypt these secrets at rest.
 
