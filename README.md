@@ -24,7 +24,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
     *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for authentication and database features, and `GOOGLE_API_KEY` for AI features.**
 5.  **Set up the Database**:
     *   To save workflows and view run history, you must set up the database tables in your Supabase project.
-    *   Go to the "Production Database Setup (Supabase)" section below, copy the SQL commands, and run them in the **SQL Editor** in your Supabase dashboard.
+    *   Go to the "Production Database Setup (Supabase)" section below, copy the SQL commands, and run them in the **SQL Editor** in your Supabase dashboard. This is a one-time setup.
 6.  Run the development server: `npm run dev`
 7.  Open [http://localhost:3000](http://localhost:3000) (or your configured port) in your browser.
 
@@ -147,6 +147,23 @@ end;
 $$;
 ```
 
+## Deployment Checklist
+
+Your Kairo application is architected to be deployed on modern hosting platforms like Netlify, Vercel, or Firebase App Hosting. Here is a checklist to ensure a successful deployment:
+
+1.  **Push to Git (Optional but Recommended)**: For automated deployments, push your project to a GitHub, GitLab, or Bitbucket repository.
+
+2.  **Configure Environment Variables**: This is the most critical step. Your deployed application needs access to the same secrets and configuration as your local setup. Go to your hosting provider's dashboard (e.g., Netlify's "Site settings > Build & deploy > Environment") and add all variables from the "Environment Variables Setup" section.
+
+3.  **Run the Database Schema SQL**: The application now uses a Supabase database for storing workflows and run history. You **must** run the SQL script provided in the "Production Database Setup (Supabase)" section above in your Supabase project's SQL Editor. This only needs to be done once.
+
+4.  **Confirm Build Settings**: Most platforms will detect a Next.js project automatically. Ensure the settings are:
+    *   **Build Command**: `next build`
+    *   **Publish Directory**: `.next`
+
+5.  **Deploy**: Trigger the deployment from your hosting provider's dashboard or use the Netlify CLI for manual deployment.
+
+
 ## Live Mode & Deployment Considerations
 
 ### Live Webhook Trigger (`webhookTrigger` node)
@@ -192,6 +209,3 @@ Here are some ideas for future development to build upon Kairo's foundation:
 *   **Credential Manager UI**: Build a secure UI for managing credentials, storing them encrypted in the database instead of relying solely on environment variables.
 *   **Expanded Node Library**: Continuously add new integration and utility nodes to expand the platform's capabilities.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
-
-
-    
