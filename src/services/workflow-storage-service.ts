@@ -338,5 +338,3 @@ export async function saveAgentConfig(config: AgentConfig): Promise<void> {
         throw new Error(`Could not save agent config: ${error.message}`);
     }
 }
-
-    
