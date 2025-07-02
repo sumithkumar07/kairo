@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow to generate plausible test data for a given workflow node.
@@ -57,6 +58,7 @@ Instructions for different node types:
 - **manualInput**: For 'simulatedResponse', generate a JSON object that matches what a user might enter into the form described by the node's name/description.
 - **fileSystemTrigger**: For 'simulatedFileEvent', generate a JSON object with 'eventType' and 'filePath' keys.
 - **callExternalWorkflow**: For 'simulatedOutput', generate a plausible JSON object representing the entire output of the called workflow.
+- **googleSheetsAppendRow**, **slackPostMessage**, **openAiChatCompletion**, **stripeCreatePaymentLink**, **hubspotCreateContact**, **twilioSendSms**, **githubCreateIssue**, **dropboxUploadFile**, **youtubeFetchTrending**, etc.: For 'simulated_config', generate a JSON object representing a plausible success response from the service's API. For Slack, it might be '{"ok": true, "ts": "..."}'. For Stripe, '{"id": "plink_...", "url": "..."}'.
 
 Generate the data and return it in the 'generatedData' object, where keys are the field names from the input. For example, if you need to generate for 'simulatedResponse' and 'simulatedStatusCode', the output should be:
 { "generatedData": { "simulatedResponse": { ... }, "simulatedStatusCode": 200 } }
@@ -75,7 +77,7 @@ const generateTestDataFlow = ai.defineFlow(
     if (!input.configFieldsToGenerate || input.configFieldsToGenerate.length === 0) {
         return { generatedData: {} };
     }
-    const {output} = await generateTestDataGeneratorPrompt(input);
+    const {output} = await testDataGeneratorPrompt(input);
     if (!output) {
       throw new Error("AI failed to generate test data.");
     }
