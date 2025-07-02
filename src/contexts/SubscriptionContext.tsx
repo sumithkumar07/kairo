@@ -102,7 +102,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       setHasPurchasedPro(false);
 
       toast({ title: 'Signup Successful!', description: 'Your 15-day Pro trial has started. Check your email to verify your account.' });
-      router.push(redirectUrl || '/workflow');
+      router.push(redirectUrl || '/dashboard');
     } catch (error: any) {
       console.error("Signup error", error);
       toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
@@ -118,7 +118,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast({ title: 'Login Successful!', description: 'Welcome back!' });
-      router.push(redirectUrl || '/workflow');
+      router.push(redirectUrl || '/dashboard');
     } catch (error: any) {
       console.error("Login error", error);
       toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });

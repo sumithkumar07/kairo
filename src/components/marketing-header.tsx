@@ -44,7 +44,7 @@ export function MarketingHeader() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild><Link href="/workflow">Go to App</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard">Go to Dashboard</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -88,6 +88,7 @@ export function MarketingHeader() {
                     <DropdownMenuSeparator />
                   </>
                 )}
+                <DropdownMenuItem asChild><Link href="/dashboard">Dashboard</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/workflow">Workflow Editor</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/run-history">Run History</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/mcp">Agent Hub</Link></DropdownMenuItem>

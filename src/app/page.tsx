@@ -26,8 +26,8 @@ export default function HomePage() {
               Kairo empowers you to visually design, build, and deploy intelligent workflows in minutes. Turn complex processes into streamlined automations with our intuitive drag-and-drop interface and AI-driven assistance.
             </p>
             <Button asChild size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-all duration-300 ease-in-out hover:scale-105 bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Link href={isLoggedIn ? "/workflow" : "/signup"}>
-                {isLoggedIn ? 'Open Workflow Editor' : 'Get Started for Free'} 
+              <Link href={isLoggedIn ? "/dashboard" : "/signup"}>
+                {isLoggedIn ? 'Go to Your Dashboard' : 'Get Started for Free'} 
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
@@ -105,7 +105,7 @@ export default function HomePage() {
                     Join developers and businesses who use Kairo to automate tasks, connect services, and build intelligent systems with unprecedented speed and clarity.
                 </p>
                 <Button asChild size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-primary/40 transition-all duration-300 ease-in-out hover:scale-105">
-                    <Link href={isLoggedIn ? "/workflow" : "/signup"}>
+                    <Link href={isLoggedIn ? "/dashboard" : "/signup"}>
                       Start Building Now
                       <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Link>

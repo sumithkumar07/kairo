@@ -4,9 +4,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+} from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { Workflow, History, Cpu, Settings, LogOut, User, Menu } from 'lucide-react';
+import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -17,22 +26,11 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarTrigger,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarInset,
-} from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 
 const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/workflow', label: 'Workflow Editor', icon: Workflow },
   { href: '/run-history', label: 'Run History', icon: History },
   { href: '/mcp', label: 'AI Agent Hub', icon: Cpu },
@@ -108,8 +106,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               )}
             </SidebarFooter>
         </Sidebar>
-        <SidebarInset>
-             <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6 sm:hidden">
+        <div className="flex-1 flex flex-col h-screen">
+            <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6 sm:hidden">
                 <Link
                     href="/"
                     className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
@@ -147,6 +145,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             {isLoggedIn ? (
                               <>
                                 <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                                <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={logout} className="cursor-pointer">
                                   <LogOut className="mr-2 h-4 w-4" />
                                   Logout
@@ -159,8 +159,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </DropdownMenu>
                 </div>
             </header>
-            <div className="flex-1 h-full">{children}</div>
-        </SidebarInset>
+            <div className="flex-1 h-[calc(100vh-3.5rem)] sm:h-screen">{children}</div>
+        </div>
     </SidebarProvider>
   );
 }

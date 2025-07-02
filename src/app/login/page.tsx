@@ -7,19 +7,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
 
 export default function LoginPage() {
-  const { login, isAuthLoading, isSupabaseConfigured } = useSubscription();
+  const { login, isAuthLoading, isSupabaseConfigured, isLoggedIn } = useSubscription();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [email, setEmail] = useState('user@kairo.com');
   const [password, setPassword] = useState('password');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthLoading && isLoggedIn) {
+      router.push('/dashboard');
+    }
+  }, [isAuthLoading, isLoggedIn, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +37,18 @@ export default function LoginPage() {
   };
 
   const isFormDisabled = isLoading || isAuthLoading || !isSupabaseConfigured;
+
+  if (isAuthLoading || isLoggedIn) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <MarketingHeader />
+        <main className="flex-1 flex items-center justify-center bg-muted/40 p-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </main>
+        <MarketingFooter />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
