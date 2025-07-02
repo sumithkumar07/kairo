@@ -1,4 +1,3 @@
-
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This feature-rich prototype includes an interactive visual editor, AI-driven workflow generation, a live debugging history, and a programmatic API for agent control.
@@ -14,53 +13,59 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **AI Agent Hub**: Configure your AI agent's skills (available tools/nodes), view credential requirements, and get an API key to control the agent programmatically.
 *   **Cloud & Example Storage**: Save your workflows to your Supabase cloud database for persistent storage, or load pre-built example workflows to explore features.
 
+## Technology Stack
+
+*   **Framework**: Next.js (App Router)
+*   **Language**: TypeScript
+*   **Styling**: Tailwind CSS with shadcn/ui components
+*   **AI**: Google AI & Genkit
+*   **Database & Auth**: Supabase
+*   **Deployment**: Ready for Vercel, Netlify, or Firebase App Hosting
+
 ## Getting Started
 
-1.  Ensure you have Node.js and npm/yarn installed.
-2.  Clone the repository.
-3.  Install dependencies: `npm install` or `yarn install`.
-4.  **Set up Environment Variables**:
-    *   Create a `.env.local` file in the root directory by copying `.env`.
-    *   Refer to the "Environment Variables Setup" section below for essential variables. **Pay special attention to `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for authentication and database features, and `GOOGLE_API_KEY` for AI features.**
-5.  **Set up the Database**:
-    *   To save workflows and view run history, you must set up the database tables in your Supabase project.
-    *   Go to the "Production Database Setup (Supabase)" section below, copy the SQL commands, and run them in the **SQL Editor** in your Supabase dashboard. This is a one-time setup.
-6.  Run the development server: `npm run dev`
-7.  Open [http://localhost:3000](http://localhost:3000) (or your configured port) in your browser.
+1.  **Prerequisites**: Ensure you have Node.js and npm/yarn installed.
+2.  **Clone Repository**: `git clone <repository-url>`
+3.  **Install Dependencies**: `npm install`
+4.  **Crucial Setup**: Follow the steps in the **"Environment & Database Setup"** section below. This is required for the app to function.
+5.  **Run Development Server**: `npm run dev`
+6.  **Open in Browser**: Navigate to `http://localhost:3000`. The main editor is at `/workflow`.
 
-The main workflow editor is accessible at the `/workflow` route.
+---
 
-## Environment Variables Setup
+## Environment & Database Setup
 
-Create a `.env.local` file in the project root for local development, or set these variables in your deployment environment.
+This is the most important section for getting Kairo running.
 
-### Core App Configuration
-These are **essential** for the app to function correctly.
+### Step 1: Set Up Environment Variables
 
-*   `NEXT_PUBLIC_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"`: **Required** for user accounts and database storage.
-*   `NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_PUBLIC_KEY"`: **Required** for user accounts and database storage.
-*   `GOOGLE_API_KEY="YOUR_GOOGLE_CLOUD_API_KEY"`: **Required** for all AI features (workflow generation, assistant chat, etc.).
-*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`: A secret key you define. Required to use the AI Agent Hub's programmatic API.
+Create a file named `.env.local` in the root of your project by copying the `.env` file. You must fill in the following core variables.
 
-### Live Mode Node Configurations
-These variables are only needed if you use the corresponding nodes in **Live Mode**.
+#### **Core App Configuration (Required)**
 
-*   **Database Query Node**:
-    *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`: PostgreSQL connection string. Get this from your Supabase project dashboard ("Project Settings" > "Database").
-*   **Send Email Node**:
-    *   `EMAIL_HOST="your_smtp_host"`
-    *   `EMAIL_PORT="your_smtp_port"`
-    *   `EMAIL_USER="your_smtp_username"`
-    *   `EMAIL_PASS="your_smtp_password"`
-    *   `EMAIL_FROM="notifications@example.com"`
-    *   `EMAIL_SECURE="true"` (Use `true` for SSL/TLS)
+These are **essential** for the app's core features to function.
 
-### Credential Placeholders (`{{credential.NAME}}`)
-The application simulates a Credential Manager by resolving placeholders like `{{credential.MyApiKey}}` to environment variables named `MyApiKey`. For example, if a node uses `{{credential.OpenAI_API_Key}}`, you must set an environment variable: `OpenAI_API_Key="your_actual_key"`. The Agent Hub's "Credentials" tab lists common keys used by the available nodes.
+*   `NEXT_PUBLIC_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"`
+    *   **Purpose**: Connects to your Supabase project for user accounts and data storage.
+    *   **How to get it**: In your Supabase dashboard, go to "Project Settings" > "API".
 
-## Production Database Setup (Supabase)
+*   `NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_PUBLIC_KEY"`
+    *   **Purpose**: Public key for client-side interaction with Supabase.
+    *   **How to get it**: Found on the same "API" page in your Supabase dashboard.
 
-To enable saving workflows, run history, and agent configurations, you must create the necessary tables in your Supabase project.
+*   `GOOGLE_API_KEY="YOUR_GOOGLE_CLOUD_API_KEY"`
+    *   **Purpose**: Powers all AI features (workflow generation, assistant chat, etc.).
+    *   **How to get it**: In the Google Cloud Console, create a project, enable the "Generative Language API", and create an API key under "APIs & Services" > "Credentials".
+
+*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`
+    *   **Purpose**: A secret key you define to protect the AI Agent Hub's programmatic API endpoint.
+    *   **How to get it**: Create any strong, secret string. You will use this in the `Authorization: Bearer <key>` header when calling `/api/mcp`.
+
+---
+
+### Step 2: Set Up the Database
+
+To save workflows and view run history, you must set up the database tables in your Supabase project. **This is a one-time setup.**
 
 1.  Navigate to your Supabase project dashboard.
 2.  Go to the **SQL Editor**.
@@ -144,65 +149,70 @@ END;
 $$;
 ```
 
+---
+
+### Optional: Live Mode Node Configurations
+
+These variables are only needed if you use the corresponding nodes in **Live Mode**.
+
+*   **Database Query Node**:
+    *   `DB_CONNECTION_STRING="postgresql://user:password@host:port/database"`: PostgreSQL connection string. Get this from your Supabase project dashboard ("Project Settings" > "Database").
+*   **Send Email Node**:
+    *   `EMAIL_HOST="your_smtp_host"`
+    *   `EMAIL_PORT="your_smtp_port"`
+    *   `EMAIL_USER="your_smtp_username"`
+    *   `EMAIL_PASS="your_smtp_password"`
+    *   `EMAIL_FROM="notifications@example.com"`
+    *   `EMAIL_SECURE="true"` (Use `true` for SSL/TLS)
+
+### Credential Placeholders (`{{credential.NAME}}`)
+
+The application simulates a Credential Manager by resolving placeholders like `{{credential.MyApiKey}}` to environment variables named `MyApiKey`. For example, if a node uses `{{credential.OpenAI_API_Key}}`, you must set an environment variable: `OpenAI_API_Key="your_actual_key"`. The Agent Hub's "Credentials" tab lists common keys used by the available nodes.
+
 ## Deployment Checklist
 
-Your Kairo application is architected to be deployed on modern hosting platforms like Netlify, Vercel, or Firebase App Hosting. Here is a checklist to ensure a successful deployment:
+Kairo is architected to be deployed on modern hosting platforms like Netlify, Vercel, or Firebase App Hosting.
 
-1.  **Push to Git (Optional but Recommended)**: For automated deployments, push your project to a GitHub, GitLab, or Bitbucket repository.
-
-2.  **Configure Environment Variables**: This is the most critical step. Your deployed application needs access to the same secrets and configuration as your local setup. Go to your hosting provider's dashboard (e.g., Netlify's "Site settings > Build & deploy > Environment") and add all variables from the "Environment Variables Setup" section.
-
-3.  **Run the Database Schema SQL**: The application now uses a Supabase database for storing workflows and run history. You **must** run the SQL script provided in the "Production Database Setup (Supabase)" section above in your Supabase project's SQL Editor. This only needs to be done once.
-
-4.  **Confirm Build Settings**: Most platforms will detect a Next.js project automatically. Ensure the settings are:
+1.  **Configure Environment Variables**: This is the most critical step. Go to your hosting provider's dashboard and add all variables from the **"Core App Configuration"** section above. Add any optional variables you need as well.
+2.  **Run the Database Schema SQL**: If you haven't already, you **must** run the SQL script provided in the database setup section in your production Supabase project's SQL Editor.
+3.  **Confirm Build Settings**: Most platforms will detect a Next.js project automatically. Ensure the settings are:
     *   **Build Command**: `next build`
     *   **Publish Directory**: `.next`
+4.  **Deploy**: Trigger the deployment from your hosting provider's dashboard.
 
-5.  **Deploy**: Trigger the deployment from your hosting provider's dashboard or use the Netlify CLI for manual deployment.
-
-
-## Live Mode & Deployment Considerations
+## API & Agent Hub Details
 
 ### Live Webhook Trigger (`webhookTrigger` node)
 
-*   **Base URL:** Live webhooks are exposed at `/api/workflow-webhooks/YOUR_PATH_SUFFIX`. Replace `YOUR_PATH_SUFFIX` with the value configured in the `webhookTrigger` node.
-*   **Workflow Storage:** For a webhook to be triggered in a live environment, the workflow containing it **must be saved to the server** (using the "Save As..." or "Save" feature in the editor).
-*   **Security Token:** If a `securityToken` (e.g., `{{credential.MyWebhookSecret}}`) is configured in the `webhookTrigger` node, the incoming live request must include an `X-Webhook-Token` header with the matching resolved secret value.
+*   **Base URL:** Live webhooks are exposed at `/api/workflow-webhooks/YOUR_PATH_SUFFIX`.
+*   **Workflow Storage:** For a webhook to be triggered, the workflow containing it **must be saved** using the editor's "Save" feature.
+*   **Security:** If a `securityToken` (e.g., `{{credential.MyWebhookSecret}}`) is configured, the live request must include an `X-Webhook-Token` header with the matching secret value.
 
 ### AI Agent Hub API (`/api/mcp`)
 
-*   To interact with the agent API, send a `POST` request to `/api/mcp`.
-*   You must include an `Authorization` header with the value `Bearer YOUR_KAIRO_MCP_API_KEY`.
+*   Send a `POST` request to `/api/mcp`.
+*   Include an `Authorization` header with the value `Bearer YOUR_KAIRO_MCP_API_KEY`.
 *   The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
-*   The AI will process the command and can generate and return a full workflow definition in the JSON response.
-
-By keeping these points in mind, you can more effectively test and utilize the live mode capabilities of Kairo.
 
 ## Project Structure
 
-A brief overview of the key directories in the project:
-
--   `/src/app`: Contains all the Next.js pages and API routes for the application.
--   `/src/ai`: The heart of the AI functionality, containing Genkit flows (`/flows`) and tools (`/tools`).
--   `/src/components`: Reusable React components, including UI components from shadcn/ui.
--   `/src/config`: Static configuration files for nodes (`nodes.ts`) and example workflows.
--   `/src/contexts`: React Context providers for managing global state like subscriptions.
+-   `/src/app`: Next.js pages and API routes.
+-   `/src/ai`: Genkit flows (`/flows`) and tools (`/tools`).
+-   `/src/components`: Reusable React components.
+-   `/src/config`: Static configuration for nodes and example workflows.
+-   `/src/contexts`: React Context providers for global state.
 -   `/src/services`: Server-side logic for interacting with the Supabase database.
--   `/src/types`: TypeScript type definitions used throughout the application.
--   `/src/lib`: Utility functions, including `cn` for classnames and workflow logic helpers.
+-   `/src/types`: TypeScript type definitions.
+-   `/src/lib`: Utility functions.
 
 ## Known Limitations
 
-This prototype is highly functional but has some limitations to be aware of before deploying to a large-scale production environment:
-
-*   **Single Instance Deployment**: To prevent potential race conditions with certain operations, it's recommended to deploy this application as a single instance.
-*   **No Automated Tests**: The project does not currently include a testing framework (e.g., Jest, Playwright). For a production-grade application, a comprehensive test suite would be essential.
+*   **Single Instance Deployment**: To prevent potential race conditions, deploying as a single instance is recommended.
+*   **No Automated Tests**: The project does not currently include a testing framework (e.g., Jest, Playwright).
 
 ## Future Enhancements
 
-Here are some ideas for future development to build upon Kairo's foundation:
-
-*   **Real-time Collaboration**: Implement features for multiple users to collaborate on the same workflow in real-time using Supabase's Realtime capabilities.
-*   **Credential Manager UI**: Build a secure UI for managing credentials, storing them encrypted in the database instead of relying solely on environment variables.
-*   **Expanded Node Library**: Continuously add new integration and utility nodes to expand the platform's capabilities.
+*   **Real-time Collaboration**: Implement features for multiple users to collaborate on the same workflow in real-time.
+*   **Credential Manager UI**: Build a secure UI for managing credentials, storing them encrypted in the database.
+*   **Expanded Node Library**: Continuously add new integration and utility nodes.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
