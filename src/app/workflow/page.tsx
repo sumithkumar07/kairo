@@ -39,6 +39,7 @@ import { NodeLibrary } from '@/components/node-library';
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { produce } from 'immer';
 import { withAuth } from '@/components/auth/with-auth';
+import { useSearchParams } from 'next/navigation';
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
@@ -115,6 +116,7 @@ function WorkflowPage() {
 
   const [isGeneratingTestDataFor, setIsGeneratingTestDataFor] = useState<string|null>(null);
 
+  const searchParams = useSearchParams();
 
   const selectedNode = useMemo(() => {
     return nodes.find(node => node.id === selectedNodeId) || null;
@@ -280,61 +282,57 @@ function WorkflowPage() {
     }
   }, [workflowToDeleteFromModal, toast]);
 
-
   useEffect(() => {
+    const initializeEditorState = async () => {
+        const workflowNameToLoad = searchParams.get('load');
+
+        if (workflowNameToLoad) {
+            await handleLoadNamedWorkflow(workflowNameToLoad);
+        } else {
+            const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
+            if (savedWorkflowJson) {
+                try {
+                    const savedState = JSON.parse(savedWorkflowJson);
+                    if (savedState.workflow && Array.isArray(savedState.workflow.nodes)) {
+                        loadWorkflowIntoEditor(savedState.workflow, savedState.name || 'Untitled Workflow');
+                    } else if (Array.isArray(savedState.nodes)) {
+                        console.warn("Migrating legacy workflow from localStorage.");
+                        loadWorkflowIntoEditor(savedState, 'Untitled Workflow');
+                        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: 'Untitled Workflow', workflow: savedState }));
+                    } else {
+                        console.error("Invalid workflow data structure found in localStorage. Clearing it.");
+                        resetHistoryForNewWorkflow([], []);
+                    }
+                } catch (error) {
+                    console.error("Error loading initial workflow from localStorage:", error);
+                    resetHistoryForNewWorkflow([], []);
+                }
+            } else {
+                resetHistoryForNewWorkflow([], []);
+            }
+        }
+
+        const storedChatHistoryJson = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+        if (storedChatHistoryJson) {
+            try {
+                setChatHistory(JSON.parse(storedChatHistoryJson));
+            } catch (error) {
+                console.error("Failed to parse chat history from localStorage:", error);
+                localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
+            }
+        } else if (!workflowNameToLoad) {
+            const welcomeMessage: ChatMessage = {
+                id: crypto.randomUUID(),
+                sender: 'ai',
+                message: "Welcome to Kairo! I'm your AI assistant. To get started, you can either drag nodes from the library on the left, or simply describe the workflow you'd like me to build for you in the chat below.",
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            setChatHistory([welcomeMessage]);
+        }
+    };
+
     if (typeof window !== 'undefined') {
-      const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
-      const storedChatHistoryJson = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
-      
-      // Load chat history if it exists
-      if (storedChatHistoryJson) {
-        try {
-          setChatHistory(JSON.parse(storedChatHistoryJson));
-        } catch (error) {
-          console.error("Failed to parse chat history from localStorage:", error);
-          localStorage.removeItem(CHAT_HISTORY_STORAGE_KEY);
-        }
-      }
-
-      // Load workflow if it exists
-      if (savedWorkflowJson) {
-        try {
-          const savedState = JSON.parse(savedWorkflowJson);
-
-          if (savedState.workflow && Array.isArray(savedState.workflow.nodes)) {
-            loadWorkflowIntoEditor(savedState.workflow, savedState.name || 'Untitled Workflow');
-          } 
-          else if (Array.isArray(savedState.nodes)) {
-            console.warn("Migrating legacy workflow from localStorage.");
-            loadWorkflowIntoEditor(savedState, 'Untitled Workflow');
-            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: 'Untitled Workflow', workflow: savedState }));
-          } 
-          else {
-            console.error("Invalid workflow data structure found in localStorage. Clearing it.");
-            localStorage.removeItem(CURRENT_WORKFLOW_KEY);
-            resetHistoryForNewWorkflow([], []);
-          }
-
-        } catch (error) {
-          console.error("Error loading initial workflow from localStorage:", error);
-          localStorage.removeItem(CURRENT_WORKFLOW_KEY);
-          resetHistoryForNewWorkflow([], []);
-        }
-      } else {
-        // No workflow saved, this is a fresh canvas
-        resetHistoryForNewWorkflow([], []);
-        
-        // If there's also no chat history, show the welcome message
-        if (!storedChatHistoryJson) {
-          const welcomeMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            sender: 'ai',
-            message: "Welcome to Kairo! I'm your AI assistant. To get started, you can either drag nodes from the library on the left, or simply describe the workflow you'd like me to build for you in the chat below.",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          };
-          setChatHistory([welcomeMessage]);
-        }
-      }
+        initializeEditorState();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

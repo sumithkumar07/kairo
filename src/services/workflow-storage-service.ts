@@ -47,7 +47,8 @@ export async function listAllWorkflows(): Promise<SavedWorkflowMetadata[]> {
   const { data: userWorkflows, error } = await supabase
     .from('workflows')
     .select('name, updated_at')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false });
     
   if (error) {
     console.error('[Storage Service] Error listing workflows:', error);

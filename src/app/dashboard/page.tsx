@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { withAuth } from '@/components/auth/with-auth';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { ArrowRight, CheckCircle2, Clock, FilePlus, History, Loader2, Workflow, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FilePlus, History, Loader2, Workflow, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getRunHistory } from '@/services/workflow-storage-service';
@@ -54,7 +54,6 @@ function DashboardPage() {
                 });
 
                 setRecentRuns(runs.slice(0, 5));
-                // Assuming listWorkflowsAction is pre-sorted by updated_at descending
                 setRecentWorkflows(userWorkflows.slice(0, 5));
 
             } catch (error) {
@@ -91,7 +90,7 @@ function DashboardPage() {
     
     return (
         <AppLayout>
-            <main className="flex-1 flex-col p-4 sm:p-6 bg-muted/40 overflow-auto">
+            <main className="flex-1 flex flex-col p-4 sm:p-6 bg-muted/40 overflow-auto">
                 <header className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                         Welcome back, {user?.email.split('@')[0]}!
@@ -181,7 +180,7 @@ function DashboardPage() {
                                             <Workflow className="h-4 w-4 text-primary shrink-0"/>
                                             <span className="flex-grow truncate" title={wf.name}>{wf.name}</span>
                                             <Button asChild variant="secondary" size="sm" className="h-7 text-xs">
-                                                <Link href="/workflow">Open</Link>
+                                                <Link href={`/workflow?load=${encodeURIComponent(wf.name)}`}>Open</Link>
                                             </Button>
                                         </li>
                                     ))}
