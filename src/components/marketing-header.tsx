@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, LogIn, Menu } from 'lucide-react';
+import { Workflow, LogIn, Menu, User } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -48,8 +48,8 @@ export function MarketingHeader() {
                   <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                      <LogIn className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
                       Logout
                   </DropdownMenuItem>
               </DropdownMenuContent>
@@ -100,8 +100,8 @@ export function MarketingHeader() {
                     <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout}>
-                      <LogIn className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
                       Logout
                     </DropdownMenuItem>
                   </>
