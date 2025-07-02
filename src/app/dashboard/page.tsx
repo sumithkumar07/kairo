@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getRunHistory } from '@/services/workflow-storage-service';
 import type { SavedWorkflowMetadata, WorkflowRunRecord } from '@/types/workflow';
-import { listAllWorkflows } from '@/app/actions';
+import { listWorkflowsAction } from '@/app/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +36,7 @@ function DashboardPage() {
             try {
                 const [runs, workflows] = await Promise.all([
                     getRunHistory(),
-                    listAllWorkflows(),
+                    listWorkflowsAction(),
                 ]);
 
                 const userWorkflows = workflows.filter(wf => wf.type === 'user');
@@ -55,7 +55,7 @@ function DashboardPage() {
                 });
 
                 setRecentRuns(runs.slice(0, 5));
-                // Assuming listAllWorkflows is pre-sorted by updated_at descending
+                // Assuming listWorkflowsAction is pre-sorted by updated_at descending
                 setRecentWorkflows(userWorkflows.slice(0, 5));
 
             } catch (error) {
@@ -97,7 +97,7 @@ function DashboardPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                         Welcome back, {user?.email.split('@')[0]}!
                     </h1>
-                    <p className="text-muted-foreground">Here&apos;s a summary of your automation activities.</p>
+                    <p className="text-muted-foreground">Here's a summary of your automation activities.</p>
                 </header>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -189,7 +189,7 @@ function DashboardPage() {
                                 </ul>
                             ) : (
                                  <div className="text-center py-4">
-                                    <p className="text-sm text-muted-foreground mb-3">You haven&apos;t saved any workflows yet.</p>
+                                    <p className="text-sm text-muted-foreground mb-3">You haven't saved any workflows yet.</p>
                                     <Button asChild size="sm">
                                         <Link href="/workflow"><FilePlus className="mr-2 h-4 w-4"/>Create Your First Workflow</Link>
                                     </Button>
