@@ -304,7 +304,6 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
 async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
     const liveTriggerData = (!isSimulationMode && allWorkflowData && allWorkflowData[node.id]) ? allWorkflowData[node.id] : null;
 
-    // Check if liveTriggerData exists and has a key property to ensure it's actual trigger data, not just an empty object.
     if (liveTriggerData && liveTriggerData.requestBody !== undefined) { 
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] LIVE TRIGGER. Using data from API route.`, type: 'info' });
         return { 
@@ -316,11 +315,19 @@ async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimu
     }
     
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Using simulated data.`, type: 'info' });
-    let simBody = {}; let simHeaders = {}; let simQuery = {};
-    try { simBody = typeof config.simulatedRequestBody === 'string' ? JSON.parse(config.simulatedRequestBody) : config.simulatedRequestBody || {}; } catch (e) { serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulatedRequestBody: ${(e as Error).message}`, type: 'info'}); }
-    try { simHeaders = typeof config.simulatedRequestHeaders === 'string' ? JSON.parse(config.simulatedRequestHeaders) : config.simulatedRequestHeaders || {}; } catch (e) { serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulatedRequestHeaders: ${(e as Error).message}`, type: 'info'}); }
-    try { simQuery = typeof config.simulatedRequestQuery === 'string' ? JSON.parse(config.simulatedRequestQuery) : config.simulatedRequestQuery || {}; } catch (e) { serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulatedRequestQuery: ${(e as Error).message}`, type: 'info'}); }
-    return { requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery };
+    let simBody = {};
+    let simHeaders = {};
+    let simQuery = {};
+
+    try {
+        simBody = typeof config.simulatedRequestBody === 'string' ? JSON.parse(config.simulatedRequestBody) : (config.simulatedRequestBody || {});
+        simHeaders = typeof config.simulatedRequestHeaders === 'string' ? JSON.parse(config.simulatedRequestHeaders) : (config.simulatedRequestHeaders || {});
+        simQuery = typeof config.simulatedRequestQuery === 'string' ? JSON.parse(config.simulatedRequestQuery) : (config.simulatedRequestQuery || {});
+    } catch (e: any) {
+        serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulated data for webhook trigger: ${e.message}`, type: 'info'});
+    }
+
+    return { requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery, status: 'success' };
 }
 
 async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>): Promise<any> {
@@ -655,9 +662,27 @@ async function executeFlowInternal(
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode.`, type: 'info' });
   
     for (const node of executionOrder) {
+        const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
+        
+        // Find dependencies for the current node
+        const dependencies = connectionsToExecute
+            .filter(c => c.targetNodeId === node.id)
+            .map(c => c.sourceNodeId);
+
+        // Check if any dependency has failed
+        const hasFailedDependency = dependencies.some(depId => 
+            currentWorkflowData[depId]?.lastExecutionStatus === 'error'
+        );
+
+        if (hasFailedDependency) {
+            serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Skipping node ${nodeIdentifier} due to upstream failure.`, type: 'info' });
+            currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'skipped', reason: 'Upstream dependency failed.', lastExecutionStatus: 'skipped' };
+            lastNodeOutput = currentWorkflowData[node.id];
+            continue;
+        }
+
         currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
 
-        const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
         const resolvedConfig = resolveNodeConfig(node.config || {}, dataForResolution, serverLogs);
 
