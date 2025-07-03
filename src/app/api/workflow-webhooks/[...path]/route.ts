@@ -118,7 +118,7 @@ export async function POST(
 
     try {
       console.log(`[API Webhook] Triggering workflow for pathSuffix: ${pathSuffix} in LIVE mode.`);
-      const executionResult = await executeWorkflow(workflowToExecute, false, initialDataForWorkflow); 
+      const executionResult = await executeWorkflow(workflowToExecute, false, userId, initialDataForWorkflow); 
       console.log(`[API Webhook] Workflow for pathSuffix ${pathSuffix} executed. Final Data keys:`, Object.keys(executionResult.finalWorkflowData).join(', '));
       
       const hasErrors = Object.values(executionResult.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
