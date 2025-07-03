@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcw, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcw, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook, Waypoints } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React, { useState } from 'react';
@@ -100,6 +100,24 @@ export function NodeConfigPanel({
     });
   };
 
+  const handleInputMappingChange = (value: string) => {
+    try {
+      if (value.trim() === '') {
+        onConfigChange(node.id, { ...node, inputMapping: undefined });
+        setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
+        return;
+      }
+      const parsed = JSON.parse(value);
+      onConfigChange(node.id, { ...node, inputMapping: parsed });
+      setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
+    } catch (e) {
+      setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': 'Invalid JSON format.' }));
+    }
+    // We also need to update the node itself for the live textarea
+    onConfigChange(node.id, { ...node, inputMapping: value });
+  };
+  
+
   const renderFormField = (fieldKey: string, fieldSchema: ConfigFieldSchema) => {
     const currentValue = node.config[fieldKey] ?? fieldSchema.defaultValue ?? '';
     const error = jsonValidationErrors[fieldKey];
@@ -147,8 +165,8 @@ export function NodeConfigPanel({
   const suggestedNodeConfig = suggestedNextNodeInfo?.suggestion?.suggestedNode ? AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNextNodeInfo.suggestion.suggestedNode) : null;
 
   const { env: envPlaceholders, secrets: secretPlaceholders } = React.useMemo(() => {
-    return findPlaceholdersInObject(node.config);
-  }, [node.config]);
+    return findPlaceholdersInObject({ config: node.config, inputMapping: node.inputMapping });
+  }, [node.config, node.inputMapping]);
 
   const currentRetryConfig: Partial<RetryConfig> = node.config.retry || {};
   const currentWebhookConfig: Partial<OnErrorWebhookConfig> = node.config.onErrorWebhook || {};
@@ -195,6 +213,8 @@ export function NodeConfigPanel({
         );
       });
   };
+  
+  const rawInputMapping = typeof node.inputMapping === 'string' ? node.inputMapping : JSON.stringify(node.inputMapping || {}, null, 2);
 
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
@@ -210,7 +230,7 @@ export function NodeConfigPanel({
       <ScrollArea className="flex-grow">
         <CardContent className="space-y-4 p-4">
           
-          <Accordion type="multiple" defaultValue={['ai-explanation', 'general', 'parameters']} className="w-full">
+          <Accordion type="multiple" defaultValue={['ai-explanation', 'general', 'parameters', 'input-mapping']} className="w-full">
 
             {node.aiExplanation && (
               <AccordionItem value="ai-explanation">
@@ -240,6 +260,24 @@ export function NodeConfigPanel({
                   </div>
               </AccordionContent>
             </AccordionItem>
+            
+            <AccordionItem value="input-mapping">
+              <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
+                <div className="flex items-center gap-2"><Waypoints className="h-4 w-4"/>Input Mapping</div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 space-y-3">
+                  <Textarea
+                    value={rawInputMapping === '{}' ? '' : rawInputMapping}
+                    onChange={(e) => handleInputMappingChange(e.target.value)}
+                    placeholder={'{\n  "localName": "{{nodeId.output.path}}"\n}'}
+                    rows={4}
+                    className={cn("font-mono text-xs", jsonValidationErrors['inputMapping'] && "border-destructive")}
+                  />
+                  {jsonValidationErrors['inputMapping'] && <p className="text-xs text-destructive mt-1">{jsonValidationErrors['inputMapping']}</p>}
+                  <p className="text-xs text-muted-foreground/80 mt-1">Explicitly map data from other nodes to local variables for this node.</p>
+              </AccordionContent>
+            </AccordionItem>
+
 
             <AccordionItem value="parameters">
               <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">

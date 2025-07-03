@@ -66,7 +66,7 @@ async function resolveValue(
       let dataFound = false;
       let dataAtPath: any;
       
-      // 1. Check additionalContexts (e.g., item for forEach, error details for webhooks)
+      // 1. Check additionalContexts (e.g., item for forEach, error details for webhooks, or mapped inputs)
       if (additionalContexts && additionalContexts.hasOwnProperty(firstPart)) {
           dataAtPath = additionalContexts[firstPart];
           let contextFound = true;
@@ -152,7 +152,24 @@ async function resolveNodeConfig(
   additionalContexts?: Record<string, any>
 ): Promise<Record<string, any>> {
   const resolvedConfig: Record<string, any> = {};
+
+  // 1. Resolve inputMapping first to create mappedInputs context
+  const mappedInputs: Record<string, any> = {};
+  if (nodeConfig.inputMapping && typeof nodeConfig.inputMapping === 'object') {
+    for (const key in nodeConfig.inputMapping) {
+      mappedInputs[key] = await resolveValue(nodeConfig.inputMapping[key], workflowData, serverLogs, userId, additionalContexts);
+    }
+  }
+
+  // Combine contexts: mappedInputs take precedence over other additional contexts
+  const combinedContexts = { ...additionalContexts, ...mappedInputs };
+  
+  // 2. Resolve the rest of the config using the combined context
   for (const key in nodeConfig) {
+    if (key === 'inputMapping') { // Don't copy inputMapping to final resolved config
+        continue;
+    }
+
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
       // Do not resolve sub-flow definitions, as they have their own scopes and will be resolved during their execution.
@@ -161,22 +178,22 @@ async function resolveNodeConfig(
         resolvedConfig[key] = value;
       } else if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
          // Resolve placeholders inside the webhook config, but not the whole object itself.
-         resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, additionalContexts);
+         resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, combinedContexts);
       } else if (Array.isArray(value)) {
         resolvedConfig[key] = await Promise.all(
           value.map(item => (typeof item === 'object' && item !== null) 
-              ? resolveNodeConfig(item, workflowData, serverLogs, userId, additionalContexts) 
-              : resolveValue(item, workflowData, serverLogs, userId, additionalContexts)
+              ? resolveNodeConfig(item, workflowData, serverLogs, userId, combinedContexts) 
+              : resolveValue(item, workflowData, serverLogs, userId, combinedContexts)
           )
         );
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, additionalContexts);
+        resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, combinedContexts);
       } else {
-        resolvedConfig[key] = await resolveValue(value, workflowData, serverLogs, userId, additionalContexts);
+        resolvedConfig[key] = await resolveValue(value, workflowData, serverLogs, userId, combinedContexts);
       }
     }
   }
-  return resolvedConfig;
+  return { ...resolvedConfig, input: mappedInputs }; // Also add the mapped inputs to a dedicated 'input' key for easy access
 }
 
 function evaluateCondition(conditionString: string, nodeIdentifier: string, serverLogs: ServerLogOutput[]): boolean {
@@ -425,7 +442,7 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
 
 async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-    const resolvedMessage = await resolveValue(config?.message, allWorkflowData, serverLogs, userId); // Resolve placeholders in the message
+    const resolvedMessage = await resolveValue(config?.message, allWorkflowData, serverLogs, userId, config.input); // Pass mapped inputs to resolveValue
     const finalMessage = typeof resolvedMessage === 'object' ? JSON.stringify(resolvedMessage, null, 2) : resolvedMessage;
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${finalMessage}`, type: 'info' });
     return { output: finalMessage };
@@ -671,7 +688,7 @@ async function executeFlowInternal(
         currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
 
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
-        const resolvedConfig = await resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, userId);
+        const resolvedConfig = await resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, userId, node.inputMapping);
 
         // Check for conditional execution
         if (resolvedConfig._flow_run_condition !== undefined && !evaluateCondition(String(resolvedConfig._flow_run_condition), nodeIdentifier, serverLogs)) {

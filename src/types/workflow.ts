@@ -34,6 +34,7 @@ export interface WorkflowNode {
   name: string;
   description?: string;
   position: { x: number; y: number };
+  inputMapping?: Record<string, any>;
   config: Record<string, any> & { 
     retry?: RetryConfig;
     onErrorWebhook?: OnErrorWebhookConfig; 
