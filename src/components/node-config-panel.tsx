@@ -103,18 +103,19 @@ export function NodeConfigPanel({
   const handleInputMappingChange = (value: string) => {
     try {
       if (value.trim() === '') {
-        onConfigChange(node.id, { ...node, inputMapping: undefined });
+        const newConfig = { ...node.config };
+        delete newConfig.inputMapping;
+        onConfigChange(node.id, newConfig);
         setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
         return;
       }
       const parsed = JSON.parse(value);
-      onConfigChange(node.id, { ...node, inputMapping: parsed });
+      onConfigChange(node.id, { ...node.config, inputMapping: parsed });
       setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
     } catch (e) {
       setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': 'Invalid JSON format.' }));
+      onConfigChange(node.id, { ...node.config, inputMapping: value } as any);
     }
-    // We also need to update the node itself for the live textarea
-    onConfigChange(node.id, { ...node, inputMapping: value });
   };
   
 
@@ -214,7 +215,9 @@ export function NodeConfigPanel({
       });
   };
   
-  const rawInputMapping = typeof node.inputMapping === 'string' ? node.inputMapping : JSON.stringify(node.inputMapping || {}, null, 2);
+  const rawInputMapping = typeof node.inputMapping === 'string'
+    ? node.inputMapping
+    : JSON.stringify(node.inputMapping || {}, null, 2);
 
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">

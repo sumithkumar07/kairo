@@ -1,12 +1,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { Workflow, WorkflowNode, WorkflowRunRecord } from '@/types/workflow';
-import { findWorkflowByWebhookPath, saveRunRecord } from '@/services/workflow-storage-service';
+import { findWorkflowByWebhookPath, saveRunRecord, getCredentialValueByNameForUser } from '@/services/workflow-storage-service';
 import { executeWorkflow } from '@/lib/workflow-engine';
 
 
 // Helper function to resolve potential placeholders in the security token
-function resolveSecurityToken(tokenValue: string | undefined): string | undefined {
+async function resolveSecurityToken(tokenValue: string | undefined, userId: string): Promise<string | undefined> {
   if (!tokenValue) return undefined;
 
   const envVarMatch = tokenValue.match(/^{{\s*env\.([^}\s]+)\s*}}$/);
@@ -16,9 +16,12 @@ function resolveSecurityToken(tokenValue: string | undefined): string | undefine
 
   const credentialMatch = tokenValue.match(/^{{\s*credential\.([^}\s]+)\s*}}$/);
   if (credentialMatch) {
-    // In a real credential manager, you'd look this up.
-    // For now, fallback to an environment variable of the same name.
-    return process.env[credentialMatch[1]] || process.env[`${credentialMatch[1]}_TOKEN`] || process.env[`${credentialMatch[1]}_SECRET`];
+    const credName = credentialMatch[1];
+    const storedCred = await getCredentialValueByNameForUser(credName, userId);
+    if (storedCred) return storedCred;
+    
+    // Fallback for local dev
+    return process.env[credName] || process.env[`${credName}_TOKEN`] || process.env[`${credName}_SECRET`];
   }
   
   // If no placeholder, return the raw value
@@ -90,7 +93,7 @@ export async function POST(
     }
 
     if (webhookTriggerNode.config?.securityToken) {
-        const expectedToken = resolveSecurityToken(webhookTriggerNode.config.securityToken);
+        const expectedToken = await resolveSecurityToken(webhookTriggerNode.config.securityToken, userId);
         const receivedToken = request.headers.get('X-Webhook-Token');
 
         if (expectedToken) { // Only validate if a token is configured and resolved

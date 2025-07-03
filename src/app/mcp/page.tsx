@@ -51,7 +51,7 @@ function MCPDashboardPage() {
     const requiredMap = new Map<string, RequiredCredentialInfo>();
     
     AVAILABLE_NODES_CONFIG.forEach(node => {
-        const placeholders = findPlaceholdersInObject(node.defaultConfig);
+        const placeholders = findPlaceholdersInObject({ config: node.defaultConfig, inputMapping: {} });
         placeholders.secrets.forEach(secretName => {
             if (!requiredMap.has(secretName)) {
                 requiredMap.set(secretName, {
