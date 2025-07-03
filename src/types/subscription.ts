@@ -26,7 +26,7 @@ export const FREE_TIER_FEATURES: SubscriptionFeatures = {
 };
 
 export const PRO_TIER_FEATURES: SubscriptionFeatures = {
-  aiWorkflowGenerationsPerDay: 'unlimited',
+  aiWorkflowGenerationsPerDay: 200,
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
   maxWorkflows: 'unlimited',

@@ -38,7 +38,7 @@ export default function SubscriptionsPage() {
   ];
 
   const proTierFeaturesList = [
-    `AI Workflow Generations: Unlimited`,
+    `AI Workflow Generations: ${PRO_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
     `AI Workflow Explanations: Full AI Explanations & Suggestions`,
     `Advanced Nodes: Full Node Library Access`,
     `Max Saved Workflows: Unlimited`,
@@ -140,7 +140,7 @@ export default function SubscriptionsPage() {
                   </span>}
               </div>
               <CardDescription className="text-sm pt-1">Unlock the full power of Kairo.</CardDescription>
-              <p className="text-3xl font-bold text-foreground pt-2">$29/month</p>
+              <p className="text-3xl font-bold text-foreground pt-2">$19/month</p>
             </CardHeader>
             <CardContent className="flex-grow">
               <ul className="space-y-2.5 text-sm">
