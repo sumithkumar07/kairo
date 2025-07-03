@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -107,6 +108,10 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
   }
+  :root {
+    --color-successful: hsl(var(--chart-2));
+    --color-failed: hsl(var(--destructive));
+  }
 }
 
 /* Dot Grid Background */
@@ -132,3 +137,5 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+    
