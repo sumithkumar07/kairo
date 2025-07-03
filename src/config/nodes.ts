@@ -1084,3 +1084,12 @@ export const getCanvasNodeStyling = (category: AvailableNodeType['category']) =>
       };
   }
 };
+
+export const getDataTransformIcon = (category: AvailableNodeType['category']) => {
+    switch (category) {
+        case 'logic': return Filter;
+        case 'ai': return Bot;
+        case 'io': return Database;
+        default: return Milestone;
+    }
+};
