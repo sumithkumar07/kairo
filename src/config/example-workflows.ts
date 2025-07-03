@@ -218,7 +218,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         config: {
           to: '{{env.SUMMARY_RECIPIENT_EMAIL}}',
           subject: 'AI Summary: {{fetch_article_summarize.response.title}}',
-          body: 'Here is the AI-generated summary for the article "{{fetch_article_summarize.response.title}}":\n\n{{summarize_ai_task.output}}\n\nOriginal URL: {{trigger_summarize.requestBody.article_url}}',
+          body: 'Here is the AI-generated summary for the article "{{fetch_article_summarize.response.title}}":\\n\\n{{summarize_ai_task.output}}\\n\\nOriginal URL: {{trigger_summarize.requestBody.article_url}}',
           simulatedMessageId: 'sim-email-summary-id',
         },
         inputHandles: ['input'],
@@ -269,7 +269,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         position: { x: 50, y: 330 },
         config: {
           inputArrayPath: '{{fetch_trending.output.videos}}',
-          iterationNodes: '[{"id":"format_message","type":"concatenateStrings","name":"Format Slack Message","position":{"x":10,"y":10},"config":{"stringsToConcatenate":["New Trending Video on YouTube!\\n*Title:* ","{{item.title}}","\\n*URL:* https://www.youtube.com/watch?v=","{{item.id}}"],"separator":""}},{"id":"post_to_slack","type":"slackPostMessage","name":"Post to Slack","position":{"x":10,"y":150},"config":{"channel":"#youtube-trends","text":"{{format_message.output_data}}","token":"{{credential.SlackBotToken}}","simulated_config":{"ok":true}}}]',
+          iterationNodes: '[{"id":"format_message","type":"concatenateStrings","name":"Format Slack Message","position":{"x":10,"y":10},"config":{"stringsToConcatenate":["New Trending Video on YouTube!\\\\n*Title:* ","{{item.title}}","\\\\n*URL:* https://www.youtube.com/watch?v=","{{item.id}}"],"separator":""}},{"id":"post_to_slack","type":"slackPostMessage","name":"Post to Slack","position":{"x":10,"y":150},"config":{"channel":"#youtube-trends","text":"{{format_message.output_data}}","token":"{{credential.SlackBotToken}}","simulated_config":{"ok":true}}}]',
           iterationConnections: '[{"id":"iter_conn_1","sourceNodeId":"format_message","sourceHandle":"output_data","targetNodeId":"post_to_slack","targetHandle":"input"}]',
           continueOnError: true,
         },
@@ -358,7 +358,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         config: {
           to: '{{webhook_onboard.requestBody.email}}',
           subject: 'Welcome to Kairo, {{webhook_onboard.requestBody.name}}!',
-          body: 'Hi {{webhook_onboard.requestBody.name}},\n\nWelcome aboard! We are excited to have you.\n\nBest,\nThe Kairo Team',
+          body: 'Hi {{webhook_onboard.requestBody.name}},\\n\\nWelcome aboard! We are excited to have you.\\n\\nBest,\\nThe Kairo Team',
           simulatedMessageId: 'sim-welcome-email-id',
           _flow_run_condition: '{{db_add_user.status}} == "success"',
         },
@@ -375,4 +375,3 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
     ],
   },
 ];
-
