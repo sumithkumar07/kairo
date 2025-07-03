@@ -20,7 +20,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedRequestQuery: '{}',
         },
         inputHandles: [],
-        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'error'],
         category: 'trigger',
         aiExplanation: 'This node simulates an incoming webhook request that triggers the workflow. Its outputs (like requestBody) can be used by subsequent nodes.'
       },
@@ -37,9 +37,23 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedStatusCode: 200,
         },
         inputHandles: ['input'],
-        outputHandles: ['response', 'status_code', 'error_message', 'status'],
+        outputHandles: ['response', 'status_code', 'error'],
         category: 'action',
-        aiExplanation: 'This node is intentionally broken with an invalid URL placeholder ({{non_existent_source.url}}) to demonstrate the automated AI debugging feature. When you run this workflow in Live Mode, the node will fail, and the AI assistant will automatically analyze the error.'
+        aiExplanation: 'This node is intentionally broken with an invalid URL placeholder ({{non_existent_source.url}}) to demonstrate the automated AI debugging feature. When you run this workflow in Live Mode, the node will fail, and the error message will be passed through its "error" output handle. We have connected this handle to a logging node to demonstrate a proper error-handling pattern.'
+      },
+      {
+        id: 'log_api_failure',
+        type: 'logMessage',
+        name: 'Log API Failure',
+        description: 'Logs the error message if the API call fails.',
+        position: { x: 50 + NODE_WIDTH + 60, y: 50 + NODE_HEIGHT + 40 },
+        config: {
+          message: 'HTTP request failed with error: {{http_1.error}}',
+        },
+        inputHandles: ['input'],
+        outputHandles: ['output'],
+        category: 'io',
+        aiExplanation: 'This node catches and logs any error from the "Fetch Posts API" node, using the dedicated error path.'
       },
       {
         id: 'parse_1',
@@ -52,7 +66,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           path: '$[0]', 
         },
         inputHandles: ['input'],
-        outputHandles: ['output', 'status', 'error_message'],
+        outputHandles: ['output', 'error'],
         category: 'logic',
         aiExplanation: 'Parses the JSON array from the http_1 node and extracts the first element (index 0).'
       },
@@ -75,6 +89,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
       { id: 'conn_1', sourceNodeId: 'webhook_trigger_1', sourceHandle: 'requestBody', targetNodeId: 'http_1', targetHandle: 'input' },
       { id: 'conn_2', sourceNodeId: 'http_1', sourceHandle: 'response', targetNodeId: 'parse_1', targetHandle: 'input' },
       { id: 'conn_3', sourceNodeId: 'parse_1', sourceHandle: 'output', targetNodeId: 'log_1', targetHandle: 'input' },
+      { id: 'conn_err_1', sourceNodeId: 'http_1', sourceHandle: 'error', targetNodeId: 'log_api_failure', targetHandle: 'input' }
     ],
   },
   {
@@ -94,7 +109,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
             simulatedRequestQuery: '{}',
         },
         inputHandles: [], 
-        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'], 
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'error'], 
         category: 'trigger',
         aiExplanation: 'This node simulates an HTTP POST request that triggers the workflow, providing simulated user and order data in its requestBody output handle.'
       },
@@ -126,7 +141,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedMessageId: 'sim-email-high-value'
         },
         inputHandles: ['input'],
-        outputHandles: ['messageId', 'status', 'error_message'],
+        outputHandles: ['messageId', 'error'],
         category: 'action',
         aiExplanation: 'Sends an email if condition_ex2.result is true. Uses customer_email from trigger. Includes user_id in subject/body.'
       },
@@ -144,7 +159,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedMessageId: 'sim-email-standard-value'
         },
         inputHandles: ['input'],
-        outputHandles: ['messageId', 'status', 'error_message'],
+        outputHandles: ['messageId', 'error'],
         category: 'action',
         aiExplanation: 'Sends an email if condition_ex2.result is false. Uses customer_email from trigger. Includes user_id in subject/body.'
       },
@@ -172,7 +187,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedRequestQuery: '{}',
         },
         inputHandles: [],
-        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'error'],
         category: 'trigger',
         aiExplanation: 'Simulates a trigger (e.g., new article event) with a dummy article URL.'
       },
@@ -189,7 +204,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedStatusCode: 200,
         },
         inputHandles: ['input'],
-        outputHandles: ['response', 'status_code', 'error_message', 'status'],
+        outputHandles: ['response', 'status_code', 'error'],
         category: 'action',
         aiExplanation: 'Simulates fetching article data. In a real scenario, this would fetch actual content from the URL provided by the trigger.'
       },
@@ -205,7 +220,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedOutput: 'AI is evolving fast, with breakthroughs in ML and NLP, presenting both opportunities and ethical challenges for society.',
         },
         inputHandles: ['input'],
-        outputHandles: ['output', 'status', 'error_message'],
+        outputHandles: ['output', 'error'],
         category: 'ai',
         aiExplanation: 'Sends the article content to an AI model for summarization. Uses the content from the fetch_article_summarize node.'
       },
@@ -222,7 +237,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedMessageId: 'sim-email-summary-id',
         },
         inputHandles: ['input'],
-        outputHandles: ['messageId', 'status', 'error_message'],
+        outputHandles: ['messageId', 'error'],
         category: 'action',
         aiExplanation: 'Emails the AI-generated summary. The recipient email should be set via the {{env.SUMMARY_RECIPIENT_EMAIL}} environment variable. It uses the article title and summary from previous steps.'
       },
@@ -257,7 +272,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         position: { x: 50, y: 190 },
         config: { region: 'US', maxResults: 3, apiKey: '{{credential.YouTubeApiKey}}', simulated_config: { videos: [{id: 'sim1', title: 'Simulated Trending Video 1'}, {id: 'sim2', title: 'Simulated Trending Video 2'}, {id: 'sim3', title: 'Simulated Trending Video 3'}] } },
         inputHandles: ['input'],
-        outputHandles: ['output', 'status', 'error_message'],
+        outputHandles: ['output', 'error'],
         category: 'integrations',
         aiExplanation: 'This node calls the YouTube API to get the top 3 trending videos. It requires a YouTube API key, which should be stored as a credential named `YouTubeApiKey`.'
       },
@@ -274,7 +289,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           continueOnError: true,
         },
         inputHandles: ['input_array_data'],
-        outputHandles: ['results', 'status', 'error_message'],
+        outputHandles: ['results', 'error'],
         category: 'iteration',
         aiExplanation: 'This node iterates through the array of video objects from the "Fetch Trending Videos" node. For each video, it executes a sub-flow (defined in its configuration) that formats a message and posts it to Slack.'
       },
@@ -294,7 +309,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
     connections: [
       { id: 'conn_zap_1', sourceNodeId: 'daily_schedule', sourceHandle: 'triggered_at', targetNodeId: 'fetch_trending', targetHandle: 'input' },
       { id: 'conn_zap_2', sourceNodeId: 'fetch_trending', sourceHandle: 'output', targetNodeId: 'for_each_video', targetHandle: 'input_array_data' },
-      { id: 'conn_zap_3', sourceNodeId: 'for_each_video', sourceHandle: 'status', targetNodeId: 'final_log', targetHandle: 'input' }
+      { id: 'conn_zap_3', sourceNodeId: 'for_each_video', sourceHandle: 'results', targetNodeId: 'final_log', targetHandle: 'input' }
     ],
   },
   {
@@ -314,7 +329,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedRequestQuery: '{}',
         },
         inputHandles: [],
-        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
+        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'error'],
         category: 'trigger',
         aiExplanation: 'Simulates a webhook trigger for new user signups, providing name, email, and user_id.'
       },
@@ -331,7 +346,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           simulatedRowCount: 1, 
         },
         inputHandles: ['input'],
-        outputHandles: ['results', 'rowCount', 'status', 'error_message'],
+        outputHandles: ['results', 'rowCount', 'error'],
         category: 'io',
         aiExplanation: 'Simulates an INSERT SQL query to add the new user to a "users" table. Uses data from the webhook_onboard trigger. A real database would require DB_CONNECTION_STRING to be set.'
       },
@@ -342,7 +357,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         description: 'Logs the result of the database operation.',
         position: { x: 50 + NODE_WIDTH + 30, y: 50 + NODE_HEIGHT + 40 },
         config: {
-          message: 'Database operation for {{webhook_onboard.requestBody.user_id}}: Status={{db_add_user.status}}, RowCount={{db_add_user.rowCount}}. Error: {{db_add_user.error_message}}',
+          message: 'Database operation for {{webhook_onboard.requestBody.user_id}}: RowCount={{db_add_user.rowCount}}. Error: {{db_add_user.error}}',
         },
         inputHandles: ['input'],
         outputHandles: ['output'],
@@ -360,18 +375,19 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
           subject: 'Welcome to Kairo, {{webhook_onboard.requestBody.name}}!',
           body: 'Hi {{webhook_onboard.requestBody.name}},\\n\\nWelcome aboard! We are excited to have you.\\n\\nBest,\\nThe Kairo Team',
           simulatedMessageId: 'sim-welcome-email-id',
-          _flow_run_condition: '{{db_add_user.status}} == "success"',
+          _flow_run_condition: '{{db_add_user.rowCount}} == 1',
         },
         inputHandles: ['input'],
-        outputHandles: ['messageId', 'status', 'error_message'],
+        outputHandles: ['messageId', 'error'],
         category: 'action',
-        aiExplanation: 'Sends a welcome email to the new user. This node only runs if the db_add_user node was successful. Email server env vars (EMAIL_HOST, etc.) needed for live mode.'
+        aiExplanation: 'Sends a welcome email to the new user. This node only runs if the db_add_user node was successful (i.e. rowCount is 1). Email server env vars (EMAIL_HOST, etc.) needed for live mode.'
       },
     ],
     connections: [
       { id: 'conn_db1', sourceNodeId: 'webhook_onboard', sourceHandle: 'requestBody', targetNodeId: 'db_add_user', targetHandle: 'input' },
-      { id: 'conn_db2', sourceNodeId: 'db_add_user', sourceHandle: 'status', targetNodeId: 'log_db_result', targetHandle: 'input' },
-      { id: 'conn_db3', sourceNodeId: 'db_add_user', sourceHandle: 'status', targetNodeId: 'email_welcome', targetHandle: 'input' },
+      { id: 'conn_db2_success', sourceNodeId: 'db_add_user', sourceHandle: 'rowCount', targetNodeId: 'log_db_result', targetHandle: 'input' },
+      { id: 'conn_db2_error', sourceNodeId: 'db_add_user', sourceHandle: 'error', targetNodeId: 'log_db_result', targetHandle: 'input' },
+      { id: 'conn_db3', sourceNodeId: 'db_add_user', sourceHandle: 'rowCount', targetNodeId: 'email_welcome', targetHandle: 'input' },
     ],
   },
 ];

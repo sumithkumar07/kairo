@@ -720,7 +720,7 @@ async function executeFlowInternal(
             } catch (error: any) {
                 const errorDetails = error.message || 'Unknown error during node execution.';
                 if (attempt >= maxAttempts) {
-                    finalNodeOutput = { status: 'error', lastExecutionStatus: 'error', error_message: errorDetails };
+                    finalNodeOutput = { status: 'error', lastExecutionStatus: 'error', error_message: errorDetails, error: errorDetails };
                     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Node ${nodeIdentifier} FAILED permanently: ${errorDetails}`, type: 'error' });
                     // Handle on-error webhook if configured
                     if (resolvedConfig.onErrorWebhook) {

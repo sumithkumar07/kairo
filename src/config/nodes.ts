@@ -51,7 +51,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: [],
-    outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
+    outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'error'],
   },
   {
     type: 'fileSystemTrigger',
@@ -78,7 +78,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: [],
-    outputHandles: ['fileEvent', 'status', 'error_message'],
+    outputHandles: ['fileEvent', 'error'],
   },
   {
     type: 'getEnvironmentVariable',
@@ -94,7 +94,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['value', 'status', 'error_message'],
+    outputHandles: ['value', 'error'],
   },
   {
     type: 'httpRequest',
@@ -129,7 +129,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['response', 'status_code', 'status', 'error_message'],
+    outputHandles: ['response', 'status_code', 'error'],
   },
   {
     type: 'schedule',
@@ -160,7 +160,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['messageId', 'status', 'error_message'],
+    outputHandles: ['messageId', 'error'],
   },
   {
     type: 'databaseQuery',
@@ -178,7 +178,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
-    outputHandles: ['results', 'rowCount', 'status', 'error_message'],
+    outputHandles: ['results', 'rowCount', 'error'],
   },
   {
     type: 'googleCalendarListEvents',
@@ -200,7 +200,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'parseJson',
@@ -214,7 +214,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       path: { label: 'Extraction Path (e.g. $.data.items[0].name)', type: 'string', placeholder: '$.data.items[0].name', helperText: 'Uses basic dot notation path. Leave empty to return the full parsed object.' },
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'logMessage',
@@ -244,7 +244,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'conditionalLogic',
@@ -283,7 +283,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
-    outputHandles: ['output', 'status', 'error_message'], 
+    outputHandles: ['output', 'error'], 
   },
   {
     type: 'forEach',
@@ -310,7 +310,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input_array_data'], 
-    outputHandles: ['results', 'status', 'error_message'], 
+    outputHandles: ['results', 'error'], 
   },
   {
     type: 'whileLoop',
@@ -335,7 +335,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input_data'], 
-    outputHandles: ['iterations_completed', 'status', 'error_message'],
+    outputHandles: ['iterations_completed', 'error'],
   },
   {
     type: 'parallel',
@@ -369,7 +369,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'], 
-    outputHandles: ['results', 'status', 'error_message'], 
+    outputHandles: ['results', 'error'], 
   },
   {
     type: 'manualInput',
@@ -392,7 +392,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'callExternalWorkflow',
@@ -417,7 +417,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'delay',
@@ -432,7 +432,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'googleSheetsAppendRow',
@@ -451,7 +451,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'slackPostMessage',
@@ -470,7 +470,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'openAiChatCompletion',
@@ -489,7 +489,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'stripeCreatePaymentLink',
@@ -507,7 +507,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'hubspotCreateContact',
@@ -526,7 +526,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'twilioSendSms',
@@ -547,7 +547,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'githubCreateIssue',
@@ -568,7 +568,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'dropboxUploadFile',
@@ -587,7 +587,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'youtubeFetchTrending',
@@ -606,7 +606,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'youtubeDownloadVideo',
@@ -624,7 +624,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'videoConvertToShorts',
@@ -643,7 +643,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'youtubeUploadShort',
@@ -665,7 +665,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'workflowNode', 
@@ -682,7 +682,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
-    outputHandles: ['output', 'status', 'error_message'],
+    outputHandles: ['output', 'error'],
   },
   {
     type: 'toUpperCase',
@@ -695,7 +695,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputString: { label: 'Input String', type: 'string', placeholder: '{{input.text}}', required: true },
     },
     inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'status', 'error_message'],
+    outputHandles: ['output_data', 'error'],
   },
   {
     type: 'toLowerCase',
@@ -708,7 +708,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputString: { label: 'Input String', type: 'string', placeholder: '{{input.text}}', required: true },
     },
     inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'status', 'error_message'],
+    outputHandles: ['output_data', 'error'],
   },
   {
     type: 'concatenateStrings',
@@ -722,7 +722,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       separator: { label: 'Separator', type: 'string', placeholder: 'e.g., a space or comma', defaultValue: '' },
     },
     inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'status', 'error_message'],
+    outputHandles: ['output_data', 'error'],
   },
   {
     type: 'stringSplit',
@@ -736,7 +736,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       delimiter: { label: 'Delimiter', type: 'string', placeholder: 'e.g., , or |', defaultValue: ',', required: true },
     },
     inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'status', 'error_message'],
+    outputHandles: ['output_data', 'error'],
   },
   {
     type: 'formatDate',
@@ -750,7 +750,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       outputFormatString: { label: 'Output Date Format (date-fns)', type: 'string', defaultValue: 'yyyy-MM-dd HH:mm:ss', placeholder: 'EEEE, MMMM do, yyyy', required: true },
     },
     inputHandles: ['input_data'],
-    outputHandles: ['output_data', 'status', 'error_message'],
+    outputHandles: ['output_data', 'error'],
   },
   {
     type: 'unknown',

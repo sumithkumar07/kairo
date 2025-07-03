@@ -171,6 +171,7 @@ const WorkflowNodeItemComponent = ({
            const numHandles = nodeType.outputHandles?.length || 1;
            const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
            const isConnected = connections.some(c => c.sourceNodeId === node.id && c.sourceHandle === handleId);
+           const isErrorHandle = handleId === 'error';
           return (
             <TooltipProvider key={`out-tp-${node.id}-${handleId}`} delayDuration={100}>
               <Tooltip>
@@ -181,8 +182,12 @@ const WorkflowNodeItemComponent = ({
                       "absolute -right-[9px] w-4 h-4 rounded-full border-2 shadow-sm transform -translate-y-1/2 transition-all",
                       !readOnly && "cursor-pointer hover:scale-125",
                       readOnly && "cursor-not-allowed",
-                      categoryStyling.outputHandleBorder,
-                      isConnected ? categoryStyling.outputHandleColor : 'bg-background hover:bg-muted',
+                      isErrorHandle 
+                          ? 'border-destructive/80' 
+                          : categoryStyling.outputHandleBorder,
+                      isConnected 
+                          ? (isErrorHandle ? 'bg-destructive' : categoryStyling.outputHandleColor)
+                          : 'bg-background hover:bg-muted',
                     )}
                     style={{ top: `${yOffsetPercentage}%` }}
                     onClick={(e) => { if (!readOnly) { e.stopPropagation(); onHandleClick(node.id, handleId, 'output', getHandleAbsolutePosition(handleId, true)); } }}
