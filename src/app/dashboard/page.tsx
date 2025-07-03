@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { withAuth } from '@/components/auth/with-auth';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { ArrowRight, CheckCircle2, FilePlus, History, Loader2, Workflow, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FilePlus, History, Loader2, Workflow, XCircle, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { SavedWorkflowMetadata, WorkflowRunRecord } from '@/types/workflow';
@@ -43,6 +43,7 @@ function DashboardPage() {
     const [recentRuns, setRecentRuns] = useState<WorkflowRunRecord[]>([]);
     const [recentWorkflows, setRecentWorkflows] = useState<SavedWorkflowMetadata[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showingExamples, setShowingExamples] = useState(false);
 
     useEffect(() => {
         async function loadDashboardData() {
@@ -54,6 +55,7 @@ function DashboardPage() {
                 ]);
 
                 const userWorkflows = workflows.filter(wf => wf.type === 'user');
+                const exampleWorkflows = workflows.filter(wf => wf.type === 'example');
                 
                 const totalRuns = runs.length;
                 const successfulRuns = runs.filter(r => r.status === 'Success').length;
@@ -91,12 +93,18 @@ function DashboardPage() {
 
                 setRecentRuns(runs.slice(0, 5));
                 
-                const sortedUserWorkflows = userWorkflows.sort((a, b) => {
-                    if (!a.updated_at) return 1;
-                    if (!b.updated_at) return -1;
-                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-                });
-                setRecentWorkflows(sortedUserWorkflows.slice(0, 5));
+                if (userWorkflows.length > 0) {
+                    const sortedUserWorkflows = userWorkflows.sort((a, b) => {
+                        if (!a.updated_at) return 1;
+                        if (!b.updated_at) return -1;
+                        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                    });
+                    setRecentWorkflows(sortedUserWorkflows.slice(0, 5));
+                    setShowingExamples(false);
+                } else {
+                    setRecentWorkflows(exampleWorkflows.slice(0, 5));
+                    setShowingExamples(true);
+                }
 
             } catch (error) {
                 console.error("Failed to load dashboard data:", error);
@@ -173,7 +181,7 @@ function DashboardPage() {
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Saved Workflows</CardTitle>
+                            <CardTitle className="text-sm font-medium">My Workflows</CardTitle>
                             <Workflow className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
@@ -234,7 +242,7 @@ function DashboardPage() {
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">No workflow runs found.</p>
+                                <p className="text-sm text-muted-foreground text-center py-4">No workflow runs found. Run a workflow to see its history here.</p>
                             )}
                         </CardContent>
                         <CardFooter>
@@ -245,15 +253,15 @@ function DashboardPage() {
                     </Card>
                     <Card className="flex flex-col">
                         <CardHeader>
-                            <CardTitle>Recent Workflows</CardTitle>
-                            <CardDescription>Your most recently saved workflows.</CardDescription>
+                            <CardTitle>{showingExamples ? 'Example Workflows' : 'My Workflows'}</CardTitle>
+                            <CardDescription>{showingExamples ? 'Explore these templates to get started.' : 'Your most recently saved workflows.'}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow">
                             {recentWorkflows.length > 0 ? (
                                 <ul className="space-y-3">
                                     {recentWorkflows.map(wf => (
                                         <li key={wf.name} className="flex items-center text-sm gap-3">
-                                            <Workflow className="h-4 w-4 text-primary shrink-0"/>
+                                            {wf.type === 'example' ? <Star className="h-4 w-4 text-amber-500 shrink-0"/> : <Workflow className="h-4 w-4 text-primary shrink-0"/>}
                                             <span className="flex-grow truncate" title={wf.name}>{wf.name}</span>
                                             <Button asChild variant="secondary" size="sm" className="h-7 text-xs">
                                                 <Link href={`/workflow?load=${encodeURIComponent(wf.name)}`}>Open</Link>
