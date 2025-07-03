@@ -7,6 +7,7 @@ import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
+import { encrypt, decrypt } from './encryption-service';
 
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
 const MAX_MCP_HISTORY = 50; // Max number of MCP command records to keep
@@ -394,19 +395,25 @@ export async function getCredentialValueByNameForUser(name: string, userId: stri
         }
         return null;
     }
-    // In a real system, you would decrypt the value here before returning it.
-    return data.value;
+    
+    try {
+      return decrypt(data.value);
+    } catch (e: any) {
+      console.error(`[Storage Service] Failed to decrypt credential '${name}' for user '${userId}'. Error: ${e.message}`);
+      return null; // Return null on decryption failure to prevent exposing encrypted data.
+    }
 }
 
 export async function saveCredential(credential: Omit<ManagedCredential, 'id'>): Promise<void> {
     const supabase = await getSupabaseClient();
     
-    // In a real system, you would encrypt `credential.value` here before saving.
+    const encryptedValue = encrypt(credential.value);
+
     const { error } = await supabase.from('credentials').upsert(
         { 
             user_id: credential.user_id,
             name: credential.name,
-            value: credential.value, // Stored as plain text in this prototype
+            value: encryptedValue, // Store the encrypted value
             service: credential.service,
             created_at: credential.created_at
         },

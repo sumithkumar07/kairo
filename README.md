@@ -62,6 +62,11 @@ These are **essential** for the app's core features to function.
     *   **Purpose**: A secret key you define to protect the AI Agent Hub's programmatic API endpoint.
     *   **How to get it**: Create any strong, secret string. You will use this in the `Authorization: Bearer <key>` header when calling `/api/mcp`.
 
+*   `ENCRYPTION_SECRET_KEY="YOUR_32_CHARACTER_ENCRYPTION_SECRET"`
+    *   **Purpose**: A **critical** secret key used to encrypt and decrypt credentials managed in the AI Agent Hub (e.g., your OpenAI API key).
+    *   **How to get it**: Generate a strong, random string of at least 32 characters. This key must remain private and should be backed up securely. **Changing this key will make all previously saved credentials unreadable.**
+
+
 ---
 
 ### Step 2: Set Up the Database
@@ -134,7 +139,7 @@ CREATE TABLE public.credentials (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     name character varying NOT NULL,
-    value text NOT NULL, -- In a production system, this should be encrypted.
+    value text NOT NULL, -- This field stores the encrypted credential payload.
     service character varying,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT credentials_pkey PRIMARY KEY (id),
@@ -172,7 +177,8 @@ The Agent Hub provides a **"Required Credentials Guide"** that automatically ins
 
 For local development, the system will fall back to resolving these `{{credential.NAME}}` placeholders from your `.env.local` file if a matching credential is not found in the manager. For example, if `{{credential.OpenAI_API_Key}}` is used in a node but not found in the Credential Manager for your user, the app will look for an environment variable named `OpenAI_API_Key`.
 
-> **Security Warning**: In this prototype, credentials saved to the database via the UI are stored as plain text. For a production application, you **must** implement a robust encryption mechanism (e.g., using a service like HashiCorp Vault, AWS KMS, or Google Cloud KMS) to encrypt these secrets at rest.
+> **Credential Security**: Credentials saved via the UI are encrypted at rest in the database using AES-256-GCM. The security of your credentials depends on the strength and confidentiality of your `ENCRYPTION_SECRET_KEY` set in your environment variables. Ensure this key is kept secret and is backed up.
+
 
 ## Deployment Checklist
 
@@ -214,11 +220,10 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 
 *   **Single Instance Deployment**: To prevent potential race conditions, deploying as a single instance is recommended.
 *   **No Automated Tests**: The project does not currently include a testing framework (e.g., Jest, Playwright).
-*   **Plain-text Credentials**: Credentials saved in the database via the UI are not encrypted in this prototype.
 
 ## Future Enhancements
 
 *   **Real-time Collaboration**: Implement features for multiple users to collaborate on the same workflow in real-time.
-*   **Encrypted Credential Storage**: Integrate a secure encryption/decryption mechanism for credentials stored in the database.
 *   **Expanded Node Library**: Continuously add new integration and utility nodes.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
+*   **Team Management Features**: Introduce roles, permissions, and shared workspaces for collaborative projects.

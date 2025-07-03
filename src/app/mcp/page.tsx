@@ -241,10 +241,10 @@ function MCPDashboardPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="p-3 mb-4 border rounded-lg bg-yellow-500/10 text-yellow-800 dark:text-yellow-200 text-sm flex items-start gap-3">
+                             <div className="p-3 mb-4 border rounded-lg bg-blue-500/10 text-blue-800 dark:text-blue-200 text-sm flex items-start gap-3">
                                 <Info className="h-4 w-4 mt-0.5 shrink-0" />
                                 <p>
-                                    <strong>Warning:</strong> In this prototype, credentials are saved as plain text in the database. For production, you must implement proper encryption (e.g., using a KMS).
+                                    <strong>Security:</strong> Credentials are encrypted at rest using AES-256-GCM. The security of your credentials depends on the strength and secrecy of your <strong>ENCRYPTION_SECRET_KEY</strong> environment variable.
                                 </p>
                             </div>
                             <div className="space-y-2">
