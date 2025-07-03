@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A server-side service for encrypting and decrypting sensitive data, such as managed credentials.
@@ -15,8 +16,8 @@ let encryptionKey: Buffer;
 function getEncryptionKey(): Buffer {
   if (!encryptionKey) {
     const secret = process.env.ENCRYPTION_SECRET_KEY;
-    if (!secret || secret.length < 16) {
-      console.error('[ENCRYPTION SERVICE] FATAL: ENCRYPTION_SECRET_KEY is not defined or is too short. It must be at least 16 characters long. Credential encryption/decryption will fail.');
+    if (!secret || secret.length < 32) {
+      console.error('[ENCRYPTION SERVICE] FATAL: ENCRYPTION_SECRET_KEY is not defined or is less than 32 characters. Credential encryption/decryption will fail.');
       throw new Error('Encryption key is not configured properly.');
     }
     // Use SHA-256 to ensure the key is always 32 bytes (256 bits) long, suitable for AES-256.
@@ -28,7 +29,7 @@ function getEncryptionKey(): Buffer {
 /**
  * Encrypts a piece of text.
  * @param text The plain text to encrypt.
- * @returns A string containing the iv, auth tag, and encrypted data, separated by colons and hex-encoded.
+ * @returns A promise that resolves to a string containing the iv, auth tag, and encrypted data, separated by colons and hex-encoded.
  */
 export async function encrypt(text: string): Promise<string> {
   const key = getEncryptionKey();
@@ -45,7 +46,7 @@ export async function encrypt(text: string): Promise<string> {
 /**
  * Decrypts a payload created by the `encrypt` function.
  * @param encryptedPayload The string containing the iv, auth tag, and encrypted data.
- * @returns The decrypted plain text.
+ * @returns A promise that resolves to the decrypted plain text.
  */
 export async function decrypt(encryptedPayload: string): Promise<string> {
   try {

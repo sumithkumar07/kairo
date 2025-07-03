@@ -498,7 +498,7 @@ function AddCredentialDialog({ open, onOpenChange, onSave }: { open: boolean, on
         <DialogHeader>
           <DialogTitle>Add New Credential</DialogTitle>
           <DialogDescription>
-            Save an API key or other secret. It will be stored in the database.
+            Save an API key or other secret. It will be stored securely in the database.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
