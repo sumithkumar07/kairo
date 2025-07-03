@@ -11,16 +11,31 @@ import { useEffect, useState } from 'react';
 import { getRunHistory } from '@/services/workflow-storage-service';
 import type { SavedWorkflowMetadata, WorkflowRunRecord } from '@/types/workflow';
 import { listWorkflowsAction } from '@/app/actions';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subDays, startOfDay, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Bar, BarChart, CartesianGrid, XAxis, Area, AreaChart, Tooltip as RechartsTooltip } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 
 interface DashboardStats {
-    totalRuns: number;
-    successfulRuns: number;
-    failedRuns: number;
-    successRate: number;
-    totalWorkflows: number;
+  totalRuns: number;
+  successfulRuns: number;
+  failedRuns: number;
+  successRate: number;
+  totalWorkflows: number;
+  dailyRuns: { date: string; successful: number; failed: number }[];
+  runStatusData: { name: string; value: number; fill: string }[];
 }
+
+const areaChartConfig = {
+  successful: { label: "Successful", color: "hsl(var(--chart-2))" },
+  failed: { label: "Failed", color: "hsl(var(--destructive))" },
+} satisfies ChartConfig;
+
+const barChartConfig = {
+  value: { label: "Count" },
+  successful: { label: "Successful", color: "hsl(var(--chart-2))" },
+  failed: { label: "Failed", color: "hsl(var(--destructive))" },
+} satisfies ChartConfig;
 
 function DashboardPage() {
     const { user } = useSubscription();
@@ -44,6 +59,25 @@ function DashboardPage() {
                 const successfulRuns = runs.filter(r => r.status === 'Success').length;
                 const failedRuns = totalRuns - successfulRuns;
                 const successRate = totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : 0;
+                
+                // Process data for charts
+                const today = startOfDay(new Date());
+                const last7Days = Array.from({ length: 7 }, (_, i) => subDays(today, i)).reverse();
+
+                const dailyRuns = last7Days.map(day => {
+                    const dayString = format(day, 'MMM d');
+                    const runsOnDay = runs.filter(run => startOfDay(new Date(run.timestamp)).getTime() === day.getTime());
+                    return {
+                        date: dayString,
+                        successful: runsOnDay.filter(r => r.status === 'Success').length,
+                        failed: runsOnDay.filter(r => r.status === 'Failed').length,
+                    };
+                });
+                
+                const runStatusData = [
+                    { name: 'Successful', value: successfulRuns, fill: 'var(--color-successful)' },
+                    { name: 'Failed', value: failedRuns, fill: 'var(--color-failed)' },
+                ];
 
                 setStats({
                     totalRuns,
@@ -51,10 +85,14 @@ function DashboardPage() {
                     failedRuns,
                     successRate,
                     totalWorkflows: userWorkflows.length,
+                    dailyRuns,
+                    runStatusData,
                 });
 
                 setRecentRuns(runs.slice(0, 5));
-                setRecentWorkflows(userWorkflows.slice(0, 5));
+                // Sort user workflows by description (which contains date) before slicing
+                const sortedUserWorkflows = userWorkflows.sort((a,b) => (b.description || '').localeCompare(a.description || ''));
+                setRecentWorkflows(sortedUserWorkflows.slice(0, 5));
 
             } catch (error) {
                 console.error("Failed to load dashboard data:", error);
@@ -140,6 +178,40 @@ function DashboardPage() {
                     </Card>
                 </div>
                 
+                <div className="grid gap-6 lg:grid-cols-5 mb-6">
+                    <Card className="lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle>Runs - Last 7 Days</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={areaChartConfig} className="h-64 w-full">
+                                <AreaChart data={stats?.dailyRuns} accessibilityLayer>
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => value.slice(0, 3)} />
+                                    <RechartsTooltip content={<ChartTooltipContent indicator="dot" />} />
+                                    <Area dataKey="successful" type="natural" fill="var(--color-successful)" fillOpacity={0.4} stroke="var(--color-successful)" stackId="a" />
+                                    <Area dataKey="failed" type="natural" fill="var(--color-failed)" fillOpacity={0.4} stroke="var(--color-failed)" stackId="a" />
+                                </AreaChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>All-Time Runs</CardTitle>
+                            <CardDescription>Successful vs. Failed</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ChartContainer config={barChartConfig} className="h-64 w-full">
+                                <BarChart data={stats?.runStatusData} layout="vertical" accessibilityLayer>
+                                    <XAxis type="number" hide />
+                                    <RechartsTooltip content={<ChartTooltipContent hideLabel />} />
+                                    <Bar dataKey="value" layout="vertical" radius={5} />
+                                </BarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 <div className="grid gap-6 md:grid-cols-2">
                     <Card className="flex flex-col">
                         <CardHeader>
