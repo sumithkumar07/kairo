@@ -6,19 +6,19 @@
 @layer base {
   :root {
     /* Light Theme Variables */
-    --background: 240 10% 98%; /* Very light gray */
-    --foreground: 222.2 84% 4.9%; /* Dark text */
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
 
-    --card: 0 0% 100%; /* White */
+    --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 262.1 83.3% 57.8%; /* Vibrant Violet/Blue from Zapier */
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%; /* Light gray for secondary elements */
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 215.4 16.3% 46.9%;
 
     --muted: 210 40% 96.1%;
@@ -27,14 +27,14 @@
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 84.2% 60.2%; /* Vivid Red */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 217.2 91.2% 59.8%;
     
-    --chart-1: 262 83% 58%; /* Primary */
+    --chart-1: 217.2 91.2% 59.8%; /* Primary Blue */
     --chart-2: 173 70% 40%;  /* Teal/Green */
     --chart-3: 350 70% 55%; /* Muted Pink */
     --chart-4: 40 80% 55%;  /* Gold/Orange */
@@ -42,14 +42,14 @@
     --radius: 0.5rem;
 
     /* Sidebar variables (for light theme) */
-    --sidebar-background: 240 5.9% 90%;
+    --sidebar-background: 220 13% 95%;
     --sidebar-foreground: 224 71.4% 4.1%;
-    --sidebar-primary: 262.1 83.3% 57.8%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 240 5.9% 100%;
+    --sidebar-accent: 220 13% 91%;
     --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 240 5.9% 85%;
-    --sidebar-ring: 262.1 83.3% 57.8%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
@@ -63,7 +63,7 @@
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 263.4 70% 50.4%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 210 20% 98%;
 
     --secondary: 217 33% 25%;
@@ -80,23 +80,23 @@
 
     --border: 217 33% 25%;
     --input: 217 33% 25%;
-    --ring: 263.4 70% 50.4%;
+    --ring: 217.2 91.2% 59.8%;
     
-    --chart-1: 263 70% 50%;
-    --chart-2: 173 70% 40%;
-    --chart-3: 350 70% 55%;
-    --chart-4: 40 80% 55%;
-    --chart-5: 210 70% 55%;
+    --chart-1: 217.2 91.2% 59.8%; /* Primary Blue */
+    --chart-2: 173 70% 40%;  /* Teal/Green */
+    --chart-3: 350 70% 55%; /* Muted Pink */
+    --chart-4: 40 80% 55%;  /* Gold/Orange */
+    --chart-5: 210 70% 55%; /* Bright Blue */
 
     /* Dark Sidebar variables */
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 224 71% 4%;
     --sidebar-foreground: 210 20% 95%;
-    --sidebar-primary: 263.4 70% 50.4%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
     --sidebar-primary-foreground: 210 20% 98%;
     --sidebar-accent: 217 33% 25%;
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 33% 18%;
-    --sidebar-ring: 263.4 70% 50.4%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
