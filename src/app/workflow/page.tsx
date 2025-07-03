@@ -1034,7 +1034,7 @@ function WorkflowPage() {
     initialCanvasSuggestion,
     isLoadingInitialSuggestion,
     initialSuggestionAttempted,
-    isLoadingSuggestion // Added missing dependency
+    isLoadingSuggestion
   ]);
   
   useEffect(() => {
