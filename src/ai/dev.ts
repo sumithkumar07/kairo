@@ -11,6 +11,6 @@ import '@/ai/flows/generate-test-data-flow.ts';
 import '@/ai/flows/suggest-next-node.ts';
 
 // Import tools to register them with Genkit
-import '@/ai/tools/workflow-management-tools.ts';
+import '@/ai/tools/index.ts';
 
     

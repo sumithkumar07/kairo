@@ -14,7 +14,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { ALL_AVAILABLE_TOOLS_MAP } from '@/ai/tools';
-import { getAgentConfig } from '@/services/workflow-storage-service';
 import type { Tool } from '@/types/workflow';
 
 // Minimal Schemas for workflow context analysis by the chat AI
@@ -70,7 +69,7 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
 async function getChatPrompt(enabledToolNames?: string[]) {
   let toolsToUse = Array.from(ALL_AVAILABLE_TOOLS_MAP.values()).map(t => t.genkitTool);
 
-  if (enabledToolNames) {
+  if (enabledToolNames && enabledToolNames.length > 0) {
     console.log(`[Chat Flow] AI has a specific toolset configured with ${enabledToolNames.length} tools.`);
     toolsToUse = enabledToolNames
       .map(name => ALL_AVAILABLE_TOOLS_MAP.get(name)?.genkitTool)
