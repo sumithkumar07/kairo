@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
-import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, RefreshCw, AlertTriangle, Database, Bot } from 'lucide-react';
+import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, RefreshCw, AlertTriangle, Database, Bot, Sparkles } from 'lucide-react';
 import type { WorkflowRunRecord, WorkflowNode } from '@/types/workflow';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +23,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import * as WorkflowStorage from '@/services/workflow-storage-service';
-import { rerunWorkflowAction } from '@/app/actions';
+import { rerunWorkflowAction, diagnoseWorkflowError } from '@/app/actions';
+import type { DiagnoseWorkflowErrorOutput } from '@/ai/flows/diagnose-workflow-error-flow';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/app-layout';
@@ -56,6 +57,10 @@ function RunHistoryPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { toast } = useToast();
 
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<DiagnoseWorkflowErrorOutput | null>(null);
+
+
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -79,12 +84,31 @@ function RunHistoryPage() {
     try {
       await rerunWorkflowAction(runId);
       toast({ title: 'Workflow Re-run', description: 'The workflow has been successfully re-run. Check history for new record.' });
-      setSelectedRun(null); // Close the dialog
-      await loadHistory(); // Refresh the history list
+      handleCloseDialog();
+      await loadHistory();
     } catch (e: any) {
       toast({ title: 'Re-run Failed', description: e.message, variant: 'destructive' });
     } finally {
       setIsRerunning(false);
+    }
+  };
+
+  const handleDiagnoseError = async (run: WorkflowRunRecord) => {
+    setIsDiagnosing(true);
+    setDiagnosis(null);
+    setActiveDetailTab('diagnosis');
+    try {
+        const result = await diagnoseWorkflowError({
+            nodes: run.workflowSnapshot.nodes,
+            connections: run.workflowSnapshot.connections,
+            serverLogs: run.executionResult.serverLogs,
+        });
+        setDiagnosis(result);
+    } catch (e: any) {
+        toast({ title: 'Diagnosis Failed', description: e.message, variant: 'destructive' });
+        setDiagnosis({ diagnosis: 'AI analysis failed.', recommendedFix: 'Could not generate a recommendation. Please check the server logs for more details.' });
+    } finally {
+        setIsDiagnosing(false);
     }
   };
   
@@ -130,6 +154,7 @@ function RunHistoryPage() {
     setSelectedRun(null);
     setSelectedNodeInSnapshot(null);
     setActiveDetailTab('logs');
+    setDiagnosis(null);
   };
 
   const renderNodeRunData = () => {
@@ -190,6 +215,40 @@ function RunHistoryPage() {
       </ScrollArea>
     );
   }
+
+  const renderDiagnosis = () => {
+    if (isDiagnosing) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                <p className="text-sm text-muted-foreground">AI is analyzing the error...</p>
+            </div>
+        );
+    }
+
+    if (!diagnosis) {
+         return (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <p className="text-sm text-muted-foreground">Click the "Ask AI to Debug" button to get an analysis of this error.</p>
+            </div>
+        );
+    }
+    
+    return (
+        <ScrollArea className="flex-1">
+            <div className="p-3 space-y-4">
+                <div>
+                    <h4 className="font-semibold text-sm mb-1.5 flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Diagnosis</h4>
+                    <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{diagnosis.diagnosis}</p>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-sm mb-1.5 flex items-center gap-2"><Edit3 className="h-4 w-4 text-green-500" /> Recommended Fix</h4>
+                    <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{diagnosis.recommendedFix}</p>
+                </div>
+            </div>
+        </ScrollArea>
+    );
+  };
 
 
   return (
@@ -270,10 +329,13 @@ function RunHistoryPage() {
                 <div className="col-span-1 flex flex-col overflow-hidden border rounded-md bg-card">
                   <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="flex-1 flex flex-col">
                     <div className="p-2 border-b">
-                      <TabsList className="grid w-full grid-cols-2 h-9">
+                      <TabsList className="grid w-full grid-cols-3 h-9">
                         <TabsTrigger value="logs" className="text-xs gap-1.5"><ListChecks className="h-4 w-4"/>Logs</TabsTrigger>
                         <TabsTrigger value="data" className="text-xs gap-1.5" disabled={!selectedNodeInSnapshot}>
                           <Database className="h-4 w-4"/>Node Data
+                        </TabsTrigger>
+                        <TabsTrigger value="diagnosis" className="text-xs gap-1.5" disabled={selectedRun.status !== 'Failed'}>
+                          <Bot className="h-4 w-4"/>AI Diagnosis
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -295,20 +357,39 @@ function RunHistoryPage() {
                           {renderNodeRunData()}
                        </div>
                     </TabsContent>
+                    <TabsContent value="diagnosis" className="flex-1 overflow-hidden mt-0">
+                       <div className="flex flex-col h-full">
+                          <div className="p-3 border-b bg-muted/30">
+                            <h3 className="font-semibold text-foreground flex items-center gap-2"><Bot className="h-4 w-4 text-primary"/>AI Error Diagnosis</h3>
+                            <p className="text-xs text-muted-foreground">AI-powered analysis of the workflow failure.</p>
+                          </div>
+                          {renderDiagnosis()}
+                       </div>
+                    </TabsContent>
                   </Tabs>
                 </div>
             </div>
-            <DialogFooter className="pt-4 border-t">
-                <Button 
-                    variant="outline" 
-                    disabled={isRerunning || !selectedRun.workflowSnapshot} 
-                    onClick={() => handleRerun(selectedRun.id)}
-                    title={!selectedRun.workflowSnapshot ? "Cannot re-run a workflow without a saved snapshot." : "Re-run this workflow with the same initial data."}
-                >
-                    {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                    {isRerunning ? 'Re-running...' : 'Re-run Workflow'}
-                </Button>
-                <DialogClose asChild><Button type="button" variant="default">Close</Button></DialogClose>
+            <DialogFooter className="pt-4 border-t flex justify-between">
+                <div>
+                   {selectedRun.status === 'Failed' && (
+                     <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing}>
+                       {isDiagnosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4"/>}
+                       {isDiagnosing ? 'Diagnosing...' : 'Ask AI to Debug'}
+                     </Button>
+                   )}
+                </div>
+                <div className="flex gap-2">
+                    <Button 
+                        variant="outline" 
+                        disabled={isRerunning || !selectedRun.workflowSnapshot} 
+                        onClick={() => handleRerun(selectedRun.id)}
+                        title={!selectedRun.workflowSnapshot ? "Cannot re-run a workflow without a saved snapshot." : "Re-run this workflow with the same initial data."}
+                    >
+                        {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
+                        {isRerunning ? 'Re-running...' : 'Re-run Workflow'}
+                    </Button>
+                    <DialogClose asChild><Button type="button" variant="default">Close</Button></DialogClose>
+                </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

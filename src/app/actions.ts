@@ -31,6 +31,12 @@ import {
   type GenerateTestDataInput,
   type GenerateTestDataOutput
 } from '@/ai/flows/generate-test-data-flow';
+import {
+  diagnoseWorkflowError as genkitDiagnoseWorkflowError,
+  type DiagnoseWorkflowErrorInput,
+  type DiagnoseWorkflowErrorOutput,
+} from '@/ai/flows/diagnose-workflow-error-flow';
+
 import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
@@ -140,6 +146,10 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
 }
 export async function generateTestDataForNode(input: GenerateTestDataInput): Promise<GenerateTestDataOutput> {
   return genkitGenerateTestData(input);
+}
+
+export async function diagnoseWorkflowError(input: DiagnoseWorkflowErrorInput): Promise<DiagnoseWorkflowErrorOutput> {
+  return genkitDiagnoseWorkflowError(input);
 }
 
 export async function listWorkflowsAction(): Promise<SavedWorkflowMetadata[]> {
