@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -14,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export function MarketingHeader() {
   const { isLoggedIn, logout, user } = useSubscription();
@@ -40,7 +40,7 @@ export function MarketingHeader() {
                     <Avatar className="h-8 w-8">
                         <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <span className="font-medium">{user.email}</span>
+                    <span className="font-medium">{user.email.split('@')[0]}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -64,6 +64,7 @@ export function MarketingHeader() {
               </Button>
             </>
           )}
+           <ThemeToggle />
         </nav>
 
          <div className="md:hidden">
