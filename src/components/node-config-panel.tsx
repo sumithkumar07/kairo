@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcwIcon, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcw, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React, { useState } from 'react';
@@ -285,7 +285,7 @@ export function NodeConfigPanel({
                   <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="retry-config" className="border rounded-md mb-2">
                       <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline p-2 rounded-t-md hover:bg-muted/50 [&[data-state=open]]:bg-muted/40">
-                        <div className="flex items-center gap-2"><RotateCcwIcon className="h-4 w-4"/>Retry Configuration</div>
+                        <div className="flex items-center gap-2"><RotateCcw className="h-4 w-4"/>Retry Configuration</div>
                       </AccordionTrigger>
                       <AccordionContent className="pt-2 space-y-2 px-2 border-t">
                         <div className="space-y-1"><Label className="text-xs">Attempts</Label><Input type="number" value={currentRetryConfig.attempts ?? ''} onChange={e => handleInputChange('attempts', e.target.value, true)} placeholder="e.g., 3" className="h-8 text-xs"/></div>
