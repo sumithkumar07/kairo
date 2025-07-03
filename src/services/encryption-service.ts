@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A server-side service for encrypting and decrypting sensitive data, such as managed credentials.
@@ -31,7 +30,7 @@ function getEncryptionKey(): Buffer {
  * @param text The plain text to encrypt.
  * @returns A string containing the iv, auth tag, and encrypted data, separated by colons and hex-encoded.
  */
-export function encrypt(text: string): string {
+export async function encrypt(text: string): Promise<string> {
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -48,7 +47,7 @@ export function encrypt(text: string): string {
  * @param encryptedPayload The string containing the iv, auth tag, and encrypted data.
  * @returns The decrypted plain text.
  */
-export function decrypt(encryptedPayload: string): string {
+export async function decrypt(encryptedPayload: string): Promise<string> {
   try {
     const key = getEncryptionKey();
     const parts = encryptedPayload.split(':');

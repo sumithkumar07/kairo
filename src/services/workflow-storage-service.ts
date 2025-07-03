@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A server-side service for storing and retrieving user workflows and run history from a Supabase database.
@@ -397,7 +396,7 @@ export async function getCredentialValueByNameForUser(name: string, userId: stri
     }
     
     try {
-      return decrypt(data.value);
+      return await decrypt(data.value);
     } catch (e: any) {
       console.error(`[Storage Service] Failed to decrypt credential '${name}' for user '${userId}'. Error: ${e.message}`);
       return null; // Return null on decryption failure to prevent exposing encrypted data.
@@ -407,7 +406,7 @@ export async function getCredentialValueByNameForUser(name: string, userId: stri
 export async function saveCredential(credential: Omit<ManagedCredential, 'id'>): Promise<void> {
     const supabase = await getSupabaseClient();
     
-    const encryptedValue = encrypt(credential.value);
+    const encryptedValue = await encrypt(credential.value);
 
     const { error } = await supabase.from('credentials').upsert(
         { 
