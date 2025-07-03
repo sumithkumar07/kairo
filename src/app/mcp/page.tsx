@@ -96,24 +96,24 @@ function MCPDashboardPage() {
     }
   }, [toast]);
 
+  const loadHistory = useCallback(async () => {
+    setIsLoadingHistory(true);
+    try {
+      const history = await getMcpHistory();
+      setCommandHistory(history);
+    } catch (e: any) {
+      toast({ title: 'Error', description: 'Could not load command history.', variant: 'destructive' });
+      setCommandHistory([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     loadAgentConfig();
     loadCredentials();
-
-    const fetchHistory = async () => {
-      setIsLoadingHistory(true);
-      try {
-        const history = await getMcpHistory();
-        setCommandHistory(history);
-      } catch (e: any) {
-        toast({ title: 'Error', description: 'Could not load command history.', variant: 'destructive' });
-        setCommandHistory([]);
-      } finally {
-        setIsLoadingHistory(false);
-      }
-    };
-    fetchHistory();
-  }, [toast, loadAgentConfig, loadCredentials]);
+    loadHistory();
+  }, [toast, loadAgentConfig, loadCredentials, loadHistory]);
   
   const unconfiguredTools = useMemo(() => {
     const configuredToolNames = new Set(configuredTools.map(t => t.name));
@@ -185,8 +185,8 @@ function MCPDashboardPage() {
               <TabsList className="grid w-auto grid-cols-2 md:grid-cols-4 h-9">
                 <TabsTrigger value="skills" className="text-xs px-2 sm:px-3"><Settings className="h-4 w-4 mr-1 sm:mr-1.5" />Skills</TabsTrigger>
                 <TabsTrigger value="credentials" className="text-xs px-2 sm:px-3"><KeyRound className="h-4 w-4 mr-1 sm:mr-1.5" />Credentials</TabsTrigger>
-                <TabsTrigger value="connect" className="hidden md:inline-flex text-xs px-2 sm:px-3"><Zap className="h-4 w-4 mr-1 sm:mr-1.5" />API Access</TabsTrigger>
-                <TabsTrigger value="history" className="hidden md:inline-flex text-xs px-2 sm:px-3"><History className="h-4 w-4 mr-1 sm:mr-1.5" />API History</TabsTrigger>
+                <TabsTrigger value="connect" className="text-xs px-2 sm:px-3"><Zap className="h-4 w-4 mr-1 sm:mr-1.5" />API Access</TabsTrigger>
+                <TabsTrigger value="history" className="text-xs px-2 sm:px-3"><History className="h-4 w-4 mr-1 sm:mr-1.5" />API History</TabsTrigger>
               </TabsList>
           </header>
           <div className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/40">

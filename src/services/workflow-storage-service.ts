@@ -25,6 +25,16 @@ async function getUserId() {
     return user.id;
 }
 
+async function getUserIdOrNull() {
+    try {
+        const supabase = await getSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        return user?.id || null;
+    } catch {
+        return null;
+    }
+}
+
 
 // ========================
 // Workflow Management
@@ -261,7 +271,7 @@ export async function clearRunHistory(): Promise<void> {
 
 export async function getMcpHistory(): Promise<McpCommandRecord[]> {
   const supabase = await getSupabaseClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
+  const userId = await getUserIdOrNull();
   if (!userId) return [];
 
   const { data, error } = await supabase
@@ -279,9 +289,9 @@ export async function getMcpHistory(): Promise<McpCommandRecord[]> {
   return data as McpCommandRecord[];
 }
 
-export async function saveMcpCommand(record: McpCommandRecord): Promise<void> {
+export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id'>): Promise<void> {
     const supabase = await getSupabaseClient();
-    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const userId = await getUserIdOrNull();
     if (!userId) {
         console.warn("[Storage Service] Anonymous user tried to save an MCP command. Record not saved.");
         return;
@@ -289,6 +299,7 @@ export async function saveMcpCommand(record: McpCommandRecord): Promise<void> {
     
     const { error } = await supabase.from('mcp_command_history').insert({
         ...record,
+        id: crypto.randomUUID(),
         user_id: userId,
     });
     if (error) {
@@ -303,7 +314,7 @@ export async function saveMcpCommand(record: McpCommandRecord): Promise<void> {
 
 export async function getAgentConfig(): Promise<AgentConfig> {
     const supabase = await getSupabaseClient();
-    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const userId = await getUserIdOrNull();
     const defaultConfig: AgentConfig = { enabledTools: ['listSavedWorkflows', 'getWorkflowDefinition', 'runWorkflow'] };
 
     if (!userId) {

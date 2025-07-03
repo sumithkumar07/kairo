@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
         console.error('[API Agent] FATAL: KAIRO_MCP_API_KEY is not set on the server.');
         status = 'Failed';
         aiResponseText = 'API authentication is not configured on the server.';
+        await saveMcpCommand({ command: 'Auth Failure', response: aiResponseText, status, timestamp: new Date().toISOString() });
         return NextResponse.json({ aiResponse: aiResponseText, action: 'error', error: 'Server authentication not configured.' }, { status: 500 });
     }
     
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
         console.warn(`[API Agent] Failed auth attempt. Provided: ${authHeader?.substring(0, 15)}...`);
         status = 'Failed';
         aiResponseText = 'Unauthorized. Invalid or missing API Key.';
+        await saveMcpCommand({ command: 'Auth Failure', response: aiResponseText, status, timestamp: new Date().toISOString() });
         return NextResponse.json({ aiResponse: aiResponseText, action: 'error', error: 'Unauthorized' }, { status: 401 });
     }
     // --- End Authentication ---
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
     if (!parsedInput.success) {
       status = 'Failed';
       aiResponseText = 'Invalid input, expected { "command": "..." }';
+      await saveMcpCommand({ command: 'Invalid Input', response: aiResponseText, status, timestamp: new Date().toISOString() });
       return NextResponse.json({ aiResponse: aiResponseText, action: 'error', error: 'Invalid input format.', details: parsedInput.error.format() }, { status: 400 });
     }
 
@@ -70,6 +73,7 @@ export async function POST(request: NextRequest) {
       try {
         const workflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
         aiResponseText += "\n\n[Action: Workflow Generated]"; // For history log
+        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
         return NextResponse.json({
           aiResponse: chatResult.aiResponse,
           action: 'workflowGenerated',
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
         const errorMessage = `I tried to generate the workflow, but encountered an error: ${genError.message}`;
         aiResponseText = errorMessage; // Overwrite for saving to history
         status = 'Failed';
+        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
         return NextResponse.json({
           aiResponse: errorMessage,
           action: 'error',
@@ -88,6 +93,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
     // Standard chat response
     return NextResponse.json({
       aiResponse: aiResponseText,
@@ -98,20 +104,13 @@ export async function POST(request: NextRequest) {
     status = 'Failed';
     aiResponseText = error.message || 'An internal server error occurred.';
     console.error('[API Agent] Error processing request:', error);
+    // Save error to history
+    if (command) {
+        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
+    }
     return NextResponse.json(
       { aiResponse: aiResponseText, action: 'error', error: 'An internal server error occurred.' },
       { status: 500 }
     );
-  } finally {
-    // Save the command and response to history regardless of outcome
-    if (command) {
-      await saveMcpCommand({
-        id: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        command,
-        response: aiResponseText,
-        status,
-      });
-    }
   }
 }
