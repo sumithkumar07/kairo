@@ -269,11 +269,8 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         position: { x: 50, y: 330 },
         config: {
           inputArrayPath: '{{fetch_trending.output.videos}}',
-          iterationNodes: JSON.stringify([
-            { id: 'format_message', type: 'concatenateStrings', name: 'Format Slack Message', position: { x: 10, y: 10 }, config: { stringsToConcatenate: '["New Trending Video on YouTube!\\n*Title:* ", "{{item.title}}", "\\n*URL:* https://www.youtube.com/watch?v=", "{{item.id}}"]', separator: '' } },
-            { id: 'post_to_slack', type: 'slackPostMessage', name: 'Post to Slack', position: { x: 10, y: 150 }, config: { channel: '#youtube-trends', text: '{{format_message.output_data}}', token: '{{credential.SlackBotToken}}', simulated_config: { ok: true } } }
-          ]),
-          iterationConnections: JSON.stringify([{ id: 'iter_conn_1', sourceNodeId: 'format_message', sourceHandle: 'output_data', targetNodeId: 'post_to_slack', targetHandle: 'input' }]),
+          iterationNodes: '[{"id":"format_message","type":"concatenateStrings","name":"Format Slack Message","position":{"x":10,"y":10},"config":{"stringsToConcatenate":["New Trending Video on YouTube!\\n*Title:* ","{{item.title}}","\\n*URL:* https://www.youtube.com/watch?v=","{{item.id}}"],"separator":""}},{"id":"post_to_slack","type":"slackPostMessage","name":"Post to Slack","position":{"x":10,"y":150},"config":{"channel":"#youtube-trends","text":"{{format_message.output_data}}","token":"{{credential.SlackBotToken}}","simulated_config":{"ok":true}}}]',
+          iterationConnections: '[{"id":"iter_conn_1","sourceNodeId":"format_message","sourceHandle":"output_data","targetNodeId":"post_to_slack","targetHandle":"input"}]',
           continueOnError: true,
         },
         inputHandles: ['input_array_data'],
@@ -378,3 +375,4 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
     ],
   },
 ];
+
