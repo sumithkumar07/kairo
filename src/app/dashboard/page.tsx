@@ -9,9 +9,8 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { ArrowRight, CheckCircle2, FilePlus, History, Loader2, Workflow, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getRunHistory } from '@/services/workflow-storage-service';
 import type { SavedWorkflowMetadata, WorkflowRunRecord } from '@/types/workflow';
-import { listWorkflowsAction } from '@/app/actions';
+import { getRunHistoryAction, listWorkflowsAction } from '@/app/actions';
 import { formatDistanceToNow, subDays, startOfDay, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Bar, BarChart, CartesianGrid, XAxis, Area, AreaChart, Tooltip as RechartsTooltip } from 'recharts';
@@ -50,7 +49,7 @@ function DashboardPage() {
             setIsLoading(true);
             try {
                 const [runs, workflows] = await Promise.all([
-                    getRunHistory(),
+                    getRunHistoryAction(),
                     listWorkflowsAction(),
                 ]);
 

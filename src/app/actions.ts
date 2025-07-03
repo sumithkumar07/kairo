@@ -110,6 +110,10 @@ export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode
     return newRunRecord;
 }
 
+export async function getRunHistoryAction(): Promise<WorkflowRunRecord[]> {
+  return WorkflowStorage.getRunHistory();
+}
+
 
 // All other public actions remain the same
 export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {
