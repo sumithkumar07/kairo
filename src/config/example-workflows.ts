@@ -234,43 +234,70 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
     ],
   },
   {
-    name: 'Zapier Clone: YouTube to Slack Report',
-    description: 'A starting point to demonstrate the AI Assistant\'s agentic capabilities. The AI can find a video, get its stats, and generate the full workflow.',
+    name: 'Daily YouTube Trending to Slack',
+    description: 'A complete workflow that runs daily, fetches top trending YouTube videos, and posts them to a Slack channel.',
     nodes: [
       {
-        id: 'yt_report_trigger',
-        type: 'webhookTrigger',
-        name: 'Get YT Report',
-        description: 'A trigger to start the reporting process.',
+        id: 'daily_schedule',
+        type: 'schedule',
+        name: 'Daily at 9 AM',
+        description: 'Triggers this workflow every day at 9 AM.',
         position: { x: 50, y: 50 },
-        config: {
-          pathSuffix: 'youtube-slack-report',
-          simulatedRequestBody: '{"trigger": "manual"}',
-          simulatedRequestHeaders: '{}',
-          simulatedRequestQuery: '{}',
-        },
+        config: { cron: '0 9 * * *' },
         inputHandles: [],
-        outputHandles: ['requestBody', 'requestHeaders', 'requestQuery', 'status', 'error_message'],
+        outputHandles: ['triggered_at'],
         category: 'trigger',
-        aiExplanation: 'This is a starting point for an advanced workflow. The AI assistant can now use tools to gather information before generating a workflow. Try asking the assistant: "Find the YouTube video titled \'Kairo Launch Trailer\', get its performance report, and then create a workflow to post that report to the #announcements channel in Slack." The AI will use its tools to find the video, get the stats, and then build the complete workflow for you.'
+        aiExplanation: 'This Schedule node kicks off the workflow every day at 9 AM based on its CRON expression. Note that in this prototype, scheduled triggers are conceptual and must be run manually.'
       },
       {
-        id: 'yt_report_log',
-        type: 'logMessage',
-        name: 'Log Report Details',
-        description: 'Logs details before sending to Slack.',
+        id: 'fetch_trending',
+        type: 'youtubeFetchTrending',
+        name: 'Fetch Trending Videos',
+        description: 'Fetches the top 3 trending videos from YouTube for the US region.',
         position: { x: 50, y: 190 },
+        config: { region: 'US', maxResults: 3, apiKey: '{{credential.YouTubeApiKey}}', simulated_config: { videos: [{id: 'sim1', title: 'Simulated Trending Video 1'}, {id: 'sim2', title: 'Simulated Trending Video 2'}, {id: 'sim3', title: 'Simulated Trending Video 3'}] } },
+        inputHandles: ['input'],
+        outputHandles: ['output', 'status', 'error_message'],
+        category: 'integrations',
+        aiExplanation: 'This node calls the YouTube API to get the top 3 trending videos. It requires a YouTube API key, which should be stored as a credential named `YouTubeApiKey`.'
+      },
+      {
+        id: 'for_each_video',
+        type: 'forEach',
+        name: 'For Each Video',
+        description: 'Loops through the list of videos fetched from the previous step.',
+        position: { x: 50, y: 330 },
         config: {
-          message: 'Preparing to send report to Slack...',
+          inputArrayPath: '{{fetch_trending.output.videos}}',
+          iterationNodes: JSON.stringify([
+            { id: 'format_message', type: 'concatenateStrings', name: 'Format Slack Message', position: { x: 10, y: 10 }, config: { stringsToConcatenate: '["New Trending Video on YouTube!\\n*Title:* ", "{{item.title}}", "\\n*URL:* https://www.youtube.com/watch?v=", "{{item.id}}"]', separator: '' } },
+            { id: 'post_to_slack', type: 'slackPostMessage', name: 'Post to Slack', position: { x: 10, y: 150 }, config: { channel: '#youtube-trends', text: '{{format_message.output_data}}', token: '{{credential.SlackBotToken}}', simulated_config: { ok: true } } }
+          ]),
+          iterationConnections: JSON.stringify([{ id: 'iter_conn_1', sourceNodeId: 'format_message', sourceHandle: 'output_data', targetNodeId: 'post_to_slack', targetHandle: 'input' }]),
+          continueOnError: true,
         },
+        inputHandles: ['input_array_data'],
+        outputHandles: ['results', 'status', 'error_message'],
+        category: 'iteration',
+        aiExplanation: 'This node iterates through the array of video objects from the "Fetch Trending Videos" node. For each video, it executes a sub-flow (defined in its configuration) that formats a message and posts it to Slack.'
+      },
+      {
+        id: 'final_log',
+        type: 'logMessage',
+        name: 'Log Completion',
+        description: 'Logs a message when the entire workflow has finished.',
+        position: { x: 50, y: 470 },
+        config: { message: 'YouTube to Slack workflow completed. Status: {{for_each_video.status}}. See individual iteration results for details.' },
         inputHandles: ['input'],
         outputHandles: ['output'],
         category: 'io',
-        aiExplanation: 'This is a placeholder logging step. The AI will replace or build upon this when you ask it to generate the full workflow.'
-      },
+        aiExplanation: 'This final node logs a completion message once the loop has finished processing all videos. It includes the overall status of the loop operation.'
+      }
     ],
     connections: [
-      { id: 'conn_zap_1', sourceNodeId: 'yt_report_trigger', sourceHandle: 'requestBody', targetNodeId: 'yt_report_log', targetHandle: 'input' },
+      { id: 'conn_zap_1', sourceNodeId: 'daily_schedule', sourceHandle: 'triggered_at', targetNodeId: 'fetch_trending', targetHandle: 'input' },
+      { id: 'conn_zap_2', sourceNodeId: 'fetch_trending', sourceHandle: 'output', targetNodeId: 'for_each_video', targetHandle: 'input_array_data' },
+      { id: 'conn_zap_3', sourceNodeId: 'for_each_video', sourceHandle: 'status', targetNodeId: 'final_log', targetHandle: 'input' }
     ],
   },
   {
