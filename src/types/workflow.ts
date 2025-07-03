@@ -74,6 +74,7 @@ export interface SavedWorkflowMetadata {
   name: string;
   type: 'example' | 'user';
   description?: string;
+  updated_at?: string;
 }
 
 export interface ConfigFieldSchema {

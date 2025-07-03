@@ -44,7 +44,7 @@ export async function listAllWorkflows(): Promise<SavedWorkflowMetadata[]> {
   const supabase = await getSupabaseClient();
   const userId = (await supabase.auth.getUser()).data.user?.id;
   
-  const exampleWorkflows = EXAMPLE_WORKFLOWS.map(wf => ({
+  const exampleWorkflows: SavedWorkflowMetadata[] = EXAMPLE_WORKFLOWS.map(wf => ({
     name: wf.name,
     description: wf.description,
     type: 'example' as const
@@ -65,10 +65,11 @@ export async function listAllWorkflows(): Promise<SavedWorkflowMetadata[]> {
     throw new Error('Could not list saved workflows.');
   }
 
-  const savedUserWorkflows = userWorkflows.map(wf => ({
+  const savedUserWorkflows: SavedWorkflowMetadata[] = userWorkflows.map(wf => ({
     name: wf.name,
     description: `Last saved on ${new Date(wf.updated_at).toLocaleDateString()}`,
-    type: 'user' as const
+    type: 'user' as const,
+    updated_at: wf.updated_at
   }));
 
   return [...exampleWorkflows, ...savedUserWorkflows];

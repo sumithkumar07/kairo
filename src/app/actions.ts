@@ -31,7 +31,7 @@ import {
   type GenerateTestDataInput,
   type GenerateTestDataOutput
 } from '@/ai/flows/generate-test-data-flow';
-import type { Workflow, WorkflowRunRecord, ManagedCredential } from '@/types/workflow';
+import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
@@ -141,10 +141,12 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
 export async function generateTestDataForNode(input: GenerateTestDataInput): Promise<GenerateTestDataOutput> {
   return genkitGenerateTestData(input);
 }
-export async function listWorkflowsAction(): Promise<{ name: string; type: 'example' | 'user' }[]> {
+
+export async function listWorkflowsAction(): Promise<SavedWorkflowMetadata[]> {
   const workflows = await WorkflowStorage.listAllWorkflows();
-  return workflows.map(wf => ({ name: wf.name, type: wf.type }));
+  return workflows;
 }
+
 export async function loadWorkflowAction(name: string): Promise<{ name: string; workflow: Workflow } | null> {
   const workflow = await WorkflowStorage.getWorkflowByName(name);
   return workflow ? { name, workflow } : null;

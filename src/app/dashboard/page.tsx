@@ -90,8 +90,12 @@ function DashboardPage() {
                 });
 
                 setRecentRuns(runs.slice(0, 5));
-                // Sort user workflows by description (which contains date) before slicing
-                const sortedUserWorkflows = userWorkflows.sort((a,b) => (b.description || '').localeCompare(a.description || ''));
+                
+                const sortedUserWorkflows = userWorkflows.sort((a, b) => {
+                    if (!a.updated_at) return 1;
+                    if (!b.updated_at) return -1;
+                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                });
                 setRecentWorkflows(sortedUserWorkflows.slice(0, 5));
 
             } catch (error) {
