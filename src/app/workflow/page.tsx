@@ -431,9 +431,9 @@ function WorkflowPage() {
     const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
       id: conn.id || crypto.randomUUID(),
       sourceNodeId: conn.sourceNodeId,
-      sourcePort: conn.sourcePort,
+      sourceHandle: conn.sourceHandle,
       targetNodeId: conn.targetNodeId,
-      targetPort: conn.targetPort,
+      targetHandle: conn.targetHandle,
     }));
 
     return { nodes: newNodes, connections: newConnections };
