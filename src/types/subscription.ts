@@ -31,6 +31,3 @@ export const PRO_TIER_FEATURES: SubscriptionFeatures = {
   accessToAdvancedNodes: true,
   maxWorkflows: 'unlimited',
 };
-
-
-
