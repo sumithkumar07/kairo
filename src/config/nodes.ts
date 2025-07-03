@@ -1,6 +1,6 @@
 
-import type { AvailableNodeType, RetryConfig, BranchConfig, OnErrorWebhookConfig, ManualInputFieldSchema } from '@/types/workflow';
-import { Bot, Braces, FileJson, FunctionSquare, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, VenetianMask, LucideIcon, UserCheck, Edit3, ClipboardCheck, Sigma, Percent, ListPlus, ListX, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone } from 'lucide-react';
+import type { AvailableNodeType, RetryConfig, OnErrorWebhookConfig } from '@/types/workflow';
+import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone } from 'lucide-react';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
@@ -684,7 +684,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     inputHandles: ['input'],
     outputHandles: ['output', 'status', 'error_message'],
   },
-  // NEW UTILITY NODES
   {
     type: 'toUpperCase',
     name: 'To Uppercase',
@@ -850,25 +849,7 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'format date': 'formatDate',
   'date format': 'formatDate',
   'convert date': 'formatDate',
-  'arraylength': 'arrayLength',
-  'get array length': 'arrayLength',
-  'count items in array': 'arrayLength',
-  'getitematindex': 'getItemAtIndex',
-  'get item from array': 'getItemAtIndex',
-  'getobjectproperty': 'getObjectProperty',
-  'get property from object': 'getObjectProperty',
-  'reducearray': 'reduceArray',
-  'reduce array': 'reduceArray',
-  'sum array': 'reduceArray',
-  'aggregate array': 'reduceArray',
-  'average array': 'reduceArray',
-  'join list': 'reduceArray',
-  'count items': 'reduceArray',
-  'parsenumber': 'parseNumber',
-  'parse number': 'parseNumber',
-  'string to number': 'parseNumber',
-  'convert to number': 'parseNumber',
-
+  
   // AI
   'aitask': 'aiTask',
   'ai task': 'aiTask',
@@ -1002,32 +983,6 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'step': 'workflowNode',
   'workflownode': 'workflowNode', 
   'unknown': 'unknown'
-};
-
-export const getDataTransformIcon = (transformType?: string): LucideIcon => {
-  switch (transformType) {
-    case 'toUpperCase':
-    case 'toLowerCase':
-      return CaseSensitive;
-    case 'stringSplit':
-      return SplitSquareHorizontal;
-    case 'arrayLength':
-      return ListOrdered;
-    case 'getItemAtIndex':
-      return ListPlus;
-    case 'getObjectProperty':
-    case 'extractFields':
-      return Milestone; 
-    case 'concatenateStrings':
-      return Combine;
-    case 'reduceArray':
-    case 'parseNumber': 
-      return Sigma;
-    case 'formatDate':
-      return CalendarDays;
-    default:
-      return FunctionSquare;
-  }
 };
 
 export const getCanvasNodeStyling = (category: AvailableNodeType['category']) => {

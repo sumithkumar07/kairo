@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { GripVertical, AlertTriangle, CheckCircle2, XCircle, Loader2, SkipForward, AlertCircleIcon } from 'lucide-react'; 
 import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon, getCanvasNodeStyling } from '@/config/nodes';
-import { isConfigComplete, isNodeDisconnected, hasUnconnectedInputs } from '@/lib/workflow-utils';
+import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
@@ -41,27 +41,23 @@ const WorkflowNodeItemComponent = ({
   executionData,
 }: WorkflowNodeItemProps) => {
   
-  const IconComponent = node.type === 'dataTransform' && nodeType 
-    ? getDataTransformIcon(node.config?.transformType) 
-    : nodeType?.icon || GripVertical;
+  const IconComponent = nodeType?.icon || GripVertical;
   
   const configCompleteCheck = isConfigComplete(node, nodeType);
-  const disconnectedCheck = nodeType?.category !== 'trigger' && isNodeDisconnected(node, connections, nodeType);
   const unconnectedInputsCheck = nodeType?.category !== 'trigger' && hasUnconnectedInputs(node, connections, nodeType);
 
   let warningMessage = "";
   if (!configCompleteCheck) warningMessage = "Configuration incomplete. Required fields are missing.";
-  else if (disconnectedCheck) warningMessage = "Node is disconnected. Connect an input to it.";
   else if (unconnectedInputsCheck) warningMessage = "One or more required input handles are not connected.";
 
-  const hasWarning = !configCompleteCheck || disconnectedCheck || unconnectedInputsCheck;
+  const hasWarning = !configCompleteCheck || unconnectedInputsCheck;
 
   const getHandleAbsolutePosition = (handleId: string, isOutput: boolean): { x: number, y: number } => {
     const handles = isOutput ? nodeType?.outputHandles : nodeType?.inputHandles;
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
     
-    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (index + 1);
+    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
     const xOnNode = isOutput ? NODE_WIDTH : 0;
     
     return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };

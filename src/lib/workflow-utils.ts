@@ -14,27 +14,9 @@ export function isConfigComplete(node: WorkflowNode, nodeType?: AvailableNodeTyp
       if (typeof value === 'string' && value.trim() === '') {
         return false;
       }
-      if (schemaEntry.type === 'json' && typeof value === 'string') {
-        const trimmedValue = value.trim();
-        if ((trimmedValue === '{}' || trimmedValue === '[]') && !schemaEntry.allowEmptyJson) {
-            return false;
-        }
-        // Basic check for non-empty but potentially invalid JSON structure if required
-        if (trimmedValue !== '' && (trimmedValue === '{}' || trimmedValue === '[]') && !schemaEntry.allowEmptyJson && schemaEntry.required) {
-             // This scenario is tricky; an empty object/array might be invalid if content is expected.
-             // However, if allowEmptyJson is false, it implies non-empty content is expected.
-        }
-      }
     }
   }
   return true;
-}
-
-export function isNodeDisconnected(node: WorkflowNode, connections: WorkflowConnection[], nodeType?: AvailableNodeType): boolean {
-  if (nodeType?.category === 'trigger') {
-    return false; 
-  }
-  return !connections.some(conn => conn.targetNodeId === node.id);
 }
 
 export function hasUnconnectedInputs(node: WorkflowNode, connections: WorkflowConnection[], nodeType?: AvailableNodeType): boolean {
