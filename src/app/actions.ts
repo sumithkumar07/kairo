@@ -35,7 +35,7 @@ import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetad
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
 
@@ -45,7 +45,7 @@ import { cookies } from 'next/headers';
 
 async function getUserIdOrThrow(): Promise<string> {
     const cookieStore = cookies();
-    const supabase = createServerComponentClient({ cookies: () => cookieStore });
+    const supabase = createServerActionClient({ cookies: () => cookieStore });
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         throw new Error('User not authenticated.');

@@ -3,7 +3,7 @@
 /**
  * @fileOverview A server-side service for storing and retrieving user workflows and run history from a Supabase database.
  */
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
@@ -13,7 +13,7 @@ const MAX_MCP_HISTORY = 50; // Max number of MCP command records to keep
 
 async function getSupabaseClient() {
     const cookieStore = cookies();
-    return createServerComponentClient({ cookies: () => cookieStore });
+    return createServerActionClient({ cookies: () => cookieStore });
 }
 
 async function getUserId() {
