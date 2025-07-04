@@ -146,6 +146,7 @@ async function resolveValue(
 
 async function resolveNodeConfig(
   nodeConfig: Record<string, any>,
+  inputMapping: Record<string, any> | undefined,
   workflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
   userId: string,
@@ -153,23 +154,21 @@ async function resolveNodeConfig(
 ): Promise<Record<string, any>> {
   const resolvedConfig: Record<string, any> = {};
 
-  // 1. Resolve inputMapping first to create mappedInputs context
+  // 1. Resolve inputMapping to create a context of local variables.
+  // These placeholders should only resolve against workflowData and additionalContexts (like loop items).
   const mappedInputs: Record<string, any> = {};
-  if (nodeConfig.inputMapping && typeof nodeConfig.inputMapping === 'object') {
-    for (const key in nodeConfig.inputMapping) {
-      mappedInputs[key] = await resolveValue(nodeConfig.inputMapping[key], workflowData, serverLogs, userId, additionalContexts);
+  if (inputMapping && typeof inputMapping === 'object') {
+    for (const key in inputMapping) {
+      mappedInputs[key] = await resolveValue(inputMapping[key], workflowData, serverLogs, userId, additionalContexts);
     }
   }
 
-  // Combine contexts: mappedInputs take precedence over other additional contexts
+  // 2. Now, create the final combined context for resolving the main config.
+  // Mapped inputs take precedence.
   const combinedContexts = { ...additionalContexts, ...mappedInputs };
   
-  // 2. Resolve the rest of the config using the combined context
+  // 3. Resolve the rest of the config using the combined context.
   for (const key in nodeConfig) {
-    if (key === 'inputMapping') { // Don't copy inputMapping to final resolved config
-        continue;
-    }
-
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
       // Do not resolve sub-flow definitions, as they have their own scopes and will be resolved during their execution.
@@ -178,16 +177,16 @@ async function resolveNodeConfig(
         resolvedConfig[key] = value;
       } else if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
          // Resolve placeholders inside the webhook config, but not the whole object itself.
-         resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, combinedContexts);
+         resolvedConfig[key] = await resolveNodeConfig(value, undefined, workflowData, serverLogs, userId, combinedContexts);
       } else if (Array.isArray(value)) {
         resolvedConfig[key] = await Promise.all(
           value.map(item => (typeof item === 'object' && item !== null) 
-              ? resolveNodeConfig(item, workflowData, serverLogs, userId, combinedContexts) 
+              ? resolveNodeConfig(item, undefined, workflowData, serverLogs, userId, combinedContexts)
               : resolveValue(item, workflowData, serverLogs, userId, combinedContexts)
           )
         );
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = await resolveNodeConfig(value, workflowData, serverLogs, userId, combinedContexts);
+        resolvedConfig[key] = await resolveNodeConfig(value, undefined, workflowData, serverLogs, userId, combinedContexts);
       } else {
         resolvedConfig[key] = await resolveValue(value, workflowData, serverLogs, userId, combinedContexts);
       }
@@ -280,13 +279,13 @@ async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, we
     };
 
     try {
-        const resolvedHeaders = webhookConfig.headers ? await resolveNodeConfig(webhookConfig.headers, workflowData, serverLogs, userId, errorContext) : {};
+        const resolvedHeaders = webhookConfig.headers ? await resolveNodeConfig(webhookConfig.headers, undefined, workflowData, serverLogs, userId, errorContext) : {};
         // Default content type to JSON if a body is provided
         if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
             resolvedHeaders['Content-Type'] = 'application/json';
         }
 
-        const resolvedBody = webhookConfig.bodyTemplate ? await resolveNodeConfig(webhookConfig.bodyTemplate, workflowData, serverLogs, userId, errorContext) : {};
+        const resolvedBody = webhookConfig.bodyTemplate ? await resolveNodeConfig(webhookConfig.bodyTemplate, undefined, workflowData, serverLogs, userId, errorContext) : {};
 
         // Fire-and-forget fetch call
         fetch(webhookConfig.url, {
@@ -688,7 +687,7 @@ async function executeFlowInternal(
         currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
 
         const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
-        const resolvedConfig = await resolveNodeConfig(node.config || {}, dataForResolution, serverLogs, userId, node.inputMapping);
+        const resolvedConfig = await resolveNodeConfig(node.config || {}, node.inputMapping, dataForResolution, serverLogs, userId);
 
         // Check for conditional execution
         if (resolvedConfig._flow_run_condition !== undefined && !evaluateCondition(String(resolvedConfig._flow_run_condition), nodeIdentifier, serverLogs)) {

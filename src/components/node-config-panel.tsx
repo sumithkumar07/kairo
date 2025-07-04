@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { produce } from 'immer';
-import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcw, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook, Waypoints } from 'lucide-react'; 
+import { Info, Trash2, Wand2, Loader2, KeyRound, RotateCcw, ChevronRight, AlertCircle, AlertTriangle, Blocks, Anchor, Webhook, Waypoints, Plus } from 'lucide-react'; 
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React, { useState } from 'react';
@@ -24,6 +24,7 @@ interface NodeConfigPanelProps {
   node: WorkflowNode;
   nodeType?: AvailableNodeType; 
   onConfigChange: (nodeId: string, newConfig: Record<string, any>) => void;
+  onInputMappingChange: (nodeId: string, newInputMapping: Record<string, any> | undefined) => void;
   onNodeNameChange: (nodeId: string, newName: string) => void;
   onNodeDescriptionChange: (nodeId: string, newDescription: string) => void;
   onDeleteNode: (nodeId: string) => void;
@@ -38,6 +39,7 @@ export function NodeConfigPanel({
   node, 
   nodeType, 
   onConfigChange, 
+  onInputMappingChange,
   onNodeNameChange, 
   onNodeDescriptionChange,
   onDeleteNode,
@@ -100,33 +102,28 @@ export function NodeConfigPanel({
     });
   };
 
-  const handleInputMappingChange = (value: string) => {
-    const newNode = produce(node, draft => {
-        try {
-            if (value.trim() === '') {
-                delete draft.inputMapping;
-                setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
-            } else {
-                draft.inputMapping = JSON.parse(value);
-                setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
-            }
-        } catch (e) {
-            setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': 'Invalid JSON format.' }));
-            // To allow the user to see their invalid text, we store it as a string
-            (draft.inputMapping as any) = value;
-        }
-    });
+  const handleMappingChange = (oldKey: string, newKey: string, newValue: string) => {
+    const newMapping = { ...(node.inputMapping || {}) };
+    const value = newMapping[oldKey];
+    delete newMapping[oldKey];
+    newMapping[newKey] = newValue ?? value;
+    onInputMappingChange(node.id, newMapping);
+  };
 
-    onConfigChange(node.id, newNode.config); // This might seem redundant, but we need to update the top-level node state
-    if(node.inputMapping !== newNode.inputMapping) {
-      const newNodes = produce([], draft => {
-        const n = draft.find(n => n.id === node.id);
-        if(n) n.inputMapping = newNode.inputMapping;
-      })
+  const handleAddNewMapping = () => {
+    let newKey = 'new_mapping';
+    let count = 1;
+    while ((node.inputMapping || {}).hasOwnProperty(newKey)) {
+        newKey = `new_mapping_${count++}`;
     }
-    // A bit of a hack to update the node with the new mapping
-     onNodeDescriptionChange(node.id, node.description + ' ');
-     onNodeDescriptionChange(node.id, node.description || '');
+    const newMapping = { ...(node.inputMapping || {}), [newKey]: '' };
+    onInputMappingChange(node.id, newMapping);
+  };
+  
+  const handleRemoveMapping = (keyToRemove: string) => {
+    const newMapping = { ...(node.inputMapping || {}) };
+    delete newMapping[keyToRemove];
+    onInputMappingChange(node.id, newMapping);
   };
   
 
@@ -225,10 +222,6 @@ export function NodeConfigPanel({
         );
       });
   };
-  
-  const rawInputMapping = typeof node.inputMapping === 'string'
-    ? node.inputMapping
-    : JSON.stringify(node.inputMapping || {}, null, 2);
 
   return (
     <Card className="shadow-none border-0 rounded-none flex flex-col h-full bg-transparent">
@@ -280,15 +273,42 @@ export function NodeConfigPanel({
                 <div className="flex items-center gap-2"><Waypoints className="h-4 w-4"/>Input Mapping</div>
               </AccordionTrigger>
               <AccordionContent className="pt-2 space-y-3">
-                  <Textarea
-                    value={rawInputMapping === '{}' ? '' : rawInputMapping}
-                    onChange={(e) => handleInputMappingChange(e.target.value)}
-                    placeholder={'{\n  "localName": "{{nodeId.output.path}}"\n}'}
-                    rows={4}
-                    className={cn("font-mono text-xs", jsonValidationErrors['inputMapping'] && "border-destructive")}
-                  />
-                  {jsonValidationErrors['inputMapping'] && <p className="text-xs text-destructive mt-1">{jsonValidationErrors['inputMapping']}</p>}
-                  <p className="text-xs text-muted-foreground/80 mt-1">Explicitly map data from other nodes to local variables for this node.</p>
+                <div className="space-y-2">
+                  {(Object.entries(node.inputMapping || {})).map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <Input
+                        value={key}
+                        onChange={(e) => handleMappingChange(key, e.target.value, value)}
+                        placeholder="Local Name"
+                        className="h-8 text-xs font-mono"
+                      />
+                      <Input
+                        value={value}
+                        onChange={(e) => handleMappingChange(key, key, e.target.value)}
+                        placeholder="{{node.output}}"
+                        className="h-8 text-xs font-mono"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleRemoveMapping(key)}
+                        title={`Remove mapping for ${key}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive/80" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-8 text-xs mt-2"
+                    onClick={handleAddNewMapping}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add Mapping
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground/80 mt-1">Explicitly map data from other nodes to local variables for this node.</p>
               </AccordionContent>
             </AccordionItem>
 

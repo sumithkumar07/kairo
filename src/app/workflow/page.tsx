@@ -572,6 +572,20 @@ function WorkflowPage() {
     saveHistory();
   }, [saveHistory]);
 
+  const handleInputMappingChange = useCallback((nodeId: string, newInputMapping: Record<string, any> | undefined) => {
+    setNodes(prevNodes => produce(prevNodes, draft => {
+        const node = draft.find(n => n.id === nodeId);
+        if (node) {
+          if (newInputMapping && Object.keys(newInputMapping).length > 0) {
+            node.inputMapping = newInputMapping;
+          } else {
+            delete node.inputMapping;
+          }
+        }
+      }));
+    saveHistory();
+  }, [saveHistory]);
+
   const handleGenerateTestData = useCallback(async (nodeId: string, configField: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
@@ -1431,6 +1445,7 @@ function WorkflowPage() {
                     node={selectedNode}
                     nodeType={selectedNodeType}
                     onConfigChange={handleNodeConfigChange}
+                    onInputMappingChange={handleInputMappingChange}
                     onNodeNameChange={handleNodeNameChange}
                     onNodeDescriptionChange={handleNodeDescriptionChange}
                     onDeleteNode={handleDeleteNode}
