@@ -359,8 +359,8 @@ export function NodeConfigPanel({
                             <SelectContent><SelectItem value="POST">POST</SelectItem><SelectItem value="PUT">PUT</SelectItem></SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1"><Label className="text-xs">Headers (JSON)</Label><Textarea value={typeof currentWebhookConfig.headers === 'object' ? JSON.stringify(currentWebhookConfig.headers, null, 2) : currentWebhookConfig.headers ?? ''} onChange={e => handleInputChange('headers', e.target.value, false, true)} placeholder={'{\\n  "X-API-Key": "{{env.ERROR_KEY}}"\\n}'} className="h-20 text-xs font-mono"/></div>
-                        <div className="space-y-1"><Label className="text-xs">Body Template (JSON)</Label><Textarea value={typeof currentWebhookConfig.bodyTemplate === 'object' ? JSON.stringify(currentWebhookConfig.bodyTemplate, null, 2) : currentWebhookConfig.bodyTemplate ?? ''} onChange={e => handleInputChange('bodyTemplate', e.target.value, false, true)} placeholder={'{\\n  "error": "{{error_message}}"\\n}'} className="h-24 text-xs font-mono"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Headers (JSON)</Label><Textarea value={typeof currentWebhookConfig.headers === 'object' ? JSON.stringify(currentWebhookConfig.headers, null, 2) : currentWebhookConfig.headers ?? ''} onChange={e => handleInputChange('headers', e.target.value, false, true)} placeholder={'{\n  "X-API-Key": "{{env.ERROR_KEY}}"\\n}'} className="h-20 text-xs font-mono"/></div>
+                        <div className="space-y-1"><Label className="text-xs">Body Template (JSON)</Label><Textarea value={typeof currentWebhookConfig.bodyTemplate === 'object' ? JSON.stringify(currentWebhookConfig.bodyTemplate, null, 2) : currentWebhookConfig.bodyTemplate ?? ''} onChange={e => handleInputChange('bodyTemplate', e.target.value, false, true)} placeholder={'{\n  "error": "{{error_message}}"\\n}'} className="h-24 text-xs font-mono"/></div>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
