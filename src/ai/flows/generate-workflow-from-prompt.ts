@@ -1,4 +1,3 @@
-
 // The directive tells the Next.js runtime to execute this code on the server.
 'use server';
 
@@ -95,7 +94,7 @@ The workflow consists of 'nodes' and 'connections'.
 
 **Robustness & Error Handling:**
 - For nodes that can fail (like \`httpRequest\`, \`databaseQuery\`), you MUST add visual error handling. Connect the node's red \`'error'\` output handle to a \`logMessage\` node or another notification node. This provides clear, traceable error paths.
-- The \`'error'\` output contains the error message. You can use it in the connected node like this: \`config: { message: "API call failed: {{node_id.error}}" }\`.
+- The \`'error'\` output contains the error message. You can use it in the connected node like this: \`inputMapping: { "errorMessage": "{{node_id.error}}" }, config: { message: "API call failed: {{errorMessage}}" }\`.
 - For nodes that are critical, you can also add a \`retry\` configuration to their \`config\`. Be specific with \`retryOnStatusCodes\` (e.g., \`[500, 503]\`) or \`retryOnErrorKeywords\` (e.g., \`["timeout", "unavailable"]\`).
 - For conditional logic, use \`conditionalLogic\` nodes that output a boolean \`result\`, and use that in a subsequent node's \`_flow_run_condition\`.
 

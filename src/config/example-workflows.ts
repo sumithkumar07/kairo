@@ -1,4 +1,3 @@
-
 import type { WorkflowNode, WorkflowConnection, ExampleWorkflow } from '@/types/workflow';
 import { NODE_HEIGHT, NODE_WIDTH } from './nodes';
 
