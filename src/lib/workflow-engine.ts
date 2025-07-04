@@ -155,11 +155,11 @@ async function resolveNodeConfig(
   const resolvedConfig: Record<string, any> = {};
 
   // 1. Resolve inputMapping to create a context of local variables.
-  // These placeholders should only resolve against workflowData and additionalContexts (like loop items).
   const mappedInputs: Record<string, any> = {};
   if (inputMapping && typeof inputMapping === 'object') {
+    const dataForMappingResolution = { ...(parentWorkflowData || {}), ...workflowData };
     for (const key in inputMapping) {
-      mappedInputs[key] = await resolveValue(inputMapping[key], workflowData, serverLogs, userId, additionalContexts);
+      mappedInputs[key] = await resolveValue(inputMapping[key], dataForMappingResolution, serverLogs, userId, additionalContexts);
     }
   }
 
@@ -168,6 +168,7 @@ async function resolveNodeConfig(
   const combinedContexts = { ...additionalContexts, ...mappedInputs };
   
   // 3. Resolve the rest of the config using the combined context.
+  const dataForConfigResolution = { ...(parentWorkflowData || {}), ...workflowData };
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
@@ -177,18 +178,18 @@ async function resolveNodeConfig(
         resolvedConfig[key] = value;
       } else if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
          // Resolve placeholders inside the webhook config, but not the whole object itself.
-         resolvedConfig[key] = await resolveNodeConfig(value, undefined, workflowData, serverLogs, userId, combinedContexts);
+         resolvedConfig[key] = await resolveNodeConfig(value, undefined, dataForConfigResolution, serverLogs, userId, combinedContexts);
       } else if (Array.isArray(value)) {
         resolvedConfig[key] = await Promise.all(
           value.map(item => (typeof item === 'object' && item !== null) 
-              ? resolveNodeConfig(item, undefined, workflowData, serverLogs, userId, combinedContexts)
-              : resolveValue(item, workflowData, serverLogs, userId, combinedContexts)
+              ? resolveNodeConfig(item, undefined, dataForConfigResolution, serverLogs, userId, combinedContexts)
+              : resolveValue(item, dataForConfigResolution, serverLogs, userId, combinedContexts)
           )
         );
       } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = await resolveNodeConfig(value, undefined, workflowData, serverLogs, userId, combinedContexts);
+        resolvedConfig[key] = await resolveNodeConfig(value, undefined, dataForConfigResolution, serverLogs, userId, combinedContexts);
       } else {
-        resolvedConfig[key] = await resolveValue(value, workflowData, serverLogs, userId, combinedContexts);
+        resolvedConfig[key] = await resolveValue(value, dataForConfigResolution, serverLogs, userId, combinedContexts);
       }
     }
   }
@@ -525,7 +526,16 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
 
     const apiKey = await resolveValue(config.apiKey, {}, serverLogs, userId);
     if (!apiKey) throw new Error("OpenAI API Key is not configured or resolved. Please set the credential placeholder {{credential.OpenAIKey}} and ensure the credential or environment variable is available.");
-    if (!config.messages) throw new Error("OpenAI messages are not configured or resolved.");
+    
+    let messages = config.messages;
+    if (typeof messages === 'string') {
+        try {
+            messages = JSON.parse(messages);
+        } catch (e: any) {
+            throw new Error(`Invalid JSON for OpenAI messages: ${e.message}`);
+        }
+    }
+    if (!messages || !Array.isArray(messages)) throw new Error("OpenAI messages are not configured or resolved to a valid array.");
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -535,7 +545,7 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
         },
         body: JSON.stringify({
             model: config.model,
-            messages: Array.isArray(config.messages) ? config.messages : JSON.parse(config.messages),
+            messages: messages,
         }),
     });
 
@@ -554,6 +564,7 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
 
     const token = await resolveValue(config.token, {}, serverLogs, userId);
     if (!token) throw new Error("GitHub Token is not configured or resolved. Please set the credential placeholder {{credential.GitHubToken}} and ensure the credential or environment variable is available.");
+    if (!config.owner || !config.repo || !config.title) throw new Error("GitHub repository owner, name, and issue title are required.");
 
     const url = `https://api.github.com/repos/${config.owner}/${config.repo}/issues`;
     const response = await fetch(url, {
@@ -614,6 +625,45 @@ async function executeTwilioSendSmsNode(node: WorkflowNode, config: any, isSimul
     return { output: responseData };
 }
 
+async function executeStripeCreatePaymentLinkNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE STRIPE] SIMULATION: Would create a payment link.`, type: 'info' });
+        return { output: config.simulated_config };
+    }
+
+    const apiKey = await resolveValue(config.apiKey, {}, serverLogs, userId);
+    if (!apiKey) throw new Error("Stripe API Key is not configured or resolved. Please set the credential placeholder {{credential.StripeApiKey}} and ensure the credential or environment variable is available.");
+    if (!config.line_items || !Array.isArray(config.line_items)) throw new Error("Line items are not configured or are not an array.");
+
+    const body = new URLSearchParams();
+    config.line_items.forEach((item: any, index: number) => {
+        for (const key in item) {
+            if (typeof item[key] === 'object' && item[key] !== null) {
+                for (const subKey in item[key]) {
+                    body.append(`line_items[${index}][${key}][${subKey}]`, item[key][subKey]);
+                }
+            } else {
+                body.append(`line_items[${index}][${key}]`, item[key]);
+            }
+        }
+    });
+
+    const response = await fetch('https://api.stripe.com/v1/payment_links', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body.toString(),
+    });
+
+    const responseData = await response.json();
+    if (!response.ok) {
+        throw new Error(`Stripe API error: ${responseData.error?.message || `HTTP error ${response.status}`}`);
+    }
+    return { output: responseData };
+}
+
 
 // Simulated Live Mode for complex auth integrations
 async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string, serviceName: string): Promise<any> {
@@ -657,10 +707,9 @@ const nodeExecutionFunctions: Record<string, Function> = {
     openAiChatCompletion: executeOpenAiChatCompletionNode,
     githubCreateIssue: executeGithubCreateIssueNode,
     twilioSendSms: executeTwilioSendSmsNode,
+    stripeCreatePaymentLink: executeStripeCreatePaymentLinkNode,
     googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Sheets'),
-    stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Stripe'),
     hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'HubSpot'),
     dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
@@ -853,4 +902,5 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
+
 
