@@ -50,5 +50,3 @@ ALL_AVAILABLE_TOOLS_MAP.set(googleDriveFindFileTool.name, createTool(googleDrive
 
 // Export a simple array for easy iteration in UI components
 export const ALL_AVAILABLE_TOOLS: Tool[] = Array.from(ALL_AVAILABLE_TOOLS_MAP.values());
-
-    
