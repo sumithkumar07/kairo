@@ -235,10 +235,10 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Bot,
     description: 'Performs a task using a generative AI model (e.g., Gemini). Requires a GOOGLE_API_KEY environment variable for live mode.',
     category: 'ai',
-    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-flash-latest', retry: {}, onErrorWebhook: undefined, simulatedOutput: 'This is a simulated AI response.' },
+    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-pro-latest', retry: {}, onErrorWebhook: undefined, simulatedOutput: 'This is a simulated AI response.' },
     configSchema: {
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}', required: true },
-      model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-flash-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest', required: true },
+      model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-pro-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest', required: true },
       simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response.', helperText: 'Text output from the AI model when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
@@ -1116,3 +1116,4 @@ export const getDataTransformIcon = (category: AvailableNodeType['category']) =>
         default: return Milestone;
     }
 };
+
