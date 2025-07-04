@@ -222,6 +222,9 @@ export function WorkflowCanvas({
               <marker id="arrow-selected" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--destructive))" />
               </marker>
+              <marker id="arrow-error" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--destructive) / 0.7)" />
+              </marker>
               <marker id="arrow-preview" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--accent))" />
               </marker>
@@ -235,9 +238,24 @@ export function WorkflowCanvas({
               const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
 
               const isSelected = conn.id === selectedConnectionId;
-              const strokeColor = isSelected ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
-              const strokeWidth = isSelected ? 2.5 : 1.5;
-              const marker = isSelected ? "url(#arrow-selected)" : "url(#arrow)";
+              const isErrorPath = conn.sourceHandle === 'error';
+
+              let strokeColor = 'hsl(var(--primary))';
+              let strokeWidth = 1.5;
+              let marker = 'url(#arrow)';
+              let strokeDasharray = undefined as (string | undefined);
+
+              if (isErrorPath) {
+                strokeColor = 'hsl(var(--destructive) / 0.7)';
+                strokeDasharray = "6, 4";
+                marker = 'url(#arrow-error)';
+              }
+
+              if (isSelected) {
+                strokeColor = 'hsl(var(--destructive))';
+                strokeWidth = 2.5;
+                marker = 'url(#arrow-selected)';
+              }
 
               const c1x = sourcePos.x + Math.abs(targetPos.x - sourcePos.x) / 2;
               const c1y = sourcePos.y;
@@ -247,7 +265,7 @@ export function WorkflowCanvas({
 
               return (
                 <g key={conn.id}>
-                  <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none" markerEnd={marker} />
+                  <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none" markerEnd={marker} strokeDasharray={strokeDasharray} />
                   <path
                     data-connection-click-target="true"
                     d={pathD}
