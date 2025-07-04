@@ -8,7 +8,6 @@ import '@/ai/flows/enhance-user-prompt-flow.ts';
 import '@/ai/flows/explain-workflow-flow.ts'; 
 import '@/ai/flows/assistant-chat-flow.ts'; 
 import '@/ai/flows/generate-test-data-flow.ts';
-import '@/ai/flows/suggest-next-node.ts';
 import '@/ai/flows/diagnose-workflow-error-flow.ts';
 
 // Import tools to register them with Genkit
