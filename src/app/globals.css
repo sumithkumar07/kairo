@@ -106,7 +106,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
   }
   :root {
     --color-successful: hsl(var(--chart-2));

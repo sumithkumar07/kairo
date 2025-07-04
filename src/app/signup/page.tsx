@@ -68,8 +68,8 @@ export default function SignupPage() {
                   <AlertDescription className="text-xs">
                     Supabase is not configured. User creation is disabled.
                     You can explore the app with full features.{' '}
-                    <Link href="/workflow" className="font-bold underline hover:opacity-80">
-                      Go to editor.
+                    <Link href="/dashboard" className="font-bold underline hover:opacity-80">
+                      Go to dashboard.
                     </Link>
                   </AlertDescription>
                 </Alert>

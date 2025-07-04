@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 
 const inter = Inter({ 
   subsets: ['latin'],
+  display: 'swap',
   variable: '--font-sans', 
 });
 

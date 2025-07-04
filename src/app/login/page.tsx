@@ -68,8 +68,8 @@ export default function LoginPage() {
                   <AlertDescription className="text-xs">
                     Supabase is not configured. Real authentication is disabled.
                     You can explore the app with full features.{' '}
-                    <Link href="/workflow" className="font-bold underline hover:opacity-80">
-                      Go to editor.
+                    <Link href="/dashboard" className="font-bold underline hover:opacity-80">
+                      Go to dashboard.
                     </Link>
                   </AlertDescription>
                 </Alert>
