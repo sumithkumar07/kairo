@@ -484,6 +484,82 @@ async function executeDelayNode(node: WorkflowNode, config: any, isSimulationMod
   return { output: config.input };
 }
 
+async function executeAggregateDataNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    const inputArrayPath = await resolveValue(config.inputArrayPath, allWorkflowData, serverLogs, userId, config.input);
+    if (!Array.isArray(inputArrayPath)) {
+        throw new Error(`Input for aggregation must be an array. Received: ${typeof inputArrayPath}`);
+    }
+
+    let operations: { type: string, inputPath: string, outputPath: string, separator?: string }[];
+    try {
+        operations = typeof config.operations === 'string' ? JSON.parse(config.operations) : config.operations;
+        if (!Array.isArray(operations)) throw new Error();
+    } catch (e) {
+        throw new Error('Aggregation Operations must be a valid JSON array.');
+    }
+
+    const inputArray: any[] = inputArrayPath;
+    const results: Record<string, any> = {};
+
+    const getValueFromItem = (item: any, path: string) => {
+        if (!path.startsWith('item.')) return undefined;
+        const parts = path.substring(5).split('.');
+        let value = item;
+        for (const part of parts) {
+            if (value && typeof value === 'object' && part in value) {
+                value = value[part];
+            } else {
+                return undefined;
+            }
+        }
+        return value;
+    };
+
+    for (const op of operations) {
+        if (!op.type || !op.outputPath) {
+            serverLogs.push({ timestamp: new Date().toISOString(), message: `[AGGREGATE] Skipping invalid operation: ${JSON.stringify(op)}`, type: 'info' });
+            continue;
+        }
+
+        switch (op.type.toUpperCase()) {
+            case 'SUM':
+            case 'AVERAGE':
+                const numbers = inputArray.map(item => Number(getValueFromItem(item, op.inputPath))).filter(n => !isNaN(n));
+                if (numbers.length === 0) {
+                    results[op.outputPath] = 0;
+                } else {
+                    const sum = numbers.reduce((a, b) => a + b, 0);
+                    results[op.outputPath] = op.type.toUpperCase() === 'SUM' ? sum : sum / numbers.length;
+                }
+                break;
+            case 'COUNT':
+                results[op.outputPath] = inputArray.length;
+                break;
+            case 'MIN':
+            case 'MAX':
+                const minMaxNumbers = inputArray.map(item => Number(getValueFromItem(item, op.inputPath))).filter(n => !isNaN(n));
+                if (minMaxNumbers.length > 0) {
+                    results[op.outputPath] = op.type.toUpperCase() === 'MIN' ? Math.min(...minMaxNumbers) : Math.max(...minMaxNumbers);
+                } else {
+                    results[op.outputPath] = null;
+                }
+                break;
+            case 'JOIN':
+                const joinItems = inputArray.map(item => String(getValueFromItem(item, op.inputPath) ?? '')).filter(Boolean);
+                results[op.outputPath] = joinItems.join(op.separator || ',');
+                break;
+            case 'COLLECT':
+                 results[op.outputPath] = inputArray.map(item => getValueFromItem(item, op.inputPath));
+                 break;
+            default:
+                serverLogs.push({ timestamp: new Date().toISOString(), message: `[AGGREGATE] Unsupported operation type: ${op.type}`, type: 'info' });
+        }
+    }
+
+    return { output_data: results };
+}
+
+
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
 async function executeGoogleSheetsAppendRowNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
@@ -812,6 +888,7 @@ const nodeExecutionFunctions: Record<string, Function> = {
     stringSplit: executeStringSplitNode,
     formatDate: executeFormatDateNode,
     delay: executeDelayNode,
+    aggregateData: executeAggregateDataNode,
     // Add other utility functions when implemented
 
     // Integration Nodes

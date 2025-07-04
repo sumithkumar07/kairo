@@ -754,6 +754,20 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     outputHandles: ['output_data', 'error'],
   },
   {
+    type: 'aggregateData',
+    name: 'Aggregate Data',
+    icon: ListOrdered,
+    description: 'Performs aggregation operations (e.g., SUM, COUNT, JOIN) on an array of data.',
+    category: 'logic',
+    defaultConfig: { inputArrayPath: '', operations: '[{"type": "SUM", "inputPath": "item.amount", "outputPath": "totalRevenue"}]' },
+    configSchema: {
+      inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.items}}', helperText: 'Placeholder for the array to process.', required: true },
+      operations: { label: 'Aggregation Operations (JSON Array)', type: 'json', placeholder: '[{"type": "SUM", "inputPath": "item.amount", "outputPath": "totalRevenue"}, {"type": "JOIN", "inputPath": "item.email", "outputPath": "emailList", "separator": ","}]', helperText: 'Define aggregations. Use "item.property" to access data. Supported types: SUM, AVERAGE, COUNT, MIN, MAX, JOIN, COLLECT.', required: true },
+    },
+    inputHandles: ['input_array_data'],
+    outputHandles: ['output_data', 'error'],
+  },
+  {
     type: 'unknown',
     name: 'Unknown Node',
     icon: HelpCircle,
@@ -850,6 +864,14 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'format date': 'formatDate',
   'date format': 'formatDate',
   'convert date': 'formatDate',
+  'aggregatedata': 'aggregateData',
+  'aggregate data': 'aggregateData',
+  'summarize data': 'aggregateData',
+  'calculate total': 'aggregateData',
+  'sum': 'aggregateData',
+  'count': 'aggregateData',
+  'average': 'aggregateData',
+  'join': 'aggregateData',
   
   // AI
   'aitask': 'aiTask',

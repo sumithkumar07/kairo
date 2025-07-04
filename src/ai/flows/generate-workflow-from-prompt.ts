@@ -1,3 +1,4 @@
+
 // The directive tells the Next.js runtime to execute this code on the server.
 'use server';
 
@@ -16,7 +17,7 @@ import type { RetryConfig, BranchConfig, OnErrorWebhookConfig } from '@/types/wo
 // Define the schema for a node in the workflow.
 const WorkflowNodeSchema = z.object({
   id: z.string().describe('Unique identifier for the node (e.g., "node_1", "fetch_data_api"). Use snake_case.'),
-  type: z.string().describe('Type of the node (e.g., httpRequest, parseJson, aiTask, sendEmail, databaseQuery, conditionalLogic, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, fileSystemTrigger, googleCalendarListEvents, delay, webhookTrigger, getEnvironmentVariable, googleSheetsAppendRow, slackPostMessage, openAiChatCompletion, stripeCreatePaymentLink, hubspotCreateContact, twilioSendSms, githubCreateIssue, dropboxUploadFile, toUpperCase, toLowerCase, concatenateStrings, stringSplit, formatDate).Choose the most appropriate type. Refer to available node types and their specific config requirements.'),
+  type: z.string().describe('Type of the node (e.g., httpRequest, parseJson, aiTask, sendEmail, databaseQuery, conditionalLogic, executeFlowGroup, forEach, whileLoop, parallel, manualInput, callExternalWorkflow, fileSystemTrigger, googleCalendarListEvents, delay, webhookTrigger, getEnvironmentVariable, googleSheetsAppendRow, slackPostMessage, openAiChatCompletion, stripeCreatePaymentLink, hubspotCreateContact, twilioSendSms, githubCreateIssue, dropboxUploadFile, toUpperCase, toLowerCase, concatenateStrings, stringSplit, formatDate, aggregateData).Choose the most appropriate type. Refer to available node types and their specific config requirements.'),
   name: z.string().optional().describe('A descriptive name for the node instance (e.g., "Fetch User Profile", "Summarize Article"). Keep it concise.'),
   description: z.string().optional().describe('A brief description of what this specific node instance does or its purpose in the workflow.'),
   position: z.object({
@@ -82,7 +83,7 @@ The workflow consists of 'nodes' and 'connections'.
 
 **Node Requirements:** For each node, you MUST provide:
 - \`id\`: A unique, snake_case string identifier.
-- \`type\`: The most appropriate node type. PREFER SPECIFIC UTILITY NODES (e.g., \`stringSplit\`, \`formatDate\`) over generic ones. Use \`aiTask\` only for complex reasoning.
+- \`type\`: The most appropriate node type. PREFER SPECIFIC UTILITY NODES (e.g., \`stringSplit\`, \`formatDate\`, \`aggregateData\`) over generic ones. Use \`aiTask\` only for complex reasoning.
 - \`name\`: A short, descriptive name for this node instance.
 - \`description\`: (Optional) A brief sentence explaining this node's purpose.
 - \`position\`: An object with 'x' and 'y' coordinates for visual layout. Lay out sequentially left-to-right or top-to-bottom. For branches, create a clear tree structure. Avoid overlaps. (Node size: 200W x 100H).

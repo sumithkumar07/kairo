@@ -1,7 +1,66 @@
+
 import type { WorkflowNode, WorkflowConnection, ExampleWorkflow } from '@/types/workflow';
 import { NODE_HEIGHT, NODE_WIDTH } from './nodes';
 
 export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
+  {
+    name: 'Sales Data Aggregation',
+    description: 'Fetches sales data, then uses the Aggregate Data node to calculate total revenue and compile a list of unique customer emails.',
+    nodes: [
+      {
+        id: 'fetch_sales_data',
+        type: 'httpRequest',
+        name: 'Fetch Sales Orders',
+        description: 'Simulates fetching a list of sales orders from an API.',
+        position: { x: 50, y: 50 },
+        config: {
+          url: 'https://api.example.com/sales',
+          method: 'GET',
+          simulatedResponse: '[{"orderId": 1, "amount": 150, "customer": {"email": "one@example.com"}}, {"orderId": 2, "amount": 75, "customer": {"email": "two@example.com"}}, {"orderId": 3, "amount": 220, "customer": {"email": "one@example.com"}}]',
+          simulatedStatusCode: 200,
+        },
+        inputHandles: ['input'],
+        outputHandles: ['response', 'status_code', 'error'],
+        category: 'action',
+        aiExplanation: 'This node simulates fetching a list of sales orders. In a real workflow, this would be an API endpoint for your e-commerce platform.'
+      },
+      {
+        id: 'aggregate_sales',
+        type: 'aggregateData',
+        name: 'Aggregate Sales Metrics',
+        description: 'Calculates total revenue and collects customer emails.',
+        position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: { "salesOrders": "{{fetch_sales_data.response}}" },
+        config: {
+          inputArrayPath: '{{salesOrders}}',
+          operations: '[{"type": "SUM", "inputPath": "item.amount", "outputPath": "totalRevenue"}, {"type": "COLLECT", "inputPath": "item.customer.email", "outputPath": "customerEmails"}]',
+        },
+        inputHandles: ['input_array_data'],
+        outputHandles: ['output_data', 'error'],
+        category: 'logic',
+        aiExplanation: 'This node processes the array of sales orders. It performs two operations: 1) SUMs the `amount` of each order to create `totalRevenue`. 2) COLLECTs the `email` from each order to create a `customerEmails` array.'
+      },
+      {
+        id: 'log_aggregation_result',
+        type: 'logMessage',
+        name: 'Log Aggregated Results',
+        description: 'Logs the results calculated by the aggregation node.',
+        position: { x: 50, y: 50 + (NODE_HEIGHT + 40) * 2 },
+        inputMapping: { "aggregatedData": "{{aggregate_sales.output_data}}" },
+        config: {
+          message: 'Aggregation complete. Total Revenue: ${{aggregatedData.totalRevenue}}. Customer Emails: {{aggregatedData.customerEmails}}',
+        },
+        inputHandles: ['input'],
+        outputHandles: ['output'],
+        category: 'io',
+        aiExplanation: 'This final node logs the aggregated data for verification.'
+      },
+    ],
+    connections: [
+      { id: 'agg_conn_1', sourceNodeId: 'fetch_sales_data', sourceHandle: 'response', targetNodeId: 'aggregate_sales', targetHandle: 'input_array_data' },
+      { id: 'agg_conn_2', sourceNodeId: 'aggregate_sales', sourceHandle: 'output_data', targetNodeId: 'log_aggregation_result', targetHandle: 'input' },
+    ],
+  },
   {
     name: 'Test Case: Failing API Fetch',
     description: 'This workflow is intentionally broken to test the AI debugging feature. Running it in "Live Mode" will cause an error, which will be automatically sent to the AI assistant for analysis.',
