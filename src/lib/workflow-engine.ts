@@ -576,6 +576,45 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
     return { output: responseData };
 }
 
+async function executeTwilioSendSmsNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE TWILIO] SIMULATION: Would send SMS to ${config.to}.`, type: 'info' });
+        return { output: config.simulated_config };
+    }
+
+    const accountSid = await resolveValue(config.accountSid, {}, serverLogs, userId);
+    const authToken = await resolveValue(config.authToken, {}, serverLogs, userId);
+
+    if (!accountSid) throw new Error("Twilio Account SID is not configured or resolved.");
+    if (!authToken) throw new Error("Twilio Auth Token is not configured or resolved.");
+    if (!config.to) throw new Error("Recipient 'To' phone number is not configured.");
+    if (!config.from) throw new Error("'From' phone number is not configured.");
+    if (!config.body) throw new Error("Message 'Body' is not configured.");
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    
+    const body = new URLSearchParams();
+    body.append('To', config.to);
+    body.append('From', config.from);
+    body.append('Body', config.body);
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body.toString(),
+    });
+
+    const responseData = await response.json();
+    if (!response.ok) {
+        throw new Error(`Twilio API error: ${responseData.message || `HTTP error ${response.status}`}`);
+    }
+    return { output: responseData };
+}
+
+
 // Simulated Live Mode for complex auth integrations
 async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string, serviceName: string): Promise<any> {
     if (isSimulationMode) {
@@ -617,14 +656,13 @@ const nodeExecutionFunctions: Record<string, Function> = {
     slackPostMessage: executeSlackPostMessageNode,
     openAiChatCompletion: executeOpenAiChatCompletionNode,
     githubCreateIssue: executeGithubCreateIssueNode,
+    twilioSendSms: executeTwilioSendSmsNode,
     googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Sheets'),
     stripeCreatePaymentLink: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Stripe'),
     hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'HubSpot'),
-    twilioSendSms: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Twilio'),
     dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Dropbox'),
     googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
