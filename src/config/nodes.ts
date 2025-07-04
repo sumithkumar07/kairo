@@ -195,7 +195,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     configSchema: {
       maxResults: { label: 'Max Results (Optional)', type: 'number', defaultValue: 10, placeholder: '10', helperText: 'Maximum number of events to return.' },
-      simulated_config: { label: 'Simulated Events (JSON for Simulation Mode)', type: 'json', placeholder: '{"events": [{"summary": "My Event", "start": {"dateTime": "YYYY-MM-DDTHH:mm:ssZ"}}]}', helperText: 'Event objects this node will output during simulation. Real execution requires OAuth.', required: true },
+      simulated_config: { label: 'Simulated Events (JSON)', type: 'json', placeholder: '{"events": [{"summary": "My Event", "start": {"dateTime": "YYYY-MM-DDTHH:mm:ssZ"}}]}', helperText: 'Event objects this node will output during simulation. Live mode for this node is also simulated.', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -438,15 +438,16 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'googleSheetsAppendRow',
     name: 'Google Sheets: Append Row',
     icon: Sheet,
-    description: 'Appends a new row to a Google Sheet. Note: This node is simulated. A real implementation would require Google OAuth.',
+    description: 'Appends a new row to a Google Sheet. Requires a Google Service Account credential for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { spreadsheetId: '', range: 'Sheet1', values: '[["{{input.name}}", "{{input.email}}"]]', retry: {}, onErrorWebhook: undefined, simulated_config: { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } },
+    defaultConfig: { credentialName: 'GoogleServiceAccount', spreadsheetId: '', range: 'Sheet1', values: '[["{{input.name}}", "{{input.email}}"]]', retry: {}, onErrorWebhook: undefined, simulated_config: { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } },
     configSchema: {
+      credentialName: { label: 'Credential Name', type: 'string', defaultValue: 'GoogleServiceAccount', placeholder: 'GoogleServiceAccount', helperText: 'The name of the credential in Credential Manager that holds your Google Service Account JSON key.', required: true },
       spreadsheetId: { label: 'Spreadsheet ID', type: 'string', placeholder: 'Enter your Google Sheet ID here', required: true, helperText: 'Find this in your Google Sheet URL.' },
       range: { label: 'Sheet Name/Range', type: 'string', defaultValue: 'Sheet1', placeholder: 'Sheet1!A1', helperText: 'The sheet name, e.g., "Sheet1", or a range like "Sheet1!A1". Appends after the last row of the specified range/sheet.', required: true },
       values: { label: 'Values to Append (JSON Array of Arrays)', type: 'json', placeholder: '[["{{input.name}}", "{{input.email}}"]]', helperText: 'An array of rows, where each row is an array of cell values.', required: true },
-      simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"updatedRange": "Sheet1!A1:B1"}', helperText: 'Mock response for simulation mode. Live mode for this node is simulated and will also return this data.', required: true },
+      simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"updatedRange": "Sheet1!A1:B1"}', helperText: 'Mock response for simulation mode.', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -1093,4 +1094,3 @@ export const getDataTransformIcon = (category: AvailableNodeType['category']) =>
         default: return Milestone;
     }
 };
-

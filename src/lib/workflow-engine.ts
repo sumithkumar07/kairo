@@ -8,6 +8,7 @@ import { Pool } from 'pg';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { format, parseISO } from 'date-fns';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
+import { google } from 'googleapis';
 
 
 // Initialize the PostgreSQL connection pool at the module level
@@ -485,6 +486,61 @@ async function executeDelayNode(node: WorkflowNode, config: any, isSimulationMod
 
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
+async function executeGoogleSheetsAppendRowNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] SIMULATION: Would append row to ${config.spreadsheetId}.`, type: 'info' });
+        return { output: config.simulated_config || { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } };
+    }
+
+    const credName = config.credentialName || 'GoogleServiceAccount';
+    const serviceAccountKeyJson = await WorkflowStorage.getCredentialValueByNameForUser(credName, userId);
+    
+    if (!serviceAccountKeyJson) {
+        throw new Error(`Google Service Account credential named '${credName}' not found.`);
+    }
+
+    let serviceAccountKey;
+    try {
+        serviceAccountKey = JSON.parse(serviceAccountKeyJson);
+    } catch (e) {
+        throw new Error(`The '${credName}' credential value is not valid JSON.`);
+    }
+    
+    const auth = new google.auth.GoogleAuth({
+        credentials: {
+            client_email: serviceAccountKey.client_email,
+            private_key: serviceAccountKey.private_key,
+        },
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    
+    let valuesToAppend = config.values;
+    if (typeof valuesToAppend === 'string') {
+        try {
+            valuesToAppend = JSON.parse(valuesToAppend);
+        } catch (e) {
+            throw new Error('Values to Append is not valid JSON.');
+        }
+    }
+    
+    if (!Array.isArray(valuesToAppend)) {
+        throw new Error('Values to Append must be an array of arrays.');
+    }
+
+    const response = await sheets.spreadsheets.values.append({
+        spreadsheetId: config.spreadsheetId,
+        range: config.range,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+            values: valuesToAppend,
+        },
+    });
+
+    return { output: response.data };
+}
+
 async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SLACK] SIMULATION: Would post message to channel ${config.channel}.`, type: 'info' });
@@ -728,7 +784,7 @@ async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimul
         return { output: config.simulated_config || {} };
     }
 
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] LIVE (SIMULATED): This integration requires OAuth2, which is not fully implemented. Returning simulated data for workflow continuity.`, type: 'info' });
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE ${serviceName.toUpperCase()}] LIVE (SIMULATED): This integration requires complex setup (e.g., OAuth2), which is not fully implemented. Returning simulated data for workflow continuity.`, type: 'info' });
 
     // In a real scenario, you'd check for OAuth tokens here.
     const hasCreds = Object.values(config).some(val => typeof val === 'string' && val.includes('{{credential.'));
@@ -765,8 +821,7 @@ const nodeExecutionFunctions: Record<string, Function> = {
     twilioSendSms: executeTwilioSendSmsNode,
     stripeCreatePaymentLink: executeStripeCreatePaymentLinkNode,
     hubspotCreateContact: executeHubSpotCreateContactNode,
-    googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Sheets'),
+    googleSheetsAppendRow: executeGoogleSheetsAppendRowNode,
     dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Dropbox'),
     googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
@@ -956,6 +1011,3 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
-
-
-
