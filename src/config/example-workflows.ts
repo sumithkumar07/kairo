@@ -281,7 +281,7 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         position: { x: 50, y: 50 },
         config: { cron: '0 9 * * *' },
         inputHandles: [],
-        outputHandles: ['triggered_at'],
+        outputHandles: ['triggered_at', 'error'],
         category: 'trigger',
         aiExplanation: 'This Schedule node kicks off the workflow every day at 9 AM based on its CRON expression. Note that in this prototype, scheduled triggers are conceptual and must be run manually.'
       },
