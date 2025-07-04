@@ -68,7 +68,8 @@ export function MarketingHeader() {
            <ThemeToggle />
         </nav>
 
-         <div className="md:hidden">
+         <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">
