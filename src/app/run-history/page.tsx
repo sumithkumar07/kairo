@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
-import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, RefreshCw, AlertTriangle, Database, Bot, Sparkles } from 'lucide-react';
+import { Workflow, History, CheckCircle2, XCircle, Trash2, Code2, Eye, ListChecks, FileJson, Edit3, Loader2, RefreshCw, AlertTriangle, Database, Bot, Sparkles, Search } from 'lucide-react';
 import type { WorkflowRunRecord, WorkflowNode } from '@/types/workflow';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,7 @@ import { WorkflowCanvas } from '@/components/workflow-canvas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
+import { Input } from '@/components/ui/input';
 
 
 const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; className?: string; }) => {
@@ -60,6 +61,9 @@ function RunHistoryPage() {
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnoseWorkflowErrorOutput | null>(null);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'success', 'failed'
+
 
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
@@ -78,6 +82,20 @@ function RunHistoryPage() {
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  const filteredHistory = useMemo(() => {
+    return runHistory
+      .filter(run => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'success' && run.status === 'Success') return true;
+        if (statusFilter === 'failed' && run.status === 'Failed') return true;
+        return false;
+      })
+      .filter(run => {
+        if (!searchTerm.trim()) return true;
+        return run.workflowName.toLowerCase().includes(searchTerm.toLowerCase());
+      });
+  }, [runHistory, searchTerm, statusFilter]);
   
   const handleRerun = async (runId: string) => {
     setIsRerunning(true);
@@ -250,11 +268,53 @@ function RunHistoryPage() {
     );
   };
 
+  const renderContent = () => {
+    if (isLoading) {
+      return <div className="text-center py-16 flex-1 flex flex-col items-center justify-center bg-card shadow-lg rounded-lg"><Loader2 className="h-12 w-12 text-primary mx-auto animate-spin" /><p className="mt-4 text-muted-foreground">Loading Run History...</p></div>;
+    }
+    if (runHistory.length === 0) {
+      return (
+        <div className="text-center py-16 flex-1 flex flex-col items-center justify-center bg-card shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
+          <History className="h-20 w-20 text-muted-foreground mx-auto mb-5 opacity-70" />
+          <p className="text-2xl text-muted-foreground font-semibold">No run history found.</p>
+          <p className="text-md text-muted-foreground mt-3 mb-8">Go to the <Link href="/workflow" className="text-primary hover:underline font-medium">Workflow Editor</Link> and run a workflow to see its history here.</p>
+          <Button asChild><Link href="/workflow"><Workflow className="mr-2 h-4 w-4" /> Go to Editor</Link></Button>
+        </div>
+      );
+    }
+    return (
+      <Card className="shadow-sm flex-1 flex flex-col">
+        <CardContent className="p-0 flex-1">
+          <ScrollArea className="h-full">
+            <div className="divide-y divide-border">
+              {filteredHistory.length > 0 ? filteredHistory.map((run) => (
+                <div key={run.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-4">{getStatusIndicator(run.status)}
+                    <div>
+                      <p className="font-semibold text-foreground truncate" title={run.workflowName}>{run.workflowName}</p>
+                      <p className="text-sm text-muted-foreground">{format(new Date(run.timestamp), 'PPpp')} ({formatDistanceToNow(new Date(run.timestamp), { addSuffix: true })})</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedRun(run)}><Eye className="mr-2 h-4 w-4" />View Details</Button>
+                </div>
+              )) : (
+                <div className="text-center text-muted-foreground py-16">
+                    <p className="text-lg font-medium">No runs match your filters.</p>
+                    <p className="text-sm">Try adjusting your search term or status filter.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   return (
     <AppLayout>
       <div className="flex-1 flex flex-col p-6 bg-muted/40">
-        <section className="mb-6">
+        <section className="mb-4">
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Run History</h1>
@@ -264,36 +324,27 @@ function RunHistoryPage() {
           </div>
         </section>
 
-        {isLoading ? (
-          <div className="text-center py-16 flex-1 flex flex-col items-center justify-center bg-card shadow-lg rounded-lg"><Loader2 className="h-12 w-12 text-primary mx-auto animate-spin" /><p className="mt-4 text-muted-foreground">Loading Run History...</p></div>
-        ) : runHistory.length === 0 ? (
-          <div className="text-center py-16 flex-1 flex flex-col items-center justify-center bg-card shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
-            <History className="h-20 w-20 text-muted-foreground mx-auto mb-5 opacity-70" />
-            <p className="text-2xl text-muted-foreground font-semibold">No run history found.</p>
-            <p className="text-md text-muted-foreground mt-3 mb-8">Go to the <Link href="/workflow" className="text-primary hover:underline font-medium">Workflow Editor</Link> and run a workflow to see its history here.</p>
-            <Button asChild><Link href="/workflow"><Workflow className="mr-2 h-4 w-4" /> Go to Editor</Link></Button>
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by workflow name..."
+              className="pl-9 h-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={runHistory.length === 0 || isLoading}
+            />
           </div>
-        ) : (
-          <Card className="shadow-sm flex-1 flex flex-col">
-            <CardContent className="p-0 flex-1">
-              <ScrollArea className="h-full">
-                <div className="divide-y divide-border">
-                  {runHistory.map((run) => (
-                    <div key={run.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-4">{getStatusIndicator(run.status)}
-                        <div>
-                          <p className="font-semibold text-foreground truncate" title={run.workflowName}>{run.workflowName}</p>
-                          <p className="text-sm text-muted-foreground">{format(new Date(run.timestamp), 'PPpp')} ({formatDistanceToNow(new Date(run.timestamp), { addSuffix: true })})</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedRun(run)}><Eye className="mr-2 h-4 w-4" />View Details</Button>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        )}
+          <Tabs defaultValue="all" value={statusFilter} onValueChange={setStatusFilter} className="w-auto">
+            <TabsList className="h-9">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="success">Success</TabsTrigger>
+              <TabsTrigger value="failed">Failed</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {renderContent()}
       </div>
       
       {selectedRun && (
@@ -406,3 +457,5 @@ function RunHistoryPage() {
 }
 
 export default withAuth(RunHistoryPage);
+
+    
