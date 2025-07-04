@@ -37,7 +37,7 @@ import {
   type DiagnoseWorkflowErrorOutput,
 } from '@/ai/flows/diagnose-workflow-error-flow';
 
-import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata } from '@/types/workflow';
+import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
@@ -200,4 +200,8 @@ export async function deleteCredentialAction(id: string): Promise<{ success: boo
     } catch (e: any) {
         return { success: false, message: e.message };
     }
+}
+
+export async function getAgentConfigAction(): Promise<AgentConfig> {
+  return WorkflowStorage.getAgentConfig();
 }

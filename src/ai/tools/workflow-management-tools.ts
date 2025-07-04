@@ -11,6 +11,8 @@ import { z } from 'zod';
 import { listAllWorkflows, getWorkflowByName } from '@/services/workflow-storage-service';
 import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 
 // Schema for Workflow Nodes (simplified for tool input)
@@ -94,9 +96,19 @@ export const runWorkflowTool = ai.defineTool(
         }),
     },
     async ({ nodes, connections, isSimulation }) => {
+        const cookieStore = cookies();
+        const supabase = createServerActionClient({ cookies: () => cookieStore });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return {
+                status: 'Failed',
+                summary: 'User is not authenticated. Cannot run workflow.',
+            };
+        }
+
         console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes in ${isSimulation ? 'simulation' : 'live'} mode...`);
         try {
-            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation);
+            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation, user.id);
             const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
             const status = hasErrors ? 'Failed' : 'Success';
 

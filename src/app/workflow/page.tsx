@@ -2,11 +2,11 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata, AgentConfig } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import type { GenerateTestDataInput } from '@/ai/flows/generate-test-data-flow';
-import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode } from '@/app/actions';
+import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode, getAgentConfigAction } from '@/app/actions';
 import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { saveRunRecord } from '@/services/workflow-storage-service';
@@ -72,6 +72,7 @@ function WorkflowPage() {
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [enabledTools, setEnabledTools] = useState<string[]>([]);
 
   const { toast } = useToast();
   const { isProOrTrial, isLoggedIn } = useSubscription();
@@ -330,9 +331,19 @@ function WorkflowPage() {
             setChatHistory([welcomeMessage]);
         }
     };
+    
+    const loadAgentTools = async () => {
+        try {
+            const config = await getAgentConfigAction();
+            setEnabledTools(config.enabledTools);
+        } catch (error) {
+            console.warn("Could not load agent tools for the chat assistant.", error);
+        }
+    };
 
     if (typeof window !== 'undefined') {
         initializeEditorState();
+        loadAgentTools();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -512,7 +523,8 @@ function WorkflowPage() {
         workflowContext: workflowContextForAI, 
         chatHistory: historyForAI,
         currentWorkflowNodes: currentWorkflowNodesForAI,
-        currentWorkflowConnections: currentWorkflowConnectionsForAI
+        currentWorkflowConnections: currentWorkflowConnectionsForAI,
+        enabledTools: enabledTools,
       });
       
       const aiMessage: ChatMessage = {
@@ -561,7 +573,7 @@ function WorkflowPage() {
     } finally {
       setIsChatLoading(false); 
     }
-  }, [chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast]);
+  }, [chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast, enabledTools]);
 
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
