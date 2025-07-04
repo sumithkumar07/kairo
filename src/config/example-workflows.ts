@@ -30,8 +30,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Fetch Posts API (Intentionally Broken)',
         description: 'This node is configured with an invalid URL to cause a failure.',
         position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: { "url_placeholder": "{{non_existent_source.url}}" },
         config: {
-          url: '{{non_existent_source.url}}', // This will fail to resolve
+          url: '{{url_placeholder}}', // This will fail to resolve
           method: 'GET',
           simulatedResponse: '[{"id":1, "title":"Example Post", "body":"This is a test."}]',
           simulatedStatusCode: 200,
@@ -47,8 +48,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Log API Failure',
         description: 'Logs the error message if the API call fails.',
         position: { x: 50 + NODE_WIDTH + 60, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: { "api_error": "{{http_1.error}}"},
         config: {
-          message: 'HTTP request failed with error: {{http_1.error}}',
+          message: 'HTTP request failed with error: {{api_error}}',
         },
         inputHandles: ['input'],
         outputHandles: ['output'],
@@ -61,8 +63,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Parse API Response',
         description: 'Parses the JSON response from the API.',
         position: { x: 50, y: 50 + (NODE_HEIGHT + 40) * 2 },
+        inputMapping: { "api_response": "{{http_1.response}}" },
         config: {
-          jsonString: '{{http_1.response}}',
+          jsonString: '{{api_response}}',
           path: '$[0]', 
         },
         inputHandles: ['input'],
@@ -76,8 +79,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Log First Post',
         description: 'Logs the details of the first post.',
         position: { x: 50, y: 50 + (NODE_HEIGHT + 40) * 3 },
+        inputMapping: { "first_post": "{{parse_1.output}}" },
         config: {
-          message: 'First post: {{parse_1.output}}',
+          message: 'First post: {{first_post}}',
         },
         inputHandles: ['input'],
         outputHandles: ['output'],
@@ -119,8 +123,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Check Order Value > 100',
         description: 'Checks if the order value is greater than 100.',
         position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: { "orderValue": "{{webhook_trigger_ex2.requestBody.order_value}}" },
         config: {
-          condition: '{{webhook_trigger_ex2.requestBody.order_value}} > 100',
+          condition: '{{orderValue}} > 100',
         },
         inputHandles: ['input'],
         outputHandles: ['result'],
@@ -133,11 +138,16 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Send High Value Email',
         description: 'Sends an email for high value orders.',
         position: { x: 50 - NODE_WIDTH - 30, y: 50 + (NODE_HEIGHT + 40) * 2 },
+        inputMapping: {
+          "emailAddr": "{{webhook_trigger_ex2.requestBody.customer_email}}",
+          "userId": "{{webhook_trigger_ex2.requestBody.user_id}}",
+          "shouldRun": "{{condition_ex2.result}}"
+        },
         config: {
-          to: '{{webhook_trigger_ex2.requestBody.customer_email}}',
-          subject: 'High Value Order Confirmation! User: {{webhook_trigger_ex2.requestBody.user_id}}',
-          body: 'Thank you for your high value order! Details for user {{webhook_trigger_ex2.requestBody.user_id}} are being processed.',
-          _flow_run_condition: '{{condition_ex2.result}}', 
+          to: '{{emailAddr}}',
+          subject: 'High Value Order Confirmation! User: {{userId}}',
+          body: 'Thank you for your high value order! Details for user {{userId}} are being processed.',
+          _flow_run_condition: '{{shouldRun}}', 
           simulatedMessageId: 'sim-email-high-value'
         },
         inputHandles: ['input'],
@@ -151,11 +161,16 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Send Standard Email',
         description: 'Sends an email for standard value orders.',
         position: { x: 50 + NODE_WIDTH + 30, y: 50 + (NODE_HEIGHT + 40) * 2 },
+        inputMapping: {
+          "emailAddr": "{{webhook_trigger_ex2.requestBody.customer_email}}",
+          "userId": "{{webhook_trigger_ex2.requestBody.user_id}}",
+          "shouldRun": "{{condition_ex2.result}}"
+        },
         config: {
-          to: '{{webhook_trigger_ex2.requestBody.customer_email}}',
-          subject: 'Standard Order Confirmation: User {{webhook_trigger_ex2.requestBody.user_id}}',
-          body: 'Thank you for your order! Details for user {{webhook_trigger_ex2.requestBody.user_id}} are being processed.',
-          _flow_run_condition: '{{condition_ex2.result}} == false', 
+          to: '{{emailAddr}}',
+          subject: 'Standard Order Confirmation: User {{userId}}',
+          body: 'Thank you for your order! Details for user {{userId}} are being processed.',
+          _flow_run_condition: '{{shouldRun}} == false', 
           simulatedMessageId: 'sim-email-standard-value'
         },
         inputHandles: ['input'],
@@ -197,8 +212,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Fetch Article Content',
         description: 'Simulates fetching content of an article.',
         position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: { "articleUrl": "{{trigger_summarize.requestBody.article_url}}" },
         config: {
-          url: '{{trigger_summarize.requestBody.article_url}}',
+          url: '{{articleUrl}}',
           method: 'GET',
           simulatedResponse: '{"title": "The Future of AI", "content": "Artificial intelligence is rapidly evolving. This article explores various aspects including machine learning, natural language processing, and ethical considerations. It highlights potential breakthroughs and challenges ahead. The impact on society could be transformative."}',
           simulatedStatusCode: 200,
@@ -214,8 +230,9 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Summarize Content (AI)',
         description: 'Uses AI to summarize the fetched article content.',
         position: { x: 50, y: 50 + (NODE_HEIGHT + 40) * 2 },
+        inputMapping: { "articleContent": "{{fetch_article_summarize.response.content}}" },
         config: {
-          prompt: 'Summarize the following article content in two sentences: {{fetch_article_summarize.response.content}}',
+          prompt: 'Summarize the following article content in two sentences: {{articleContent}}',
           model: 'googleai/gemini-1.5-flash-latest',
           simulatedOutput: 'AI is evolving fast, with breakthroughs in ML and NLP, presenting both opportunities and ethical challenges for society.',
         },
@@ -230,10 +247,15 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Email Article Summary',
         description: 'Emails the generated summary.',
         position: { x: 50, y: 50 + (NODE_HEIGHT + 40) * 3 },
+        inputMapping: {
+          "articleTitle": "{{fetch_article_summarize.response.title}}",
+          "summary": "{{summarize_ai_task.output}}",
+          "articleUrl": "{{trigger_summarize.requestBody.article_url}}"
+        },
         config: {
           to: '{{env.SUMMARY_RECIPIENT_EMAIL}}',
-          subject: 'AI Summary: {{fetch_article_summarize.response.title}}',
-          body: 'Here is the AI-generated summary for the article "{{fetch_article_summarize.response.title}}":\\n\\n{{summarize_ai_task.output}}\\n\\nOriginal URL: {{trigger_summarize.requestBody.article_url}}',
+          subject: 'AI Summary: {{articleTitle}}',
+          body: 'Here is the AI-generated summary for the article "{{articleTitle}}":\\n\\n{{summary}}\\n\\nOriginal URL: {{articleUrl}}',
           simulatedMessageId: 'sim-email-summary-id',
         },
         inputHandles: ['input'],
@@ -282,9 +304,10 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'For Each Video',
         description: 'Loops through the list of videos fetched from the previous step.',
         position: { x: 50, y: 330 },
+        inputMapping: { "videoList": "{{fetch_trending.output.videos}}" },
         config: {
-          inputArrayPath: '{{fetch_trending.output.videos}}',
-          iterationNodes: '[{"id":"format_message","type":"concatenateStrings","name":"Format Slack Message","position":{"x":10,"y":10},"config":{"stringsToConcatenate":["New Trending Video on YouTube!\\\\n*Title:* ","{{item.title}}","\\\\n*URL:* https://www.youtube.com/watch?v=","{{item.id}}"],"separator":""}},{"id":"post_to_slack","type":"slackPostMessage","name":"Post to Slack","position":{"x":10,"y":150},"config":{"channel":"#youtube-trends","text":"{{format_message.output_data}}","token":"{{credential.SlackBotToken}}","simulated_config":{"ok":true}}}]',
+          inputArrayPath: '{{videoList}}',
+          iterationNodes: '[{"id":"format_message","type":"concatenateStrings","name":"Format Slack Message","position":{"x":10,"y":10},"inputMapping":{"videoTitle":"{{item.title}}", "videoId":"{{item.id}}"}, "config":{"stringsToConcatenate":["New Trending Video on YouTube!\\\\n*Title:* ","{{videoTitle}}","\\\\n*URL:* https://www.youtube.com/watch?v=","{{videoId}}"],"separator":""}},{"id":"post_to_slack","type":"slackPostMessage","name":"Post to Slack","position":{"x":10,"y":150},"inputMapping":{"messageText":"{{format_message.output_data}}"},"config":{"channel":"#youtube-trends","text":"{{messageText}}","token":"{{credential.SlackBotToken}}","simulated_config":{"ok":true}}}]',
           iterationConnections: '[{"id":"iter_conn_1","sourceNodeId":"format_message","sourceHandle":"output_data","targetNodeId":"post_to_slack","targetHandle":"input"}]',
           continueOnError: true,
         },
@@ -299,7 +322,8 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Log Completion',
         description: 'Logs a message when the entire workflow has finished.',
         position: { x: 50, y: 470 },
-        config: { message: 'YouTube to Slack workflow completed. Status: {{for_each_video.status}}. See individual iteration results for details.' },
+        inputMapping: { "loopStatus": "{{for_each_video.status}}" },
+        config: { message: 'YouTube to Slack workflow completed. Status: {{loopStatus}}. See individual iteration results for details.' },
         inputHandles: ['input'],
         outputHandles: ['output'],
         category: 'io',
@@ -339,9 +363,14 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Add User to Database',
         description: 'Simulates adding the new user to a database.',
         position: { x: 50, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: {
+          "userId": "{{webhook_onboard.requestBody.user_id}}",
+          "userName": "{{webhook_onboard.requestBody.name}}",
+          "userEmail": "{{webhook_onboard.requestBody.email}}"
+        },
         config: {
           queryText: 'INSERT INTO users (id, name, email, created_at) VALUES ($1, $2, $3, NOW());',
-          queryParams: '["{{webhook_onboard.requestBody.user_id}}", "{{webhook_onboard.requestBody.name}}", "{{webhook_onboard.requestBody.email}}"]',
+          queryParams: '["{{userId}}", "{{userName}}", "{{userEmail}}"]',
           simulatedResults: '[]', 
           simulatedRowCount: 1, 
         },
@@ -356,8 +385,13 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Log DB Operation',
         description: 'Logs the result of the database operation.',
         position: { x: 50 + NODE_WIDTH + 30, y: 50 + NODE_HEIGHT + 40 },
+        inputMapping: {
+          "userId": "{{webhook_onboard.requestBody.user_id}}",
+          "rowCount": "{{db_add_user.rowCount}}",
+          "dbError": "{{db_add_user.error}}"
+        },
         config: {
-          message: 'Database operation for {{webhook_onboard.requestBody.user_id}}: RowCount={{db_add_user.rowCount}}. Error: {{db_add_user.error}}',
+          message: 'Database operation for {{userId}}: RowCount={{rowCount}}. Error: {{dbError}}',
         },
         inputHandles: ['input'],
         outputHandles: ['output'],
@@ -370,12 +404,17 @@ export const EXAMPLE_WORKFLOWS: ExampleWorkflow[] = [
         name: 'Send Welcome Email',
         description: 'Sends a welcome email to the new user.',
         position: { x: 50, y: 50 + (NODE_HEIGHT + 40) * 2 },
+        inputMapping: {
+          "userEmail": "{{webhook_onboard.requestBody.email}}",
+          "userName": "{{webhook_onboard.requestBody.name}}",
+          "dbRowCount": "{{db_add_user.rowCount}}"
+        },
         config: {
-          to: '{{webhook_onboard.requestBody.email}}',
-          subject: 'Welcome to Kairo, {{webhook_onboard.requestBody.name}}!',
-          body: 'Hi {{webhook_onboard.requestBody.name}},\\n\\nWelcome aboard! We are excited to have you.\\n\\nBest,\\nThe Kairo Team',
+          to: '{{userEmail}}',
+          subject: 'Welcome to Kairo, {{userName}}!',
+          body: 'Hi {{userName}},\\n\\nWelcome aboard! We are excited to have you.\\n\\nBest,\\nThe Kairo Team',
           simulatedMessageId: 'sim-welcome-email-id',
-          _flow_run_condition: '{{db_add_user.rowCount}} == 1',
+          _flow_run_condition: '{{dbRowCount}} == 1',
         },
         inputHandles: ['input'],
         outputHandles: ['messageId', 'error'],

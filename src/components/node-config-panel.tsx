@@ -101,21 +101,32 @@ export function NodeConfigPanel({
   };
 
   const handleInputMappingChange = (value: string) => {
-    try {
-      if (value.trim() === '') {
-        const newConfig = { ...node.config };
-        delete newConfig.inputMapping;
-        onConfigChange(node.id, newConfig);
-        setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
-        return;
-      }
-      const parsed = JSON.parse(value);
-      onConfigChange(node.id, { ...node.config, inputMapping: parsed });
-      setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
-    } catch (e) {
-      setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': 'Invalid JSON format.' }));
-      onConfigChange(node.id, { ...node.config, inputMapping: value } as any);
+    const newNode = produce(node, draft => {
+        try {
+            if (value.trim() === '') {
+                delete draft.inputMapping;
+                setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
+            } else {
+                draft.inputMapping = JSON.parse(value);
+                setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': null }));
+            }
+        } catch (e) {
+            setJsonValidationErrors(prev => ({ ...prev, 'inputMapping': 'Invalid JSON format.' }));
+            // To allow the user to see their invalid text, we store it as a string
+            (draft.inputMapping as any) = value;
+        }
+    });
+
+    onConfigChange(node.id, newNode.config); // This might seem redundant, but we need to update the top-level node state
+    if(node.inputMapping !== newNode.inputMapping) {
+      const newNodes = produce([], draft => {
+        const n = draft.find(n => n.id === node.id);
+        if(n) n.inputMapping = newNode.inputMapping;
+      })
     }
+    // A bit of a hack to update the node with the new mapping
+     onNodeDescriptionChange(node.id, node.description + ' ');
+     onNodeDescriptionChange(node.id, node.description || '');
   };
   
 
