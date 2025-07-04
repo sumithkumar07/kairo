@@ -897,80 +897,6 @@ function WorkflowPage() {
   }, [handleCanvasClick, isConnecting, canvasOffset]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isInputField = (target: EventTarget | null): boolean => {
-        return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
-      }
-      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog || showSaveAsDialog || showOpenDialog || workflowToDeleteFromModal) return;
-
-      const isCtrlOrMeta = event.ctrlKey || event.metaKey;
-
-      if (isCtrlOrMeta && event.key.toLowerCase() === 's') {
-        event.preventDefault();
-        if (event.shiftKey) {
-            handleSaveWorkflowAs();
-        } else {
-            handleSaveWorkflow();
-        }
-        return;
-      }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleOpenWorkflowDialog(); return; }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'n') { event.preventDefault(); setShowClearCanvasConfirmDialog(true); return; }
-
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        if (event.shiftKey) {
-          handleRedo();
-        } else {
-          handleUndo();
-        }
-        return;
-      }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'y') {
-        event.preventDefault();
-        handleRedo();
-        return;
-      }
-      if (isCtrlOrMeta && (event.key === '+' || event.key === '=')) {
-        event.preventDefault();
-        handleZoomIn();
-        return;
-      }
-      if (isCtrlOrMeta && event.key === '-') {
-        event.preventDefault();
-        handleZoomOut();
-        return;
-      }
-
-      if (event.key === 'Escape') {
-        if (isConnecting) handleCancelConnection();
-        if (selectedNodeId) setSelectedNodeId(null);
-        if (selectedConnectionId) setSelectedConnectionId(null);
-        if (workflowExplanation) setWorkflowExplanation(null);
-        if (showSaveAsDialog) setShowSaveAsDialog(false);
-        if (showOpenDialog) setShowOpenDialog(false);
-        if(workflowToDeleteFromModal) setWorkflowToDeleteFromModal(null);
-        return;
-      }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedNodeId && !isInputField(document.activeElement)) handleDeleteNode(selectedNodeId);
-        else if (selectedConnectionId && !isInputField(document.activeElement)) handleDeleteSelectedConnection();
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation, showOpenDialog, workflowToDeleteFromModal,
-    handleSaveWorkflow, handleRunWorkflow, handleOpenWorkflowDialog,
-    handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, showSaveAsDialog, handleCancelConnection,
-    handleZoomIn, handleZoomOut, handleSaveWorkflowAs
-  ]);
-
-  useEffect(() => {
     let isActive = true;
 
     const fetchSuggestionsLogic = async () => {
@@ -1298,7 +1224,7 @@ function WorkflowPage() {
 
   const handleClearCanvas = useCallback(() => {
     loadWorkflowIntoEditor({ nodes: [], connections: [], canvasOffset: { x: 0, y: 0 }, zoomLevel: 1, isSimulationMode: true }, 'Untitled Workflow');
-    toast({ title: 'Canvas Cleared', description: 'All nodes and connections have been removed.' });
+    toast({ title: 'New Workflow Created', description: 'The canvas is ready for your next masterpiece.' });
     setShowClearCanvasConfirmDialog(false);
   }, [toast, loadWorkflowIntoEditor]);
 
@@ -1382,6 +1308,80 @@ function WorkflowPage() {
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1 && historyIndex !== -1;
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isInputField = (target: EventTarget | null): boolean => {
+        return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+      }
+      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog || showSaveAsDialog || showOpenDialog || workflowToDeleteFromModal) return;
+
+      const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+
+      if (isCtrlOrMeta && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (event.shiftKey) {
+            handleSaveWorkflowAs();
+        } else {
+            handleSaveWorkflow();
+        }
+        return;
+      }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleOpenWorkflowDialog(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'n') { event.preventDefault(); setShowClearCanvasConfirmDialog(true); return; }
+
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        handleRedo();
+        return;
+      }
+      if (isCtrlOrMeta && (event.key === '+' || event.key === '=')) {
+        event.preventDefault();
+        handleZoomIn();
+        return;
+      }
+      if (isCtrlOrMeta && event.key === '-') {
+        event.preventDefault();
+        handleZoomOut();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        if (isConnecting) handleCancelConnection();
+        if (selectedNodeId) setSelectedNodeId(null);
+        if (selectedConnectionId) setSelectedConnectionId(null);
+        if (workflowExplanation) setWorkflowExplanation(null);
+        if (showSaveAsDialog) setShowSaveAsDialog(false);
+        if (showOpenDialog) setShowOpenDialog(false);
+        if(workflowToDeleteFromModal) setWorkflowToDeleteFromModal(null);
+        return;
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (selectedNodeId && !isInputField(document.activeElement)) handleDeleteNode(selectedNodeId);
+        else if (selectedConnectionId && !isInputField(document.activeElement)) handleDeleteSelectedConnection();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation, showOpenDialog, workflowToDeleteFromModal,
+    handleSaveWorkflow, handleRunWorkflow, handleOpenWorkflowDialog,
+    handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
+    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, showSaveAsDialog, handleCancelConnection,
+    handleZoomIn, handleZoomOut, handleSaveWorkflowAs
+  ]);
 
   return (
     <AppLayout>
@@ -1516,15 +1516,15 @@ function WorkflowPage() {
         <AlertDialog open={showClearCanvasConfirmDialog} onOpenChange={setShowClearCanvasConfirmDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>New Workflow?</AlertDialogTitle>
+              <AlertDialogTitle>Create New Workflow?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will clear the canvas. Any unsaved changes will be lost. This action can be undone.
+                This will clear the current canvas. Any unsaved changes to "{currentWorkflowNameRef.current}" will be lost. This action can be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setShowClearCanvasConfirmDialog(false)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleClearCanvas} className={buttonVariants({ variant: "destructive" })}>
-                Clear Canvas
+              <AlertDialogAction onClick={handleClearCanvas} className={buttonVariants({ variant: "default" })}>
+                Create New
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
