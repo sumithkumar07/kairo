@@ -157,7 +157,7 @@ async function resolveNodeConfig(
   // 1. Resolve inputMapping to create a context of local variables.
   const mappedInputs: Record<string, any> = {};
   if (inputMapping && typeof inputMapping === 'object') {
-    const dataForMappingResolution = { ...(parentWorkflowData || {}), ...workflowData };
+    const dataForMappingResolution = { ...workflowData };
     for (const key in inputMapping) {
       mappedInputs[key] = await resolveValue(inputMapping[key], dataForMappingResolution, serverLogs, userId, additionalContexts);
     }
@@ -168,7 +168,7 @@ async function resolveNodeConfig(
   const combinedContexts = { ...additionalContexts, ...mappedInputs };
   
   // 3. Resolve the rest of the config using the combined context.
-  const dataForConfigResolution = { ...(parentWorkflowData || {}), ...workflowData };
+  const dataForConfigResolution = { ...workflowData };
   for (const key in nodeConfig) {
     if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
       const value = nodeConfig[key];
@@ -633,19 +633,33 @@ async function executeStripeCreatePaymentLinkNode(node: WorkflowNode, config: an
 
     const apiKey = await resolveValue(config.apiKey, {}, serverLogs, userId);
     if (!apiKey) throw new Error("Stripe API Key is not configured or resolved. Please set the credential placeholder {{credential.StripeApiKey}} and ensure the credential or environment variable is available.");
-    if (!config.line_items || !Array.isArray(config.line_items)) throw new Error("Line items are not configured or are not an array.");
+    
+    let lineItems = config.line_items;
+    if (typeof lineItems === 'string') {
+        try {
+            lineItems = JSON.parse(lineItems);
+        } catch (e: any) {
+            throw new Error(`Invalid JSON for Stripe line_items: ${e.message}`);
+        }
+    }
+    if (!lineItems || !Array.isArray(lineItems)) throw new Error("Line items are not configured or are not an array.");
 
     const body = new URLSearchParams();
-    config.line_items.forEach((item: any, index: number) => {
-        for (const key in item) {
-            if (typeof item[key] === 'object' && item[key] !== null) {
-                for (const subKey in item[key]) {
-                    body.append(`line_items[${index}][${key}][${subKey}]`, item[key][subKey]);
+    lineItems.forEach((item: any, index: number) => {
+        // This handles nested objects in Stripe's form-encoded format
+        const processObject = (obj: any, prefix: string) => {
+            for(const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    const newPrefix = prefix ? `${prefix}[${key}]` : key;
+                    if(typeof obj[key] === 'object' && obj[key] !== null) {
+                        processObject(obj[key], newPrefix);
+                    } else {
+                        body.append(newPrefix, obj[key]);
+                    }
                 }
-            } else {
-                body.append(`line_items[${index}][${key}]`, item[key]);
             }
         }
+        processObject(item, `line_items[${index}]`);
     });
 
     const response = await fetch('https://api.stripe.com/v1/payment_links', {
@@ -660,6 +674,48 @@ async function executeStripeCreatePaymentLinkNode(node: WorkflowNode, config: an
     const responseData = await response.json();
     if (!response.ok) {
         throw new Error(`Stripe API error: ${responseData.error?.message || `HTTP error ${response.status}`}`);
+    }
+    return { output: responseData };
+}
+
+async function executeHubSpotCreateContactNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE HUBSPOT] SIMULATION: Would create a contact.`, type: 'info' });
+        return { output: config.simulated_config };
+    }
+
+    const apiKey = await resolveValue(config.apiKey, {}, serverLogs, userId);
+    if (!apiKey) throw new Error("HubSpot API Key is not configured or resolved. Please set the credential placeholder {{credential.HubSpotApiKey}} and ensure the credential or environment variable is available.");
+    
+    let properties = config.properties;
+    if(typeof properties === 'string') {
+        try {
+            properties = JSON.parse(properties);
+        } catch(e: any) {
+            throw new Error(`Invalid JSON for HubSpot properties: ${e.message}`);
+        }
+    }
+    if (!properties || typeof properties !== 'object') throw new Error("HubSpot properties are not configured or are not an object.");
+    
+    const requestBody = {
+        properties: {
+            ...properties,
+            email: config.email,
+        }
+    };
+
+    const response = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+    });
+
+    const responseData = await response.json();
+    if (!response.ok) {
+        throw new Error(`HubSpot API error: ${responseData.message || `HTTP error ${response.status}`}`);
     }
     return { output: responseData };
 }
@@ -708,10 +764,9 @@ const nodeExecutionFunctions: Record<string, Function> = {
     githubCreateIssue: executeGithubCreateIssueNode,
     twilioSendSms: executeTwilioSendSmsNode,
     stripeCreatePaymentLink: executeStripeCreatePaymentLinkNode,
+    hubspotCreateContact: executeHubSpotCreateContactNode,
     googleSheetsAppendRow: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Sheets'),
-    hubspotCreateContact: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'HubSpot'),
     dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Dropbox'),
     googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
@@ -738,8 +793,7 @@ async function executeFlowInternal(
   currentWorkflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
   isSimulationMode: boolean,
-  userId: string,
-  parentWorkflowData?: Record<string, any> // Data from a parent flow (for sub-flows)
+  userId: string
 ): Promise<{ finalWorkflowData: Record<string, any>, serverLogs: ServerLogOutput[], lastNodeOutput?: any, flowError?: string }> {
 
     const { executionOrder, error: sortError } = getExecutionOrder(nodesToExecute, connectionsToExecute, flowLabel);
@@ -774,7 +828,7 @@ async function executeFlowInternal(
 
         currentWorkflowData[node.id] = { ...currentWorkflowData[node.id], status: 'running', lastExecutionStatus: 'running' };
 
-        const dataForResolution = { ...(parentWorkflowData || {}), ...currentWorkflowData };
+        const dataForResolution = { ...currentWorkflowData };
         const resolvedConfig = await resolveNodeConfig(node.config || {}, node.inputMapping, dataForResolution, serverLogs, userId);
 
         // Check for conditional execution
@@ -902,5 +956,6 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
+
 
 
