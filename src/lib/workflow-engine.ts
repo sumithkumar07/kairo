@@ -561,6 +561,7 @@ async function executeGithubCreateIssueNode(node: WorkflowNode, config: any, isS
         headers: {
             'Accept': 'application/vnd.github.v3+json',
             'Authorization': `token ${token}`,
+            'Content-Type': 'application/json',
         },
         body: JSON.stringify({
             title: config.title,
@@ -814,3 +815,4 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
 
   return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }
+
