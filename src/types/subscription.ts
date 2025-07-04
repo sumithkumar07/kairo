@@ -28,7 +28,7 @@ export const FREE_TIER_FEATURES: SubscriptionFeatures = {
 export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerDay: 50,
   canExplainWorkflow: false,
-  accessToAdvancedNodes: false,
+  accessToAdvancedNodes: true,
   maxWorkflows: 20,
 };
 
@@ -36,5 +36,5 @@ export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerDay: 200,
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
-  maxWorkflows: 'unlimited',
+  maxWorkflows: 100,
 };

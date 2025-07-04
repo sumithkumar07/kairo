@@ -42,7 +42,7 @@ export default function SubscriptionsPage() {
   const goldTierFeaturesList = [
     `AI Workflow Generations: ${GOLD_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
     `Max Saved Workflows: ${GOLD_TIER_FEATURES.maxWorkflows}`,
-    `Advanced Nodes: ${GOLD_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
+    `Advanced Nodes: Full Node Library Access`,
     `AI Workflow Explanations: ${GOLD_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
     'Email Support',
   ];
