@@ -75,7 +75,7 @@ function WorkflowPage() {
   const [enabledTools, setEnabledTools] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { isProOrTrial, isLoggedIn } = useSubscription();
+  const { isDiamondOrTrial, isLoggedIn } = useSubscription();
   const nextNodeIdRef = useRef(1);
   const currentWorkflowNameRef = useRef('Untitled Workflow');
 
@@ -1024,10 +1024,10 @@ function WorkflowPage() {
   }, [isPanning, saveHistory]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
-    if (nodeType.isAdvanced && !isProOrTrial) {
+    if (nodeType.isAdvanced && !isDiamondOrTrial) {
       toast({
-        title: 'Pro Feature',
-        description: `Node type "${nodeType.name}" is a Pro feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+        title: 'Diamond Feature',
+        description: `Node type "${nodeType.name}" is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
         variant: 'default',
         duration: 5000,
       });
@@ -1057,7 +1057,7 @@ function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     saveHistory();
-  }, [saveHistory, isProOrTrial, toast, isLoggedIn]);
+  }, [saveHistory, isDiamondOrTrial, toast, isLoggedIn]);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
     const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
@@ -1066,10 +1066,10 @@ function WorkflowPage() {
       return;
     }
 
-    if (nodeTypeToAdd.isAdvanced && !isProOrTrial) {
+    if (nodeTypeToAdd.isAdvanced && !isDiamondOrTrial) {
       toast({
-        title: 'Pro Feature Suggested',
-        description: `The AI suggested "${nodeTypeToAdd.name}", which is a Pro feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'} to use it.`,
+        title: 'Diamond Feature Suggested',
+        description: `The AI suggested "${nodeTypeToAdd.name}", which is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'} to use it.`,
         variant: 'default',
         duration: 6000,
       });
@@ -1102,7 +1102,7 @@ function WorkflowPage() {
     toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-  }, [selectedNode, addNodeToCanvas, toast, nodes, isProOrTrial, isLoggedIn]);
+  }, [selectedNode, addNodeToCanvas, toast, nodes, isDiamondOrTrial, isLoggedIn]);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     setNodes(prevNodes => produce(prevNodes, draft => {
@@ -1182,10 +1182,10 @@ function WorkflowPage() {
   }, [selectedNode]);
 
   const handleGetWorkflowExplanation = useCallback(async () => {
-    if (!isProOrTrial) {
+    if (!isDiamondOrTrial) {
       toast({
-        title: 'Pro Feature',
-        description: `Workflow explanation is a Pro feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+        title: 'Diamond Feature',
+        description: `Workflow explanation is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
         variant: 'default',
         duration: 5000,
       });
@@ -1211,7 +1211,7 @@ function WorkflowPage() {
     } finally {
       setIsExplainingWorkflow(false);
     }
-  }, [nodes, connections, toast, isProOrTrial, isLoggedIn]);
+  }, [nodes, connections, toast, isDiamondOrTrial, isLoggedIn]);
 
 
   const handleToggleSimulationMode = useCallback((newMode: boolean) => {
@@ -1439,7 +1439,7 @@ function WorkflowPage() {
             onZoomOut={handleZoomOut}
     
             onResetView={handleResetView}
-            onExplainWorkflow={handleGetWorkflowExplanation}
+            onExplainWorkflow={handleExplainWorkflow}
             isExplainingWorkflow={isExplainingWorkflow}
             onUndo={handleUndo}
             canUndo={canUndo}

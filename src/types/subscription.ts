@@ -3,7 +3,7 @@
  * @fileOverview Defines types related to subscriptions and feature tiers.
  */
 
-export type SubscriptionTier = 'Free' | 'Pro Trial' | 'Pro';
+export type SubscriptionTier = 'Free' | 'Diamond Trial' | 'Gold' | 'Diamond';
 
 export interface SubscriptionFeatures {
   aiWorkflowGenerationsPerDay: number | 'unlimited';
@@ -25,7 +25,14 @@ export const FREE_TIER_FEATURES: SubscriptionFeatures = {
   maxWorkflows: 3,
 };
 
-export const PRO_TIER_FEATURES: SubscriptionFeatures = {
+export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
+  aiWorkflowGenerationsPerDay: 50,
+  canExplainWorkflow: false,
+  accessToAdvancedNodes: false,
+  maxWorkflows: 20,
+};
+
+export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerDay: 200,
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,

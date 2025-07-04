@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
-import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription';
+import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -21,12 +21,13 @@ interface SubscriptionContextType {
   isLoggedIn: boolean;
   user: User | null;
   trialEndDate: Date | null;
-  hasPurchasedPro: boolean;
+  purchasedTier: 'Gold' | 'Diamond' | null;
   login: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
   signup: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
   logout: () => void;
-  upgradeToPro: () => void;
-  isProOrTrial: boolean;
+  upgradeToGold: () => void;
+  upgradeToDiamond: () => void;
+  isDiamondOrTrial: boolean;
   daysRemainingInTrial: number | null;
   isAuthLoading: boolean;
   isSupabaseConfigured: boolean;
@@ -38,7 +39,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [trialEndDate, setTrialEndDate] = useState<Date | null>(null);
-  const [hasPurchasedPro, setHasPurchasedPro] = useState(false);
+  const [purchasedTier, setPurchasedTier] = useState<'Gold' | 'Diamond' | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -47,31 +48,33 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const calculateCurrentTierAndFeatures = useCallback(() => {
     let tier: SubscriptionTier = 'Free';
     let activeFeatures = FREE_TIER_FEATURES;
-    let isProEquivalent = false;
+    let isDiamondEquivalent = false;
     let daysLeft: number | null = null;
     
     if (isLoggedIn) {
-      if (hasPurchasedPro) {
-        tier = 'Pro';
-        activeFeatures = PRO_TIER_FEATURES;
-        isProEquivalent = true;
+      if (purchasedTier === 'Diamond') {
+        tier = 'Diamond';
+        activeFeatures = DIAMOND_TIER_FEATURES;
+        isDiamondEquivalent = true;
+      } else if (purchasedTier === 'Gold') {
+        tier = 'Gold';
+        activeFeatures = GOLD_TIER_FEATURES;
       } else if (trialEndDate && trialEndDate > new Date()) {
-        tier = 'Pro Trial';
-        activeFeatures = PRO_TIER_FEATURES;
-        isProEquivalent = true;
+        tier = 'Diamond Trial';
+        activeFeatures = DIAMOND_TIER_FEATURES;
+        isDiamondEquivalent = true;
         const diffTime = trialEndDate.getTime() - new Date().getTime();
         daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       } else if (trialEndDate && trialEndDate <= new Date()) {
         tier = 'Free';
         activeFeatures = FREE_TIER_FEATURES;
-        isProEquivalent = false;
         daysLeft = 0;
       }
     }
-    return { tier, features: activeFeatures, isProOrTrial: isProEquivalent, daysRemainingInTrial: daysLeft };
-  }, [isLoggedIn, trialEndDate, hasPurchasedPro]);
+    return { tier, features: activeFeatures, isDiamondOrTrial: isDiamondEquivalent, daysRemainingInTrial: daysLeft };
+  }, [isLoggedIn, trialEndDate, purchasedTier]);
 
-  const { tier: currentTier, features, isProOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
+  const { tier: currentTier, features, isDiamondOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
   const showSupabaseNotConfiguredToast = useCallback(() => {
     toast({
@@ -95,13 +98,13 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
       
       localStorage.setItem(`kairo_trialEnd_${data.user.id}`, newTrialEndDate.toISOString());
-      localStorage.removeItem(`kairo_proStatus_${data.user.id}`);
+      localStorage.removeItem(`kairo_purchasedTier_${data.user.id}`);
       
       setUser({ email: data.user.email!, uid: data.user.id });
       setTrialEndDate(newTrialEndDate);
-      setHasPurchasedPro(false);
+      setPurchasedTier(null);
 
-      toast({ title: 'Signup Successful!', description: 'Your 15-day Pro trial has started. Check your email to verify your account.' });
+      toast({ title: 'Signup Successful!', description: 'Your 15-day Diamond trial has started. Check your email to verify your account.' });
       router.push(redirectUrl || '/dashboard');
     } catch (error: any) {
       console.error("Signup error", error);
@@ -139,18 +142,32 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast, router, showSupabaseNotConfiguredToast]);
 
-  const upgradeToPro = useCallback(() => {
+  const upgradeToGold = useCallback(() => {
     if (!user || !isSupabaseConfigured) {
       showSupabaseNotConfiguredToast();
       router.push('/login');
       return;
     }
-    setHasPurchasedPro(true);
+    setPurchasedTier('Gold');
     setTrialEndDate(null);
-    localStorage.setItem(`kairo_proStatus_${user.uid}`, 'true');
+    localStorage.setItem(`kairo_purchasedTier_${user.uid}`, 'Gold');
     localStorage.removeItem(`kairo_trialEnd_${user.uid}`);
-    toast({ title: 'Upgrade Successful!', description: 'You now have full access to Pro features.' });
+    toast({ title: 'Upgrade Successful!', description: 'You now have access to Gold features.' });
   }, [user, toast, router, showSupabaseNotConfiguredToast]);
+
+  const upgradeToDiamond = useCallback(() => {
+    if (!user || !isSupabaseConfigured) {
+      showSupabaseNotConfiguredToast();
+      router.push('/login');
+      return;
+    }
+    setPurchasedTier('Diamond');
+    setTrialEndDate(null);
+    localStorage.setItem(`kairo_purchasedTier_${user.uid}`, 'Diamond');
+    localStorage.removeItem(`kairo_trialEnd_${user.uid}`);
+    toast({ title: 'Upgrade Successful!', description: 'You now have full access to Diamond features.' });
+  }, [user, toast, router, showSupabaseNotConfiguredToast]);
+
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -162,16 +179,17 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const supabaseUser = session?.user;
       if (supabaseUser && supabaseUser.email) {
-        const storedProStatus = localStorage.getItem(`kairo_proStatus_${supabaseUser.id}`);
+        const storedPurchasedTier = localStorage.getItem(`kairo_purchasedTier_${supabaseUser.id}`);
         const storedTrialEnd = localStorage.getItem(`kairo_trialEnd_${supabaseUser.id}`);
         
         setUser({ email: supabaseUser.email, uid: supabaseUser.id });
 
-        if (storedProStatus === 'true') {
-          setHasPurchasedPro(true);
+        if (storedPurchasedTier === 'Gold' || storedPurchasedTier === 'Diamond') {
+          setPurchasedTier(storedPurchasedTier as 'Gold' | 'Diamond');
           setTrialEndDate(null);
         } else if (storedTrialEnd) {
           setTrialEndDate(new Date(storedTrialEnd));
+          setPurchasedTier(null);
         } else {
           // If a user logs in for the first time without a trial date, start one.
           if(event === "SIGNED_IN" && !storedTrialEnd) {
@@ -182,12 +200,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
           } else {
              setTrialEndDate(null);
           }
-          setHasPurchasedPro(false);
+          setPurchasedTier(null);
         }
       } else {
         setUser(null);
         setTrialEndDate(null);
-        setHasPurchasedPro(false);
+        setPurchasedTier(null);
       }
       setIsAuthLoading(false);
     });
@@ -204,12 +222,13 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       isLoggedIn, 
       user, 
       trialEndDate, 
-      hasPurchasedPro,
+      purchasedTier,
       login, 
       signup, 
       logout, 
-      upgradeToPro,
-      isProOrTrial,
+      upgradeToGold,
+      upgradeToDiamond,
+      isDiamondOrTrial,
       daysRemainingInTrial,
       isAuthLoading,
       isSupabaseConfigured,

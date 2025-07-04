@@ -7,55 +7,70 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { CheckCircle, Workflow, ShieldCheck, Star, LogIn, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { FREE_TIER_FEATURES, PRO_TIER_FEATURES } from '@/types/subscription'; 
+import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription'; 
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
 
 export default function SubscriptionsPage() {
   const { 
     currentTier, 
-    upgradeToPro, 
+    upgradeToGold,
+    upgradeToDiamond,
     isLoggedIn, 
     daysRemainingInTrial,
-    isProOrTrial
+    isDiamondOrTrial
   } = useSubscription();
 
   const getTierDisplayName = (tier: typeof currentTier) => {
-    if (tier === 'Pro Trial') return 'Pro Trial';
-    if (tier === 'Pro') return 'Pro Tier';
-    return 'Free Tier';
+    if (tier === 'Diamond Trial') return 'Diamond Trial';
+    if (tier === 'Diamond') return 'Diamond';
+    if (tier === 'Gold') return 'Gold';
+    return 'Free';
   };
 
-  const isTrialActive = currentTier === 'Pro Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0;
-  const isTrialExpired = isLoggedIn && currentTier === 'Free' && isProOrTrial === false && daysRemainingInTrial === 0;
+  const isTrialActive = currentTier === 'Diamond Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0;
+  const isTrialExpired = isLoggedIn && currentTier === 'Free' && isDiamondOrTrial === false && daysRemainingInTrial === 0;
 
   const freeTierFeaturesList = [
     `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-    `AI Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
-    `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
     `Max Saved Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
+    `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
+    `AI Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
     'Community Support',
   ];
 
-  const proTierFeaturesList = [
-    `AI Workflow Generations: ${PRO_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
-    `AI Workflow Explanations: Full AI Explanations & Suggestions`,
+  const goldTierFeaturesList = [
+    `AI Workflow Generations: ${GOLD_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
+    `Max Saved Workflows: ${GOLD_TIER_FEATURES.maxWorkflows}`,
+    `Advanced Nodes: ${GOLD_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
+    `AI Workflow Explanations: ${GOLD_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
+    'Email Support',
+  ];
+
+  const diamondTierFeaturesList = [
+    `AI Workflow Generations: ${DIAMOND_TIER_FEATURES.aiWorkflowGenerationsPerDay}`,
+    `Max Saved Workflows: ${DIAMOND_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: Full Node Library Access`,
-    `Max Saved Workflows: Unlimited`,
+    `AI Workflow Explanations: Full AI Explanations & Suggestions`,
     'Priority Email Support',
   ];
 
-  const renderProCtaButton = () => {
-    if (currentTier === 'Pro') {
+  const renderCtaButton = (plan: 'Gold' | 'Diamond') => {
+    if (currentTier === plan) {
       return <Button className="w-full text-base py-6" disabled><ShieldCheck className="mr-2 h-4 w-4" />Your Current Plan</Button>;
     }
-    if (isTrialActive) {
-      return <Button onClick={upgradeToPro} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Activate Full Pro Plan</Button>;
+    if (currentTier === 'Diamond' && plan === 'Gold') {
+       return <Button className="w-full text-base py-6" disabled><ShieldCheck className="mr-2 h-4 w-4" />Your Current Plan</Button>;
     }
     if (!isLoggedIn) {
       return <Button asChild className="w-full text-base py-6"><Link href="/signup"><UserPlus className="mr-2 h-4 w-4" />Sign Up for 15-Day Trial</Link></Button>;
     }
-    return <Button onClick={upgradeToPro} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />Upgrade to Pro</Button>;
+    if (plan === 'Gold') {
+       return <Button onClick={upgradeToGold} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />{currentTier === 'Free' ? 'Upgrade to Gold' : 'Switch to Gold'}</Button>;
+    }
+    if (plan === 'Diamond') {
+       return <Button onClick={upgradeToDiamond} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />{isTrialActive ? 'Activate Full Diamond Plan' : 'Upgrade to Diamond'}</Button>;
+    }
   };
   
   return (
@@ -67,8 +82,8 @@ export default function SubscriptionsPage() {
             Choose Your Kairo Plan
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            {isTrialActive ? `Your Pro Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
-             isTrialExpired ? `Your Pro Trial has expired. Please upgrade to continue using Pro features.` :
+            {isTrialActive ? `Your Diamond Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
+             isTrialExpired ? `Your Diamond Trial has expired. Please upgrade to continue using Pro features.` :
              `Unlock powerful AI automation features tailored to your needs.`
             }
           </p>
@@ -78,7 +93,7 @@ export default function SubscriptionsPage() {
           <Card className="max-w-2xl mx-auto mb-10 p-6 text-center bg-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
             <CardTitle className="text-xl mb-2 text-primary">Get Started with Kairo</CardTitle>
             <CardDescription className="text-muted-foreground mb-4">
-              Sign up to get a 15-day free trial of our Pro features, or log in if you already have an account.
+              Sign up to get a 15-day free trial of our Diamond features, or log in if you already have an account.
             </CardDescription>
             <div className="flex gap-4 justify-center">
               <Button asChild size="lg">
@@ -91,7 +106,7 @@ export default function SubscriptionsPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {/* Free Tier Card */}
           <Card className={cn(
             "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
@@ -116,35 +131,66 @@ export default function SubscriptionsPage() {
               </ul>
             </CardContent>
             <CardFooter className="mt-auto pt-6">
-              <Button className="w-full text-base py-6" variant="default" disabled={true}>Your Current Plan</Button>
+              <Button className="w-full text-base py-6" variant="secondary" disabled={true}>Your Current Plan</Button>
             </CardFooter>
           </Card>
 
-          {/* Pro Tier Card */}
+          {/* Gold Tier Card */}
           <Card className={cn(
             "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
-            isProOrTrial && "border-2 border-primary ring-4 ring-primary/20"
+            isLoggedIn && currentTier === 'Gold' && "border-2 border-amber-500 ring-4 ring-amber-500/20"
+          )}>
+            <CardHeader className="pb-4">
+               <div className="flex justify-between items-center">
+                <CardTitle className="text-2xl font-semibold text-amber-500">Gold Tier</CardTitle>
+                {isLoggedIn && currentTier === 'Gold' && 
+                  <span className="px-3 py-1 text-xs font-semibold text-amber-900 bg-amber-400 rounded-full shadow-sm">
+                    Current Plan
+                  </span>}
+              </div>
+              <CardDescription className="text-sm pt-1">For more serious hobbyists and small projects.</CardDescription>
+              <p className="text-3xl font-bold text-foreground pt-2">$9/month</p>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <ul className="space-y-2.5 text-sm">
+                {goldTierFeaturesList.map((feature, index) => (
+                  <li key={index} className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-amber-500 mr-2.5 mt-0.5 shrink-0" />
+                    <span className="text-muted-foreground">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+            <CardFooter className="mt-auto pt-6">
+              {renderCtaButton('Gold')}
+            </CardFooter>
+          </Card>
+
+          {/* Diamond Tier Card */}
+          <Card className={cn(
+            "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
+            isDiamondOrTrial && "border-2 border-primary ring-4 ring-primary/20"
           )}>
             <CardHeader className="pb-4 bg-gradient-to-tr from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-t-lg relative">
               <div className="absolute top-3 right-3">
-                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-400/20 dark:bg-amber-400/10 rounded-full border border-amber-500/30">
+                 <div className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-primary/90 dark:text-primary-foreground/80 bg-primary/20 dark:bg-primary/20 rounded-full border border-primary/30">
                     <Star className="h-3.5 w-3.5" />
                     Best Value
                   </div>
               </div>
                <div className="flex justify-between items-center pt-2">
-                <CardTitle className="text-2xl font-semibold text-primary">Pro Tier</CardTitle>
-                {isLoggedIn && (currentTier === 'Pro' || currentTier === 'Pro Trial') && 
+                <CardTitle className="text-2xl font-semibold text-primary">Diamond</CardTitle>
+                {isLoggedIn && (currentTier === 'Diamond' || currentTier === 'Diamond Trial') && 
                   <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">
                     {getTierDisplayName(currentTier)}
                   </span>}
               </div>
-              <CardDescription className="text-sm pt-1">Unlock the full power of Kairo.</CardDescription>
+              <CardDescription className="text-sm pt-1">Unlock the full power of Kairo for professionals.</CardDescription>
               <p className="text-3xl font-bold text-foreground pt-2">$19/month</p>
             </CardHeader>
             <CardContent className="flex-grow">
               <ul className="space-y-2.5 text-sm">
-                {proTierFeaturesList.map((feature, index) => (
+                {diamondTierFeaturesList.map((feature, index) => (
                   <li key={index} className="flex items-start">
                     <ShieldCheck className="h-4 w-4 text-primary mr-2.5 mt-0.5 shrink-0" />
                     <span className="text-muted-foreground">{feature}</span>
@@ -153,7 +199,7 @@ export default function SubscriptionsPage() {
               </ul>
             </CardContent>
             <CardFooter className="mt-auto pt-6">
-              {renderProCtaButton()}
+              {renderCtaButton('Diamond')}
             </CardFooter>
           </Card>
         </div>
