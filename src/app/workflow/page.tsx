@@ -73,7 +73,7 @@ function WorkflowPage() {
   const [enabledTools, setEnabledTools] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { hasProFeatures, isLoggedIn } = useSubscription();
+  const { hasProFeatures, isLoggedIn, user } = useSubscription();
   const nextNodeIdRef = useRef(1);
   const currentWorkflowNameRef = useRef('Untitled Workflow');
 
@@ -476,6 +476,10 @@ function WorkflowPage() {
   }, [mapAiWorkflowToInternal, toast, loadWorkflowIntoEditor]);
   
   const handleChatSubmit = useCallback(async (messageContent: string, imageDataUri?: string, isSystemMessage: boolean = false) => {
+    if (!user) {
+      toast({ title: 'Not Logged In', description: 'Please log in to use the AI assistant.', variant: 'destructive' });
+      return;
+    }
     if (!messageContent.trim() && !imageDataUri) {
       toast({
         title: 'Message is empty',
@@ -529,7 +533,8 @@ function WorkflowPage() {
       }));
 
       const chatResult = await assistantChat({ 
-        userMessage: messageContent, 
+        userMessage: messageContent,
+        userId: user.uid,
         imageDataUri,
         workflowContext: workflowContextForAI, 
         chatHistory: historyForAI,
@@ -584,7 +589,7 @@ function WorkflowPage() {
     } finally {
       setIsChatLoading(false); 
     }
-  }, [chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast, enabledTools]);
+  }, [user, chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast, enabledTools]);
 
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {

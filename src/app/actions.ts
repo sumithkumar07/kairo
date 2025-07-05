@@ -110,8 +110,6 @@ export async function getUsageStatsAction(): Promise<{
             currentTier: tier
         };
     } catch (error) {
-        // This can happen briefly during session initialization after login.
-        // Instead of crashing the page, return default stats.
         console.warn(`[getUsageStatsAction] Could not get user, returning default stats. Error: ${(error as Error).message}`);
         return {
             monthlyRunsUsed: 0,
@@ -136,13 +134,11 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
     throw new Error('Cannot re-run: The original workflow definition was not saved with this run.');
   }
 
-  // Determine if the original run was live or simulated
   const isLiveMode = !!originalRun.initialData;
 
-  // Re-execute the workflow with the original snapshot and trigger data
   const result = await executeWorkflow(
     originalRun.workflowSnapshot,
-    !isLiveMode, // Run in simulation if original was simulation, live if original was live
+    !isLiveMode,
     userId,
     originalRun.initialData
   );
@@ -167,8 +163,6 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
 export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode: boolean): Promise<WorkflowRunRecord> {
     const userId = await getUserIdOrThrow();
     
-    // The check for run limits is now inside executeWorkflow.
-    // We just need to handle the potential error here.
     try {
         const result = await executeWorkflow(workflow, isSimulationMode, userId);
         const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
@@ -186,7 +180,6 @@ export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode
         return newRunRecord;
 
     } catch(error: any) {
-        // Rethrow the specific error from executeWorkflow so the client can display it.
         throw new Error(error.message);
     }
 }
@@ -195,21 +188,19 @@ export async function getRunHistoryAction(): Promise<WorkflowRunRecord[]> {
   return WorkflowStorage.getRunHistory();
 }
 
-
-// All other public actions remain the same
-export async function generateWorkflow(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {
-  const userId = await getUserIdOrThrow();
-  const { tier, features } = await getUserFeatures(userId);
+export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, userId?: string): Promise<GenerateWorkflowFromPromptOutput> {
+  const finalUserId = userId || await getUserIdOrThrow();
+  const { tier, features } = await getUserFeatures(finalUserId);
 
   if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
-      const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
+      const currentCount = await WorkflowStorage.getMonthlyGenerationCount(finalUserId);
       if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
           throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
       }
   }
 
   const result = await genkitGenerateWorkflowFromPrompt(input);
-  await WorkflowStorage.incrementMonthlyGenerationCount(userId);
+  await WorkflowStorage.incrementMonthlyGenerationCount(finalUserId);
 
   return result;
 }
@@ -243,8 +234,7 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
     const enhancementResult = await genkitEnhanceUserPrompt({ originalPrompt: input.originalPrompt });
     const promptForGeneration = enhancementResult?.enhancedPrompt || input.originalPrompt;
 
-    const result = await generateWorkflow({ prompt: promptForGeneration });
-    // The call to generateWorkflow already increments the count, so we don't need to do it again here.
+    const result = await generateWorkflow({ prompt: promptForGeneration }, userId);
 
     return result;
 }
@@ -283,7 +273,7 @@ export async function saveWorkflowAction(name: string, workflow: Workflow): Prom
 
     const isUpdate = await WorkflowStorage.getIsUserWorkflow(name, userId);
 
-    if (!isUpdate) { // Only check limits when creating a NEW workflow
+    if (!isUpdate) {
         const { tier, features } = await getUserFeatures(userId);
         
         if (features.maxWorkflows !== 'unlimited') {
@@ -339,9 +329,15 @@ export async function deleteCredentialAction(id: string): Promise<{ success: boo
 }
 
 export async function getAgentConfigAction(): Promise<AgentConfig> {
-  return WorkflowStorage.getAgentConfig();
+  const userId = await getUserIdOrThrow();
+  return WorkflowStorage.getAgentConfig(userId);
 }
 
 export async function saveAgentConfigAction(config: AgentConfig): Promise<void> {
     return WorkflowStorage.saveAgentConfig(config);
+}
+
+export async function generateApiKeyAction(): Promise<string> {
+    const userId = await getUserIdOrThrow();
+    return WorkflowStorage.generateApiKey(userId);
 }

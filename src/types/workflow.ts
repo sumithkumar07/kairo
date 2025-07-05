@@ -150,7 +150,6 @@ export interface McpCommandRecord {
   status: 'Success' | 'Failed';
 }
 
-// Keep this for backwards compatibility with older stored workflows if needed, but new types are preferred.
 export type LogEntry = {
   timestamp: string;
   message: string;
@@ -177,4 +176,13 @@ export interface ManagedCredential {
   service?: string;
   created_at: string;
   user_id: string;
+}
+
+export interface UserApiKey {
+    id: string; // A UUID for the key record
+    user_id: string; // Foreign key to auth.users
+    key_hash: string; // A SHA-256 hash of the API key
+    prefix: string; // The non-secret prefix of the key (e.g., "kairo_sk_")
+    created_at: string;
+    last_used_at?: string;
 }

@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { McpCommandRecord, Tool, ManagedCredential } from '@/types/workflow';
-import { getMcpHistory, getAgentConfig, saveAgentConfig } from '@/services/workflow-storage-service';
-import { listCredentialsAction, saveCredentialAction, deleteCredentialAction } from '@/app/actions';
+import { getMcpHistory, saveAgentConfig, getAgentConfig as getAgentConfigService, generateApiKey, findUserByApiKey, getCredentialValueByNameForUser } from '@/services/workflow-storage-service';
+import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction } from '@/app/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { withAuth } from '@/components/auth/with-auth';
@@ -32,20 +32,23 @@ interface RequiredCredentialInfo {
 
 function MCPDashboardPage() {
   const { toast } = useToast();
+  const { user } = useSubscription();
 
   const [configuredTools, setConfiguredTools] = useState<Tool[]>([]);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [commandHistory, setCommandHistory] = useState<McpCommandRecord[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showAddToolDialog, setShowAddToolDialog] = useState(false);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
-
-  // New state for credentials
+  
   const [credentials, setCredentials] = useState<Omit<ManagedCredential, 'value'>[]>([]);
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
   const [showAddCredentialDialog, setShowAddCredentialDialog] = useState(false);
   const [credentialToDeleteId, setCredentialToDeleteId] = useState<string | null>(null);
+
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isKeyLoading, setIsKeyLoading] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
 
   const requiredCredentials = useMemo(() => {
     const requiredMap = new Map<string, RequiredCredentialInfo>();
@@ -57,7 +60,7 @@ function MCPDashboardPage() {
                 requiredMap.set(secretName, {
                     name: secretName,
                     nodes: [],
-                    service: node.name.split(':')[0] // Simple service name from node name
+                    service: node.name.split(':')[0] 
                 });
             }
             const info = requiredMap.get(secretName)!;
@@ -72,9 +75,10 @@ function MCPDashboardPage() {
 
 
   const loadAgentConfig = useCallback(async () => {
+    if (!user) return;
     setIsLoadingConfig(true);
     try {
-      const config = await getAgentConfig();
+      const config = await getAgentConfigService(user.uid);
       const enabledTools = ALL_AVAILABLE_TOOLS.filter(tool => config.enabledTools.includes(tool.name));
       setConfiguredTools(enabledTools);
     } catch (e: any) {
@@ -82,7 +86,7 @@ function MCPDashboardPage() {
     } finally {
       setIsLoadingConfig(false);
     }
-  }, [toast]);
+  }, [toast, user]);
   
   const loadCredentials = useCallback(async () => {
     setIsLoadingCredentials(true);
@@ -97,9 +101,10 @@ function MCPDashboardPage() {
   }, [toast]);
 
   const loadHistory = useCallback(async () => {
+    if (!user) return;
     setIsLoadingHistory(true);
     try {
-      const history = await getMcpHistory();
+      const history = await getMcpHistory(user.uid);
       setCommandHistory(history);
     } catch (e: any) {
       toast({ title: 'Error', description: 'Could not load command history.', variant: 'destructive' });
@@ -107,13 +112,15 @@ function MCPDashboardPage() {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => {
-    loadAgentConfig();
-    loadCredentials();
-    loadHistory();
-  }, [toast, loadAgentConfig, loadCredentials, loadHistory]);
+    if (user) {
+        loadAgentConfig();
+        loadCredentials();
+        loadHistory();
+    }
+  }, [user, loadAgentConfig, loadCredentials, loadHistory]);
   
   const unconfiguredTools = useMemo(() => {
     const configuredToolNames = new Set(configuredTools.map(t => t.name));
@@ -132,22 +139,30 @@ function MCPDashboardPage() {
       toast({ title: isAdding ? 'Skill Added' : 'Skill Removed', description: `"${tool.name}" has been ${isAdding ? 'added to' : 'removed from'} your agent.` });
     } catch (e: any) {
       toast({ title: 'Error Saving Config', description: 'Could not save the agent skill configuration.', variant: 'destructive' });
-      // Revert UI on failure
       loadAgentConfig();
     }
   }, [configuredTools, toast, loadAgentConfig]);
 
-  const handleGenerateKey = () => {
-    setApiKey(`kairo_sk_${crypto.randomUUID().replace(/-/g, '')}`);
-    setIsCopied(false);
-    toast({ title: 'API Key Generated', description: 'Your new API key is ready to be used.' });
+
+  const handleGenerateKey = async () => {
+    setIsKeyLoading(true);
+    try {
+      const newKey = await generateApiKeyAction();
+      setApiKey(newKey);
+      setIsCopied(false);
+      toast({ title: 'API Key Generated', description: 'Copy your new API key now. You will not be able to see it again.' });
+    } catch (e: any) {
+      toast({ title: 'Error', description: `Failed to generate API key: ${e.message}`, variant: 'destructive' });
+    } finally {
+      setIsKeyLoading(false);
+    }
   };
 
   const handleCopyKey = () => {
     if (!apiKey) return;
     navigator.clipboard.writeText(apiKey);
     setIsCopied(true);
-    toast({ title: 'Copied to Clipboard!', description: 'The API key has been copied.' });
+    toast({ title: 'Copied to Clipboard!' });
     setTimeout(() => setIsCopied(false), 2000);
   };
 
@@ -306,19 +321,22 @@ function MCPDashboardPage() {
                               
                               <div>
                                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication & Usage</div>
-                                  <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key for your agent. For this prototype, after generating a key, you must set it as an environment variable named <code className="text-xs bg-muted p-1 rounded font-mono">KAIRO_MCP_API_KEY</code> on the server. The key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header as <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>.</p>
+                                  <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key. This key is tied to your user account. The key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header as <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>.</p>
                                   <div className="mt-4">
-                                    {!apiKey ? (
-                                        <Button onClick={handleGenerateKey}><KeyRound className="h-4 w-4 mr-2" />Generate API Key</Button>
-                                    ) : (
-                                        <div className="space-y-3">
-                                          <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+                                    <Button onClick={handleGenerateKey} disabled={isKeyLoading}>
+                                        {isKeyLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
+                                        Generate New API Key
+                                    </Button>
+                                    {apiKey && (
+                                        <div className="mt-4 space-y-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                                          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">Your New API Key</p>
+                                          <p className="text-xs text-yellow-700 dark:text-yellow-300">This is the only time you will see this key. Copy it and store it somewhere safe.</p>
+                                          <div className="flex items-center gap-2 p-2 border rounded-md bg-background">
                                             <pre className="text-sm font-mono flex-1 truncate">{apiKey}</pre>
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyKey}>
                                               {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                                             </Button>
                                           </div>
-                                          <Button variant="destructive" size="sm" onClick={handleGenerateKey}>Revoke &amp; Regenerate Key</Button>
                                         </div>
                                     )}
                                   </div>
@@ -333,7 +351,7 @@ function MCPDashboardPage() {
                                     <TabsContent value="curl">
                                         <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
                                             {`curl -X POST "http://localhost:3000/api/mcp" \\
--H "Authorization: Bearer ${apiKey || 'YOUR_KAIRO_MCP_API_KEY'}" \\
+-H "Authorization: Bearer ${apiKey || 'YOUR_KAIRO_API_KEY'}" \\
 -H "Content-Type: application/json" \\
 -d '{"command": "Generate a workflow to get the weather and email it."}'`}
                                         </pre>
@@ -343,7 +361,7 @@ function MCPDashboardPage() {
                                             {`const response = await fetch('http://localhost:3000/api/mcp', {
   method: 'POST',
   headers: {
-    'Authorization': \`Bearer ${apiKey || 'YOUR_KAIRO_MCP_API_KEY'}\`,
+    'Authorization': \`Bearer ${apiKey || 'YOUR_KAIRO_API_KEY'}\`,
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({

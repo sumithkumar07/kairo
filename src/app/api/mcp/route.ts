@@ -8,6 +8,8 @@ import {
 import { z } from 'zod';
 import { getAgentConfig, saveMcpCommand } from '@/services/workflow-storage-service';
 import type { Tool } from '@/types/workflow';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 const McpInputSchema = z.object({
   command: z.string(),
@@ -17,27 +19,24 @@ export async function POST(request: NextRequest) {
   let command = '';
   let status: 'Success' | 'Failed' = 'Success';
   let aiResponseText = '';
+  let userId = '';
 
   try {
-    // --- API Key Authentication ---
+    // --- JWT Authentication ---
     const authHeader = request.headers.get('Authorization');
-    const expectedApiKey = `Bearer ${process.env.KAIRO_MCP_API_KEY}`;
-    
-    if (!process.env.KAIRO_MCP_API_KEY) {
-        console.error('[API Agent] FATAL: KAIRO_MCP_API_KEY is not set on the server.');
-        status = 'Failed';
-        aiResponseText = 'API authentication is not configured on the server.';
-        await saveMcpCommand({ command: 'Auth Failure', response: aiResponseText, status, timestamp: new Date().toISOString() });
-        return NextResponse.json({ aiResponse: aiResponseText, action: 'error', error: 'Server authentication not configured.' }, { status: 500 });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json({ aiResponse: 'Unauthorized: Missing or invalid Authorization header.', action: 'error', error: 'Unauthorized' }, { status: 401 });
     }
-    
-    if (!authHeader || authHeader !== expectedApiKey) {
-        console.warn(`[API Agent] Failed auth attempt. Provided: ${authHeader?.substring(0, 15)}...`);
-        status = 'Failed';
-        aiResponseText = 'Unauthorized. Invalid or missing API Key.';
-        await saveMcpCommand({ command: 'Auth Failure', response: aiResponseText, status, timestamp: new Date().toISOString() });
-        return NextResponse.json({ aiResponse: aiResponseText, action: 'error', error: 'Unauthorized' }, { status: 401 });
+    const jwt = authHeader.substring(7);
+
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+
+    if (userError || !user) {
+        console.warn(`[API Agent] Failed auth attempt with JWT. Error: ${userError?.message}`);
+        return NextResponse.json({ aiResponse: 'Unauthorized: Invalid or expired token.', action: 'error', error: 'Unauthorized' }, { status: 401 });
     }
+    userId = user.id;
     // --- End Authentication ---
 
     const body = await request.json();
@@ -46,34 +45,32 @@ export async function POST(request: NextRequest) {
     if (!parsedInput.success) {
       status = 'Failed';
       aiResponseText = 'Invalid input, expected { "command": "..." }';
-      await saveMcpCommand({ command: 'Invalid Input', response: aiResponseText, status, timestamp: new Date().toISOString() });
+      await saveMcpCommand({ command: 'Invalid Input', response: aiResponseText, status, timestamp: new Date().toISOString() }, userId);
       return NextResponse.json({ aiResponse: aiResponseText, action: 'error', error: 'Invalid input format.', details: parsedInput.error.format() }, { status: 400 });
     }
 
     command = parsedInput.data.command;
-    console.log(`[API Agent] Received command: "${command}"`);
+    console.log(`[API Agent] Received command from user ${userId}: "${command}"`);
     
-    // Load the currently configured agent skills for the AI
-    const agentConfig = await getAgentConfig();
+    // Pass the userId to get the correct agent config
+    const agentConfig = await getAgentConfig(userId);
 
     const chatInput: AssistantChatInput = {
       userMessage: command,
-      // Pass the configured tools to the chat function
       enabledTools: agentConfig.enabledTools,
-      // No workflow context is provided, as this is a general command endpoint
+      userId, // Pass userId to the chat flow
     };
 
     const chatResult = await assistantChat(chatInput);
     aiResponseText = chatResult.aiResponse;
     console.log(`[API Agent] AI Response: "${aiResponseText}"`);
     
-    // Check if the AI decided to generate a workflow
     if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
       console.log(`[API Agent] AI requested workflow generation with prompt: "${chatResult.workflowGenerationPrompt}"`);
       try {
-        const workflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt });
-        aiResponseText += "\n\n[Action: Workflow Generated]"; // For history log
-        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
+        const workflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt }, userId);
+        aiResponseText += "\n\n[Action: Workflow Generated]";
+        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() }, userId);
         return NextResponse.json({
           aiResponse: chatResult.aiResponse,
           action: 'workflowGenerated',
@@ -82,9 +79,9 @@ export async function POST(request: NextRequest) {
       } catch (genError: any) {
         console.error('[API Agent] Error during workflow generation:', genError);
         const errorMessage = `I tried to generate the workflow, but encountered an error: ${genError.message}`;
-        aiResponseText = errorMessage; // Overwrite for saving to history
+        aiResponseText = errorMessage;
         status = 'Failed';
-        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
+        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() }, userId);
         return NextResponse.json({
           aiResponse: errorMessage,
           action: 'error',
@@ -93,8 +90,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
-    // Standard chat response
+    await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() }, userId);
     return NextResponse.json({
       aiResponse: aiResponseText,
       action: 'chat',
@@ -104,9 +100,8 @@ export async function POST(request: NextRequest) {
     status = 'Failed';
     aiResponseText = error.message || 'An internal server error occurred.';
     console.error('[API Agent] Error processing request:', error);
-    // Save error to history
-    if (command) {
-        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() });
+    if (userId && command) {
+        await saveMcpCommand({ command, response: aiResponseText, status, timestamp: new Date().toISOString() }, userId);
     }
     return NextResponse.json(
       { aiResponse: aiResponseText, action: 'error', error: 'An internal server error occurred.' },

@@ -11,10 +11,7 @@ import { z } from 'zod';
 import { listAllWorkflows, getWorkflowByName, getCredentialValueByNameForUser } from '@/services/workflow-storage-service';
 import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { google } from 'googleapis';
-
 
 // Schema for Workflow Nodes (simplified for tool input)
 const WorkflowNodeInputSchema = z.object({
@@ -44,33 +41,38 @@ const WorkflowConnectionInputSchema = z.object({
 export const listSavedWorkflowsTool = ai.defineTool(
   {
     name: 'listSavedWorkflows',
-    description: 'Lists all available saved workflows, including examples and user-created ones.',
-    inputSchema: z.undefined(),
+    description: 'Lists all available saved workflows, including examples and user-created ones for the given user.',
+    inputSchema: z.object({ 
+        userId: z.string().describe("The ID of the user whose workflows to list.") 
+    }),
     outputSchema: z.array(z.object({
         name: z.string(),
         description: z.string(),
         type: z.enum(['example', 'user']),
     })),
   },
-  async () => {
-    console.log('[Agent Tool] Listing all workflows from storage...');
-    return await listAllWorkflows();
+  async ({ userId }) => {
+    console.log(`[Agent Tool] Listing all workflows for user ${userId} from storage...`);
+    return await listAllWorkflows(userId);
   }
 );
 
 export const getWorkflowDefinitionTool = ai.defineTool(
   {
     name: 'getWorkflowDefinition',
-    description: 'Retrieves the full JSON definition (nodes and connections) for a specific workflow by its name.',
-    inputSchema: z.object({ name: z.string().describe("The exact name of the workflow to retrieve.") }),
+    description: 'Retrieves the full JSON definition (nodes and connections) for a specific workflow by its name for a given user.',
+    inputSchema: z.object({ 
+        name: z.string().describe("The exact name of the workflow to retrieve."),
+        userId: z.string().describe("The ID of the user who owns the workflow."),
+    }),
     outputSchema: z.object({
         nodes: z.array(WorkflowNodeInputSchema),
         connections: z.array(WorkflowConnectionInputSchema),
     }).optional(),
   },
-  async ({ name }) => {
-    console.log(`[Agent Tool] Getting definition for workflow: ${name} from storage...`);
-    const workflow = await getWorkflowByName(name);
+  async ({ name, userId }) => {
+    console.log(`[Agent Tool] Getting definition for workflow: ${name} from storage for user ${userId}...`);
+    const workflow = await getWorkflowByName(name, userId);
     if (workflow) {
       // Cast the workflow nodes and connections to the input schemas.
       return {
@@ -85,8 +87,9 @@ export const getWorkflowDefinitionTool = ai.defineTool(
 export const runWorkflowTool = ai.defineTool(
     {
         name: 'runWorkflow',
-        description: 'Executes a given workflow definition and returns the result. Can be run in "simulation" or "live" mode.',
+        description: 'Executes a given workflow definition for a specific user and returns the result. Can be run in "simulation" or "live" mode.',
         inputSchema: z.object({
+            userId: z.string().describe("The ID of the user for whom to run the workflow."),
             nodes: z.array(WorkflowNodeInputSchema).describe("The array of nodes in the workflow."),
             connections: z.array(WorkflowConnectionInputSchema).describe("The array of connections between the nodes."),
             isSimulation: z.boolean().optional().default(true).describe("Whether to run in simulation mode (default) or live mode. Live mode may interact with real external services."),
@@ -96,20 +99,17 @@ export const runWorkflowTool = ai.defineTool(
             summary: z.string().describe("A brief summary of the execution, including any error messages."),
         }),
     },
-    async ({ nodes, connections, isSimulation }) => {
-        const cookieStore = cookies();
-        const supabase = createServerActionClient({ cookies: () => cookieStore });
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+    async ({ userId, nodes, connections, isSimulation }) => {
+        if (!userId) {
             return {
                 status: 'Failed',
-                summary: 'User is not authenticated. Cannot run workflow.',
+                summary: 'User ID is not provided. Cannot run workflow.',
             };
         }
 
-        console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes in ${isSimulation ? 'simulation' : 'live'} mode...`);
+        console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes for user ${userId} in ${isSimulation ? 'simulation' : 'live'} mode...`);
         try {
-            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation, user.id);
+            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation, userId);
             const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
             const status = hasErrors ? 'Failed' : 'Success';
 
@@ -124,7 +124,7 @@ export const runWorkflowTool = ai.defineTool(
 
             return { status, summary };
         } catch (e: any) {
-            console.error(`[Agent Tool] Critical error running workflow: ${e.message}`);
+            console.error(`[Agent Tool] Critical error running workflow for user ${userId}: ${e.message}`);
             return {
                 status: 'Failed',
                 summary: `A critical error occurred during workflow execution: ${e.message}`,
@@ -134,24 +134,17 @@ export const runWorkflowTool = ai.defineTool(
 );
 
 
-// Helper function to get the current user's ID
-async function getUserId() {
-    const cookieStore = cookies();
-    const supabase = createServerActionClient({ cookies: () => cookieStore });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated.');
-    return user.id;
-}
-
 // Activated tools with real API calls
 export const youtubeFindVideoTool = ai.defineTool({
     name: 'youtubeFindVideo',
     description: 'Finds a YouTube video based on a search query. Can be used to find "latest video" or a specific title.',
-    inputSchema: z.object({ query: z.string().describe('The search query, e.g., "Kairo Launch Trailer" or "latest video from Kairo channel".') }),
+    inputSchema: z.object({ 
+        query: z.string().describe('The search query, e.g., "Kairo Launch Trailer" or "latest video from Kairo channel".'),
+        userId: z.string().describe("The user's ID, needed to retrieve their API key."),
+    }),
     outputSchema: z.object({ videoId: z.string(), title: z.string(), channel: z.string() }).optional(),
-}, async ({ query }) => {
-    console.log(`[Agent Tool] Finding YouTube video for query: ${query}`);
-    const userId = await getUserId();
+}, async ({ query, userId }) => {
+    console.log(`[Agent Tool] Finding YouTube video for query: ${query} (user: ${userId})`);
     const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
     if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
 
@@ -180,11 +173,13 @@ export const youtubeFindVideoTool = ai.defineTool({
 export const youtubeGetReportTool = ai.defineTool({
     name: 'youtubeGetReport',
     description: 'Gets a performance report (views, likes, comments) for a given YouTube video ID.',
-    inputSchema: z.object({ videoId: z.string().describe("The ID of the video to get a report for.") }),
+    inputSchema: z.object({ 
+        videoId: z.string().describe("The ID of the video to get a report for."),
+        userId: z.string().describe("The user's ID, needed to retrieve their API key."),
+    }),
     outputSchema: z.object({ views: z.number(), likes: z.number(), comments: z.number() }).optional(),
-}, async ({ videoId }) => {
-    console.log(`[Agent Tool] Getting report for YouTube video: ${videoId}`);
-    const userId = await getUserId();
+}, async ({ videoId, userId }) => {
+    console.log(`[Agent Tool] Getting report for YouTube video: ${videoId} (user: ${userId})`);
     const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
     if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
 
@@ -211,11 +206,13 @@ export const youtubeGetReportTool = ai.defineTool({
 export const googleDriveFindFileTool = ai.defineTool({
     name: 'googleDriveFindFile',
     description: 'Finds a file or folder in Google Drive by its name.',
-    inputSchema: z.object({ name: z.string().describe('The name of the file or folder to find.') }),
+    inputSchema: z.object({ 
+        name: z.string().describe('The name of the file or folder to find.'),
+        userId: z.string().describe("The user's ID, needed to retrieve their service account key."),
+    }),
     outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }).optional(),
-}, async ({ name }) => {
-    console.log(`[Agent Tool] Finding Google Drive file: ${name}`);
-    const userId = await getUserId();
+}, async ({ name, userId }) => {
+    console.log(`[Agent Tool] Finding Google Drive file: ${name} (user: ${userId})`);
     const serviceAccountKeyJson = await getCredentialValueByNameForUser('GoogleServiceAccount', userId);
     if (!serviceAccountKeyJson) throw new Error('GoogleServiceAccount credential not found. Please add your Google Service Account JSON key in the AI Agent Hub.');
 

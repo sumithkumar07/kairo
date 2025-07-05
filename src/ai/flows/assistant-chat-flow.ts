@@ -38,6 +38,7 @@ const MinimalWorkflowConnectionSchema = z.object({
 
 const AssistantChatInputSchema = z.object({
   userMessage: z.string().describe("The user's message in the chat."),
+  userId: z.string().optional().describe("The ID of the user making the request. Required for API calls."),
   imageDataUri: z.string().optional().describe("An optional image provided by the user, as a data URI that must include a MIME type and use Base64 encoding. Use this image as context for the user's message, e.g., to analyze a screenshot of an error or a hand-drawn diagram of a workflow."),
   workflowContext: z.string().optional().describe("Optional context about the current workflow, like selected node or overall goal. This helps the AI provide more relevant answers and formulate new generation prompts if modifications are requested."),
   chatHistory: z.array(z.object({
@@ -121,7 +122,7 @@ Your primary directive is to think like an agent. Follow these steps for every u
     -   If they confirm in the next turn, set \`isWorkflowGenerationRequest: true\` with the new prompt.
 
 4.  **Tool-Based Workflow Management**:
-    -   Use your tools to fulfill user requests to manage their workflows.
+    -   Use your tools to fulfill user requests to manage their workflows. The user's ID is \`{{userId}}\`.
     -   \`listSavedWorkflowsTool\`: Use when asked to "list my workflows" or "show me what's saved."
     -   \`getWorkflowDefinitionTool\`: Use when asked to "show me the 'Order Processing' workflow" or before running one.
     -   \`runWorkflowTool\`: Use when asked to "run the 'Order Processing' workflow." You may need to get the definition first. By default, this runs in simulation mode. If the user explicitly asks to run it "for real" or "live", set \`isSimulation: false\`. Always confirm with the user before initiating a live run.
