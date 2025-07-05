@@ -18,7 +18,7 @@ interface NodeLibraryProps {
 const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [inputValue, setInputValue] = useState('');
-  const { isDiamondOrTrial, isLoggedIn } = useSubscription();
+  const { hasProFeatures, isLoggedIn } = useSubscription();
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -31,7 +31,7 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
   }, [inputValue]);
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeType: AvailableNodeType) => {
-    if (nodeType.isAdvanced && !isDiamondOrTrial) {
+    if (nodeType.isAdvanced && !hasProFeatures) {
       event.preventDefault();
       return;
     }
@@ -75,9 +75,9 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
           )}
           {filteredNodes.map((nodeType) => {
             const itemStyling = getCanvasNodeStyling(nodeType.category);
-            const isLocked = nodeType.isAdvanced && !isDiamondOrTrial;
+            const isLocked = nodeType.isAdvanced && !hasProFeatures;
             const tooltipContent = isLocked 
-              ? `This is a Diamond feature. ${isLoggedIn ? 'Upgrade your plan to use.' : 'Sign up or log in to start a trial.'}` 
+              ? `This is a premium feature. ${isLoggedIn ? 'Upgrade your plan to use.' : 'Sign up or log in to start a trial.'}` 
               : nodeType.description || nodeType.name;
 
             return (
@@ -109,7 +109,7 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" align="start" className="max-w-xs">
-                    <p className="text-xs font-medium">{nodeType.name} {isLocked && "(Diamond Feature)"}</p>
+                    <p className="text-xs font-medium">{nodeType.name} {isLocked && "(Premium Feature)"}</p>
                     <p className="text-xs text-muted-foreground">{tooltipContent}</p>
                   </TooltipContent>
                 </Tooltip>

@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 
 interface User {
@@ -22,7 +22,6 @@ interface SubscriptionContextType {
   isLoggedIn: boolean;
   user: User | null;
   trialEndDate: Date | null;
-  purchasedTier: 'Gold' | 'Diamond' | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -39,45 +38,18 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentTier, setCurrentTier] = useState<SubscriptionTier>('Free');
+  const [features, setFeatures] = useState<SubscriptionFeatures>(FREE_TIER_FEATURES);
   const [trialEndDate, setTrialEndDate] = useState<Date | null>(null);
-  const [purchasedTier, setPurchasedTier] = useState<'Gold' | 'Diamond' | null>(null);
+  const [hasProFeatures, setHasProFeatures] = useState(false);
+  const [daysRemainingInTrial, setDaysRemainingInTrial] = useState<number | null>(null);
+
   const { toast } = useToast();
   const router = useRouter();
 
   const isLoggedIn = !!user;
 
-  const calculateCurrentTierAndFeatures = useCallback(() => {
-    let tier: SubscriptionTier = 'Free';
-    let activeFeatures = FREE_TIER_FEATURES;
-    let hasProFeatures = false;
-    let daysLeft: number | null = null;
-    
-    if (isLoggedIn) {
-      if (purchasedTier === 'Diamond') {
-        tier = 'Diamond';
-        activeFeatures = DIAMOND_TIER_FEATURES;
-        hasProFeatures = true;
-      } else if (purchasedTier === 'Gold') {
-        tier = 'Gold';
-        activeFeatures = GOLD_TIER_FEATURES;
-        hasProFeatures = true; 
-      } else if (trialEndDate && trialEndDate > new Date()) {
-        tier = 'Gold Trial';
-        activeFeatures = GOLD_TIER_FEATURES;
-        hasProFeatures = true;
-        const diffTime = trialEndDate.getTime() - new Date().getTime();
-        daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      } else if (trialEndDate && trialEndDate <= new Date()) {
-        tier = 'Free';
-        activeFeatures = FREE_TIER_FEATURES;
-        daysLeft = 0;
-      }
-    }
-    return { tier, features: activeFeatures, hasProFeatures, daysRemainingInTrial: daysLeft };
-  }, [isLoggedIn, trialEndDate, purchasedTier]);
-
-  const { tier: currentTier, features, hasProFeatures, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
-  
   const showSupabaseNotConfiguredToast = useCallback(() => {
     toast({
         title: 'Authentication Disabled',
@@ -86,67 +58,84 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [toast]);
   
-  const updateUserStateFromSession = useCallback(async (session: Session | null) => {
-    const supabaseUser = session?.user;
+  const updateUserStateFromSession = useCallback(async (currentSession: Session | null) => {
+    const supabaseUser = currentSession?.user;
 
-    if (supabaseUser && supabaseUser.email) {
-      // Set basic user info immediately from the session
+    if (supabaseUser?.email) {
       setUser({ email: supabaseUser.email, uid: supabaseUser.id });
-
-      // Then, try to fetch the profile to get tier info.
       const profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
       
+      let tier: SubscriptionTier = 'Free';
+      let features: SubscriptionFeatures = FREE_TIER_FEATURES;
+      let pro = false;
+      let trialEnd: Date | null = null;
+      let daysLeft: number | null = null;
+      
       if (profile) {
-        const tier = profile.subscription_tier;
-        if (tier === 'Gold' || tier === 'Diamond') {
-          setPurchasedTier(tier);
-          setTrialEndDate(null);
+        trialEnd = profile.trial_end_date ? new Date(profile.trial_end_date) : null;
+
+        if (profile.subscription_tier === 'Diamond') {
+            tier = 'Diamond';
+            features = DIAMOND_TIER_FEATURES;
+            pro = true;
+        } else if (profile.subscription_tier === 'Gold') {
+            tier = 'Gold';
+            features = GOLD_TIER_FEATURES;
+            pro = true;
+        } else if (trialEnd && trialEnd > new Date()) {
+            tier = 'Gold Trial';
+            features = GOLD_TIER_FEATURES;
+            pro = true;
+            const diffTime = trialEnd.getTime() - new Date().getTime();
+            daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         } else {
-          setPurchasedTier(null);
-          setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
+             daysLeft = 0;
         }
-      } else {
-        // If profile doesn't exist yet (e.g., replication lag after signup),
-        // DON'T log the user out. Just default to no purchased tier. The trial
-        // logic will still be based on the profile, which may appear momentarily.
-        console.warn(`[AUTH] Profile for user ${supabaseUser.id} not found. Defaulting to base state.`);
-        setPurchasedTier(null);
-        // We don't set trial end date here, as it comes from the profile.
-        // It will be null until the profile is successfully fetched.
       }
+      
+      setCurrentTier(tier);
+      setFeatures(features);
+      setHasProFeatures(pro);
+      setTrialEndDate(trialEnd);
+      setDaysRemainingInTrial(daysLeft);
+
     } else {
-      // No user session, clear all user-related state.
       setUser(null);
+      setCurrentTier('Free');
+      setFeatures(FREE_TIER_FEATURES);
+      setHasProFeatures(false);
       setTrialEndDate(null);
-      setPurchasedTier(null);
+      setDaysRemainingInTrial(null);
     }
   }, []);
 
   const signup = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
-        return;
+        throw new Error('Supabase not configured');
     }
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
         toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
         throw error;
     }
     toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
-  }, [toast, showSupabaseNotConfiguredToast, supabase]);
+    // Auth state change will handle the rest
+  }, [toast, showSupabaseNotConfiguredToast]);
 
   const login = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
-        return;
+        throw new Error('Supabase not configured');
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
       throw error;
     }
     toast({ title: 'Login Successful!', description: 'Welcome back!' });
-  }, [toast, showSupabaseNotConfiguredToast, supabase]);
+    // Auth state change will handle the rest
+  }, [toast, showSupabaseNotConfiguredToast]);
 
   const logout = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
@@ -156,7 +145,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     router.push('/');
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-  }, [toast, router, showSupabaseNotConfiguredToast, supabase]);
+  }, [toast, router, showSupabaseNotConfiguredToast]);
 
   const upgradeToGold = useCallback(async () => {
     if (!user) {
@@ -169,13 +158,14 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
         await WorkflowStorage.updateUserProfileTier(user.uid, 'Gold');
-        setPurchasedTier('Gold');
-        setTrialEndDate(null);
+        // Manually trigger a state refresh
+        const { data: { session } } = await supabase!.auth.getSession();
+        await updateUserStateFromSession(session);
         toast({ title: 'Upgrade Successful!', description: 'You now have access to Gold features.' });
     } catch (e: any) {
         toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
     }
-  }, [user, toast, router, showSupabaseNotConfiguredToast]);
+  }, [user, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
 
   const upgradeToDiamond = useCallback(async () => {
     if (!user) {
@@ -188,13 +178,13 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
         await WorkflowStorage.updateUserProfileTier(user.uid, 'Diamond');
-        setPurchasedTier('Diamond');
-        setTrialEndDate(null);
+        const { data: { session } } = await supabase!.auth.getSession();
+        await updateUserStateFromSession(session);
         toast({ title: 'Upgrade Successful!', description: 'You now have full access to Diamond features.' });
     } catch (e: any) {
         toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
     }
-  }, [user, toast, router, showSupabaseNotConfiguredToast]);
+  }, [user, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
 
 
   useEffect(() => {
@@ -205,6 +195,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
     setIsAuthLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
       await updateUserStateFromSession(session);
       setIsAuthLoading(false);
     });
@@ -212,7 +203,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [updateUserStateFromSession, supabase, isSupabaseConfigured]);
+  }, [updateUserStateFromSession, isSupabaseConfigured]);
 
   return (
     <SubscriptionContext.Provider value={{ 
@@ -221,7 +212,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       isLoggedIn, 
       user, 
       trialEndDate, 
-      purchasedTier,
       login, 
       signup, 
       logout, 

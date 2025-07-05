@@ -11,6 +11,8 @@ export interface SubscriptionFeatures {
   accessToAdvancedNodes: boolean;
   maxWorkflows: number | 'unlimited';
   maxRunsPerMonth: number | 'unlimited';
+  aiErrorDiagnosis: boolean;
+  aiTestDataGeneration: boolean;
 }
 
 export interface Subscription {
@@ -21,10 +23,12 @@ export interface Subscription {
 
 export const FREE_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerMonth: 5,
-  canExplainWorkflow: false,
+  canExplainWorkflow: true, // Let's make this a free feature for better onboarding
   accessToAdvancedNodes: false,
   maxWorkflows: 3,
-  maxRunsPerMonth: 20,
+  maxRunsPerMonth: 50,
+  aiErrorDiagnosis: false,
+  aiTestDataGeneration: false,
 };
 
 export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
@@ -32,13 +36,17 @@ export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
   maxWorkflows: 20,
-  maxRunsPerMonth: 100,
+  maxRunsPerMonth: 250,
+  aiErrorDiagnosis: false, // Keep this for the highest tier
+  aiTestDataGeneration: true,
 };
 
 export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
-  aiWorkflowGenerationsPerMonth: 200,
+  aiWorkflowGenerationsPerMonth: 'unlimited',
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
-  maxWorkflows: 50,
-  maxRunsPerMonth: 200,
+  maxWorkflows: 'unlimited',
+  maxRunsPerMonth: 'unlimited',
+  aiErrorDiagnosis: true,
+  aiTestDataGeneration: true,
 };

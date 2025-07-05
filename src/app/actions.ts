@@ -67,12 +67,12 @@ async function getUserFeatures(userId: string): Promise<{ tier: SubscriptionTier
     let features: SubscriptionFeatures = FREE_TIER_FEATURES;
 
     if (profile) {
-        if (profile.subscription_tier === 'Gold') {
-            tier = 'Gold';
-            features = GOLD_TIER_FEATURES;
-        } else if (profile.subscription_tier === 'Diamond') {
+        if (profile.subscription_tier === 'Diamond') {
             tier = 'Diamond';
             features = DIAMOND_TIER_FEATURES;
+        } else if (profile.subscription_tier === 'Gold') {
+            tier = 'Gold';
+            features = GOLD_TIER_FEATURES;
         } else if (profile.trial_end_date && new Date(profile.trial_end_date) > new Date()) {
             tier = 'Gold Trial';
             features = GOLD_TIER_FEATURES;
@@ -250,10 +250,20 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
 }
 
 export async function generateTestDataForNode(input: GenerateTestDataInput): Promise<GenerateTestDataOutput> {
+  const userId = await getUserIdOrThrow();
+  const { features } = await getUserFeatures(userId);
+  if (!features.aiTestDataGeneration) {
+    throw new Error('AI Test Data Generation is a premium feature. Please upgrade your plan.');
+  }
   return genkitGenerateTestData(input);
 }
 
 export async function diagnoseWorkflowError(input: DiagnoseWorkflowErrorInput): Promise<DiagnoseWorkflowErrorOutput> {
+  const userId = await getUserIdOrThrow();
+  const { features } = await getUserFeatures(userId);
+  if (!features.aiErrorDiagnosis) {
+    throw new Error('AI Error Diagnosis is a premium feature. Please upgrade your plan.');
+  }
   return genkitDiagnoseWorkflowError(input);
 }
 

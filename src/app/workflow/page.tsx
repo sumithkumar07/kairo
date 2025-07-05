@@ -73,7 +73,7 @@ function WorkflowPage() {
   const [enabledTools, setEnabledTools] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { isDiamondOrTrial, isLoggedIn } = useSubscription();
+  const { hasProFeatures, isLoggedIn } = useSubscription();
   const nextNodeIdRef = useRef(1);
   const currentWorkflowNameRef = useRef('Untitled Workflow');
 
@@ -613,10 +613,10 @@ function WorkflowPage() {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
-    if (!isDiamondOrTrial) {
+    if (!hasProFeatures) {
         toast({
-            title: 'Diamond Feature',
-            description: `AI Test Data Generation is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+            title: 'Premium Feature',
+            description: `AI Test Data Generation is a premium feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
             variant: 'default',
             duration: 5000,
         });
@@ -649,7 +649,7 @@ function WorkflowPage() {
     } finally {
       setIsGeneratingTestDataFor(null);
     }
-  }, [nodes, handleNodeConfigChange, toast, isDiamondOrTrial, isLoggedIn]);
+  }, [nodes, handleNodeConfigChange, toast, hasProFeatures, isLoggedIn]);
 
   const handleRunWorkflow = useCallback(async () => {
     if (isWorkflowRunning) return;
@@ -1002,10 +1002,10 @@ function WorkflowPage() {
   }, [isPanning, saveHistory]);
 
   const addNodeToCanvas = useCallback((nodeType: AvailableNodeType, position: { x: number; y: number }) => {
-    if (nodeType.isAdvanced && !isDiamondOrTrial) {
+    if (nodeType.isAdvanced && !hasProFeatures) {
       toast({
-        title: 'Diamond Feature',
-        description: `Node type "${nodeType.name}" is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+        title: 'Premium Feature',
+        description: `Node type "${nodeType.name}" is a premium feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
         variant: 'default',
         duration: 5000,
       });
@@ -1035,7 +1035,7 @@ function WorkflowPage() {
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
     saveHistory();
-  }, [saveHistory, isDiamondOrTrial, toast, isLoggedIn]);
+  }, [saveHistory, hasProFeatures, toast, isLoggedIn]);
 
   const handleAddSuggestedNode = useCallback((suggestedNodeTypeString: string) => {
     const nodeTypeToAdd = AVAILABLE_NODES_CONFIG.find(n => n.type === suggestedNodeTypeString);
@@ -1044,10 +1044,10 @@ function WorkflowPage() {
       return;
     }
 
-    if (nodeTypeToAdd.isAdvanced && !isDiamondOrTrial) {
+    if (nodeTypeToAdd.isAdvanced && !hasProFeatures) {
       toast({
-        title: 'Diamond Feature Suggested',
-        description: `The AI suggested "${nodeTypeToAdd.name}", which is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'} to use it.`,
+        title: 'Premium Feature Suggested',
+        description: `The AI suggested "${nodeTypeToAdd.name}", which is a premium feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'} to use it.`,
         variant: 'default',
         duration: 6000,
       });
@@ -1080,7 +1080,7 @@ function WorkflowPage() {
     toast({ title: "Node Added", description: `Added suggested node: ${nodeTypeToAdd.name}`});
     setInitialCanvasSuggestion(null);
     setSuggestedNextNodeInfo(null);
-  }, [selectedNode, addNodeToCanvas, toast, nodes, isDiamondOrTrial, isLoggedIn]);
+  }, [selectedNode, addNodeToCanvas, toast, nodes, hasProFeatures, isLoggedIn]);
 
   const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
     setNodes(prevNodes => produce(prevNodes, draft => {
@@ -1162,10 +1162,10 @@ function WorkflowPage() {
   }, [selectedNode]);
 
   const handleGetWorkflowExplanation = useCallback(async () => {
-    if (!isDiamondOrTrial) {
+    if (!hasProFeatures) {
       toast({
-        title: 'Diamond Feature',
-        description: `Workflow explanation is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+        title: 'Premium Feature',
+        description: `Workflow explanation is a premium feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
         variant: 'default',
         duration: 5000,
       });
@@ -1191,7 +1191,7 @@ function WorkflowPage() {
     } finally {
       setIsExplainingWorkflow(false);
     }
-  }, [nodes, connections, toast, isDiamondOrTrial, isLoggedIn]);
+  }, [nodes, connections, toast, hasProFeatures, isLoggedIn]);
 
 
   const handleToggleSimulationMode = useCallback((newMode: boolean) => {
