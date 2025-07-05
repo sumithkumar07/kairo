@@ -3,16 +3,17 @@
 /**
  * @fileOverview Defines Genkit tools for AI-driven workflow management.
  * These tools allow the AI to list, inspect, and execute workflows by interacting
- * with the central WorkflowStorage service.
+ * with the central WorkflowStorage service and external APIs.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { listAllWorkflows, getWorkflowByName } from '@/services/workflow-storage-service';
+import { listAllWorkflows, getWorkflowByName, getCredentialValueByNameForUser } from '@/services/workflow-storage-service';
 import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { google } from 'googleapis';
 
 
 // Schema for Workflow Nodes (simplified for tool input)
@@ -132,36 +133,116 @@ export const runWorkflowTool = ai.defineTool(
     }
 );
 
-// Activated conceptual tools with simulated data
+
+// Helper function to get the current user's ID
+async function getUserId() {
+    const cookieStore = cookies();
+    const supabase = createServerActionClient({ cookies: () => cookieStore });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated.');
+    return user.id;
+}
+
+// Activated tools with real API calls
 export const youtubeFindVideoTool = ai.defineTool({
     name: 'youtubeFindVideo',
     description: 'Finds a YouTube video based on a search query. Can be used to find "latest video" or a specific title.',
     inputSchema: z.object({ query: z.string().describe('The search query, e.g., "Kairo Launch Trailer" or "latest video from Kairo channel".') }),
-    outputSchema: z.object({ videoId: z.string(), title: z.string(), channel: z.string() }),
+    outputSchema: z.object({ videoId: z.string(), title: z.string(), channel: z.string() }).optional(),
 }, async ({ query }) => {
-    console.log(`[Agent Tool - Simulated] Finding YouTube video for query: ${query}`);
-    // Simulate finding a video. In a real scenario, this would call the YouTube API.
-    return { videoId: 'dQw4w9WgXcQ', title: `Simulated result for: ${query}`, channel: 'Kairo Demo Channel' };
+    console.log(`[Agent Tool] Finding YouTube video for query: ${query}`);
+    const userId = await getUserId();
+    const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
+    if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
+
+    const youtube = google.youtube({ version: 'v3', auth: apiKey });
+    try {
+        const response = await youtube.search.list({
+            part: ['snippet'],
+            q: query,
+            type: ['video'],
+            maxResults: 1,
+        });
+        const video = response.data.items?.[0];
+        if (video?.id?.videoId && video.snippet?.title && video.snippet.channelTitle) {
+            return {
+                videoId: video.id.videoId,
+                title: video.snippet.title,
+                channel: video.snippet.channelTitle,
+            };
+        }
+        return undefined;
+    } catch (e: any) {
+        throw new Error(`YouTube API error: ${e.message}`);
+    }
 });
 
 export const youtubeGetReportTool = ai.defineTool({
     name: 'youtubeGetReport',
-    description: 'Gets a simulated performance report (views, likes) for a given YouTube video ID.',
+    description: 'Gets a performance report (views, likes, comments) for a given YouTube video ID.',
     inputSchema: z.object({ videoId: z.string().describe("The ID of the video to get a report for.") }),
-    outputSchema: z.object({ views: z.number(), likes: z.number() }),
+    outputSchema: z.object({ views: z.number(), likes: z.number(), comments: z.number() }).optional(),
 }, async ({ videoId }) => {
-    console.log(`[Agent Tool - Simulated] Getting report for YouTube video: ${videoId}`);
-    // Simulate fetching video statistics.
-    return { views: Math.floor(Math.random() * 1000000), likes: Math.floor(Math.random() * 50000) };
+    console.log(`[Agent Tool] Getting report for YouTube video: ${videoId}`);
+    const userId = await getUserId();
+    const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
+    if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
+
+    const youtube = google.youtube({ version: 'v3', auth: apiKey });
+    try {
+        const response = await youtube.videos.list({
+            part: ['statistics'],
+            id: [videoId],
+        });
+        const stats = response.data.items?.[0]?.statistics;
+        if (stats) {
+            return {
+                views: parseInt(stats.viewCount || '0', 10),
+                likes: parseInt(stats.likeCount || '0', 10),
+                comments: parseInt(stats.commentCount || '0', 10),
+            };
+        }
+        return undefined;
+    } catch (e: any) {
+        throw new Error(`YouTube API error: ${e.message}`);
+    }
 });
 
 export const googleDriveFindFileTool = ai.defineTool({
     name: 'googleDriveFindFile',
     description: 'Finds a file or folder in Google Drive by its name.',
     inputSchema: z.object({ name: z.string().describe('The name of the file or folder to find.') }),
-    outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }),
+    outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }).optional(),
 }, async ({ name }) => {
-    console.log(`[Agent Tool - Simulated] Finding Google Drive file: ${name}`);
-    // Simulate finding a file in Google Drive.
-    return { fileId: 'sim_gdrive_12345_abcdef', name: name, mimeType: 'application/vnd.google-apps.document' };
+    console.log(`[Agent Tool] Finding Google Drive file: ${name}`);
+    const userId = await getUserId();
+    const serviceAccountKeyJson = await getCredentialValueByNameForUser('GoogleServiceAccount', userId);
+    if (!serviceAccountKeyJson) throw new Error('GoogleServiceAccount credential not found. Please add your Google Service Account JSON key in the AI Agent Hub.');
+
+    try {
+        const serviceAccountKey = JSON.parse(serviceAccountKeyJson);
+        const auth = new google.auth.GoogleAuth({
+            credentials: {
+                client_email: serviceAccountKey.client_email,
+                private_key: serviceAccountKey.private_key,
+            },
+            scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+        });
+        const drive = google.drive({ version: 'v3', auth });
+        const response = await drive.files.list({
+            q: `name = '${name}' and trashed = false`,
+            fields: 'files(id, name, mimeType)',
+            spaces: 'drive',
+            pageSize: 1,
+        });
+
+        const file = response.data.files?.[0];
+        if (file?.id && file.name && file.mimeType) {
+            return { fileId: file.id, name: file.name, mimeType: file.mimeType };
+        }
+        return undefined;
+    } catch (e: any) {
+        throw new Error(`Google Drive API error: ${e.message}. Ensure the service account has access to the file.`);
+    }
 });
+
