@@ -354,3 +354,4 @@ export async function generateApiKeyAction(): Promise<string> {
     const userId = await getUserIdOrThrow();
     return WorkflowStorage.generateApiKey(userId);
 }
+
