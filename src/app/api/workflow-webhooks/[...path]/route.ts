@@ -151,9 +151,18 @@ export async function POST(
       );
 
     } catch (execError: any) {
+      const errorMessage = execError.message || "An unknown execution error occurred.";
+      if (errorMessage.includes('Monthly run limit')) {
+        console.warn(`[API Webhook] User ${userId} exceeded run limit for path ${pathSuffix}.`);
+        return NextResponse.json(
+            { message: 'Monthly run limit exceeded.', error: errorMessage },
+            { status: 429 } // 429 Too Many Requests is the standard for rate limiting
+        );
+      }
+
       console.error(`[API Webhook] Error executing workflow for ${pathSuffix}:`, execError);
       return NextResponse.json(
-        { message: 'Webhook received, but workflow execution failed.', path: pathSuffix, error: execError.message },
+        { message: 'Webhook received, but workflow execution failed.', path: pathSuffix, error: errorMessage },
         { status: 500 }
       );
     }

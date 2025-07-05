@@ -695,30 +695,41 @@ function WorkflowPage() {
       
       await handleChatSubmit(systemMessage, undefined, true);
   
-  
     } catch (error: any) {
       const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
-      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
-      saveHistory();
       
-      const errorRunRecord: WorkflowRunRecord = {
-        id: crypto.randomUUID(),
-        workflowName: currentWorkflowNameRef.current,
-        timestamp: new Date().toISOString(),
-        status: 'Failed',
-        executionResult: { 
-            finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
-            serverLogs: [{timestamp: new Date().toISOString(), message: `Execution Error: ${errorMessage}`, type: 'error'}]
-        },
-        workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
-      };
-      await saveRunRecord(errorRunRecord);
+      if (errorMessage.includes('Monthly run limit')) {
+        toast({
+          title: 'Monthly Limit Reached',
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 10000,
+        });
+        // Reset nodes to pending state as the run was blocked, not failed.
+        setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
+      } else {
+        setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
+        saveHistory();
+        
+        const errorRunRecord: WorkflowRunRecord = {
+          id: crypto.randomUUID(),
+          workflowName: currentWorkflowNameRef.current,
+          timestamp: new Date().toISOString(),
+          status: 'Failed',
+          executionResult: { 
+              finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
+              serverLogs: [{timestamp: new Date().toISOString(), message: `Execution Error: ${errorMessage}`, type: 'error'}]
+          },
+          workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
+        };
+        await saveRunRecord(errorRunRecord);
 
-      await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, undefined, true);
+        await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, undefined, true);
+      }
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, canvasOffset, zoomLevel]);
+  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, toast, canvasOffset, zoomLevel]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
