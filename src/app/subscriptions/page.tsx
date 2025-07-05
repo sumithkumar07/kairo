@@ -32,6 +32,7 @@ export default function SubscriptionsPage() {
   const isTrialExpired = isLoggedIn && currentTier === 'Free' && isDiamondOrTrial === false && daysRemainingInTrial === 0;
 
   const freeTierFeaturesList = [
+    `Monthly Workflow Runs: ${FREE_TIER_FEATURES.maxRunsPerMonth}`,
     `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
@@ -40,6 +41,7 @@ export default function SubscriptionsPage() {
   ];
 
   const goldTierFeaturesList = [
+    `Monthly Workflow Runs: ${GOLD_TIER_FEATURES.maxRunsPerMonth}`,
     `AI Workflow Generations: ${GOLD_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${GOLD_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: Full Node Library Access`,
@@ -48,6 +50,7 @@ export default function SubscriptionsPage() {
   ];
 
   const diamondTierFeaturesList = [
+    `Monthly Workflow Runs: ${DIAMOND_TIER_FEATURES.maxRunsPerMonth}`,
     `AI Workflow Generations: ${DIAMOND_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${DIAMOND_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: Full Node Library Access`,
@@ -205,7 +208,7 @@ export default function SubscriptionsPage() {
         </div>
          <section className="text-center mt-16">
             <p className="text-muted-foreground text-sm">
-                Need a custom solution or enterprise features? <Link href="/contact" className="text-primary hover:underline font-medium">Contact Us</Link>.
+                Need a custom solution or enterprise features? <Link href="/contact" className="ml-4 text-primary hover:underline font-medium">Contact Us</Link>.
             </p>
         </section>
       </main>
