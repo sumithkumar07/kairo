@@ -30,6 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
 import { Input } from '@/components/ui/input';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; className?: string; }) => {
@@ -57,6 +59,7 @@ function RunHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { toast } = useToast();
+  const { hasProFeatures } = useSubscription();
 
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnoseWorkflowErrorOutput | null>(null);
@@ -423,10 +426,24 @@ function RunHistoryPage() {
             <DialogFooter className="pt-4 border-t flex justify-between">
                 <div>
                    {selectedRun.status === 'Failed' && (
-                     <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing}>
-                       {isDiagnosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4"/>}
-                       {isDiagnosing ? 'Diagnosing...' : 'Ask AI to Debug'}
-                     </Button>
+                     <TooltipProvider>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           {/* The button is wrapped in a span to allow the tooltip to show even when the button is disabled */}
+                           <span>
+                             <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing || !hasProFeatures}>
+                               {isDiagnosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4"/>}
+                               {isDiagnosing ? 'Diagnosing...' : 'Ask AI to Debug'}
+                             </Button>
+                           </span>
+                         </TooltipTrigger>
+                         {!hasProFeatures && (
+                           <TooltipContent>
+                             <p>AI Error Diagnosis is a premium feature. Please upgrade your plan.</p>
+                           </TooltipContent>
+                         )}
+                       </Tooltip>
+                     </TooltipProvider>
                    )}
                 </div>
                 <div className="flex gap-2">

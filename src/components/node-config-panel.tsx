@@ -18,6 +18,8 @@ import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import React, { useState } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 interface NodeConfigPanelProps {
@@ -50,6 +52,7 @@ export function NodeConfigPanel({
   isGeneratingTestDataFor,
 }: NodeConfigPanelProps) {
   
+  const { hasProFeatures } = useSubscription();
   const [jsonValidationErrors, setJsonValidationErrors] = useState<Record<string, string | null>>({});
 
   const handleConfigUpdate = (updater: (draft: Record<string, any>) => void) => {
@@ -202,16 +205,29 @@ export function NodeConfigPanel({
               <div className="flex justify-between items-center">
                 <Label htmlFor={`${node.id}-${key}`} className="text-xs font-medium">{schema.label}</Label>
                 {canGenerateAiData && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 ml-auto"
-                    onClick={() => onGenerateTestData(node.id, key)}
-                    disabled={isLoading}
-                    title={`Generate test data for ${key}`}
-                  >
-                    {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 text-primary" />}
-                  </Button>
+                   <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span> {/* Span wrapper for tooltip on disabled button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-auto"
+                            onClick={() => onGenerateTestData(node.id, key)}
+                            disabled={isLoading || !hasProFeatures}
+                            title={`Generate test data for ${key}`}
+                          >
+                            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 text-primary" />}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {!hasProFeatures && (
+                        <TooltipContent>
+                          <p>AI Test Data Generation is a premium feature. Please upgrade.</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </div>
             ) : null}
