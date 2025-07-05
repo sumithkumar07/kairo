@@ -76,6 +76,37 @@ export async function listAllWorkflows(): Promise<SavedWorkflowMetadata[]> {
   return [...exampleWorkflows, ...savedUserWorkflows];
 }
 
+export async function getIsUserWorkflow(name: string, userId: string): Promise<boolean> {
+  const supabase = await getSupabaseClient();
+  const { count, error } = await supabase
+    .from('workflows')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('name', name);
+  
+  if (error) {
+      console.error('[Storage Service] Error checking user workflow existence:', error);
+      return false;
+  }
+  
+  return (count ?? 0) > 0;
+}
+
+
+export async function getWorkflowCountForUser(userId: string): Promise<number> {
+    const supabase = await getSupabaseClient();
+    const { count, error } = await supabase
+        .from('workflows')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('[Storage Service] Error counting workflows:', error);
+        return 0; // Fail safe
+    }
+    return count ?? 0;
+}
+
 export async function getWorkflowByName(name: string): Promise<Workflow | null> {
   const exampleWorkflow = EXAMPLE_WORKFLOWS.find(wf => wf.name === name);
   if (exampleWorkflow) {

@@ -43,6 +43,8 @@ import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
+import type { SubscriptionTier } from '@/types/subscription';
 
 
 // ================================================================= //
@@ -161,14 +163,53 @@ export async function loadWorkflowAction(name: string): Promise<{ name: string; 
   const workflow = await WorkflowStorage.getWorkflowByName(name);
   return workflow ? { name, workflow } : null;
 }
+
 export async function saveWorkflowAction(name: string, workflow: Workflow): Promise<{ success: boolean; message: string }> {
   try {
+    const userId = await getUserIdOrThrow();
+
+    const isUpdate = await WorkflowStorage.getIsUserWorkflow(name, userId);
+
+    if (!isUpdate) { // Only check limits when creating a NEW workflow
+        const profile = await WorkflowStorage.getUserProfile(userId);
+        
+        let tier: SubscriptionTier = 'Free';
+        if (profile) {
+            if (profile.subscription_tier === 'Gold' || profile.subscription_tier === 'Diamond') {
+                tier = profile.subscription_tier;
+            } else if (profile.trial_end_date && new Date(profile.trial_end_date) > new Date()) {
+                tier = 'Gold Trial';
+            }
+        }
+        
+        let features;
+        switch(tier) {
+            case 'Gold':
+            case 'Gold Trial':
+                 features = GOLD_TIER_FEATURES; break;
+            case 'Diamond': features = DIAMOND_TIER_FEATURES; break;
+            default: features = FREE_TIER_FEATURES;
+        }
+
+        if (features.maxWorkflows !== 'unlimited') {
+            const currentCount = await WorkflowStorage.getWorkflowCountForUser(userId);
+            if (currentCount >= features.maxWorkflows) {
+                return { 
+                    success: false, 
+                    message: `You have reached your limit of ${features.maxWorkflows} saved workflows for the ${tier} plan. Please upgrade your plan to save more.` 
+                };
+            }
+        }
+    }
+
     await WorkflowStorage.saveWorkflow(name, workflow);
-    return { success: true, message: `Workflow "${name}" saved.` };
+    return { success: true, message: `Workflow "${name}" ${isUpdate ? 'updated' : 'saved'}.` };
+
   } catch (e: any) {
     return { success: false, message: e.message };
   }
 }
+
 export async function deleteWorkflowAction(name: string): Promise<{ success: boolean; message: string }> {
     try {
         await WorkflowStorage.deleteWorkflowByName(name);
