@@ -135,7 +135,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'schedule',
     name: 'Schedule',
     icon: Clock,
-    description: 'Triggers workflow on a defined schedule using CRON expressions. This node is conceptual and does not run automatically in this prototype.',
+    description: 'Triggers workflow on a defined schedule using CRON expressions.',
     category: 'trigger',
     defaultConfig: { cron: '0 * * * *' }, 
     configSchema: {
@@ -143,6 +143,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: [],
     outputHandles: ['triggered_at'],
+    aiExplanation: 'Triggers the workflow based on the provided CRON expression. For this to work, you must set up an external cron job service to send a POST request to your app\'s /api/scheduler/run endpoint at a regular interval (e.g., every minute). See the README for full setup instructions.',
   },
   {
     type: 'sendEmail',

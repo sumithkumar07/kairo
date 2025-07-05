@@ -13,6 +13,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Visual Run History & Debugging**: Review past workflow executions with a visual representation of the workflow, including the status of each node and the data that flowed through it. Re-run failed workflows with one click.
 *   **AI Agent Hub**: Configure your AI agent's skills (available tools/nodes), manage credentials securely, and get an API key to control the agent programmatically.
 *   **Cloud & Example Storage**: Save your workflows to your Supabase cloud database for persistent storage, or load pre-built example workflows to explore features.
+*   **Scheduled Workflows**: Trigger workflows based on a CRON schedule to automate recurring tasks.
 
 ## Technology Stack
 
@@ -58,14 +59,17 @@ These are **essential** for the app's core features to function.
     *   **Purpose**: Powers all AI features (workflow generation, assistant chat, etc.).
     *   **How to get it**: In the Google Cloud Console, create a project, enable the "Generative Language API", and create an API key under "APIs & Services" > "Credentials".
 
-*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`
-    *   **Purpose**: A secret key you define to protect the AI Agent Hub's programmatic API endpoint.
-    *   **How to get it**: Create any strong, secret string. You will use this in the `Authorization: Bearer <key>` header when calling `/api/mcp`.
-
 *   `ENCRYPTION_SECRET_KEY="YOUR_32_CHARACTER_ENCRYPTION_SECRET"`
     *   **Purpose**: A **critical** secret key used to encrypt and decrypt credentials managed in the AI Agent Hub (e.g., your OpenAI API key).
     *   **How to get it**: Generate a strong, random string of at least 32 characters. This key must remain private and should be backed up securely. **Changing this key will make all previously saved credentials unreadable.**
 
+*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`
+    *   **Purpose**: A secret key you define to protect the AI Agent Hub's programmatic API endpoint.
+    *   **How to get it**: Create any strong, secret string. You will use this in the `Authorization: Bearer <key>` header when calling `/api/mcp`.
+
+*   `SCHEDULER_SECRET_KEY="A_DIFFERENT_SECRET_API_KEY"`
+    *   **Purpose**: A secret key to protect the scheduler endpoint (`/api/scheduler/run`), which triggers scheduled workflows.
+    *   **How to get it**: Create another strong, secret string, different from your other keys.
 
 ---
 
@@ -247,16 +251,27 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
-### Step 3: Configure Credentials for Live Mode
+### Step 3: Configure Credentials & Scheduling
 
+#### Credentials for Live Mode
 The application includes a UI-driven **Credential Manager** in the **AI Agent Hub** (under the "Credentials" tab). This is the recommended way to securely save and manage API keys and other secrets. When you create a credential with the name `MyApiKey`, you can reference it in any node configuration using the placeholder `{{credential.MyApiKey}}`.
 
 The Agent Hub provides a **"Required Credentials Guide"** that automatically inspects all available nodes and tells you which credentials you need to add for specific integrations (e.g., `StripeApiKey` for Stripe nodes).
 
-For local development, the system will fall back to resolving these `{{credential.NAME}}` placeholders from your `.env.local` file if a matching credential is not found in the manager. For example, if `{{credential.OpenAI_API_Key}}` is used in a node but not found in the Credential Manager for your user, the app will look for an environment variable named `OpenAI_API_Key`.
+For local development, the system will fall back to resolving these `{{credential.NAME}}` placeholders from your `.env.local` file if a matching credential is not found in the manager.
 
-> **Credential Security**: Credentials saved via the UI are encrypted at rest in the database using AES-256-GCM. The security of your credentials depends on the strength and confidentiality of your `ENCRYPTION_SECRET_KEY` set in your environment variables. Ensure this key is kept secret and is backed up.
+> **Credential Security**: Credentials saved via the UI are encrypted at rest in the database using AES-256-GCM. The security of your credentials depends on the strength and confidentiality of your `ENCRYPTION_SECRET_KEY` set in your environment variables.
 
+#### Scheduled Workflows (`schedule` node)
+To enable workflows that run on a schedule, you must set up an external service to call the application's scheduler endpoint. This is a standard pattern for serverless environments.
+
+1.  **Set the `SCHEDULER_SECRET_KEY`** in your `.env.local` file. This is required.
+2.  **Configure a Cron Job Service**: Use a service like [cron-job.org](https://cron-job.org/), [EasyCron](https://www.easycron.com/), or your hosting provider's built-in cron features (e.g., Vercel Cron Jobs, Netlify Scheduled Functions) to send a `POST` request to the following URL at a regular interval (e.g., every minute):
+    *   **URL**: `YOUR_DEPLOYED_APP_URL/api/scheduler/run`
+    *   **Method**: `POST`
+    *   **Header**: You must include an `Authorization` header with the value `Bearer YOUR_SCHEDULER_SECRET_KEY`.
+
+The endpoint will then check all saved workflows and execute any that are due to run based on their `schedule` node's CRON expression.
 
 ## Deployment Checklist
 
@@ -267,7 +282,8 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 3.  **Confirm Build Settings**: Most platforms will detect a Next.js project automatically. Ensure the settings are:
     *   **Build Command**: `next build`
     *   **Publish Directory**: `.next`
-4.  **Deploy**: Trigger the deployment from your hosting provider's dashboard.
+4.  **Set Up Scheduler (Optional)**: If you use the `schedule` node, configure an external cron job service as described above to call your deployed scheduler endpoint.
+5.  **Deploy**: Trigger the deployment from your hosting provider's dashboard.
 
 ## API & Agent Hub Details
 

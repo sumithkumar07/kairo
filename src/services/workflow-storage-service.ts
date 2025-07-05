@@ -195,6 +195,36 @@ export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<{ w
   return data ? { workflow: data.workflow_data_result, userId: data.user_id_result } : null;
 }
 
+export async function getAllScheduledWorkflows(): Promise<{ user_id: string; name: string; workflow_data: Workflow; }[]> {
+  const supabase = await getSupabaseClient();
+  
+  // This function needs to operate without a specific user context to check all workflows.
+  // This requires careful table permissions or using the service_role key on a trusted server environment.
+  // For this prototype, we assume the call is trusted. We will use the anon key which will work if RLS is set up to allow reads for a specific role or is disabled for this specific query.
+  // A better production approach would be a dedicated, secure internal API call.
+
+  const { data, error } = await supabase
+    .from('workflows')
+    .select('user_id, name, workflow_data')
+    // This filter is tricky with Supabase client library directly on a JSONB field.
+    // A db function would be more efficient, but for now we filter in code.
+    // .filter('workflow_data->nodes', 'cs', '[{"type":"schedule"}]'); // This syntax might not be correct
+
+  if (error) {
+    console.error('[Storage Service] Error fetching all workflows for scheduler:', error);
+    throw new Error('Could not fetch workflows for scheduling.');
+  }
+
+  // Filter in code since direct JSONB filtering is complex with the client lib
+  const scheduledWorkflows = data.filter(wf => 
+    wf.workflow_data && 
+    Array.isArray(wf.workflow_data.nodes) && 
+    wf.workflow_data.nodes.some((node: any) => node.type === 'schedule')
+  );
+
+  return scheduledWorkflows as { user_id: string; name: string; workflow_data: Workflow; }[];
+}
+
 
 // ========================
 // Run History Management
