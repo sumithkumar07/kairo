@@ -71,6 +71,12 @@ const generateWorkflowPrompt = ai.definePrompt({
 - The target node's main \`config\` fields should then use these simple, local placeholders (e.g., \`"config": { "queryText": "SELECT * FROM orders WHERE user_id = $1", "queryParams": ["{{userId}}"] }\`). This separation is crucial.
 - DO NOT embed complex, multi-part placeholders like \`{{node.output.property.sub_property}}\` directly into a node's main \`config\` (e.g., in a URL or email body). Instead, map the required data into a local variable using \`inputMapping\` and then use that simple variable.
 
+**Mandatory Error Handling:**
+- For **any** node that might fail due to external factors (\`httpRequest\`, \`databaseQuery\`, \`aiTask\`, \`sendEmail\`, all third-party integration nodes), you **must** implement visual error handling.
+- Connect the node's red \'error\' output handle to a \`logMessage\` node.
+- The \`logMessage\` node's config **must** use an \`inputMapping\` to capture the error message, like this: \`"inputMapping": { "errorMessage": "{{id_of_failing_node.error}}" }\`, and its message config should be: \`"config": { "message": "Node \'Name of Failing Node\' failed: {{errorMessage}}" }\`.
+- This is not optional; it is a critical requirement for building robust, production-ready workflows.
+
 **Crucial for User Setup & AI Explanation:**
 For any node requiring external configuration (API keys, specific IDs, etc.) not in the prompt:
 1.  Use a clear placeholder in the node's \`config\`. PREFER \`{{credential.USER_FRIENDLY_NAME}}\` for managed secrets (e.g., \`apiKey: "{{credential.MyOpenAIKey}}"\`). Use \`{{env.A_DESCRIPTIVE_ENV_VAR}}\` for environment variables.
@@ -92,34 +98,6 @@ The workflow consists of 'nodes' and 'connections'.
     - Conditional Execution: If a node should only run based on a condition, add \`_flow_run_condition: "{{id_of_conditional_node.result}}"\` to its \`config\`. The condition node's \`result\` must be a boolean.
     - Simulation Data: For nodes with external effects (\`httpRequest\`, \`aiTask\`, etc.), you MUST provide simulation data fields (\`simulatedResponse\`, \`simulatedOutput\`, \`simulated_config\`, etc.) in the \`config\`.
 - \`aiExplanation\`: (CRITICAL) Your friendly, clear, and actionable explanation for the node. Explain its purpose, its \`inputMapping\`, any user-setup required for credentials (with guidance), and any error handling (\`retry\`, visual \`error\` path) you've configured.
-
-**Robustness & Error Handling:**
-- For nodes that can fail (like \`httpRequest\`, \`databaseQuery\`), you MUST add visual error handling. Connect the node's red \`'error'\` output handle to a \`logMessage\` node or another notification node. This provides clear, traceable error paths.
-- The \`'error'\` output contains the error message. You can use it in the connected node like this: \`inputMapping: { "errorMessage": "{{node_id.error}}" }, config: { message: "API call failed: {{errorMessage}}" }\`.
-- For nodes that are critical, you can also add a \`retry\` configuration to their \`config\`. Be specific with \`retryOnStatusCodes\` (e.g., \`[500, 503]\`) or \`retryOnErrorKeywords\` (e.g., \`["timeout", "unavailable"]\`).
-- For conditional logic, use \`conditionalLogic\` nodes that output a boolean \`result\`, and use that in a subsequent node's \`_flow_run_condition\`.
-
-**Example of Correct Data Mapping:**
-A webhook provides a user ID, and an HTTP request needs to fetch that user's data.
-
-- \`webhook_trigger\` node (id: \`trigger\`) has an output \`requestBody.userId\`.
-- \`httpRequest\` node (id: \`get_user\`) should be configured like this:
-  \`\`\`json
-  {
-    "id": "get_user",
-    "type": "httpRequest",
-    "name": "Get User by ID",
-    "position": { ... },
-    "inputMapping": {
-      "userIdFromTrigger": "{{trigger.requestBody.userId}}"
-    },
-    "config": {
-      "method": "GET",
-      "url": "https://api.example.com/users/{{userIdFromTrigger}}"
-    },
-    "aiExplanation": "This node fetches user data. It gets the user ID from the 'userIdFromTrigger' input, which is mapped from the trigger's request body."
-  }
-  \`\`\`
 
 Given the following user prompt, generate a JSON object representing the entire workflow, adhering strictly to these principles.
 User Prompt: "{{prompt}}"
