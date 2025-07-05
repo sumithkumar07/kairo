@@ -32,7 +32,7 @@ export default function SubscriptionsPage() {
   const isTrialExpired = isLoggedIn && currentTier === 'Free' && isDiamondOrTrial === false && daysRemainingInTrial === 0;
 
   const freeTierFeaturesList = [
-    `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
+    `AI Workflow Generations: ${FREE_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${FREE_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: ${FREE_TIER_FEATURES.accessToAdvancedNodes ? 'Limited' : 'Unavailable'}`,
     `AI Workflow Explanations: ${FREE_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
@@ -40,7 +40,7 @@ export default function SubscriptionsPage() {
   ];
 
   const goldTierFeaturesList = [
-    `AI Workflow Generations: ${GOLD_TIER_FEATURES.aiWorkflowGenerationsPerDay} per day`,
+    `AI Workflow Generations: ${GOLD_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${GOLD_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: Full Node Library Access`,
     `AI Workflow Explanations: ${GOLD_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
@@ -48,7 +48,7 @@ export default function SubscriptionsPage() {
   ];
 
   const diamondTierFeaturesList = [
-    `AI Workflow Generations: ${DIAMOND_TIER_FEATURES.aiWorkflowGenerationsPerDay}`,
+    `AI Workflow Generations: ${DIAMOND_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${DIAMOND_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: Full Node Library Access`,
     `AI Workflow Explanations: Full AI Explanations & Suggestions`,
