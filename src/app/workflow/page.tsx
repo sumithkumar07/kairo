@@ -9,8 +9,6 @@ import type { GenerateTestDataInput } from '@/ai/flows/generate-test-data-flow';
 import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode, getAgentConfigAction } from '@/app/actions';
 import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { saveRunRecord } from '@/services/workflow-storage-service';
-
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Trash2, X, Bot, SaveAll, File, FolderOpen, Save, Zap } from 'lucide-react';
@@ -359,8 +357,12 @@ function WorkflowPage() {
       const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
       try {
         if (currentWorkflowNameRef.current !== 'Untitled Workflow') {
-            await saveWorkflowAction(currentWorkflowNameRef.current, workflowToSave);
-            toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
+            const result = await saveWorkflowAction(currentWorkflowNameRef.current, workflowToSave);
+            if (result.success) {
+                toast({ title: 'Workflow Saved', description: `Changes to "${currentWorkflowNameRef.current}" have been saved.` });
+            } else {
+                toast({ title: 'Save Failed', description: result.message, variant: 'destructive' });
+            }
         } else {
             toast({ title: 'Workflow Saved Locally', description: 'Changes have been saved to your browser.' });
         }
@@ -391,15 +393,20 @@ function WorkflowPage() {
 
     const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
     try {
-      await saveWorkflowAction(saveAsName, workflowToSave);
-      currentWorkflowNameRef.current = saveAsName;
-      document.title = `${currentWorkflowNameRef.current} - Kairo`;
+      const result = await saveWorkflowAction(saveAsName, workflowToSave);
       
-      localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
+      if (result.success) {
+        currentWorkflowNameRef.current = saveAsName;
+        document.title = `${currentWorkflowNameRef.current} - Kairo`;
+        
+        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
 
-      toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
-      setShowSaveAsDialog(false);
-      saveHistory();
+        toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
+        setShowSaveAsDialog(false);
+        saveHistory();
+      } else {
+          toast({ title: 'Save Failed', description: result.message, variant: 'destructive' });
+      }
     } catch (e: any) {
       toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
     }
@@ -602,6 +609,16 @@ function WorkflowPage() {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
+    if (!isDiamondOrTrial) {
+        toast({
+            title: 'Diamond Feature',
+            description: `AI Test Data Generation is a Diamond feature. Please ${isLoggedIn ? 'upgrade your plan' : 'sign up or log in to start a trial'}.`,
+            variant: 'default',
+            duration: 5000,
+        });
+        return;
+    }
+    
     setIsGeneratingTestDataFor(configField);
     try {
         const fieldsToGenerate = [configField];
@@ -628,108 +645,54 @@ function WorkflowPage() {
     } finally {
       setIsGeneratingTestDataFor(null);
     }
-  }, [nodes, handleNodeConfigChange, toast]);
+  }, [nodes, handleNodeConfigChange, toast, isDiamondOrTrial, isLoggedIn]);
 
   const handleRunWorkflow = useCallback(async () => {
+    if (isWorkflowRunning) return;
+    setIsWorkflowRunning(true);
+    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
+
     if (nodes.length === 0) {
-      await handleChatSubmit("The user tried to run an empty workflow. Please ask them to add some nodes or describe what they want to build.", undefined, true);
-      return;
-    }
-  
-    const validationErrors: string[] = [];
-    nodes.forEach(node => {
-      const nodeTypeConfig = AVAILABLE_NODES_CONFIG.find(nt => nt.type === node.type);
-      if (!isConfigComplete(node, nodeTypeConfig)) {
-        validationErrors.push(`- Node "${node.name || node.id}" (Type: ${node.type}) has incomplete or invalid configuration.`);
-      }
-      if (nodeTypeConfig?.category !== 'trigger') {
-        const unconnectedInputs = nodeTypeConfig?.inputHandles?.filter(
-          handleId => !connections.some(conn => conn.targetNodeId === node.id && conn.targetHandle === handleId)
-        ) ?? [];
-  
-        if (unconnectedInputs.length > 0) {
-          validationErrors.push(`- Node "${node.name || node.id}" (Type: ${node.type}) has required input(s) that are not connected: ${unconnectedInputs.join(', ')}.`);
-        }
-      }
-    });
-  
-    if (validationErrors.length > 0) {
-      const errorSummary = validationErrors.join('\n');
-      const systemMessage = `The workflow failed pre-run validation. Please analyze these issues and help the user fix them:\n\nValidation Errors:\n${errorSummary}`;
-      await handleChatSubmit(systemMessage, undefined, true);
+      toast({ title: 'Empty Workflow', description: 'Add nodes to the canvas before running.', variant: 'default' });
       setIsWorkflowRunning(false);
       return;
     }
-  
-    setIsWorkflowRunning(true);
-    setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
-  
+
     try {
-      const result: WorkflowRunRecord = await runWorkflowFromEditor({ nodes, connections }, isSimulationMode);
-  
+      const result = await runWorkflowFromEditor({ nodes, connections, canvasOffset, zoomLevel, isSimulationMode });
+
       const updatedNodes = nodes.map(existingNode => {
         const executedNodeData = result.executionResult.finalWorkflowData[existingNode.id];
-        if (executedNodeData && executedNodeData.lastExecutionStatus) {
-          return { ...existingNode, lastExecutionStatus: executedNodeData.lastExecutionStatus };
-        }
-        return { ...existingNode, lastExecutionStatus: 'skipped' as WorkflowNode['lastExecutionStatus'] };
+        return {
+          ...existingNode,
+          lastExecutionStatus: executedNodeData?.lastExecutionStatus || 'skipped',
+        };
       });
       setNodes(updatedNodes);
       saveHistory();
 
-      const hasErrors = result.status === 'Failed';
-
-      let systemMessage = '';
-      if(hasErrors) {
-        const errorDetails = Object.entries(result.executionResult.finalWorkflowData)
-          .filter(([_, value]) => (value as any).lastExecutionStatus === 'error')
-          .map(([key, value]) => {
-            const node = nodes.find(n => n.id === key);
-            return `- Node '${node?.name || key}' (ID: ${key}, Type: ${node?.type}): ${(value as any).error_message || 'An unknown error occurred.'}`;
-          })
-          .join('\n');
-        systemMessage = `The workflow has just been executed. Result: FAILED.\n\nPlease analyze the following execution details and help me fix the workflow.\n\nExecution Errors:\n${errorDetails}`;
+      if (result.status === 'Success') {
+        toast({ title: 'Run Successful', description: 'The workflow executed successfully.' });
       } else {
-        systemMessage = `I just ran the workflow and it completed successfully! Can you confirm everything looks good?`;
-      }
-      
-      await handleChatSubmit(systemMessage, undefined, true);
-  
-    } catch (error: any) {
-      const errorMessage = error.message || 'An unknown error occurred during workflow execution.';
-      
-      if (errorMessage.includes('Monthly run limit')) {
-        toast({
-          title: 'Monthly Limit Reached',
-          description: errorMessage,
-          variant: 'destructive',
-          duration: 10000,
-        });
-        // Reset nodes to pending state as the run was blocked, not failed.
-        setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
-      } else {
-        setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'error' as WorkflowNode['lastExecutionStatus'] })));
-        saveHistory();
+        const errorNodes = updatedNodes.filter(n => n.lastExecutionStatus === 'error');
+        const errorMessage = errorNodes.length > 0 ? `Node "${errorNodes[0].name}" failed.` : 'One or more nodes failed.';
+        toast({ title: 'Run Failed', description: `${errorMessage} Check history for details.`, variant: 'destructive' });
         
-        const errorRunRecord: WorkflowRunRecord = {
-          id: crypto.randomUUID(),
-          workflowName: currentWorkflowNameRef.current,
-          timestamp: new Date().toISOString(),
-          status: 'Failed',
-          executionResult: { 
-              finalWorkflowData: nodes.reduce((acc, node) => ({...acc, [node.id]: { lastExecutionStatus: 'error', error_message: "Critical execution failure" }}), {}), 
-              serverLogs: [{timestamp: new Date().toISOString(), message: `Execution Error: ${errorMessage}`, type: 'error'}]
-          },
-          workflowSnapshot: { nodes, connections, canvasOffset, zoomLevel, isSimulationMode },
-        };
-        await saveRunRecord(errorRunRecord);
-
-        await handleChatSubmit(`The workflow execution failed with a critical error: ${errorMessage}. Please help me understand why.`, undefined, true);
+        const errorLog = result.executionResult.serverLogs.find(log => log.type === 'error')?.message || "Unknown error.";
+        await handleChatSubmit(`The workflow execution failed. Please analyze this error log and help me fix it: ${errorLog}`, undefined, true);
       }
+    } catch (error: any) {
+      toast({
+        title: 'Execution Error',
+        description: error.message || 'An unexpected error occurred.',
+        variant: 'destructive',
+        duration: 8000,
+      });
+      setNodes(prevNodes => prevNodes.map(n => ({ ...n, lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'] })));
     } finally {
       setIsWorkflowRunning(false);
     }
-  }, [nodes, connections, isSimulationMode, saveHistory, handleChatSubmit, toast, canvasOffset, zoomLevel]);
+  }, [isWorkflowRunning, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory, handleChatSubmit]);
 
   const handleDeleteNode = useCallback((nodeIdToDelete: string) => {
     setNodeToDeleteId(nodeIdToDelete);
@@ -1450,9 +1413,8 @@ function WorkflowPage() {
             zoomLevel={zoomLevel}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
-    
             onResetView={handleResetView}
-            onExplainWorkflow={handleGetWorkflowExplanation}
+            handleGetWorkflowExplanation={handleGetWorkflowExplanation}
             isExplainingWorkflow={isExplainingWorkflow}
             onUndo={handleUndo}
             canUndo={canUndo}

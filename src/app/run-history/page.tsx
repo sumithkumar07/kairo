@@ -116,6 +116,10 @@ function RunHistoryPage() {
   };
 
   const handleDiagnoseError = async (run: WorkflowRunRecord) => {
+    if (!hasProFeatures) {
+      toast({ title: 'Diamond Feature', description: 'AI Error Diagnosis is a premium feature. Please upgrade your plan.', variant: 'default' });
+      return;
+    }
     setIsDiagnosing(true);
     setDiagnosis(null);
     setActiveDetailTab('diagnosis');
@@ -430,7 +434,6 @@ function RunHistoryPage() {
                      <TooltipProvider>
                        <Tooltip>
                          <TooltipTrigger asChild>
-                           {/* The button is wrapped in a span to allow the tooltip to show even when the button is disabled */}
                            <span>
                              <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing || !hasProFeatures}>
                                {isDiagnosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4"/>}
