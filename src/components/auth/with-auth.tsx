@@ -15,7 +15,7 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
 
     useEffect(() => {
       if (!isAuthLoading && !isLoggedIn) {
-        router.push(`/login?redirect_url=${pathname}`);
+        router.push(`/login?redirect_url=${encodeURIComponent(pathname)}`);
       }
     }, [isLoggedIn, isAuthLoading, router, pathname]);
 

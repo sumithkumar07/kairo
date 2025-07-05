@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -17,15 +17,17 @@ import { MarketingFooter } from '@/components/marketing-footer';
 export default function LoginPage() {
   const { login, isAuthLoading, isSupabaseConfigured, isLoggedIn } = useSubscription();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('user@kairo.com');
   const [password, setPassword] = useState('password');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthLoading && isLoggedIn) {
-      router.push('/dashboard');
+      const redirectUrl = searchParams.get('redirect_url');
+      router.push(redirectUrl || '/dashboard');
     }
-  }, [isAuthLoading, isLoggedIn, router]);
+  }, [isAuthLoading, isLoggedIn, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
