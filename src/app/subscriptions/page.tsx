@@ -43,7 +43,7 @@ export default function SubscriptionsPage() {
     `AI Workflow Generations: ${GOLD_TIER_FEATURES.aiWorkflowGenerationsPerMonth} per month`,
     `Max Saved Workflows: ${GOLD_TIER_FEATURES.maxWorkflows}`,
     `Advanced Nodes: Full Node Library Access`,
-    `AI Workflow Explanations: ${GOLD_TIER_FEATURES.canExplainWorkflow ? 'Basic' : 'Unavailable'}`,
+    `AI Workflow Explanations: ${GOLD_TIER_FEATURES.canExplainWorkflow ? 'Enabled' : 'Unavailable'}`,
     'Email Support',
   ];
 

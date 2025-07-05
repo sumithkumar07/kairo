@@ -80,8 +80,8 @@ export function WorkflowEditorMenubar({
   const handleExplainWorkflowClick = () => {
     if (!isProOrTrial) {
       toast({
-        title: 'Pro Feature',
-        description: `Workflow explanation is available on the Pro plan. ${!isLoggedIn ? 'Sign up or log in to start a trial.' : 'Upgrade to use this feature.'}`,
+        title: 'Diamond Feature',
+        description: `Workflow explanation is a Diamond feature. Please ${!isLoggedIn ? 'sign up or log in to start a trial' : 'upgrade your plan'}.`,
         variant: 'default',
         duration: 5000,
       });
@@ -132,7 +132,7 @@ export function WorkflowEditorMenubar({
               <MenubarMenu>
                   <MenubarTrigger>Actions</MenubarTrigger>
                   <MenubarContent>
-                      <MenubarItem onClick={handleExplainWorkflowClick} disabled={!hasWorkflow || isExplainingWorkflow || !isProOrTrial}>
+                      <MenubarItem onClick={handleExplainWorkflowClick} disabled={!hasWorkflow || isExplainingWorkflow}>
                           {isExplainingWorkflow ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4"/>}
                           Explain Workflow
                       </MenubarItem>

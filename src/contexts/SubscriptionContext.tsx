@@ -59,6 +59,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       } else if (purchasedTier === 'Gold') {
         tier = 'Gold';
         activeFeatures = GOLD_TIER_FEATURES;
+        isDiamondEquivalent = true; // Gold users also get pro features
       } else if (trialEndDate && trialEndDate > new Date()) {
         tier = 'Diamond Trial';
         activeFeatures = DIAMOND_TIER_FEATURES;

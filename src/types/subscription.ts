@@ -8,8 +8,8 @@ export type SubscriptionTier = 'Free' | 'Diamond Trial' | 'Gold' | 'Diamond';
 export interface SubscriptionFeatures {
   aiWorkflowGenerationsPerMonth: number | 'unlimited';
   canExplainWorkflow: boolean;
-  accessToAdvancedNodes: boolean; // Example for future use
-  maxWorkflows: number | 'unlimited'; // Example for future use
+  accessToAdvancedNodes: boolean;
+  maxWorkflows: number | 'unlimited';
 }
 
 export interface Subscription {
@@ -27,7 +27,7 @@ export const FREE_TIER_FEATURES: SubscriptionFeatures = {
 
 export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerMonth: 50,
-  canExplainWorkflow: false,
+  canExplainWorkflow: true,
   accessToAdvancedNodes: true,
   maxWorkflows: 20,
 };
@@ -36,5 +36,5 @@ export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerMonth: 200,
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
-  maxWorkflows: 50,
+  maxWorkflows: 100,
 };

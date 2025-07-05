@@ -106,14 +106,14 @@ export function AIWorkflowBuilderPanel({
   EmptyCanvasComponent,
 }: AIWorkflowBuilderPanelProps) {
   const hasWorkflow = nodes.length > 0;
-  const { isLoggedIn, isProOrTrial } = useSubscription();
+  const { isLoggedIn, isDiamondOrTrial } = useSubscription();
 
   return (
     <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
         <WorkflowEditorMenubar
           hasWorkflow={hasWorkflow}
           isLoggedIn={isLoggedIn}
-          isProOrTrial={isProOrTrial}
+          isProOrTrial={isDiamondOrTrial}
           workflowName={workflowName}
           onNewWorkflow={onNewWorkflow}
           onOpenWorkflow={onOpenWorkflow}
