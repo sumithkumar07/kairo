@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
+import type { Session } from '@supabase/supabase-js';
 
 
 interface User {
@@ -22,8 +23,8 @@ interface SubscriptionContextType {
   user: User | null;
   trialEndDate: Date | null;
   purchasedTier: 'Gold' | 'Diamond' | null;
-  login: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
-  signup: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
   upgradeToGold: () => void;
   upgradeToDiamond: () => void;
@@ -85,7 +86,34 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [toast]);
   
-  const signup = useCallback(async (email: string, password: string, redirectUrl?: string | null) => {
+  const updateUserStateFromSession = useCallback(async (session: Session | null) => {
+    const supabaseUser = session?.user;
+    if (supabaseUser && supabaseUser.email) {
+      const profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
+      if (profile) {
+        setUser({ email: supabaseUser.email, uid: supabaseUser.id });
+        const tier = profile.subscription_tier;
+        if (tier === 'Gold' || tier === 'Diamond') {
+          setPurchasedTier(tier);
+          setTrialEndDate(null);
+        } else {
+          setPurchasedTier(null);
+          setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
+        }
+      } else {
+        console.warn(`[AUTH] Profile for user ${supabaseUser.id} not found immediately. This might be temporary.`);
+        setUser(null);
+        setTrialEndDate(null);
+        setPurchasedTier(null);
+      }
+    } else {
+      setUser(null);
+      setTrialEndDate(null);
+      setPurchasedTier(null);
+    }
+  }, []);
+
+  const signup = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
         return;
@@ -93,32 +121,34 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
-      if (!data.user) throw new Error("Signup did not return a user.");
+      
+      await updateUserStateFromSession(data.session);
 
-      // The onAuthStateChange listener will handle profile creation for the new user.
       toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
       
     } catch (error: any) {
       console.error("Signup error", error);
       toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
     }
-  }, [toast, router, showSupabaseNotConfiguredToast]);
+  }, [toast, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
 
-  const login = useCallback(async (email: string, password: string, redirectUrl?: string | null) => {
+  const login = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
         return;
     }
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      toast({ title: 'Login Successful!', description: 'Welcome back!' });
+      
+      await updateUserStateFromSession(data.session);
 
+      toast({ title: 'Login Successful!', description: 'Welcome back!' });
     } catch (error: any) {
       console.error("Login error", error);
       toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
     }
-  }, [toast, router, showSupabaseNotConfiguredToast]);
+  }, [toast, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
 
   const logout = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
@@ -181,44 +211,14 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
     setIsAuthLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const supabaseUser = session?.user;
-
-      if (supabaseUser && supabaseUser.email) {
-        // The database trigger now handles profile creation automatically.
-        // We just need to fetch it.
-        const profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
-        
-        if (profile) {
-            setUser({ email: supabaseUser.email, uid: supabaseUser.id });
-            const tier = profile.subscription_tier;
-            if (tier === 'Gold' || tier === 'Diamond') {
-                setPurchasedTier(tier);
-                setTrialEndDate(null);
-            } else {
-                setPurchasedTier(null);
-                setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
-            }
-        } else {
-          // This case might happen with replication lag on a very fresh signup.
-          // The user will be in a logged-out state until the next check. A page refresh
-          // would likely fix it. For now, we clear the local state.
-          console.warn(`[AUTH] Profile for user ${supabaseUser.id} not found immediately. This might be temporary.`);
-          setUser(null);
-          setTrialEndDate(null);
-          setPurchasedTier(null);
-        }
-      } else {
-        setUser(null);
-        setTrialEndDate(null);
-        setPurchasedTier(null);
-      }
+      await updateUserStateFromSession(session);
       setIsAuthLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [updateUserStateFromSession]);
 
   return (
     <SubscriptionContext.Provider value={{ 
