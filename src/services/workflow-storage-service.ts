@@ -405,22 +405,6 @@ export async function getUserProfile(userId: string): Promise<{ subscription_tie
     return data as { subscription_tier: SubscriptionTier, trial_end_date: string | null };
 }
 
-export async function createUserProfile(userId: string, trialEndDate: Date): Promise<void> {
-    const supabase = await getSupabaseClient();
-    const { error } = await supabase
-        .from('user_profiles')
-        .insert({
-            id: userId,
-            subscription_tier: 'Free',
-            trial_end_date: trialEndDate.toISOString(),
-        });
-        
-    if (error) {
-        console.error(`[Storage Service] Error creating user profile for ${userId}:`, error);
-        throw new Error('Could not create user profile.');
-    }
-}
-
 export async function updateUserProfileTier(userId: string, newTier: 'Gold' | 'Diamond'): Promise<void> {
     const supabase = await getSupabaseClient();
     const { error } = await supabase

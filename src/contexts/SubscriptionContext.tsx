@@ -185,17 +185,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       const supabaseUser = session?.user;
 
       if (supabaseUser && supabaseUser.email) {
-        let profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
+        // The database trigger now handles profile creation automatically.
+        // We just need to fetch it.
+        const profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
         
-        // If profile doesn't exist (e.g., first sign in), create it.
-        if (!profile) {
-            console.log(`[AUTH] No profile found for user ${supabaseUser.id}. Creating one with trial.`);
-            const newTrialEndDate = new Date();
-            newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
-            await WorkflowStorage.createUserProfile(supabaseUser.id, newTrialEndDate);
-            profile = await WorkflowStorage.getUserProfile(supabaseUser.id); // Re-fetch profile
-        }
-
         if (profile) {
             setUser({ email: supabaseUser.email, uid: supabaseUser.id });
             const tier = profile.subscription_tier;
@@ -206,6 +199,14 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
                 setPurchasedTier(null);
                 setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
             }
+        } else {
+          // This case might happen with replication lag on a very fresh signup.
+          // The user will be in a logged-out state until the next check. A page refresh
+          // would likely fix it. For now, we clear the local state.
+          console.warn(`[AUTH] Profile for user ${supabaseUser.id} not found immediately. This might be temporary.`);
+          setUser(null);
+          setTrialEndDate(null);
+          setPurchasedTier(null);
         }
       } else {
         setUser(null);

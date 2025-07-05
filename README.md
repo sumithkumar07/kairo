@@ -186,7 +186,6 @@ CREATE TABLE public.user_profiles (
     CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can insert their own profile." ON public.user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can view their own profile." ON public.user_profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile." ON public.user_profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 -- User deletion is handled by 'ON DELETE CASCADE' from the auth.users table.
@@ -201,6 +200,25 @@ BEGIN
     DO UPDATE SET run_count = workflow_runs_monthly.run_count + 1;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Add a function and trigger to automatically create a user profile on signup.
+-- This is more reliable than client-side creation.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, trial_end_date)
+  VALUES (new.id, now() + interval '15 days');
+  return new;
+END;
+$$ language plpgsql security definer;
+
+-- Drop the trigger if it exists to ensure a clean setup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create the trigger that calls the function
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
 ---
