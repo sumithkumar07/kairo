@@ -3,7 +3,7 @@
  * @fileOverview Defines types related to subscriptions and feature tiers.
  */
 
-export type SubscriptionTier = 'Free' | 'Diamond Trial' | 'Gold' | 'Diamond';
+export type SubscriptionTier = 'Free' | 'Gold Trial' | 'Gold' | 'Diamond';
 
 export interface SubscriptionFeatures {
   aiWorkflowGenerationsPerMonth: number | 'unlimited';

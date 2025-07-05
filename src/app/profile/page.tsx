@@ -16,7 +16,7 @@ function ProfilePage() {
     currentTier, 
     trialEndDate, 
     daysRemainingInTrial,
-    isDiamondOrTrial,
+    hasProFeatures,
   } = useSubscription();
 
   return (
@@ -50,13 +50,13 @@ function ProfilePage() {
               </div>
             </div>
 
-            {isDiamondOrTrial && trialEndDate && currentTier === 'Diamond Trial' && (
-              <div className="p-4 border border-accent/40 rounded-lg bg-accent/10 shadow-sm">
+            {hasProFeatures && trialEndDate && currentTier === 'Gold Trial' && (
+              <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10 shadow-sm">
                 <div className="flex items-center space-x-3">
-                  <CalendarDays className="h-5 w-5 text-accent-foreground/80 shrink-0" />
+                  <CalendarDays className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                   <div>
-                    <p className="text-xs text-accent-foreground/70">Diamond Trial Ends</p>
-                    <p className="font-medium text-accent-foreground/90">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Gold Trial Ends</p>
+                    <p className="font-medium text-amber-800 dark:text-amber-200">
                       {trialEndDate.toLocaleDateString()} ({daysRemainingInTrial !== null ? `${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining` : 'Calculating...'})
                     </p>
                   </div>

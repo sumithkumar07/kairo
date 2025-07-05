@@ -18,18 +18,18 @@ export default function SubscriptionsPage() {
     upgradeToDiamond,
     isLoggedIn, 
     daysRemainingInTrial,
-    isDiamondOrTrial
+    hasProFeatures,
   } = useSubscription();
 
   const getTierDisplayName = (tier: typeof currentTier) => {
-    if (tier === 'Diamond Trial') return 'Diamond Trial';
+    if (tier === 'Gold Trial') return 'Gold Trial';
     if (tier === 'Diamond') return 'Diamond';
     if (tier === 'Gold') return 'Gold';
     return 'Free';
   };
 
-  const isTrialActive = currentTier === 'Diamond Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0;
-  const isTrialExpired = isLoggedIn && currentTier === 'Free' && isDiamondOrTrial === false && daysRemainingInTrial === 0;
+  const isTrialActive = currentTier === 'Gold Trial' && daysRemainingInTrial !== null && daysRemainingInTrial > 0;
+  const isTrialExpired = isLoggedIn && currentTier === 'Free' && hasProFeatures === false && daysRemainingInTrial === 0;
 
   const freeTierFeaturesList = [
     `Monthly Workflow Runs: ${FREE_TIER_FEATURES.maxRunsPerMonth}`,
@@ -62,8 +62,11 @@ export default function SubscriptionsPage() {
     if (currentTier === plan) {
       return <Button className="w-full text-base py-6" disabled><ShieldCheck className="mr-2 h-4 w-4" />Your Current Plan</Button>;
     }
-    if (currentTier === 'Diamond' && plan === 'Gold') {
-       return <Button className="w-full text-base py-6" disabled><ShieldCheck className="mr-2 h-4 w-4" />Your Current Plan</Button>;
+    if (currentTier === 'Gold Trial' && plan === 'Gold') {
+        return <Button onClick={upgradeToGold} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />Activate Full Gold Plan</Button>;
+    }
+    if (currentTier === 'Gold Trial' && plan === 'Diamond') {
+        return <Button onClick={upgradeToDiamond} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Upgrade to Diamond</Button>;
     }
     if (!isLoggedIn) {
       return <Button asChild className="w-full text-base py-6"><Link href="/signup"><UserPlus className="mr-2 h-4 w-4" />Sign Up for 15-Day Trial</Link></Button>;
@@ -72,7 +75,7 @@ export default function SubscriptionsPage() {
        return <Button onClick={upgradeToGold} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />{currentTier === 'Free' ? 'Upgrade to Gold' : 'Switch to Gold'}</Button>;
     }
     if (plan === 'Diamond') {
-       return <Button onClick={upgradeToDiamond} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />{isTrialActive ? 'Activate Full Diamond Plan' : 'Upgrade to Diamond'}</Button>;
+       return <Button onClick={upgradeToDiamond} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Upgrade to Diamond</Button>;
     }
   };
   
@@ -85,8 +88,8 @@ export default function SubscriptionsPage() {
             Choose Your Kairo Plan
           </h1>
           <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            {isTrialActive ? `Your Diamond Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
-             isTrialExpired ? `Your Diamond Trial has expired. Please upgrade to continue using Pro features.` :
+            {isTrialActive ? `Your Gold Trial is active! You have ${daysRemainingInTrial} day${daysRemainingInTrial !== 1 ? 's' : ''} remaining.` :
+             isTrialExpired ? `Your trial has expired. Please upgrade to continue using Pro features.` :
              `Unlock powerful AI automation features tailored to your needs.`
             }
           </p>
@@ -96,7 +99,7 @@ export default function SubscriptionsPage() {
           <Card className="max-w-2xl mx-auto mb-10 p-6 text-center bg-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out">
             <CardTitle className="text-xl mb-2 text-primary">Get Started with Kairo</CardTitle>
             <CardDescription className="text-muted-foreground mb-4">
-              Sign up to get a 15-day free trial of our Diamond features, or log in if you already have an account.
+              Sign up to get a 15-day free trial of our Gold features, or log in if you already have an account.
             </CardDescription>
             <div className="flex gap-4 justify-center">
               <Button asChild size="lg">
@@ -141,14 +144,14 @@ export default function SubscriptionsPage() {
           {/* Gold Tier Card */}
           <Card className={cn(
             "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
-            isLoggedIn && currentTier === 'Gold' && "border-2 border-amber-500 ring-4 ring-amber-500/20"
+            isLoggedIn && (currentTier === 'Gold' || currentTier === 'Gold Trial') && "border-2 border-amber-500 ring-4 ring-amber-500/20"
           )}>
             <CardHeader className="pb-4">
                <div className="flex justify-between items-center">
                 <CardTitle className="text-2xl font-semibold text-amber-500">Gold Tier</CardTitle>
-                {isLoggedIn && currentTier === 'Gold' && 
+                {isLoggedIn && (currentTier === 'Gold' || currentTier === 'Gold Trial') && 
                   <span className="px-3 py-1 text-xs font-semibold text-amber-900 bg-amber-400 rounded-full shadow-sm">
-                    Current Plan
+                    {getTierDisplayName(currentTier)}
                   </span>}
               </div>
               <CardDescription className="text-sm pt-1">For more serious hobbyists and small projects.</CardDescription>
@@ -172,7 +175,7 @@ export default function SubscriptionsPage() {
           {/* Diamond Tier Card */}
           <Card className={cn(
             "flex flex-col shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl hover:scale-[1.02]", 
-            isDiamondOrTrial && "border-2 border-primary ring-4 ring-primary/20"
+            isLoggedIn && currentTier === 'Diamond' && "border-2 border-primary ring-4 ring-primary/20"
           )}>
             <CardHeader className="pb-4 bg-gradient-to-tr from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-t-lg relative">
               <div className="absolute top-3 right-3">
@@ -183,7 +186,7 @@ export default function SubscriptionsPage() {
               </div>
                <div className="flex justify-between items-center pt-2">
                 <CardTitle className="text-2xl font-semibold text-primary">Diamond</CardTitle>
-                {isLoggedIn && (currentTier === 'Diamond' || currentTier === 'Diamond Trial') && 
+                {isLoggedIn && currentTier === 'Diamond' && 
                   <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">
                     {getTierDisplayName(currentTier)}
                   </span>}

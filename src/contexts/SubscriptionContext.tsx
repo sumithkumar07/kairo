@@ -27,7 +27,7 @@ interface SubscriptionContextType {
   logout: () => void;
   upgradeToGold: () => void;
   upgradeToDiamond: () => void;
-  isDiamondOrTrial: boolean;
+  hasProFeatures: boolean;
   daysRemainingInTrial: number | null;
   isAuthLoading: boolean;
   isSupabaseConfigured: boolean;
@@ -48,22 +48,22 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const calculateCurrentTierAndFeatures = useCallback(() => {
     let tier: SubscriptionTier = 'Free';
     let activeFeatures = FREE_TIER_FEATURES;
-    let isDiamondEquivalent = false;
+    let hasProFeatures = false;
     let daysLeft: number | null = null;
     
     if (isLoggedIn) {
       if (purchasedTier === 'Diamond') {
         tier = 'Diamond';
         activeFeatures = DIAMOND_TIER_FEATURES;
-        isDiamondEquivalent = true;
+        hasProFeatures = true;
       } else if (purchasedTier === 'Gold') {
         tier = 'Gold';
         activeFeatures = GOLD_TIER_FEATURES;
-        isDiamondEquivalent = true; // Gold users also get pro features
+        hasProFeatures = true; 
       } else if (trialEndDate && trialEndDate > new Date()) {
-        tier = 'Diamond Trial';
-        activeFeatures = DIAMOND_TIER_FEATURES;
-        isDiamondEquivalent = true;
+        tier = 'Gold Trial';
+        activeFeatures = GOLD_TIER_FEATURES;
+        hasProFeatures = true;
         const diffTime = trialEndDate.getTime() - new Date().getTime();
         daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
       } else if (trialEndDate && trialEndDate <= new Date()) {
@@ -72,10 +72,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         daysLeft = 0;
       }
     }
-    return { tier, features: activeFeatures, isDiamondOrTrial: isDiamondEquivalent, daysRemainingInTrial: daysLeft };
+    return { tier, features: activeFeatures, hasProFeatures, daysRemainingInTrial: daysLeft };
   }, [isLoggedIn, trialEndDate, purchasedTier]);
 
-  const { tier: currentTier, features, isDiamondOrTrial, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
+  const { tier: currentTier, features, hasProFeatures, daysRemainingInTrial } = calculateCurrentTierAndFeatures();
   
   const showSupabaseNotConfiguredToast = useCallback(() => {
     toast({
@@ -96,7 +96,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       if (!data.user) throw new Error("Signup did not return a user.");
 
       // The onAuthStateChange listener will handle profile creation for the new user.
-      toast({ title: 'Signup Successful!', description: 'Your 15-day Diamond trial has started. Check your email to verify your account.' });
+      toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
       router.push(redirectUrl || '/dashboard');
 
     } catch (error: any) {
@@ -234,7 +234,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       logout, 
       upgradeToGold,
       upgradeToDiamond,
-      isDiamondOrTrial,
+      hasProFeatures,
       daysRemainingInTrial,
       isAuthLoading,
       isSupabaseConfigured,
