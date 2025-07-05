@@ -81,17 +81,8 @@ const generateTestDataFlow = ai.defineFlow(
     if (!output) {
       throw new Error("AI failed to generate test data.");
     }
-    // Ensure the generated data for JSON fields is stringified if it's an object, so it can be placed in a textarea.
-    const sanitizedData: Record<string, any> = {};
-    for (const key in output.generatedData) {
-        const value = output.generatedData[key];
-        if (typeof value === 'object' && value !== null) {
-            sanitizedData[key] = JSON.stringify(value, null, 2);
-        } else {
-            sanitizedData[key] = value;
-        }
-    }
-
-    return { generatedData: sanitizedData };
+    
+    // Return the raw output from the AI. The UI is responsible for stringifying JSON for display.
+    return output;
   }
 );
