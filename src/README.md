@@ -165,6 +165,84 @@ BEGIN
   LIMIT 1;
 END;
 $$;
+
+-- Create the table for tracking monthly run counts per user
+CREATE TABLE public.workflow_runs_monthly (
+    user_id uuid NOT NULL,
+    year_month text NOT NULL,
+    run_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT workflow_runs_monthly_pkey PRIMARY KEY (user_id, year_month),
+    CONSTRAINT workflow_runs_monthly_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.workflow_runs_monthly ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow users to manage their own run counts" ON public.workflow_runs_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Create the table for tracking monthly AI generation counts per user
+CREATE TABLE public.ai_generations_monthly (
+    user_id uuid NOT NULL,
+    year_month text NOT NULL,
+    generation_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ai_generations_monthly_pkey PRIMARY KEY (user_id, year_month),
+    CONSTRAINT ai_generations_monthly_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.ai_generations_monthly ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow users to manage their own generation counts" ON public.ai_generations_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+
+-- Create the table for storing user subscription info
+CREATE TABLE public.user_profiles (
+    id uuid NOT NULL,
+    subscription_tier text DEFAULT 'Free'::text NOT NULL,
+    trial_end_date timestamp with time zone,
+    CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
+    CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own profile." ON public.user_profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update their own profile." ON public.user_profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+-- User deletion is handled by 'ON DELETE CASCADE' from the auth.users table.
+
+-- Create an RPC function to atomically increment the monthly run count
+CREATE OR REPLACE FUNCTION increment_run_count(p_user_id uuid)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO public.workflow_runs_monthly (user_id, year_month, run_count)
+    VALUES (p_user_id, to_char(CURRENT_DATE, 'YYYY-MM'), 1)
+    ON CONFLICT (user_id, year_month)
+    DO UPDATE SET run_count = workflow_runs_monthly.run_count + 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create an RPC function to atomically increment the monthly AI generation count
+CREATE OR REPLACE FUNCTION increment_generation_count(p_user_id uuid)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO public.ai_generations_monthly (user_id, year_month, generation_count)
+    VALUES (p_user_id, to_char(CURRENT_DATE, 'YYYY-MM'), 1)
+    ON CONFLICT (user_id, year_month)
+    DO UPDATE SET generation_count = ai_generations_monthly.generation_count + 1;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Add a function and trigger to automatically create a user profile on signup.
+-- This is more reliable than client-side creation.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, trial_end_date)
+  VALUES (new.id, now() + interval '15 days');
+  return new;
+END;
+$$ language plpgsql security definer;
+
+-- Drop the trigger if it exists to ensure a clean setup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Create the trigger that calls the function
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
 ---
@@ -227,4 +305,3 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 *   **Expanded Node Library**: Continuously add new integration and utility nodes.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
 *   **Team Management Features**: Introduce roles, permissions, and shared workspaces for collaborative projects.
-

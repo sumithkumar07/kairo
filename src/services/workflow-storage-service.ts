@@ -327,6 +327,36 @@ export async function incrementMonthlyRunCount(userId: string): Promise<void> {
     }
 }
 
+export async function getMonthlyGenerationCount(userId: string): Promise<number> {
+    const supabase = await getSupabaseClient();
+    const yearMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+
+    const { data, error } = await supabase
+        .from('ai_generations_monthly')
+        .select('generation_count')
+        .eq('user_id', userId)
+        .eq('year_month', yearMonth)
+        .single();
+        
+    if (error) {
+        if (error.code === 'PGRST116') return 0; // No record found for this month, which is fine.
+        console.error('[Storage Service] Error getting monthly generation count:', error);
+        return 0; // Fail safe
+    }
+
+    return data.generation_count;
+}
+
+export async function incrementMonthlyGenerationCount(userId: string): Promise<void> {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.rpc('increment_generation_count', { p_user_id: userId });
+
+    if (error) {
+        console.error('[Storage Service] Error incrementing generation count:', error);
+    }
+}
+
+
 
 // ========================
 // MCP Command History

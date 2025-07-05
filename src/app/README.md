@@ -177,6 +177,18 @@ CREATE TABLE public.workflow_runs_monthly (
 ALTER TABLE public.workflow_runs_monthly ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to manage their own run counts" ON public.workflow_runs_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- Create the table for tracking monthly AI generation counts per user
+CREATE TABLE public.ai_generations_monthly (
+    user_id uuid NOT NULL,
+    year_month text NOT NULL,
+    generation_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT ai_generations_monthly_pkey PRIMARY KEY (user_id, year_month),
+    CONSTRAINT ai_generations_monthly_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.ai_generations_monthly ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow users to manage their own generation counts" ON public.ai_generations_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+
 -- Create the table for storing user subscription info
 CREATE TABLE public.user_profiles (
     id uuid NOT NULL,
@@ -200,6 +212,18 @@ BEGIN
     DO UPDATE SET run_count = workflow_runs_monthly.run_count + 1;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Create an RPC function to atomically increment the monthly AI generation count
+CREATE OR REPLACE FUNCTION increment_generation_count(p_user_id uuid)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO public.ai_generations_monthly (user_id, year_month, generation_count)
+    VALUES (p_user_id, to_char(CURRENT_DATE, 'YYYY-MM'), 1)
+    ON CONFLICT (user_id, year_month)
+    DO UPDATE SET generation_count = ai_generations_monthly.generation_count + 1;
+END;
+$$ LANGUAGE plpgsql;
+
 
 -- Add a function and trigger to automatically create a user profile on signup.
 -- This is more reliable than client-side creation.
