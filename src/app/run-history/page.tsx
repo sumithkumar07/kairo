@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +34,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 
-const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; className?: string; }) => {
+const JsonSyntaxHighlighter = React.memo(({ jsonString, className }: { jsonString: string; className?: string; }) => {
   try {
     const obj = JSON.parse(jsonString);
     const highlighted = JSON.stringify(obj, null, 2).replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
@@ -48,7 +48,8 @@ const JsonSyntaxHighlighter = ({ jsonString, className }: { jsonString: string; 
   } catch {
     return <pre className={cn("text-xs p-2 text-destructive", className)}>{jsonString}</pre>;
   }
-};
+});
+JsonSyntaxHighlighter.displayName = 'JsonSyntaxHighlighter';
 
 function RunHistoryPage() {
   const [runHistory, setRunHistory] = useState<WorkflowRunRecord[]>([]);

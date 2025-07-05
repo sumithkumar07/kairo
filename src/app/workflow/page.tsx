@@ -1138,13 +1138,15 @@ function WorkflowPage() {
     saveHistory();
   }, [saveHistory]);
 
-  const handleNodeClick = (nodeId: string) => {
+  const handleNodeClick = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
     setSelectedConnectionId(null);
-    if (isConnecting) handleCancelConnection();
+    if (isConnecting) {
+      handleCancelConnection();
+    }
     setWorkflowExplanation(null);
     setInitialCanvasSuggestion(null);
-  };
+  }, [isConnecting, handleCancelConnection]);
 
   const handleStartConnection = useCallback((startNodeId: string, startHandleId: string, startHandlePos: { x: number, y: number }) => {
     setIsConnecting(true);
