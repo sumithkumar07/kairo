@@ -1452,7 +1452,7 @@ function WorkflowPage() {
             onZoomOut={handleZoomOut}
     
             onResetView={handleResetView}
-            onExplainWorkflow={handleExplainWorkflow}
+            onExplainWorkflow={handleGetWorkflowExplanation}
             isExplainingWorkflow={isExplainingWorkflow}
             onUndo={handleUndo}
             canUndo={canUndo}
