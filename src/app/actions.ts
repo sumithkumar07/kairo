@@ -90,24 +90,39 @@ export async function getUsageStatsAction(): Promise<{
   savedWorkflowsLimit: number | 'unlimited';
   currentTier: SubscriptionTier;
 }> {
-    const userId = await getUserIdOrThrow();
-    const { tier, features } = await getUserFeatures(userId);
-    
-    const [monthlyRuns, monthlyGenerations, savedWorkflows] = await Promise.all([
-        WorkflowStorage.getMonthlyRunCount(userId),
-        WorkflowStorage.getMonthlyGenerationCount(userId),
-        WorkflowStorage.getWorkflowCountForUser(userId)
-    ]);
+    try {
+        const userId = await getUserIdOrThrow();
+        const { tier, features } = await getUserFeatures(userId);
+        
+        const [monthlyRuns, monthlyGenerations, savedWorkflows] = await Promise.all([
+            WorkflowStorage.getMonthlyRunCount(userId),
+            WorkflowStorage.getMonthlyGenerationCount(userId),
+            WorkflowStorage.getWorkflowCountForUser(userId)
+        ]);
 
-    return {
-        monthlyRunsUsed: monthlyRuns,
-        monthlyRunsLimit: features.maxRunsPerMonth,
-        monthlyGenerationsUsed: monthlyGenerations,
-        monthlyGenerationsLimit: features.aiWorkflowGenerationsPerMonth,
-        savedWorkflowsCount: savedWorkflows,
-        savedWorkflowsLimit: features.maxWorkflows,
-        currentTier: tier
-    };
+        return {
+            monthlyRunsUsed: monthlyRuns,
+            monthlyRunsLimit: features.maxRunsPerMonth,
+            monthlyGenerationsUsed: monthlyGenerations,
+            monthlyGenerationsLimit: features.aiWorkflowGenerationsPerMonth,
+            savedWorkflowsCount: savedWorkflows,
+            savedWorkflowsLimit: features.maxWorkflows,
+            currentTier: tier
+        };
+    } catch (error) {
+        // This can happen briefly during session initialization after login.
+        // Instead of crashing the page, return default stats.
+        console.warn(`[getUsageStatsAction] Could not get user, returning default stats. Error: ${(error as Error).message}`);
+        return {
+            monthlyRunsUsed: 0,
+            monthlyRunsLimit: FREE_TIER_FEATURES.maxRunsPerMonth,
+            monthlyGenerationsUsed: 0,
+            monthlyGenerationsLimit: FREE_TIER_FEATURES.aiWorkflowGenerationsPerMonth,
+            savedWorkflowsCount: 0,
+            savedWorkflowsLimit: FREE_TIER_FEATURES.maxWorkflows,
+            currentTier: 'Free',
+        }
+    }
 }
 
 
