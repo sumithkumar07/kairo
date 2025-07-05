@@ -5,7 +5,7 @@
  */
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential } from '@/types/workflow';
+import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential, SubscriptionTier } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 import { encrypt, decrypt } from './encryption-service';
 
@@ -267,6 +267,36 @@ export async function clearRunHistory(): Promise<void> {
   }
 }
 
+export async function getMonthlyRunCount(userId: string): Promise<number> {
+    const supabase = await getSupabaseClient();
+    const yearMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+
+    const { data, error } = await supabase
+        .from('workflow_runs_monthly')
+        .select('run_count')
+        .eq('user_id', userId)
+        .eq('year_month', yearMonth)
+        .single();
+        
+    if (error) {
+        if (error.code === 'PGRST116') return 0; // No record found for this month, which is fine.
+        console.error('[Storage Service] Error getting monthly run count:', error);
+        return 0; // Fail safe
+    }
+
+    return data.run_count;
+}
+
+export async function incrementMonthlyRunCount(userId: string): Promise<void> {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.rpc('increment_run_count', { p_user_id: userId });
+
+    if (error) {
+        console.error('[Storage Service] Error incrementing run count:', error);
+    }
+}
+
+
 // ========================
 // MCP Command History
 // ========================
@@ -311,7 +341,7 @@ export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id'>): Prom
 }
 
 // ========================
-// Agent Configuration
+// Agent & User Profile
 // ========================
 
 export async function getAgentConfig(): Promise<AgentConfig> {
@@ -354,6 +384,53 @@ export async function saveAgentConfig(config: AgentConfig): Promise<void> {
     if (error) {
         console.error(`[Storage Service] Error saving agent config:`, error);
         throw new Error(`Could not save agent config: ${error.message}`);
+    }
+}
+
+export async function getUserProfile(userId: string): Promise<{ subscription_tier: SubscriptionTier, trial_end_date: string | null } | null> {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier, trial_end_date')
+        .eq('id', userId)
+        .single();
+        
+    if (error) {
+        if (error.code !== 'PGRST116') {
+            console.error(`[Storage Service] Error getting user profile for ${userId}:`, error);
+        }
+        return null;
+    }
+    
+    return data as { subscription_tier: SubscriptionTier, trial_end_date: string | null };
+}
+
+export async function createUserProfile(userId: string, trialEndDate: Date): Promise<void> {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase
+        .from('user_profiles')
+        .insert({
+            id: userId,
+            subscription_tier: 'Free',
+            trial_end_date: trialEndDate.toISOString(),
+        });
+        
+    if (error) {
+        console.error(`[Storage Service] Error creating user profile for ${userId}:`, error);
+        throw new Error('Could not create user profile.');
+    }
+}
+
+export async function updateUserProfileTier(userId: string, newTier: 'Gold' | 'Diamond'): Promise<void> {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase
+        .from('user_profiles')
+        .update({ subscription_tier: newTier, trial_end_date: null })
+        .eq('id', userId);
+
+    if (error) {
+        console.error(`[Storage Service] Error updating user profile tier for ${userId}:`, error);
+        throw new Error('Could not update user profile.');
     }
 }
 

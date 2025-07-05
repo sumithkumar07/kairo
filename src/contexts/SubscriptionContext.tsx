@@ -7,7 +7,7 @@ import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import * as WorkflowStorage from '@/services/workflow-storage-service';
 
 
 interface User {
@@ -95,18 +95,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       if (!data.user) throw new Error("Signup did not return a user.");
 
-      const newTrialEndDate = new Date();
-      newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
-      
-      localStorage.setItem(`kairo_trialEnd_${data.user.id}`, newTrialEndDate.toISOString());
-      localStorage.removeItem(`kairo_purchasedTier_${data.user.id}`);
-      
-      setUser({ email: data.user.email!, uid: data.user.id });
-      setTrialEndDate(newTrialEndDate);
-      setPurchasedTier(null);
-
+      // The onAuthStateChange listener will handle profile creation for the new user.
       toast({ title: 'Signup Successful!', description: 'Your 15-day Diamond trial has started. Check your email to verify your account.' });
       router.push(redirectUrl || '/dashboard');
+
     } catch (error: any) {
       console.error("Signup error", error);
       toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
@@ -143,30 +135,42 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [toast, router, showSupabaseNotConfiguredToast]);
 
-  const upgradeToGold = useCallback(() => {
-    if (!user || !isSupabaseConfigured) {
-      showSupabaseNotConfiguredToast();
-      router.push('/login');
-      return;
+  const upgradeToGold = useCallback(async () => {
+    if (!user) {
+        router.push('/login');
+        return;
     }
-    setPurchasedTier('Gold');
-    setTrialEndDate(null);
-    localStorage.setItem(`kairo_purchasedTier_${user.uid}`, 'Gold');
-    localStorage.removeItem(`kairo_trialEnd_${user.uid}`);
-    toast({ title: 'Upgrade Successful!', description: 'You now have access to Gold features.' });
+    if (!isSupabaseConfigured) {
+        showSupabaseNotConfiguredToast();
+        return;
+    }
+    try {
+        await WorkflowStorage.updateUserProfileTier(user.uid, 'Gold');
+        setPurchasedTier('Gold');
+        setTrialEndDate(null);
+        toast({ title: 'Upgrade Successful!', description: 'You now have access to Gold features.' });
+    } catch (e: any) {
+        toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
+    }
   }, [user, toast, router, showSupabaseNotConfiguredToast]);
 
-  const upgradeToDiamond = useCallback(() => {
-    if (!user || !isSupabaseConfigured) {
-      showSupabaseNotConfiguredToast();
-      router.push('/login');
-      return;
+  const upgradeToDiamond = useCallback(async () => {
+    if (!user) {
+        router.push('/login');
+        return;
     }
-    setPurchasedTier('Diamond');
-    setTrialEndDate(null);
-    localStorage.setItem(`kairo_purchasedTier_${user.uid}`, 'Diamond');
-    localStorage.removeItem(`kairo_trialEnd_${user.uid}`);
-    toast({ title: 'Upgrade Successful!', description: 'You now have full access to Diamond features.' });
+     if (!isSupabaseConfigured) {
+        showSupabaseNotConfiguredToast();
+        return;
+    }
+    try {
+        await WorkflowStorage.updateUserProfileTier(user.uid, 'Diamond');
+        setPurchasedTier('Diamond');
+        setTrialEndDate(null);
+        toast({ title: 'Upgrade Successful!', description: 'You now have full access to Diamond features.' });
+    } catch (e: any) {
+        toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
+    }
   }, [user, toast, router, showSupabaseNotConfiguredToast]);
 
 
@@ -177,31 +181,31 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setIsAuthLoading(true);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const supabaseUser = session?.user;
-      if (supabaseUser && supabaseUser.email) {
-        const storedPurchasedTier = localStorage.getItem(`kairo_purchasedTier_${supabaseUser.id}`);
-        const storedTrialEnd = localStorage.getItem(`kairo_trialEnd_${supabaseUser.id}`);
-        
-        setUser({ email: supabaseUser.email, uid: supabaseUser.id });
 
-        if (storedPurchasedTier === 'Gold' || storedPurchasedTier === 'Diamond') {
-          setPurchasedTier(storedPurchasedTier as 'Gold' | 'Diamond');
-          setTrialEndDate(null);
-        } else if (storedTrialEnd) {
-          setTrialEndDate(new Date(storedTrialEnd));
-          setPurchasedTier(null);
-        } else {
-          // If a user logs in for the first time without a trial date, start one.
-          if(event === "SIGNED_IN" && !storedTrialEnd) {
-              const newTrialEndDate = new Date();
-              newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
-              localStorage.setItem(`kairo_trialEnd_${supabaseUser.id}`, newTrialEndDate.toISOString());
-              setTrialEndDate(newTrialEndDate);
-          } else {
-             setTrialEndDate(null);
-          }
-          setPurchasedTier(null);
+      if (supabaseUser && supabaseUser.email) {
+        let profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
+        
+        // If profile doesn't exist (e.g., first sign in), create it.
+        if (!profile) {
+            console.log(`[AUTH] No profile found for user ${supabaseUser.id}. Creating one with trial.`);
+            const newTrialEndDate = new Date();
+            newTrialEndDate.setDate(newTrialEndDate.getDate() + 15);
+            await WorkflowStorage.createUserProfile(supabaseUser.id, newTrialEndDate);
+            profile = await WorkflowStorage.getUserProfile(supabaseUser.id); // Re-fetch profile
+        }
+
+        if (profile) {
+            setUser({ email: supabaseUser.email, uid: supabaseUser.id });
+            const tier = profile.subscription_tier;
+            if (tier === 'Gold' || tier === 'Diamond') {
+                setPurchasedTier(tier);
+                setTrialEndDate(null);
+            } else {
+                setPurchasedTier(null);
+                setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
+            }
         }
       } else {
         setUser(null);

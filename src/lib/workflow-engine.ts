@@ -9,6 +9,8 @@ import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { format, parseISO } from 'date-fns';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
 import { google } from 'googleapis';
+import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
+import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 
 
 // Initialize the PostgreSQL connection pool at the module level
@@ -1054,37 +1056,72 @@ function getExecutionOrder(nodes: WorkflowNode[], connections: WorkflowConnectio
 
 
 export async function executeWorkflow(workflow: Workflow, isSimulationMode: boolean, userId: string, initialData?: Record<string, any>): Promise<WorkflowExecutionResult> {
-  const serverLogs: ServerLogOutput[] = [];
-  const initialWorkflowData: Record<string, any> = {};
+  
+    // New Rate Limiting Logic
+    if (!isSimulationMode) { // Only rate-limit live runs
+        const profile = await WorkflowStorage.getUserProfile(userId);
+        let tier: SubscriptionTier = 'Free';
+        if (profile) {
+            if (profile.subscription_tier === 'Gold' || profile.subscription_tier === 'Diamond') {
+                tier = profile.subscription_tier;
+            } else if (profile.trial_end_date && new Date(profile.trial_end_date) > new Date()) {
+                tier = 'Diamond Trial';
+            }
+        }
+        
+        let features: SubscriptionFeatures;
+        switch(tier) {
+            case 'Gold': features = GOLD_TIER_FEATURES; break;
+            case 'Diamond':
+            case 'Diamond Trial': features = DIAMOND_TIER_FEATURES; break;
+            default: features = FREE_TIER_FEATURES;
+        }
 
-  // Pre-populate with initial trigger data if available
-  if (initialData) {
-    for (const nodeId in initialData) {
-      if (workflow.nodes.some(n => n.id === nodeId)) {
-        initialWorkflowData[nodeId] = initialData[nodeId];
-      }
+        if (features.maxRunsPerMonth !== 'unlimited') {
+            const currentRuns = await WorkflowStorage.getMonthlyRunCount(userId);
+            if (currentRuns >= features.maxRunsPerMonth) {
+                // Do not increment the count if the run is blocked
+                throw new Error(`Monthly run limit of ${features.maxRunsPerMonth} has been reached for the ${tier} plan. Please upgrade your plan to continue.`);
+            }
+        }
     }
-  }
 
-  // Pre-populate all nodes with pending status
-  workflow.nodes.forEach(node => {
-    if (!initialWorkflowData[node.id]) {
-      initialWorkflowData[node.id] = { lastExecutionStatus: 'pending' };
-    } else {
-      initialWorkflowData[node.id].lastExecutionStatus = 'pending';
+    try {
+        const serverLogs: ServerLogOutput[] = [];
+        const initialWorkflowData: Record<string, any> = {};
+
+        // Pre-populate with initial trigger data if available
+        if (initialData) {
+            for (const nodeId in initialData) {
+                if (workflow.nodes.some(n => n.id === nodeId)) {
+                    initialWorkflowData[nodeId] = initialData[nodeId];
+                }
+            }
+        }
+
+        // Pre-populate all nodes with pending status
+        workflow.nodes.forEach(node => {
+            if (!initialWorkflowData[node.id]) {
+                initialWorkflowData[node.id] = { lastExecutionStatus: 'pending' };
+            } else {
+                initialWorkflowData[node.id].lastExecutionStatus = 'pending';
+            }
+        });
+
+        const result = await executeFlowInternal(
+            "main",
+            workflow.nodes,
+            workflow.connections,
+            initialWorkflowData,
+            serverLogs,
+            isSimulationMode,
+            userId
+        );
+
+        return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
+    } finally {
+        if (!isSimulationMode) {
+            await WorkflowStorage.incrementMonthlyRunCount(userId);
+        }
     }
-  });
-
-
-  const result = await executeFlowInternal(
-    "main",
-    workflow.nodes,
-    workflow.connections,
-    initialWorkflowData,
-    serverLogs,
-    isSimulationMode,
-    userId
-  );
-
-  return { serverLogs: result.serverLogs, finalWorkflowData: result.finalWorkflowData };
 }

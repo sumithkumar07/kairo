@@ -165,6 +165,39 @@ BEGIN
   LIMIT 1;
 END;
 $$;
+
+-- Create the table for tracking monthly run counts per user
+CREATE TABLE public.workflow_runs_monthly (
+    user_id uuid NOT NULL,
+    year_month text NOT NULL,
+    run_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT workflow_runs_monthly_pkey PRIMARY KEY (user_id, year_month),
+    CONSTRAINT workflow_runs_monthly_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.workflow_runs_monthly ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow users to manage their own run counts" ON public.workflow_runs_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Create the table for storing user subscription info
+CREATE TABLE public.user_profiles (
+    id uuid NOT NULL,
+    subscription_tier text DEFAULT 'Free'::text NOT NULL,
+    trial_end_date timestamp with time zone,
+    CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
+    CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+);
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow users to manage their own profile" ON public.user_profiles FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+-- Create an RPC function to atomically increment the monthly run count
+CREATE OR REPLACE FUNCTION increment_run_count(p_user_id uuid)
+RETURNS void AS $$
+BEGIN
+    INSERT INTO public.workflow_runs_monthly (user_id, year_month, run_count)
+    VALUES (p_user_id, to_char(CURRENT_DATE, 'YYYY-MM'), 1)
+    ON CONFLICT (user_id, year_month)
+    DO UPDATE SET run_count = workflow_runs_monthly.run_count + 1;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ---
@@ -227,4 +260,3 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 *   **Expanded Node Library**: Continuously add new integration and utility nodes.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
 *   **Team Management Features**: Introduce roles, permissions, and shared workspaces for collaborative projects.
-

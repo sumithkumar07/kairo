@@ -1,6 +1,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import type { Tool as GenkitTool } from 'genkit';
+import type { SubscriptionTier } from './subscription';
 
 export interface RetryConfig {
   attempts: number; 
