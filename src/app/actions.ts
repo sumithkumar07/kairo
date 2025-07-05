@@ -81,6 +81,35 @@ async function getUserFeatures(userId: string): Promise<{ tier: SubscriptionTier
     return { tier, features };
 }
 
+export async function getUsageStatsAction(): Promise<{
+  monthlyRunsUsed: number;
+  monthlyRunsLimit: number | 'unlimited';
+  monthlyGenerationsUsed: number;
+  monthlyGenerationsLimit: number | 'unlimited';
+  savedWorkflowsCount: number;
+  savedWorkflowsLimit: number | 'unlimited';
+  currentTier: SubscriptionTier;
+}> {
+    const userId = await getUserIdOrThrow();
+    const { tier, features } = await getUserFeatures(userId);
+    
+    const [monthlyRuns, monthlyGenerations, savedWorkflows] = await Promise.all([
+        WorkflowStorage.getMonthlyRunCount(userId),
+        WorkflowStorage.getMonthlyGenerationCount(userId),
+        WorkflowStorage.getWorkflowCountForUser(userId)
+    ]);
+
+    return {
+        monthlyRunsUsed: monthlyRuns,
+        monthlyRunsLimit: features.maxRunsPerMonth,
+        monthlyGenerationsUsed: monthlyGenerations,
+        monthlyGenerationsLimit: features.aiWorkflowGenerationsPerMonth,
+        savedWorkflowsCount: savedWorkflows,
+        savedWorkflowsLimit: features.maxWorkflows,
+        currentTier: tier
+    };
+}
+
 
 export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRecord> {
   const userId = await getUserIdOrThrow();

@@ -6,24 +6,33 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { withAuth } from '@/components/auth/with-auth';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { ArrowRight, CheckCircle2, FilePlus, History, Loader2, Workflow, XCircle, Star, BarChart3 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FilePlus, History, Loader2, Workflow, XCircle, Star, BarChart3, BrainCircuit } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { SavedWorkflowMetadata, WorkflowRunRecord } from '@/types/workflow';
-import { getRunHistoryAction, listWorkflowsAction } from '@/app/actions';
+import { getRunHistoryAction, listWorkflowsAction, getUsageStatsAction } from '@/app/actions';
 import { formatDistanceToNow, subDays, startOfDay, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Bar, BarChart, CartesianGrid, XAxis, Area, AreaChart, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { Progress } from '@/components/ui/progress';
+import type { SubscriptionTier } from '@/types/subscription';
 
 interface DashboardStats {
   totalRuns: number;
   successfulRuns: number;
   failedRuns: number;
   successRate: number;
-  totalWorkflows: number;
   dailyRuns: { date: string; successful: number; failed: number }[];
   runStatusData: { name: string; value: number; fill: string }[];
+  
+  monthlyRunsUsed: number;
+  monthlyRunsLimit: number | 'unlimited';
+  monthlyGenerationsUsed: number;
+  monthlyGenerationsLimit: number | 'unlimited';
+  savedWorkflowsCount: number;
+  savedWorkflowsLimit: number | 'unlimited';
+  currentTier: SubscriptionTier;
 }
 
 const areaChartConfig = {
@@ -38,7 +47,7 @@ const barChartConfig = {
 } satisfies ChartConfig;
 
 function DashboardPage() {
-    const { user } = useSubscription();
+    const { user, currentTier: tierFromContext } = useSubscription();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [recentRuns, setRecentRuns] = useState<WorkflowRunRecord[]>([]);
     const [recentWorkflows, setRecentWorkflows] = useState<SavedWorkflowMetadata[]>([]);
@@ -49,9 +58,10 @@ function DashboardPage() {
         async function loadDashboardData() {
             setIsLoading(true);
             try {
-                const [runs, workflows] = await Promise.all([
+                const [runs, workflows, usageStats] = await Promise.all([
                     getRunHistoryAction(),
                     listWorkflowsAction(),
+                    getUsageStatsAction(),
                 ]);
 
                 const userWorkflows = workflows.filter(wf => wf.type === 'user');
@@ -85,9 +95,9 @@ function DashboardPage() {
                     successfulRuns,
                     failedRuns,
                     successRate,
-                    totalWorkflows: userWorkflows.length,
                     dailyRuns,
                     runStatusData,
+                    ...usageStats
                 });
 
                 setRecentRuns(runs.slice(0, 5));
@@ -124,6 +134,15 @@ function DashboardPage() {
         return <Icon className={cn("h-4 w-4 shrink-0", color)} title={status}/>;
     };
 
+    const formatLimit = (limit: number | 'unlimited') => {
+        return limit === 'unlimited' ? 'Unlimited' : limit;
+    }
+    
+    const calculateProgress = (used: number, limit: number | 'unlimited') => {
+        if (limit === 'unlimited' || limit === 0) return 0;
+        return (used / limit) * 100;
+    }
+
     if (isLoading) {
         return (
             <AppLayout>
@@ -144,47 +163,65 @@ function DashboardPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                         Welcome back, {user?.email.split('@')[0]}!
                     </h1>
-                    <p className="text-muted-foreground">Here's a summary of your automation activities.</p>
+                    <p className="text-muted-foreground">You're on the <span className="font-semibold text-primary">{stats?.currentTier ?? tierFromContext}</span> plan. Here's a summary of your activities.</p>
                 </header>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Runs</CardTitle>
+                            <CardTitle className="text-sm font-medium">Monthly Runs</CardTitle>
                             <History className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats?.totalRuns ?? 0}</div>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Successful Runs</CardTitle>
-                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats?.successfulRuns ?? 0}</div>
+                            <div className="text-2xl font-bold">{stats?.monthlyRunsUsed ?? 0}</div>
                             <p className="text-xs text-muted-foreground">
-                                {stats?.successRate.toFixed(1) ?? '0.0'}% success rate
+                                / {formatLimit(stats?.monthlyRunsLimit ?? 0)} used this month
                             </p>
+                            {stats && stats.monthlyRunsLimit !== 'unlimited' && (
+                                <Progress value={calculateProgress(stats.monthlyRunsUsed, stats.monthlyRunsLimit)} className="mt-2 h-2" />
+                            )}
                         </CardContent>
                     </Card>
                      <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Failed Runs</CardTitle>
-                            <XCircle className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Saved Workflows</CardTitle>
+                            <Workflow className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                             <div className="text-2xl font-bold">{stats?.failedRuns ?? 0}</div>
+                            <div className="text-2xl font-bold">{stats?.savedWorkflowsCount ?? 0}</div>
+                            <p className="text-xs text-muted-foreground">
+                                / {formatLimit(stats?.savedWorkflowsLimit ?? 0)} limit
+                            </p>
+                             {stats && stats.savedWorkflowsLimit !== 'unlimited' && (
+                                <Progress value={calculateProgress(stats.savedWorkflowsCount, stats.savedWorkflowsLimit)} className="mt-2 h-2" />
+                            )}
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">AI Generations</CardTitle>
+                            <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                             <div className="text-2xl font-bold">{stats?.monthlyGenerationsUsed ?? 0}</div>
+                             <p className="text-xs text-muted-foreground">
+                                / {formatLimit(stats?.monthlyGenerationsLimit ?? 0)} used this month
+                            </p>
+                            {stats && stats.monthlyGenerationsLimit !== 'unlimited' && (
+                                <Progress value={calculateProgress(stats.monthlyGenerationsUsed, stats.monthlyGenerationsLimit)} className="mt-2 h-2" />
+                            )}
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">My Workflows</CardTitle>
-                            <Workflow className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                             <div className="text-2xl font-bold">{stats?.totalWorkflows ?? 0}</div>
+                             <div className="text-2xl font-bold">{stats?.successRate.toFixed(1) ?? '0.0'}%</div>
+                              <p className="text-xs text-muted-foreground">
+                                All-time workflow success rate
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
