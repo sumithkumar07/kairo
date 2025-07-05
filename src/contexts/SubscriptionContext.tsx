@@ -6,7 +6,8 @@ import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscriptio
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -47,6 +48,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const { toast } = useToast();
   const router = useRouter();
+
+  // Create the supabase client instance once, scoped to this provider.
+  // This uses the recommended helper for client components.
+  const [supabase] = useState(() => isSupabaseConfigured ? createClientComponentClient() : null);
 
   const isLoggedIn = !!user;
 
@@ -110,7 +115,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signup = useCallback(async (email: string, password: string) => {
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
         showSupabaseNotConfiguredToast();
         throw new Error('Supabase not configured');
     }
@@ -120,11 +125,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         throw error;
     }
     toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
-    // Auth state change will handle the rest
-  }, [toast, showSupabaseNotConfiguredToast]);
+  }, [supabase, toast, showSupabaseNotConfiguredToast]);
 
   const login = useCallback(async (email: string, password: string) => {
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
         showSupabaseNotConfiguredToast();
         throw new Error('Supabase not configured');
     }
@@ -134,61 +138,59 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
     toast({ title: 'Login Successful!', description: 'Welcome back!' });
-    // Auth state change will handle the rest
-  }, [toast, showSupabaseNotConfiguredToast]);
+  }, [supabase, toast, showSupabaseNotConfiguredToast]);
 
   const logout = useCallback(async () => {
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
         showSupabaseNotConfiguredToast();
         return;
     }
     await supabase.auth.signOut();
     router.push('/');
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-  }, [toast, router, showSupabaseNotConfiguredToast]);
+  }, [supabase, toast, router, showSupabaseNotConfiguredToast]);
 
   const upgradeToGold = useCallback(async () => {
     if (!user) {
         router.push('/login');
         return;
     }
-    if (!isSupabaseConfigured) {
+    if (!supabase) {
         showSupabaseNotConfiguredToast();
         return;
     }
     try {
         await WorkflowStorage.updateUserProfileTier(user.uid, 'Gold');
-        // Manually trigger a state refresh
-        const { data: { session } } = await supabase!.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         await updateUserStateFromSession(session);
         toast({ title: 'Upgrade Successful!', description: 'You now have access to Gold features.' });
     } catch (e: any) {
         toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
     }
-  }, [user, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
+  }, [user, supabase, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
 
   const upgradeToDiamond = useCallback(async () => {
     if (!user) {
         router.push('/login');
         return;
     }
-     if (!isSupabaseConfigured) {
+     if (!supabase) {
         showSupabaseNotConfiguredToast();
         return;
     }
     try {
         await WorkflowStorage.updateUserProfileTier(user.uid, 'Diamond');
-        const { data: { session } } = await supabase!.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         await updateUserStateFromSession(session);
         toast({ title: 'Upgrade Successful!', description: 'You now have full access to Diamond features.' });
     } catch (e: any) {
         toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
     }
-  }, [user, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
+  }, [user, supabase, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
 
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
+    if (!supabase) {
       setIsAuthLoading(false);
       return;
     }
@@ -203,7 +205,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [updateUserStateFromSession, isSupabaseConfigured]);
+  }, [updateUserStateFromSession, supabase]);
 
   return (
     <SubscriptionContext.Provider value={{ 
