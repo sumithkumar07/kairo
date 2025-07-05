@@ -2,14 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   assistantChat,
-  type AssistantChatInput,
   generateWorkflow,
+  type AssistantChatInput
 } from '@/app/actions';
 import { z } from 'zod';
-import { getAgentConfig, saveMcpCommand } from '@/services/workflow-storage-service';
+import { getAgentConfig, saveMcpCommand, findUserByApiKey } from '@/services/workflow-storage-service';
 import type { Tool } from '@/types/workflow';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 
 const McpInputSchema = z.object({
   command: z.string(),
@@ -22,21 +20,18 @@ export async function POST(request: NextRequest) {
   let userId = '';
 
   try {
-    // --- JWT Authentication ---
+    // --- API Key Authentication ---
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return NextResponse.json({ aiResponse: 'Unauthorized: Missing or invalid Authorization header.', action: 'error', error: 'Unauthorized' }, { status: 401 });
     }
-    const jwt = authHeader.substring(7);
+    const apiKey = authHeader.substring(7);
 
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
-
-    if (userError || !user) {
-        console.warn(`[API Agent] Failed auth attempt with JWT. Error: ${userError?.message}`);
-        return NextResponse.json({ aiResponse: 'Unauthorized: Invalid or expired token.', action: 'error', error: 'Unauthorized' }, { status: 401 });
+    userId = await findUserByApiKey(apiKey);
+    if (!userId) {
+        console.warn(`[API Agent] Failed auth attempt with API Key.`);
+        return NextResponse.json({ aiResponse: 'Unauthorized: Invalid API Key.', action: 'error', error: 'Unauthorized' }, { status: 401 });
     }
-    userId = user.id;
     // --- End Authentication ---
 
     const body = await request.json();
@@ -52,13 +47,12 @@ export async function POST(request: NextRequest) {
     command = parsedInput.data.command;
     console.log(`[API Agent] Received command from user ${userId}: "${command}"`);
     
-    // Pass the userId to get the correct agent config
     const agentConfig = await getAgentConfig(userId);
 
     const chatInput: AssistantChatInput = {
       userMessage: command,
       enabledTools: agentConfig.enabledTools,
-      userId, // Pass userId to the chat flow
+      userId,
     };
 
     const chatResult = await assistantChat(chatInput);

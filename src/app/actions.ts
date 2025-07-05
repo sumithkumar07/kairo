@@ -61,6 +61,13 @@ async function getUserIdOrThrow(): Promise<string> {
     return user.id;
 }
 
+async function getUserIdOrNull(): Promise<string | null> {
+    const cookieStore = cookies();
+    const supabase = createServerActionClient({ cookies: () => cookieStore });
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || null;
+}
+
 async function getUserFeatures(userId: string): Promise<{ tier: SubscriptionTier, features: SubscriptionFeatures }> {
     const profile = await WorkflowStorage.getUserProfile(userId);
     let tier: SubscriptionTier = 'Free';
@@ -126,7 +133,7 @@ export async function getUsageStatsAction(): Promise<{
 
 export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRecord> {
   const userId = await getUserIdOrThrow();
-  const originalRun = await WorkflowStorage.getRunRecordById(runId);
+  const originalRun = await WorkflowStorage.getRunRecordById(runId, userId);
   if (!originalRun) {
     throw new Error('Run record not found.');
   }
@@ -185,22 +192,23 @@ export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode
 }
 
 export async function getRunHistoryAction(): Promise<WorkflowRunRecord[]> {
-  return WorkflowStorage.getRunHistory();
+  const userId = await getUserIdOrThrow();
+  return WorkflowStorage.getRunHistory(userId);
 }
 
-export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, userId?: string): Promise<GenerateWorkflowFromPromptOutput> {
-  const finalUserId = userId || await getUserIdOrThrow();
-  const { tier, features } = await getUserFeatures(finalUserId);
+export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, userIdOverride?: string): Promise<GenerateWorkflowFromPromptOutput> {
+  const userId = userIdOverride || await getUserIdOrThrow();
+  const { tier, features } = await getUserFeatures(userId);
 
   if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
-      const currentCount = await WorkflowStorage.getMonthlyGenerationCount(finalUserId);
+      const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
       if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
           throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
       }
   }
 
   const result = await genkitGenerateWorkflowFromPrompt(input);
-  await WorkflowStorage.incrementMonthlyGenerationCount(finalUserId);
+  await WorkflowStorage.incrementMonthlyGenerationCount(userId);
 
   return result;
 }
@@ -258,12 +266,13 @@ export async function diagnoseWorkflowError(input: DiagnoseWorkflowErrorInput): 
 }
 
 export async function listWorkflowsAction(): Promise<SavedWorkflowMetadata[]> {
-  const workflows = await WorkflowStorage.listAllWorkflows();
-  return workflows;
+  const userId = await getUserIdOrNull();
+  return WorkflowStorage.listAllWorkflows(userId);
 }
 
 export async function loadWorkflowAction(name: string): Promise<{ name: string; workflow: Workflow } | null> {
-  const workflow = await WorkflowStorage.getWorkflowByName(name);
+  const userId = await getUserIdOrNull();
+  const workflow = await WorkflowStorage.getWorkflowByName(name, userId);
   return workflow ? { name, workflow } : null;
 }
 
@@ -287,7 +296,7 @@ export async function saveWorkflowAction(name: string, workflow: Workflow): Prom
         }
     }
 
-    await WorkflowStorage.saveWorkflow(name, workflow);
+    await WorkflowStorage.saveWorkflow(name, workflow, userId);
     return { success: true, message: `Workflow "${name}" ${isUpdate ? 'updated' : 'saved'}.` };
 
   } catch (e: any) {
@@ -297,7 +306,8 @@ export async function saveWorkflowAction(name: string, workflow: Workflow): Prom
 
 export async function deleteWorkflowAction(name: string): Promise<{ success: boolean; message: string }> {
     try {
-        await WorkflowStorage.deleteWorkflowByName(name);
+        const userId = await getUserIdOrThrow();
+        await WorkflowStorage.deleteWorkflowByName(name, userId);
         return { success: true, message: `Workflow "${name}" deleted.` };
     } catch (e: any) {
         return { success: false, message: e.message };
@@ -306,13 +316,14 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
 
 // Credential Management Actions
 export async function listCredentialsAction(): Promise<Omit<ManagedCredential, 'value'>[]> {
-    return WorkflowStorage.getCredentialsForUser();
+    const userId = await getUserIdOrThrow();
+    return WorkflowStorage.getCredentialsForUser(userId);
 }
 
 export async function saveCredentialAction(name: string, value: string, service?: string): Promise<{ success: boolean; message: string; }> {
     try {
         const userId = await getUserIdOrThrow();
-        await WorkflowStorage.saveCredential({ name, value, service, user_id: userId, created_at: new Date().toISOString() });
+        await WorkflowStorage.saveCredential({ name, value, service, user_id: userId, created_at: new Date().toISOString() }, userId);
         return { success: true, message: 'Credential saved successfully.' };
     } catch (e: any) {
         return { success: false, message: e.message };
@@ -321,7 +332,8 @@ export async function saveCredentialAction(name: string, value: string, service?
 
 export async function deleteCredentialAction(id: string): Promise<{ success: boolean; message: string; }> {
     try {
-        await WorkflowStorage.deleteCredential(id);
+        const userId = await getUserIdOrThrow();
+        await WorkflowStorage.deleteCredential(id, userId);
         return { success: true, message: 'Credential deleted.' };
     } catch (e: any) {
         return { success: false, message: e.message };
@@ -334,7 +346,8 @@ export async function getAgentConfigAction(): Promise<AgentConfig> {
 }
 
 export async function saveAgentConfigAction(config: AgentConfig): Promise<void> {
-    return WorkflowStorage.saveAgentConfig(config);
+    const userId = await getUserIdOrThrow();
+    return WorkflowStorage.saveAgentConfig(config, userId);
 }
 
 export async function generateApiKeyAction(): Promise<string> {

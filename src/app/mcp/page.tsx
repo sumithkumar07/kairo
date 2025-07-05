@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { McpCommandRecord, Tool, ManagedCredential } from '@/types/workflow';
-import { getMcpHistory, saveAgentConfig, getAgentConfig as getAgentConfigService, generateApiKey, findUserByApiKey, getCredentialValueByNameForUser } from '@/services/workflow-storage-service';
-import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction } from '@/app/actions';
+import { getMcpHistory, saveAgentConfig as saveAgentConfigService, getAgentConfig as getAgentConfigService } from '@/services/workflow-storage-service';
+import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction } from '@/app/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { withAuth } from '@/components/auth/with-auth';
@@ -75,10 +75,9 @@ function MCPDashboardPage() {
 
 
   const loadAgentConfig = useCallback(async () => {
-    if (!user) return;
     setIsLoadingConfig(true);
     try {
-      const config = await getAgentConfigService(user.uid);
+      const config = await getAgentConfigAction();
       const enabledTools = ALL_AVAILABLE_TOOLS.filter(tool => config.enabledTools.includes(tool.name));
       setConfiguredTools(enabledTools);
     } catch (e: any) {
@@ -86,7 +85,7 @@ function MCPDashboardPage() {
     } finally {
       setIsLoadingConfig(false);
     }
-  }, [toast, user]);
+  }, [toast]);
   
   const loadCredentials = useCallback(async () => {
     setIsLoadingCredentials(true);
@@ -104,6 +103,7 @@ function MCPDashboardPage() {
     if (!user) return;
     setIsLoadingHistory(true);
     try {
+      // Direct action call
       const history = await getMcpHistory(user.uid);
       setCommandHistory(history);
     } catch (e: any) {
@@ -133,7 +133,7 @@ function MCPDashboardPage() {
       : configuredTools.map(t => t.name).filter(name => name !== tool.name);
     
     try {
-      await saveAgentConfig({ enabledTools: updatedToolNames });
+      await saveAgentConfigAction({ enabledTools: updatedToolNames });
       const newConfiguredTools = ALL_AVAILABLE_TOOLS.filter(t => updatedToolNames.includes(t.name));
       setConfiguredTools(newConfiguredTools);
       toast({ title: isAdding ? 'Skill Added' : 'Skill Removed', description: `"${tool.name}" has been ${isAdding ? 'added to' : 'removed from'} your agent.` });

@@ -8,6 +8,8 @@ import { cookies } from 'next/headers';
 import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential, SubscriptionTier } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 import { encrypt, decrypt } from './encryption-service';
+import crypto from 'crypto';
+
 
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
 const MAX_MCP_HISTORY = 50; // Max number of MCP command records to keep
@@ -17,34 +19,11 @@ async function getSupabaseClient() {
     return createServerActionClient({ cookies: () => cookieStore });
 }
 
-async function getUserId() {
-    const supabase = await getSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        throw new Error('User not authenticated.');
-    }
-    return user.id;
-}
-
-async function getUserIdOrNull() {
-    try {
-        const supabase = await getSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        return user?.id || null;
-    } catch {
-        return null;
-    }
-}
-
-
 // ========================
 // Workflow Management
 // ========================
 
-export async function listAllWorkflows(): Promise<SavedWorkflowMetadata[]> {
-  const supabase = await getSupabaseClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
-  
+export async function listAllWorkflows(userId?: string | null): Promise<SavedWorkflowMetadata[]> {
   const exampleWorkflows: SavedWorkflowMetadata[] = EXAMPLE_WORKFLOWS.map(wf => ({
     name: wf.name,
     description: wf.description,
@@ -55,6 +34,7 @@ export async function listAllWorkflows(): Promise<SavedWorkflowMetadata[]> {
       return exampleWorkflows;
   }
   
+  const supabase = await getSupabaseClient();
   const { data: userWorkflows, error } = await supabase
     .from('workflows')
     .select('name, updated_at')
@@ -107,16 +87,15 @@ export async function getWorkflowCountForUser(userId: string): Promise<number> {
     return count ?? 0;
 }
 
-export async function getWorkflowByName(name: string): Promise<Workflow | null> {
+export async function getWorkflowByName(name: string, userId?: string | null): Promise<Workflow | null> {
   const exampleWorkflow = EXAMPLE_WORKFLOWS.find(wf => wf.name === name);
   if (exampleWorkflow) {
     return exampleWorkflow.workflow;
   }
 
-  const supabase = await getSupabaseClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
   if (!userId) return null; // Can't fetch user workflows if not logged in
 
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('workflows')
     .select('workflow_data')
@@ -134,13 +113,12 @@ export async function getWorkflowByName(name: string): Promise<Workflow | null> 
   return data.workflow_data as Workflow;
 }
 
-export async function saveWorkflow(name: string, workflow: Workflow): Promise<void> {
-  const supabase = await getSupabaseClient();
-  const userId = await getUserId();
+export async function saveWorkflow(name: string, workflow: Workflow, userId: string): Promise<void> {
   if (!name.trim()) {
     throw new Error('Workflow name cannot be empty.');
   }
-  
+
+  const supabase = await getSupabaseClient();
   const { error } = await supabase
     .from('workflows')
     .upsert({
@@ -156,9 +134,8 @@ export async function saveWorkflow(name: string, workflow: Workflow): Promise<vo
   }
 }
 
-export async function deleteWorkflowByName(name: string): Promise<void> {
+export async function deleteWorkflowByName(name: string, userId: string): Promise<void> {
   const supabase = await getSupabaseClient();
-  const userId = await getUserId();
   
   const { error } = await supabase
     .from('workflows')
@@ -173,8 +150,9 @@ export async function deleteWorkflowByName(name: string): Promise<void> {
 }
 
 export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<{ workflow: Workflow; userId: string; } | null> {
+  // This RPC needs to be secure as it searches across all users' workflows.
+  // The 'SECURITY DEFINER' in the function definition and RLS on the table help.
   const supabase = await getSupabaseClient();
-  // Note: This RPC searches across all users' workflows. A securityToken in the webhook node is recommended.
   const { data, error } = await supabase
       .rpc('find_workflow_by_webhook_path', { path_suffix_to_find: pathSuffix })
       .single();
@@ -192,24 +170,15 @@ export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<{ w
 export async function getAllScheduledWorkflows(): Promise<{ user_id: string; name: string; workflow_data: Workflow; }[]> {
   const supabase = await getSupabaseClient();
   
-  // This function needs to operate without a specific user context to check all workflows.
-  // This requires careful table permissions or using the service_role key on a trusted server environment.
-  // For this prototype, we assume the call is trusted. We will use the anon key which will work if RLS is set up to allow reads for a specific role or is disabled for this specific query.
-  // A better production approach would be a dedicated, secure internal API call.
-
   const { data, error } = await supabase
     .from('workflows')
-    .select('user_id, name, workflow_data')
-    // This filter is tricky with Supabase client library directly on a JSONB field.
-    // A db function would be more efficient, but for now we filter in code.
-    // .filter('workflow_data->nodes', 'cs', '[{"type":"schedule"}]'); // This syntax might not be correct
-
+    .select('user_id, name, workflow_data');
+    
   if (error) {
     console.error('[Storage Service] Error fetching all workflows for scheduler:', error);
     throw new Error('Could not fetch workflows for scheduling.');
   }
 
-  // Filter in code since direct JSONB filtering is complex with the client lib
   const scheduledWorkflows = data.filter(wf => 
     wf.workflow_data && 
     Array.isArray(wf.workflow_data.nodes) && 
@@ -224,10 +193,8 @@ export async function getAllScheduledWorkflows(): Promise<{ user_id: string; nam
 // Run History Management
 // ========================
 
-export async function getRunHistory(): Promise<WorkflowRunRecord[]> {
+export async function getRunHistory(userId: string): Promise<WorkflowRunRecord[]> {
   const supabase = await getSupabaseClient();
-  const userId = (await supabase.auth.getUser()).data.user?.id;
-  if (!userId) return [];
   
   const { data, error } = await supabase
     .from('run_history')
@@ -252,9 +219,8 @@ export async function getRunHistory(): Promise<WorkflowRunRecord[]> {
   }));
 }
 
-export async function getRunRecordById(id: string): Promise<WorkflowRunRecord | null> {
+export async function getRunRecordById(id: string, userId: string): Promise<WorkflowRunRecord | null> {
   const supabase = await getSupabaseClient();
-  const userId = await getUserId();
 
   const { data, error } = await supabase
     .from('run_history')
@@ -281,14 +247,8 @@ export async function getRunRecordById(id: string): Promise<WorkflowRunRecord | 
   };
 }
 
-export async function saveRunRecord(record: WorkflowRunRecord, recordUserId?: string): Promise<void> {
+export async function saveRunRecord(record: WorkflowRunRecord, userId: string): Promise<void> {
     const supabase = await getSupabaseClient();
-    const userId = recordUserId || (await supabase.auth.getUser()).data.user?.id;
-    
-    if (!userId) {
-        console.warn("[Storage Service] No user ID provided or found in session. Run record not saved.");
-        return;
-    }
 
     const { error } = await supabase.from('run_history').insert({
         id: record.id,
@@ -307,9 +267,8 @@ export async function saveRunRecord(record: WorkflowRunRecord, recordUserId?: st
     }
 }
 
-export async function clearRunHistory(): Promise<void> {
+export async function clearRunHistory(userId: string): Promise<void> {
   const supabase = await getSupabaseClient();
-  const userId = await getUserId();
   
   const { error } = await supabase
     .from('run_history')
@@ -386,10 +345,8 @@ export async function incrementMonthlyGenerationCount(userId: string): Promise<v
 // MCP Command History
 // ========================
 
-export async function getMcpHistory(): Promise<McpCommandRecord[]> {
+export async function getMcpHistory(userId: string): Promise<McpCommandRecord[]> {
   const supabase = await getSupabaseClient();
-  const userId = await getUserIdOrNull();
-  if (!userId) return [];
 
   const { data, error } = await supabase
     .from('mcp_command_history')
@@ -406,13 +363,8 @@ export async function getMcpHistory(): Promise<McpCommandRecord[]> {
   return data as McpCommandRecord[];
 }
 
-export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id' | 'user_id'>): Promise<void> {
+export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id' | 'user_id'>, userId: string): Promise<void> {
     const supabase = await getSupabaseClient();
-    const userId = await getUserIdOrNull();
-    if (!userId) {
-        console.warn("[Storage Service] Anonymous user tried to save an MCP command. Record not saved.");
-        return;
-    }
     
     const { error } = await supabase.from('mcp_command_history').insert({
         ...record,
@@ -429,15 +381,10 @@ export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id' | 'user
 // Agent & User Profile
 // ========================
 
-export async function getAgentConfig(): Promise<AgentConfig> {
+export async function getAgentConfig(userId: string): Promise<AgentConfig> {
     const supabase = await getSupabaseClient();
-    const userId = await getUserIdOrNull();
     const defaultConfig: AgentConfig = { enabledTools: ['listSavedWorkflows', 'getWorkflowDefinition', 'runWorkflow'] };
 
-    if (!userId) {
-        return defaultConfig;
-    }
-    
     const { data, error } = await supabase
         .from('agent_config')
         .select('enabled_tools')
@@ -454,9 +401,8 @@ export async function getAgentConfig(): Promise<AgentConfig> {
     return { enabledTools: data.enabled_tools };
 }
 
-export async function saveAgentConfig(config: AgentConfig): Promise<void> {
+export async function saveAgentConfig(config: AgentConfig, userId: string): Promise<void> {
     const supabase = await getSupabaseClient();
-    const userId = await getUserId();
     
     const { error } = await supabase
         .from('agent_config')
@@ -508,9 +454,8 @@ export async function updateUserProfileTier(userId: string, newTier: 'Gold' | 'D
 // Credential Management
 // ========================
 
-export async function getCredentialsForUser(): Promise<Omit<ManagedCredential, 'value'>[]> {
+export async function getCredentialsForUser(userId: string): Promise<Omit<ManagedCredential, 'value'>[]> {
     const supabase = await getSupabaseClient();
-    const userId = await getUserId();
 
     const { data, error } = await supabase
         .from('credentials')
@@ -550,14 +495,14 @@ export async function getCredentialValueByNameForUser(name: string, userId: stri
     }
 }
 
-export async function saveCredential(credential: Omit<ManagedCredential, 'id'>): Promise<void> {
+export async function saveCredential(credential: Omit<ManagedCredential, 'id'>, userId: string): Promise<void> {
     const supabase = await getSupabaseClient();
     
     const encryptedValue = await encrypt(credential.value);
 
     const { error } = await supabase.from('credentials').upsert(
         { 
-            user_id: credential.user_id,
+            user_id: userId,
             name: credential.name,
             value: encryptedValue, // Store the encrypted value
             service: credential.service,
@@ -572,9 +517,8 @@ export async function saveCredential(credential: Omit<ManagedCredential, 'id'>):
     }
 }
 
-export async function deleteCredential(id: string): Promise<void> {
+export async function deleteCredential(id: string, userId: string): Promise<void> {
     const supabase = await getSupabaseClient();
-    const userId = await getUserId();
     
     const { error } = await supabase
         .from('credentials')
@@ -586,4 +530,57 @@ export async function deleteCredential(id: string): Promise<void> {
         console.error(`[Storage Service] Error deleting credential ID '${id}':`, error);
         throw new Error('Could not delete credential.');
     }
+}
+
+
+// ========================
+// API Key Management
+// ========================
+
+function hashApiKey(apiKey: string): string {
+    return crypto.createHash('sha256').update(apiKey).digest('hex');
+}
+
+export async function generateApiKey(userId: string): Promise<string> {
+    const supabase = await getSupabaseClient();
+    const prefix = 'kairo_sk_';
+    const secretPart = crypto.randomBytes(24).toString('hex');
+    const apiKey = `${prefix}${secretPart}`;
+    const keyHash = hashApiKey(apiKey);
+
+    const { error } = await supabase.from('user_api_keys').insert({
+        user_id: userId,
+        key_hash: keyHash,
+        prefix: prefix,
+    });
+    
+    if (error) {
+        console.error('[Storage Service] Error saving new API key hash:', error);
+        throw new Error('Could not generate API key.');
+    }
+
+    // Return the full, unhashed key to the user ONCE.
+    return apiKey;
+}
+
+export async function findUserByApiKey(apiKey: string): Promise<string | null> {
+    if (!apiKey.startsWith('kairo_sk_')) {
+        return null;
+    }
+    const supabase = await getSupabaseClient();
+    const keyHash = hashApiKey(apiKey);
+    
+    const { data, error } = await supabase.rpc('find_user_by_api_key', { p_key_hash: keyHash });
+
+    if (error || !data) {
+        if (error && error.code !== 'PGRST116') {
+             console.error('[Storage Service] Error looking up user by API key:', error);
+        }
+        return null;
+    }
+    
+    // Also update the last_used_at timestamp, fire-and-forget
+    supabase.from('user_api_keys').update({ last_used_at: new Date().toISOString() }).eq('key_hash', keyHash).then();
+
+    return data;
 }

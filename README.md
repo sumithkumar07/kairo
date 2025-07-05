@@ -63,10 +63,6 @@ These are **essential** for the app's core features to function.
     *   **Purpose**: A **critical** secret key used to encrypt and decrypt credentials managed in the AI Agent Hub (e.g., your OpenAI API key).
     *   **How to get it**: Generate a strong, random string of at least 32 characters. This key must remain private and should be backed up securely. **Changing this key will make all previously saved credentials unreadable.**
 
-*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`
-    *   **Purpose**: A secret key you define to protect the AI Agent Hub's programmatic API endpoint.
-    *   **How to get it**: Create any strong, secret string. You will use this in the `Authorization: Bearer <key>` header when calling `/api/mcp`.
-
 *   `SCHEDULER_SECRET_KEY="A_DIFFERENT_SECRET_API_KEY"`
     *   **Purpose**: A secret key to protect the scheduler endpoint (`/api/scheduler/run`), which triggers scheduled workflows.
     *   **How to get it**: Create another strong, secret string, different from your other keys.
@@ -295,9 +291,10 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 
 ### AI Agent Hub API (`/api/mcp`)
 
-*   Send a `POST` request to `/api/mcp`.
-*   Include an `Authorization` header with the value `Bearer YOUR_KAIRO_MCP_API_KEY`.
-*   The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
+*   **Authentication**: The API uses per-user API keys for authentication. You can generate your key in the AI Agent Hub under the "API Access" tab.
+*   **Usage**: Send a `POST` request to `/api/mcp`.
+*   **Header**: Include an `Authorization` header with the value `Bearer YOUR_KAIRO_API_KEY`.
+*   **Body**: The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
 
 ## Project Structure
 
