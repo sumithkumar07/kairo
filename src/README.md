@@ -321,4 +321,3 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 *   **Expanded Node Library**: Continuously add new integration and utility nodes.
 *   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
 *   **Team Management Features**: Introduce roles, permissions, and shared workspaces for collaborative projects.
-
