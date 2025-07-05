@@ -110,13 +110,7 @@ export async function getWorkflowCountForUser(userId: string): Promise<number> {
 export async function getWorkflowByName(name: string): Promise<Workflow | null> {
   const exampleWorkflow = EXAMPLE_WORKFLOWS.find(wf => wf.name === name);
   if (exampleWorkflow) {
-    return { 
-        nodes: exampleWorkflow.nodes, 
-        connections: exampleWorkflow.connections,
-        canvasOffset: { x: 0, y: 0 },
-        zoomLevel: 1,
-        isSimulationMode: true,
-    };
+    return exampleWorkflow.workflow;
   }
 
   const supabase = await getSupabaseClient();
@@ -412,7 +406,7 @@ export async function getMcpHistory(): Promise<McpCommandRecord[]> {
   return data as McpCommandRecord[];
 }
 
-export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id'>): Promise<void> {
+export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id' | 'user_id'>): Promise<void> {
     const supabase = await getSupabaseClient();
     const userId = await getUserIdOrNull();
     if (!userId) {

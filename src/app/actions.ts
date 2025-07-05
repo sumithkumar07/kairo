@@ -331,3 +331,7 @@ export async function deleteCredentialAction(id: string): Promise<{ success: boo
 export async function getAgentConfigAction(): Promise<AgentConfig> {
   return WorkflowStorage.getAgentConfig();
 }
+
+export async function saveAgentConfigAction(config: AgentConfig): Promise<void> {
+    return WorkflowStorage.saveAgentConfig(config);
+}

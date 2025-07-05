@@ -67,8 +67,7 @@ export interface Workflow {
 export interface ExampleWorkflow {
   name: string;
   description: string;
-  nodes: WorkflowNode[];
-  connections: WorkflowConnection[];
+  workflow: Workflow;
 }
 
 export interface SavedWorkflowMetadata {
@@ -144,6 +143,7 @@ export interface ChatMessage {
 
 export interface McpCommandRecord {
   id: string;
+  user_id: string;
   timestamp: string; // ISO string
   command: string;
   response: string;

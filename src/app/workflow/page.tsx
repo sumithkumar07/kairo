@@ -271,9 +271,13 @@ function WorkflowPage() {
     if (!workflowToDeleteFromModal) return;
 
     try {
-      await deleteWorkflowAction(workflowToDeleteFromModal);
-      toast({ title: 'Workflow Deleted', description: `Workflow "${workflowToDeleteFromModal}" has been deleted.` });
-      setSavedWorkflows(prev => prev.filter(wf => wf.name !== workflowToDeleteFromModal));
+      const result = await deleteWorkflowAction(workflowToDeleteFromModal);
+      if (result.success) {
+        toast({ title: 'Workflow Deleted', description: result.message });
+        setSavedWorkflows(prev => prev.filter(wf => wf.name !== workflowToDeleteFromModal));
+      } else {
+        throw new Error(result.message);
+      }
     } catch (e: any) {
       toast({ title: 'Error Deleting', description: e.message, variant: 'destructive' });
     } finally {
