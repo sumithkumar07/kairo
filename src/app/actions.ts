@@ -93,7 +93,7 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
     workflowSnapshot: originalRun.workflowSnapshot,
   };
 
-  await WorkflowStorage.saveRunRecord(newRunRecord);
+  await WorkflowStorage.saveRunRecord(newRunRecord, userId);
 
   return newRunRecord;
 }
