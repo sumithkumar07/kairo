@@ -119,18 +119,16 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
       
-      await updateUserStateFromSession(data.session);
-
       toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
       
     } catch (error: any) {
       console.error("Signup error", error);
       toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
     }
-  }, [toast, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
+  }, [toast, showSupabaseNotConfiguredToast]);
 
   const login = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
@@ -138,17 +136,15 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       
-      await updateUserStateFromSession(data.session);
-
       toast({ title: 'Login Successful!', description: 'Welcome back!' });
     } catch (error: any) {
       console.error("Login error", error);
       toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
     }
-  }, [toast, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
+  }, [toast, showSupabaseNotConfiguredToast]);
 
   const logout = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
