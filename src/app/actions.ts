@@ -355,3 +355,7 @@ export async function generateApiKeyAction(): Promise<string> {
     return WorkflowStorage.generateApiKey(userId);
 }
 
+export async function clearRunHistoryAction(): Promise<void> {
+    const userId = await getUserIdOrThrow();
+    return WorkflowStorage.clearRunHistory(userId);
+}

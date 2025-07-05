@@ -22,8 +22,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import * as WorkflowStorage from '@/services/workflow-storage-service';
-import { rerunWorkflowAction, diagnoseWorkflowError } from '@/app/actions';
+import {
+  rerunWorkflowAction,
+  diagnoseWorkflowError,
+  getRunHistoryAction,
+  clearRunHistoryAction,
+} from '@/app/actions';
 import type { DiagnoseWorkflowErrorOutput } from '@/ai/flows/diagnose-workflow-error-flow';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -72,7 +76,7 @@ function RunHistoryPage() {
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const history = await WorkflowStorage.getRunHistory();
+      const history = await getRunHistoryAction();
       setRunHistory(history);
     } catch (e: any) {
       console.error("Error loading run history:", e);
@@ -140,7 +144,7 @@ function RunHistoryPage() {
   
   const clearHistory = async () => {
     try {
-      await WorkflowStorage.clearRunHistory();
+      await clearRunHistoryAction();
       setRunHistory([]);
       setShowClearConfirm(false);
       toast({ title: 'Run History Cleared', description: 'All workflow execution records have been deleted.' });
