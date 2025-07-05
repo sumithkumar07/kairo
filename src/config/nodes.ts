@@ -589,7 +589,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     configSchema: {
       path: { label: 'File Path in Dropbox', type: 'string', placeholder: '/Apps/Kairo/{{trigger.body.filename}}', required: true },
       content_placeholder: { label: 'File Content (Placeholder)', type: 'string', placeholder: '{{api_node.response}}', helperText: 'A placeholder that resolves to the content to be uploaded.', required: true },
-      token: { label: 'Dropbox Access Token', type: 'string', placeholder: '{{credential.DropboxToken}}', helperText:"Live mode for this node is simulated but would require the DROPBOX_TOKEN environment variable.", required: true },
+      token: { label: 'Dropbox Access Token', type: 'string', placeholder: '{{credential.DropboxToken}}', helperText:"Live mode for this node is simulated but would require the DROPBOX_TOKEN environment variable.", required: true},
       simulated_config: { label: 'Simulated Output (JSON)', type: 'json', placeholder: '{"name": "file.txt", "path_display": "/file.txt"}', helperText: 'Mock Dropbox response for simulation mode. Live mode is also simulated.', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
