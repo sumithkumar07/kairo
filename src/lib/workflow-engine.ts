@@ -1065,15 +1065,15 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
             if (profile.subscription_tier === 'Gold' || profile.subscription_tier === 'Diamond') {
                 tier = profile.subscription_tier;
             } else if (profile.trial_end_date && new Date(profile.trial_end_date) > new Date()) {
-                tier = 'Diamond Trial';
+                tier = 'Gold Trial';
             }
         }
         
         let features: SubscriptionFeatures;
         switch(tier) {
             case 'Gold': features = GOLD_TIER_FEATURES; break;
-            case 'Diamond':
-            case 'Diamond Trial': features = DIAMOND_TIER_FEATURES; break;
+            case 'Gold Trial':
+            case 'Diamond': features = DIAMOND_TIER_FEATURES; break;
             default: features = FREE_TIER_FEATURES;
         }
 

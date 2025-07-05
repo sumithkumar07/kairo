@@ -67,14 +67,14 @@ const generateWorkflowPrompt = ai.definePrompt({
 
 **Core Principle: Data Flow via 'inputMapping'**
 - To pass data between nodes, you MUST use the \`inputMapping\` field on the target node. This makes the data flow explicit and keeps the main \`config\` clean.
-- The \`inputMapping\` is a JSON object where keys are new, local variable names for the target node, and values are placeholders that resolve data from previous nodes (e.g., \`"{\"userId\": \"{{trigger.requestBody.user_id}}\", \"productInfo\": \"{{api_node.response}}\"}"\`).
+- The \`inputMapping\` is a JSON object where keys are new, local variable names for the target node, and values are placeholders that resolve data from previous nodes (e.g., \`"{\\"userId\\": \\"{{trigger.requestBody.user_id}}\\", \\"productInfo\\": \\"{{api_node.response}}\\"}"\`).
 - The target node's main \`config\` fields should then use these simple, local placeholders (e.g., \`"config": { "queryText": "SELECT * FROM orders WHERE user_id = $1", "queryParams": ["{{userId}}"] }\`). This separation is crucial.
 - DO NOT embed complex, multi-part placeholders like \`{{node.output.property.sub_property}}\` directly into a node's main \`config\` (e.g., in a URL or email body). Instead, map the required data into a local variable using \`inputMapping\` and then use that simple variable.
 
 **Mandatory Error Handling:**
 - For **any** node that might fail due to external factors (\`httpRequest\`, \`databaseQuery\`, \`aiTask\`, \`sendEmail\`, all third-party integration nodes), you **must** implement visual error handling.
-- Connect the node's red \'error\' output handle to a \`logMessage\` node.
-- The \`logMessage\` node's config **must** use an \`inputMapping\` to capture the error message, like this: \`"inputMapping": { "errorMessage": "{{id_of_failing_node.error}}" }\`, and its message config should be: \`"config": { "message": "Node \'Name of Failing Node\' failed: {{errorMessage}}" }\`.
+- Connect the node's red 'error' output handle to a \`logMessage\` node.
+- The \`logMessage\` node's config **must** use an \`inputMapping\` to capture the error message, like this: \`"inputMapping": { "errorMessage": "{{id_of_failing_node.error}}" }\`, and its message config should be: \`"config": { "message": "Node 'Name of Failing Node' failed: {{errorMessage}}" }\`.
 - This is not optional; it is a critical requirement for building robust, production-ready workflows.
 
 **Crucial for User Setup & AI Explanation:**
@@ -97,6 +97,7 @@ The workflow consists of 'nodes' and 'connections'.
 - \`config\`: A JSON object for node-specific parameters. Use simple placeholders referencing variables from \`inputMapping\` or credentials/env vars.
     - Conditional Execution: If a node should only run based on a condition, add \`_flow_run_condition: "{{id_of_conditional_node.result}}"\` to its \`config\`. The condition node's \`result\` must be a boolean.
     - Simulation Data: For nodes with external effects (\`httpRequest\`, \`aiTask\`, etc.), you MUST provide simulation data fields (\`simulatedResponse\`, \`simulatedOutput\`, \`simulated_config\`, etc.) in the \`config\`.
+    - Advanced Error Handling: For nodes that might fail, consider adding a \`retry\` object to the config (e.g., \`"retry": {"attempts": 3, "delayMs": 1000}\`).
 - \`aiExplanation\`: (CRITICAL) Your friendly, clear, and actionable explanation for the node. Explain its purpose, its \`inputMapping\`, any user-setup required for credentials (with guidance), and any error handling (\`retry\`, visual \`error\` path) you've configured.
 
 Given the following user prompt, generate a JSON object representing the entire workflow, adhering strictly to these principles.
