@@ -36,5 +36,5 @@ export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
   aiWorkflowGenerationsPerMonth: 200,
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
-  maxWorkflows: 100,
+  maxWorkflows: 50,
 };
