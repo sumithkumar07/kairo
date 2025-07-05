@@ -20,7 +20,6 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('user@kairo.com');
   const [password, setPassword] = useState('password');
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthLoading && isLoggedIn) {
@@ -31,14 +30,18 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    await login(email, password);
-    setIsLoading(false);
+    try {
+      await login(email, password);
+      // The redirect will be handled by the useEffect hook when isLoggedIn state updates.
+    } catch (error) {
+      // The context handles showing the error toast.
+      console.error("Login submission failed", error);
+    }
   };
 
-  const isFormDisabled = isLoading || isAuthLoading || !isSupabaseConfigured;
+  const isFormDisabled = isAuthLoading || !isSupabaseConfigured;
 
-  if (isAuthLoading || isLoggedIn) {
+  if (isAuthLoading && !isLoggedIn) { // Only show full-page loader on initial auth check
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <MarketingHeader />
@@ -100,7 +103,7 @@ export default function LoginPage() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button className="w-full" type="submit" disabled={isFormDisabled}>
-                {(isLoading || isAuthLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isAuthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Log In
               </Button>
               <p className="text-xs text-center text-muted-foreground">

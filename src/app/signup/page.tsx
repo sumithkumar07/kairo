@@ -19,7 +19,6 @@ export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     if (!isAuthLoading && isLoggedIn) {
@@ -29,14 +28,18 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    await signup(email, password);
-    setIsLoading(false);
+    try {
+      await signup(email, password);
+      // The redirect will be handled by the useEffect hook when isLoggedIn state updates.
+    } catch (error) {
+      // The context handles showing the error toast.
+      console.error("Signup submission failed", error);
+    }
   };
 
-  const isFormDisabled = isLoading || isAuthLoading || !isSupabaseConfigured;
+  const isFormDisabled = isAuthLoading || !isSupabaseConfigured;
 
-  if (isAuthLoading || isLoggedIn) {
+  if (isAuthLoading && !isLoggedIn) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <MarketingHeader />
@@ -56,7 +59,7 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit}>
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Create an Account</CardTitle>
-              <CardDescription>Start your 15-day Pro trial. No credit card required.</CardDescription>
+              <CardDescription>Start your 15-day Gold trial. No credit card required.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {!isSupabaseConfigured && (
@@ -98,7 +101,7 @@ export default function SignupPage() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button className="w-full" type="submit" disabled={isFormDisabled}>
-                {(isLoading || isAuthLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isAuthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign Up
               </Button>
               <p className="text-xs text-center text-muted-foreground">

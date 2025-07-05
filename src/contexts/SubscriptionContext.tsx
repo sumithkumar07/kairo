@@ -88,10 +88,15 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   
   const updateUserStateFromSession = useCallback(async (session: Session | null) => {
     const supabaseUser = session?.user;
+
     if (supabaseUser && supabaseUser.email) {
+      // Set basic user info immediately from the session
+      setUser({ email: supabaseUser.email, uid: supabaseUser.id });
+
+      // Then, try to fetch the profile to get tier info.
       const profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
+      
       if (profile) {
-        setUser({ email: supabaseUser.email, uid: supabaseUser.id });
         const tier = profile.subscription_tier;
         if (tier === 'Gold' || tier === 'Diamond') {
           setPurchasedTier(tier);
@@ -101,12 +106,16 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
           setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
         }
       } else {
-        console.warn(`[AUTH] Profile for user ${supabaseUser.id} not found immediately. This might be temporary.`);
-        setUser(null);
-        setTrialEndDate(null);
+        // If profile doesn't exist yet (e.g., replication lag after signup),
+        // DON'T log the user out. Just default to no purchased tier. The trial
+        // logic will still be based on the profile, which may appear momentarily.
+        console.warn(`[AUTH] Profile for user ${supabaseUser.id} not found. Defaulting to base state.`);
         setPurchasedTier(null);
+        // We don't set trial end date here, as it comes from the profile.
+        // It will be null until the profile is successfully fetched.
       }
     } else {
+      // No user session, clear all user-related state.
       setUser(null);
       setTrialEndDate(null);
       setPurchasedTier(null);
@@ -118,47 +127,36 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         showSupabaseNotConfiguredToast();
         return;
     }
-    try {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      
-      toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
-      
-    } catch (error: any) {
-      console.error("Signup error", error);
-      toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+        toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
+        throw error;
     }
-  }, [toast, showSupabaseNotConfiguredToast]);
+    toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
+  }, [toast, showSupabaseNotConfiguredToast, supabase]);
 
   const login = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
         return;
     }
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      
-      toast({ title: 'Login Successful!', description: 'Welcome back!' });
-    } catch (error: any) {
-      console.error("Login error", error);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
       toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
+      throw error;
     }
-  }, [toast, showSupabaseNotConfiguredToast]);
+    toast({ title: 'Login Successful!', description: 'Welcome back!' });
+  }, [toast, showSupabaseNotConfiguredToast, supabase]);
 
   const logout = useCallback(async () => {
     if (!isSupabaseConfigured || !supabase) {
         showSupabaseNotConfiguredToast();
         return;
     }
-    try {
-      await supabase.auth.signOut();
-      router.push('/');
-      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-    } catch (error: any) {
-      toast({ title: 'Logout Failed', description: error.message, variant: 'destructive' });
-    }
-  }, [toast, router, showSupabaseNotConfiguredToast]);
+    await supabase.auth.signOut();
+    router.push('/');
+    toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
+  }, [toast, router, showSupabaseNotConfiguredToast, supabase]);
 
   const upgradeToGold = useCallback(async () => {
     if (!user) {
@@ -214,7 +212,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [updateUserStateFromSession]);
+  }, [updateUserStateFromSession, supabase, isSupabaseConfigured]);
 
   return (
     <SubscriptionContext.Provider value={{ 
