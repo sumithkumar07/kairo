@@ -41,10 +41,10 @@ export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
 };
 
 export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
-  aiWorkflowGenerationsPerMonth: 'unlimited',
+  aiWorkflowGenerationsPerMonth: 100,
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
-  maxWorkflows: 'unlimited',
+  maxWorkflows: 50,
   maxRunsPerMonth: 300,
   aiErrorDiagnosis: true,
   aiTestDataGeneration: true,
