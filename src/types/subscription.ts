@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Defines types related to subscriptions and feature tiers.
  */
@@ -36,7 +35,7 @@ export const GOLD_TIER_FEATURES: SubscriptionFeatures = {
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
   maxWorkflows: 20,
-  maxRunsPerMonth: 250,
+  maxRunsPerMonth: 150,
   aiErrorDiagnosis: false, // Keep this for the highest tier
   aiTestDataGeneration: true,
 };
@@ -46,7 +45,7 @@ export const DIAMOND_TIER_FEATURES: SubscriptionFeatures = {
   canExplainWorkflow: true,
   accessToAdvancedNodes: true,
   maxWorkflows: 'unlimited',
-  maxRunsPerMonth: 'unlimited',
+  maxRunsPerMonth: 300,
   aiErrorDiagnosis: true,
   aiTestDataGeneration: true,
 };
