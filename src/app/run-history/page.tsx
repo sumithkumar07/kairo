@@ -365,10 +365,10 @@ function RunHistoryPage() {
             />
           </div>
           <Tabs defaultValue="all" value={statusFilter} onValueChange={setStatusFilter} className="w-auto">
-            <TabsList className="h-9">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="success">Success</TabsTrigger>
-              <TabsTrigger value="failed">Failed</TabsTrigger>
+            <TabsList className="h-9" aria-disabled={runHistory.length === 0 || isLoading}>
+              <TabsTrigger value="all" disabled={runHistory.length === 0 || isLoading}>All</TabsTrigger>
+              <TabsTrigger value="success" disabled={runHistory.length === 0 || isLoading}>Success</TabsTrigger>
+              <TabsTrigger value="failed" disabled={runHistory.length === 0 || isLoading}>Failed</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

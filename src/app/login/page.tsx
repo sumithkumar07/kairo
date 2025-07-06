@@ -18,8 +18,8 @@ export default function LoginPage() {
   const { login, isAuthLoading, isSupabaseConfigured, isLoggedIn } = useSubscription();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('user@kairo.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (!isAuthLoading && isLoggedIn) {
