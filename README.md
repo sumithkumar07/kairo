@@ -9,11 +9,11 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Styling**: Tailwind CSS with shadcn/ui components
 *   **AI**: Google AI & Genkit
 *   **Database & Auth**: Supabase
-*   **Deployment**: Ready for Vercel, Netlify, or Firebase App Hosting
+*   **Deployment**: Vercel, Netlify, Firebase App Hosting
 
 ---
 
-## Getting Started
+## Local Development Setup
 
 Follow these steps to get a local instance of Kairo running.
 
@@ -21,25 +21,21 @@ Follow these steps to get a local instance of Kairo running.
 
 *   Node.js (v18 or later recommended)
 *   npm or yarn
+*   A Git client (like `git`)
 
-### 2. Clone Repository
+### 2. Clone & Install
 
 ```bash
 git clone https://github.com/your-repo/kairo.git
 cd kairo
-```
-
-### 3. Install Dependencies
-
-```bash
 npm install
 ```
 
-### 4. Environment & Database Setup (Crucial)
+### 3. Environment & Database Setup (Crucial)
 
 This is the most important section for getting Kairo running. You **must** configure your environment variables and set up the database schema.
 
-#### **Step 4a: Set Up Environment Variables**
+#### **Step 3a: Create Environment File**
 
 Create a file named `.env.local` in the root of your project by copying the `.env` file. You must fill in the following core variables.
 
@@ -53,7 +49,7 @@ Create a file named `.env.local` in the root of your project by copying the `.en
 
 *   `GOOGLE_API_KEY="YOUR_GOOGLE_CLOUD_API_KEY"`
     *   **Purpose**: Powers all AI features (workflow generation, assistant chat, etc.).
-    *   **How to get it**: In the Google Cloud Console, create a project, enable the "Generative Language API", and create an API key under "APIs & Services" > "Credentials".
+    *   **How to get it**: In the Google Cloud Console, create a project, enable the "AI Platform" and "Vertex AI" APIs, and create an API key under "APIs & Services" > "Credentials".
 
 *   `ENCRYPTION_SECRET_KEY="YOUR_32_CHARACTER_ENCRYPTION_SECRET"`
     *   **Purpose**: A **critical** secret key used to encrypt and decrypt credentials managed in the AI Agent Hub (e.g., your OpenAI API key).
@@ -63,7 +59,7 @@ Create a file named `.env.local` in the root of your project by copying the `.en
     *   **Purpose**: A secret key to protect the scheduler endpoint (`/api/scheduler/run`), which triggers scheduled workflows.
     *   **How to get it**: Create another strong, secret string, different from your other keys.
 
-#### **Step 4b: Set Up the Database**
+#### **Step 3b: Set Up the Database**
 
 To save workflows and view run history, you must set up the database tables in your Supabase project. **This is a one-time setup.**
 
@@ -260,7 +256,7 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
-### 5. Run Development Server
+### 4. Run Development Server
 
 You are now ready to start the local development server.
 
@@ -272,14 +268,32 @@ Open your browser and navigate to `http://localhost:3000`. The main workflow edi
 
 ---
 
-## Deployment
+## Deployment Guide
 
-Kairo is architected to be deployed on modern hosting platforms like Netlify, Vercel, or Firebase App Hosting.
+Kairo is architected to be deployed on modern hosting platforms like **Vercel**, Netlify, or Firebase App Hosting. Vercel is the recommended choice for the best performance and easiest setup.
 
-1.  **Configure Environment Variables**: This is the most critical step. Go to your hosting provider's dashboard and add all variables from the "Core App Configuration" section above.
-2.  **Run the Database Schema SQL**: If you haven't already, you **must** run the SQL script provided in the database setup section in your production Supabase project's SQL Editor.
-3.  **Confirm Build Settings**: Most platforms will detect a Next.js project automatically. Ensure the settings are:
-    *   **Build Command**: `next build`
-    *   **Publish Directory**: `.next`
-4.  **Set Up Scheduler (Optional)**: If you use the `schedule` node, configure an external cron job service (e.g., Vercel Cron Jobs, EasyCron) to send a `POST` request to `YOUR_DEPLOYED_APP_URL/api/scheduler/run` at a regular interval. You must include an `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` header.
-5.  **Deploy**: Trigger the deployment from your hosting provider's dashboard.
+#### **Step 1: Push to a Git Repository**
+Push your project code to a GitHub, GitLab, or Bitbucket repository.
+
+#### **Step 2: Import Project on Vercel**
+1.  Sign up for a [Vercel](https://vercel.com) account (you can use your Git provider account).
+2.  Click **"Add New..." -> "Project"** from your dashboard.
+3.  Import your Kairo Git repository. Vercel will automatically detect the Next.js framework.
+
+#### **Step 3: Configure Environment Variables**
+This is the most important step. Your live app will not work without these.
+1.  In your Vercel project settings, navigate to the **Environment Variables** section.
+2.  Add all the variables from your local `.env.local` file (see Step 3a above). **Ensure `ENCRYPTION_SECRET_KEY` is identical to your local key if you want to preserve saved credentials.**
+
+#### **Step 4: Run Production Database Schema**
+If you haven't already, you **must** run the SQL script from Step 3b in your **production Supabase project's** SQL Editor.
+
+#### **Step 5: Deploy**
+Click the **"Deploy"** button on Vercel. Your application will be built and deployed.
+
+#### **Step 6: Configure the Scheduler (Optional)**
+If you use the `schedule` node, you must set up an external service to trigger it.
+1.  Use a service like **Vercel Cron Jobs**, EasyCron, or a GitHub Action.
+2.  Create a job that runs at your desired frequency (e.g., every 5 minutes).
+3.  The job must send a `POST` request to: `YOUR_DEPLOYED_URL/api/scheduler/run`
+4.  The request **MUST** include the following header: `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` (using the key you set in the environment variables).
