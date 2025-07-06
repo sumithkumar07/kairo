@@ -14,5 +14,3 @@ import '@/ai/flows/text-to-speech-flow.ts';
 
 // Import tools to register them with Genkit
 import '@/ai/tools/index.ts';
-
-    
