@@ -65,7 +65,7 @@ function RunHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { toast } = useToast();
-  const { currentTier } = useSubscription();
+  const { isDiamondOrTrial } = useSubscription();
   const router = useRouter();
 
   const [isDiagnosing, setIsDiagnosing] = useState(false);
@@ -122,7 +122,7 @@ function RunHistoryPage() {
   };
 
   const handleDiagnoseError = async (run: WorkflowRunRecord) => {
-    if (currentTier !== 'Diamond') {
+    if (!isDiamondOrTrial) {
       toast({ title: 'Diamond Feature', description: 'AI Error Diagnosis is a premium feature. Please upgrade your plan.', variant: 'default' });
       return;
     }
@@ -456,13 +456,13 @@ function RunHistoryPage() {
                        <Tooltip>
                          <TooltipTrigger asChild>
                            <span>
-                             <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing || currentTier !== 'Diamond'}>
+                             <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing || !isDiamondOrTrial}>
                                {isDiagnosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4"/>}
                                {isDiagnosing ? 'Diagnosing...' : 'Ask AI to Debug'}
                              </Button>
                            </span>
                          </TooltipTrigger>
-                         {currentTier !== 'Diamond' && (
+                         {!isDiamondOrTrial && (
                            <TooltipContent>
                              <p>AI Error Diagnosis is a Diamond tier feature. Please upgrade your plan.</p>
                            </TooltipContent>
@@ -499,3 +499,5 @@ function RunHistoryPage() {
 }
 
 export default withAuth(RunHistoryPage);
+
+    

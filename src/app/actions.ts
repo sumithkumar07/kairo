@@ -234,11 +234,14 @@ export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput)
   return result.explanation;
 }
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
-    const userId = await getUserIdOrNull();
-    // Ensure userId is present if tools are enabled or user is logged in
-    if (!input.userId && userId) {
+    const userId = input.userId || await getUserIdOrNull();
+    
+    // The AI needs the user ID to use its tools, like listing or running workflows.
+    // Ensure it's always included in the input if the user is logged in.
+    if (userId) {
         input.userId = userId;
     }
+
     const result = await genkitAssistantChat(input);
     if (!result) throw new Error("AI assistant returned an empty response.");
     return result;
@@ -417,3 +420,5 @@ export async function upgradeToDiamondAction(): Promise<void> {
     const userId = await getUserIdOrThrow();
     await WorkflowStorage.updateUserProfileTier(userId, 'Diamond');
 }
+
+    
