@@ -883,6 +883,48 @@ async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimul
     return { output: config.simulated_config || {} };
 }
 
+async function executeYoutubeFetchTrendingNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE YOUTUBE] SIMULATION: Would fetch trending videos for region ${config.region}.`, type: 'info' });
+        return { output: config.simulated_config || { videos: [] } };
+    }
+
+    const apiKey = config.apiKey;
+    if (!apiKey) {
+        throw new Error("YouTube API Key not found. Please set it in the node's config, likely using a credential placeholder like {{credential.YouTubeApiKey}}.");
+    }
+
+    const youtube = google.youtube({ version: 'v3', auth: apiKey });
+
+    try {
+        const response = await youtube.videos.list({
+            part: ['snippet', 'contentDetails', 'statistics'],
+            chart: 'mostPopular',
+            regionCode: config.region || 'US',
+            maxResults: config.maxResults || 5,
+        });
+
+        const videos = response.data.items?.map(item => ({
+            id: item.id,
+            title: item.snippet?.title,
+            description: item.snippet?.description,
+            channelTitle: item.snippet?.channelTitle,
+            publishedAt: item.snippet?.publishedAt,
+            tags: item.snippet?.tags,
+            viewCount: item.statistics?.viewCount,
+            likeCount: item.statistics?.likeCount,
+            commentCount: item.statistics?.commentCount,
+            duration: item.contentDetails?.duration,
+        })) || [];
+
+        return { output: { videos: videos } };
+    } catch (e: any) {
+        console.error(`[NODE YOUTUBE] YouTube API Error: ${e.message}`);
+        const googleError = e.errors?.map((err: any) => err.message).join(', ') || e.message;
+        throw new Error(`YouTube API error: ${googleError}`);
+    }
+}
+
 
 const nodeExecutionFunctions: Record<string, Function> = {
     webhookTrigger: executeWebhookTriggerNode,
@@ -911,12 +953,11 @@ const nodeExecutionFunctions: Record<string, Function> = {
     stripeCreatePaymentLink: executeStripeCreatePaymentLinkNode,
     hubspotCreateContact: executeHubSpotCreateContactNode,
     googleSheetsAppendRow: executeGoogleSheetsAppendRowNode,
+    youtubeFetchTrending: executeYoutubeFetchTrendingNode,
     dropboxUploadFile: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Dropbox'),
     googleCalendarListEvents: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'Google Calendar'),
-    youtubeFetchTrending: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
-        executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'YouTube'),
     youtubeDownloadVideo: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
         executeSimulatedLiveNode(node, config, isSimulationMode, serverLogs, allWorkflowData, userId, 'YouTube'),
     videoConvertToShorts: (node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string) =>
