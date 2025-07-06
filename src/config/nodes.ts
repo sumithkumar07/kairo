@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, OnErrorWebhookConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone } from 'lucide-react';
+import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone, Speaker } from 'lucide-react';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
@@ -795,6 +795,34 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     outputHandles: ['output_data', 'error'],
   },
   {
+    type: 'textToSpeech',
+    name: 'Text to Speech',
+    icon: Speaker,
+    description: 'Converts text into audible speech using an AI model.',
+    category: 'ai',
+    isAdvanced: true,
+    defaultConfig: { 
+      text: '{{input.text}}',
+      voice: 'Algenib',
+      simulated_config: { audioDataUri: '' }
+    },
+    configSchema: {
+      text: { label: 'Text to Convert', type: 'textarea', placeholder: 'Hello, this is a test.', required: true },
+      voice: { 
+        label: 'Voice', 
+        type: 'select', 
+        options: ['Algenib', 'Achernar', 'Enif', 'Hadar', 'Markab', 'Rigel'],
+        defaultValue: 'Algenib', 
+        helperText: 'Select a pre-built voice for the speech synthesis.',
+        required: true 
+      },
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"audioDataUri": "data:audio/wav;base64,..."}', helperText: 'Data returned by this node when in simulation mode. Must contain a valid (even if silent) base64 WAV data URI.', required: true},
+    },
+    inputHandles: ['input'],
+    outputHandles: ['audioDataUri', 'error'],
+    aiExplanation: 'Converts the input text into speech audio. This node uses the Gemini Text-to-Speech model. The output is a data URI containing WAV audio data, which can be played in a browser.'
+  },
+  {
     type: 'unknown',
     name: 'Unknown Node',
     icon: HelpCircle,
@@ -910,6 +938,11 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'translate': 'aiTask',
   'analyze sentiment': 'aiTask',
   'classify text': 'aiTask',
+  'texttospeech': 'textToSpeech',
+  'text to speech': 'textToSpeech',
+  'tts': 'textToSpeech',
+  'speak': 'textToSpeech',
+  'generate audio': 'textToSpeech',
 
   // Grouping / Sub-flows
   'executeflowgroup': 'executeFlowGroup',

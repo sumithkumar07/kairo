@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { SuggestNextNodeOutput } from '@/types/workflow';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle, Paperclip, X } from 'lucide-react';
+import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle, Paperclip, X, StopCircle, Volume2, AlertCircle } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import type { ChatMessage } from '@/types/workflow';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { textToSpeechAction } from '@/app/actions';
 
 
 interface AIWorkflowAssistantPanelProps {
@@ -68,6 +69,7 @@ export function AIWorkflowAssistantPanel({
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
+  const [activeAudio, setActiveAudio] = useState<{ id: string; status: 'loading' | 'playing' | 'error'; audio?: HTMLAudioElement } | null>(null);
 
   useEffect(() => {
     if (chatScrollAreaRef.current) {
@@ -98,6 +100,34 @@ export function AIWorkflowAssistantPanel({
         setAttachedImage(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleListen = async (message: ChatMessage) => {
+    if (activeAudio?.id === message.id && activeAudio.status === 'playing') {
+      activeAudio.audio?.pause();
+      setActiveAudio(null);
+      return;
+    }
+    
+    if (activeAudio?.audio) {
+      activeAudio.audio.pause();
+    }
+
+    setActiveAudio({ id: message.id, status: 'loading' });
+
+    try {
+      const result = await textToSpeechAction({ text: message.message });
+      const audio = new Audio(result.audioDataUri);
+      
+      audio.onended = () => setActiveAudio(null);
+      audio.onerror = () => setActiveAudio({ id: message.id, status: 'error' });
+
+      await audio.play();
+      setActiveAudio({ id: message.id, status: 'playing', audio });
+    } catch (error) {
+      console.error("TTS Error:", error);
+      setActiveAudio({ id: message.id, status: 'error' });
     }
   };
 
@@ -271,9 +301,28 @@ export function AIWorkflowAssistantPanel({
                 <div className="p-1.5 bg-primary/10 rounded-full shadow-sm shrink-0">
                     <Bot className="h-5 w-5 text-primary" />
                 </div>
-                <div className="flex flex-col w-full max-w-[320px] leading-1.5 p-3 border-border bg-muted rounded-e-xl rounded-es-xl shadow">
-                  <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
-                  <span className="text-xs text-muted-foreground/80 self-end mt-1.5">{chat.timestamp}</span>
+                <div className="flex flex-col w-full max-w-[320px] leading-1.5">
+                  <div className="p-3 border-border bg-muted rounded-e-xl rounded-es-xl shadow">
+                    <p className="text-sm font-normal text-foreground whitespace-pre-wrap break-words">{chat.message}</p>
+                  </div>
+                  <div className="flex items-center justify-between mt-1 px-1">
+                    <span className="text-xs text-muted-foreground/80">{chat.timestamp}</span>
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleListen(chat)} disabled={!!activeAudio && activeAudio.id !== chat.id}>
+                            {activeAudio?.id === chat.id && activeAudio.status === 'loading' && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {activeAudio?.id === chat.id && activeAudio.status === 'playing' && <StopCircle className="h-4 w-4 text-primary" />}
+                            {activeAudio?.id === chat.id && activeAudio.status === 'error' && <AlertCircle className="h-4 w-4 text-destructive" />}
+                            {(!activeAudio || activeAudio.id !== chat.id) && <Volume2 className="h-4 w-4" />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p>Listen to message</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
               </div>
             )
