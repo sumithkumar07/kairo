@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
@@ -30,9 +30,7 @@ export default function SignupPage() {
     e.preventDefault();
     try {
       await signup(email, password);
-      // The redirect will be handled by the useEffect hook when isLoggedIn state updates.
     } catch (error) {
-      // The context handles showing the error toast.
       console.error("Signup submission failed", error);
     }
   };
@@ -43,7 +41,7 @@ export default function SignupPage() {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <MarketingHeader />
-        <main className="flex-1 flex items-center justify-center bg-muted/40 p-4">
+        <main className="flex-1 flex items-center justify-center bg-muted/40 p-4 dot-grid-background">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
         <MarketingFooter />
@@ -54,10 +52,13 @@ export default function SignupPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <MarketingHeader />
-      <main className="flex-1 flex items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-sm shadow-2xl">
+      <main className="flex-1 flex items-center justify-center bg-muted/40 p-4 dot-grid-background">
+        <Card className="w-full max-w-sm shadow-2xl bg-card">
           <form onSubmit={handleSubmit}>
             <CardHeader className="text-center">
+              <div className="p-3 bg-primary/10 rounded-full inline-block mb-4 mx-auto">
+                <UserPlus className="h-8 w-8 text-primary" />
+              </div>
               <CardTitle className="text-2xl">Create an Account</CardTitle>
               <CardDescription>Start your 15-day Gold trial. No credit card required.</CardDescription>
             </CardHeader>
@@ -85,6 +86,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isFormDisabled}
+                  className="bg-background"
                 />
               </div>
               <div className="space-y-2">
@@ -96,13 +98,14 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isFormDisabled}
+                  className="bg-background"
                 />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button className="w-full" type="submit" disabled={isFormDisabled}>
                 {isAuthLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign Up
+                Sign Up & Start Trial
               </Button>
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account?{' '}

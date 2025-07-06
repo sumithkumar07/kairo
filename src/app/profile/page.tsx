@@ -21,16 +21,18 @@ function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="flex-1 flex items-center justify-center p-4 bg-muted/40">
-        <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-muted/40">
+        <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01] bg-card">
           <CardHeader className="text-center border-b pb-4">
-            <User className="h-16 w-16 text-primary mx-auto mb-3 p-2 bg-primary/10 rounded-full" />
+            <div className="p-4 bg-primary/10 rounded-full inline-block mb-3 mx-auto">
+              <User className="h-12 w-12 text-primary" />
+            </div>
             <CardTitle className="text-2xl">User Profile</CardTitle>
             <CardDescription>Manage your account details and subscription.</CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-5 pt-6">
-            <div className="p-4 border rounded-lg bg-muted/40 shadow-sm">
+            <div className="p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center space-x-3">
                 <Mail className="h-5 w-5 text-primary shrink-0" />
                 <div>
@@ -40,7 +42,7 @@ function ProfilePage() {
               </div>
             </div>
 
-            <div className="p-4 border rounded-lg bg-muted/40 shadow-sm">
+            <div className="p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center space-x-3">
                 <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
                 <div>

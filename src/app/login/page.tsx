@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, LogIn } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
@@ -32,20 +32,18 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login(email, password);
-      // The redirect will be handled by the useEffect hook when isLoggedIn state updates.
     } catch (error) {
-      // The context handles showing the error toast.
       console.error("Login submission failed", error);
     }
   };
 
   const isFormDisabled = isAuthLoading || !isSupabaseConfigured;
 
-  if (isAuthLoading && !isLoggedIn) { // Only show full-page loader on initial auth check
+  if (isAuthLoading && !isLoggedIn) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <MarketingHeader />
-        <main className="flex-1 flex items-center justify-center bg-muted/40 p-4">
+        <main className="flex-1 flex items-center justify-center bg-muted/40 p-4 dot-grid-background">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </main>
         <MarketingFooter />
@@ -56,10 +54,13 @@ export default function LoginPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <MarketingHeader />
-      <main className="flex-1 flex items-center justify-center bg-muted/40 p-4">
-        <Card className="w-full max-w-sm shadow-2xl">
+      <main className="flex-1 flex items-center justify-center bg-muted/40 p-4 dot-grid-background">
+        <Card className="w-full max-w-sm shadow-2xl bg-card">
           <form onSubmit={handleSubmit}>
             <CardHeader className="text-center">
+              <div className="p-3 bg-primary/10 rounded-full inline-block mb-4 mx-auto">
+                <LogIn className="h-8 w-8 text-primary" />
+              </div>
               <CardTitle className="text-2xl">Welcome Back</CardTitle>
               <CardDescription>Enter your credentials to access your workflows.</CardDescription>
             </CardHeader>
@@ -87,6 +88,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isFormDisabled}
+                  className="bg-background"
                 />
               </div>
               <div className="space-y-2">
@@ -98,6 +100,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isFormDisabled}
+                  className="bg-background"
                 />
               </div>
             </CardContent>

@@ -20,7 +20,7 @@ export function MarketingHeader() {
   const { isLoggedIn, logout, user } = useSubscription();
 
   return (
-    <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/50">
+    <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
       <div className="flex justify-between items-center">
         <Link href="/" className="text-3xl font-bold text-primary flex items-center gap-2 transition-opacity hover:opacity-80">
           <Workflow className="h-8 w-8" />
@@ -28,7 +28,7 @@ export function MarketingHeader() {
         </Link>
         <nav className="hidden md:flex items-center gap-2">
           <Button variant="ghost" asChild>
-            <Link href="/subscriptions">Subscriptions</Link>
+            <Link href="/subscriptions">Pricing</Link>
           </Button>
            <Button variant="ghost" asChild>
             <Link href="/contact">Contact</Link>
@@ -61,7 +61,7 @@ export function MarketingHeader() {
                 <Link href="/login">Log In</Link>
               </Button>
               <Button asChild>
-                <Link href="/signup">Sign Up</Link>
+                <Link href="/signup">Get Started</Link>
               </Button>
             </>
           )}
@@ -97,7 +97,7 @@ export function MarketingHeader() {
                 <DropdownMenuItem asChild><Link href="/run-history">Run History</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/mcp">Agent Hub</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link href="/subscriptions">Subscriptions</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/subscriptions">Pricing</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/contact">Contact</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {isLoggedIn ? (

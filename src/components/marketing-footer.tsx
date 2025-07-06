@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export function MarketingFooter() {
   return (
-    <footer className="bg-background">
+    <footer className="bg-muted/40">
       <div className="container text-center py-8">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} Kairo. Automate intelligently.

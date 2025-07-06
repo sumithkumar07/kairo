@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Home } from 'lucide-react';
+import { Mail, Home, MessageSquare } from 'lucide-react';
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
 
@@ -12,11 +12,13 @@ export default function ContactPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <MarketingHeader />
-      <main className="flex flex-col flex-1 items-center justify-center p-4 bg-muted/40">
-        <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01]">
+      <main className="flex flex-col flex-1 items-center justify-center p-4 bg-muted/40 dot-grid-background">
+        <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01] bg-card">
           <CardHeader className="text-center border-b pb-6">
-            <Mail className="h-16 w-16 text-primary mx-auto mb-4 p-2 bg-primary/10 rounded-full" />
-            <CardTitle className="text-3xl">Contact Kairo</CardTitle>
+            <div className="p-4 bg-primary/10 rounded-full inline-block mb-4 mx-auto">
+              <Mail className="h-12 w-12 text-primary" />
+            </div>
+            <CardTitle className="text-3xl">Contact Us</CardTitle>
             <CardDescription className="text-md text-muted-foreground pt-1">
               We&apos;d love to hear from you!
             </CardDescription>
@@ -27,28 +29,30 @@ export default function ContactPage() {
               For support, feedback, inquiries about enterprise plans, or custom integration requests, please don&apos;t hesitate to reach out to our team.
             </p>
             
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">General Inquiries & Support:</p>
-              <a 
-                href="mailto:support@kairo.example.com" 
-                className="text-lg font-semibold text-primary hover:underline"
-              >
-                support@kairo.example.com
-              </a>
-            </div>
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg bg-background">
+                <p className="text-sm text-muted-foreground mb-1">General Inquiries & Support</p>
+                <a 
+                  href="mailto:support@kairo.example.com" 
+                  className="text-lg font-semibold text-primary hover:underline"
+                >
+                  support@kairo.example.com
+                </a>
+              </div>
 
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Sales & Enterprise:</p>
-              <a 
-                href="mailto:sales@kairo.example.com" 
-                className="text-lg font-semibold text-primary hover:underline"
-              >
-                sales@kairo.example.com
-              </a>
+              <div className="p-4 border rounded-lg bg-background">
+                <p className="text-sm text-muted-foreground mb-1">Sales & Enterprise</p>
+                <a 
+                  href="mailto:sales@kairo.example.com" 
+                  className="text-lg font-semibold text-primary hover:underline"
+                >
+                  sales@kairo.example.com
+                </a>
+              </div>
             </div>
             
             <p className="text-xs text-muted-foreground pt-4">
-              We typically respond within 24-48 business hours.
+              We aim to respond within 24-48 business hours.
             </p>
           </CardContent>
           
