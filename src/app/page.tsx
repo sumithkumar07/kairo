@@ -32,11 +32,6 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="group text-lg px-10 py-7 shadow-lg hover:shadow-accent/40 transition-all duration-300 ease-in-out hover:scale-105">
-                <Link href="/contact">
-                  Request a Demo
-                </Link>
-              </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-4">15-day free trial. No credit card required.</p>
           </div>
