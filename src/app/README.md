@@ -63,10 +63,6 @@ These are **essential** for the app's core features to function.
     *   **Purpose**: A **critical** secret key used to encrypt and decrypt credentials managed in the AI Agent Hub (e.g., your OpenAI API key).
     *   **How to get it**: Generate a strong, random string of at least 32 characters. This key must remain private and should be backed up securely. **Changing this key will make all previously saved credentials unreadable.**
 
-*   `KAIRO_MCP_API_KEY="YOUR_SECRET_API_KEY"`
-    *   **Purpose**: A secret key you define to protect the AI Agent Hub's programmatic API endpoint.
-    *   **How to get it**: Create any strong, secret string. You will use this in the `Authorization: Bearer <key>` header when calling `/api/mcp`.
-
 *   `SCHEDULER_SECRET_KEY="A_DIFFERENT_SECRET_API_KEY"`
     *   **Purpose**: A secret key to protect the scheduler endpoint (`/api/scheduler/run`), which triggers scheduled workflows.
     *   **How to get it**: Create another strong, secret string, different from your other keys.
@@ -152,6 +148,35 @@ CREATE TABLE public.credentials (
 );
 ALTER TABLE public.credentials ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to manage their own credentials" ON public.credentials FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Create a table for user-specific API keys
+CREATE TABLE public.user_api_keys (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    key_hash text NOT NULL UNIQUE,
+    prefix text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz
+);
+ALTER TABLE public.user_api_keys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own API keys" ON public.user_api_keys FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- Create a function to find a user by their API key hash
+CREATE OR REPLACE FUNCTION public.find_user_by_api_key(p_key_hash text)
+RETURNS uuid AS $$
+DECLARE
+    v_user_id uuid;
+BEGIN
+    SELECT user_id INTO v_user_id
+    FROM public.user_api_keys
+    WHERE key_hash = p_key_hash;
+    
+    RETURN v_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 
 -- Create a PostgreSQL function to securely search for a workflow by its webhook path
 -- This function can be called via RPC and respects Row Level Security.
@@ -295,9 +320,10 @@ Kairo is architected to be deployed on modern hosting platforms like Netlify, Ve
 
 ### AI Agent Hub API (`/api/mcp`)
 
-*   Send a `POST` request to `/api/mcp`.
-*   Include an `Authorization` header with the value `Bearer YOUR_KAIRO_MCP_API_KEY`.
-*   The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
+*   **Authentication**: The API uses per-user API keys for authentication. You can generate your key in the AI Agent Hub under the "API Access" tab.
+*   **Usage**: Send a `POST` request to `/api/mcp`.
+*   **Header**: Include an `Authorization` header with the value `Bearer YOUR_KAIRO_API_KEY`.
+*   **Body**: The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
 
 ## Project Structure
 

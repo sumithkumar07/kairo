@@ -149,6 +149,35 @@ CREATE TABLE public.credentials (
 ALTER TABLE public.credentials ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to manage their own credentials" ON public.credentials FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- Create a table for user-specific API keys
+CREATE TABLE public.user_api_keys (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    key_hash text NOT NULL UNIQUE,
+    prefix text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz
+);
+ALTER TABLE public.user_api_keys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own API keys" ON public.user_api_keys FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- Create a function to find a user by their API key hash
+CREATE OR REPLACE FUNCTION public.find_user_by_api_key(p_key_hash text)
+RETURNS uuid AS $$
+DECLARE
+    v_user_id uuid;
+BEGIN
+    SELECT user_id INTO v_user_id
+    FROM public.user_api_keys
+    WHERE key_hash = p_key_hash;
+    
+    RETURN v_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
 -- Create a PostgreSQL function to securely search for a workflow by its webhook path
 -- This function can be called via RPC and respects Row Level Security.
 CREATE OR REPLACE FUNCTION find_workflow_by_webhook_path(path_suffix_to_find text)
