@@ -36,6 +36,7 @@ import { withAuth } from '@/components/auth/with-auth';
 import { Input } from '@/components/ui/input';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useRouter } from 'next/navigation';
 
 
 const JsonSyntaxHighlighter = React.memo(({ jsonString, className }: { jsonString: string; className?: string; }) => {
@@ -65,6 +66,7 @@ function RunHistoryPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { toast } = useToast();
   const { hasProFeatures } = useSubscription();
+  const router = useRouter();
 
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnoseWorkflowErrorOutput | null>(null);
@@ -186,6 +188,14 @@ function RunHistoryPage() {
     setActiveDetailTab('logs');
     setDiagnosis(null);
   };
+  
+  const handleLoadCorrectedWorkflow = (correctedWorkflow: any) => {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('kairoCorrectedWorkflow', JSON.stringify(correctedWorkflow));
+        router.push('/workflow');
+    }
+  };
+
 
   const renderNodeRunData = () => {
     if (!selectedNodeInSnapshot || !selectedRun) {
@@ -275,6 +285,13 @@ function RunHistoryPage() {
                     <h4 className="font-semibold text-sm mb-1.5 flex items-center gap-2"><Edit3 className="h-4 w-4 text-green-500" /> Recommended Fix</h4>
                     <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{diagnosis.recommendedFix}</p>
                 </div>
+                {diagnosis.correctedWorkflow && (
+                    <div className="pt-2">
+                        <Button onClick={() => handleLoadCorrectedWorkflow(diagnosis.correctedWorkflow)} className="w-full">
+                            <Workflow className="mr-2 h-4 w-4" /> Load Corrected Workflow into Editor
+                        </Button>
+                    </div>
+                )}
             </div>
         </ScrollArea>
     );

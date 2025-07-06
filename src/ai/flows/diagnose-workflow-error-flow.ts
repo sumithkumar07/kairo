@@ -1,15 +1,16 @@
 
 'use server';
 /**
- * @fileOverview An AI flow to diagnose a failed workflow run.
+ * @fileOverview An AI flow to diagnose a failed workflow run and propose a corrected workflow definition.
  *
- * - diagnoseWorkflowError - A function that takes a failed workflow run and returns a diagnosis.
+ * - diagnoseWorkflowError - A function that takes a failed workflow run and returns a diagnosis and a corrected workflow.
  * - DiagnoseWorkflowErrorInput - The input type for the function.
  * - DiagnoseWorkflowErrorOutput - The return type for the function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GenerateWorkflowFromPromptOutputSchema } from './generate-workflow-from-prompt';
 
 // Input Schemas
 const WorkflowNodeSchema = z.object({
@@ -41,6 +42,7 @@ export type DiagnoseWorkflowErrorInput = z.infer<typeof DiagnoseWorkflowErrorInp
 const DiagnoseWorkflowErrorOutputSchema = z.object({
   diagnosis: z.string().describe("A clear, concise explanation of the root cause of the failure. Identify the failing node and the reason for its failure (e.g., bad input, misconfiguration, external API error)."),
   recommendedFix: z.string().describe("A step-by-step recommendation on how to fix the workflow. Be specific (e.g., 'Add a Conditional Logic node after the HTTP Request to check if the status code is 200 before attempting to parse the JSON.')."),
+  correctedWorkflow: GenerateWorkflowFromPromptOutputSchema.optional().describe("If a fix is possible, provide the complete, corrected workflow definition as a JSON object with 'nodes' and 'connections'. This new definition should implement the recommended fix. If the workflow cannot be fixed automatically, this field should be omitted."),
 });
 export type DiagnoseWorkflowErrorOutput = z.infer<typeof DiagnoseWorkflowErrorOutputSchema>;
 
@@ -62,17 +64,24 @@ const errorDiagnoserPrompt = ai.definePrompt({
   name: 'errorDiagnoserPrompt',
   input: {schema: DiagnosePromptInputSchema},
   output: {schema: DiagnoseWorkflowErrorOutputSchema},
-  prompt: `You are an expert AI software engineer specializing in debugging automation workflows. Your task is to analyze the provided workflow structure and its execution logs to determine the root cause of a failure.
+  prompt: `You are an expert AI software engineer specializing in debugging and correcting automation workflows. Your task is to analyze the provided workflow structure and its execution logs to determine the root cause of a failure and generate a corrected version of the workflow.
 
-Workflow Analysis Steps:
+**Analysis & Correction Steps:**
+
 1.  **Identify the Failing Node**: Scan the server logs for the first critical error message. The log will usually pinpoint the node that failed.
 2.  **Determine the Cause**:
     *   **Configuration Error**: Is a required field in the failing node's config empty or using a placeholder that resolved to an invalid value? (e.g., a URL is 'undefined').
-    *   **Bad Input**: Did the failing node receive incorrect or empty data from an upstream node? Check the logs for the output of the nodes connected to the failing one. (e.g., a 'Parse JSON' node received a non-JSON string because a preceding 'HTTP Request' node returned an HTML error page).
+    *   **Bad Input**: Did the failing node receive incorrect or empty data from an upstream node? Check the logs for the output of the nodes connected to the failing one.
     *   **Logic Error**: Is there a faulty condition in a conditional node, or is a node being skipped incorrectly?
-    *   **External Service Error**: Did an external API (like in an 'HTTP Request' node) return an error status (e.g., 404, 500)?
+    *   **External Service Error**: Did an external API return an error?
 3.  **Formulate Diagnosis**: State clearly which node failed and why. Be direct.
-4.  **Recommend a Fix**: Provide a clear, actionable solution. If it's a configuration issue, tell the user exactly what to fix. If it's a data issue, suggest adding error handling (e.g., a conditional check) or modifying the upstream node.
+4.  **Recommend a Fix**: Provide a clear, actionable solution.
+5.  **Generate Corrected Workflow**: Based on your analysis, generate a complete, corrected JSON definition for the workflow in the \`correctedWorkflow\` output field.
+    *   You MUST adhere to the same rules as the main workflow generator: Use \`inputMapping\` to pass data, lay out nodes logically with \`position\`, and provide clear \`aiExplanation\` for any changed or added nodes.
+    *   If the fix involves adding a new node (e.g., a conditional check or a logging node), create a new, unique ID for it and position it appropriately.
+    *   Preserve the positions, names, and configurations of all unaffected nodes.
+    *   Update connections as necessary to implement the fix.
+    *   If the workflow is unfixable (e.g., the error is due to a fundamental external issue beyond the workflow's control), you may omit the \`correctedWorkflow\` field.
 
 Workflow Nodes:
 \`\`\`json
@@ -89,7 +98,7 @@ Execution Logs:
 {{{logsJson}}}
 \`\`\`
 
-Based on your analysis, provide a diagnosis and recommended fix.
+Based on your analysis, provide a diagnosis, recommended fix, and the corrected workflow JSON.
 `,
 });
 

@@ -211,6 +211,50 @@ function WorkflowPage() {
     setConnectionStartHandleId(null);
     setConnectionPreviewPosition(null);
   }, []);
+  
+  const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
+    let maxIdNum = nextNodeIdRef.current;
+    const newNodes: WorkflowNode[] = aiWorkflow.nodes.map((aiNode, index) => {
+      const idParts = aiNode.id.split('_');
+      const numPart = parseInt(idParts[idParts.length - 1] || '0', 10);
+      if (!isNaN(numPart) && numPart >= maxIdNum) {
+        maxIdNum = numPart + 1;
+      }
+
+      const mappedTypeKey = aiNode.type.toLowerCase();
+      const uiNodeTypeKey = AI_NODE_TYPE_MAPPING[mappedTypeKey] || AI_NODE_TYPE_MAPPING['default'] || 'unknown';
+      const nodeConfigDef = AVAILABLE_NODES_CONFIG.find(n => n.type === uiNodeTypeKey) ||
+                            AVAILABLE_NODES_CONFIG.find(n => n.type === 'unknown')!;
+
+      const defaultX = (index % 5) * (NODE_WIDTH + 60) + 30;
+      const defaultY = Math.floor(index / 5) * (NODE_HEIGHT + 40) + 30;
+
+      return {
+        id: aiNode.id || `${nodeConfigDef.type}_${maxIdNum++}`,
+        type: nodeConfigDef.type,
+        name: aiNode.name || nodeConfigDef.name || `Node ${aiNode.id}`,
+        description: aiNode.description || '',
+        position: aiNode.position || { x: defaultX, y: defaultY },
+        config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
+        inputHandles: nodeConfigDef.inputHandles,
+        outputHandles: nodeConfigDef.outputHandles,
+        aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
+        category: nodeConfigDef.category,
+        lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'],
+      };
+    });
+    nextNodeIdRef.current = maxIdNum;
+
+    const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
+      id: conn.id || crypto.randomUUID(),
+      sourceNodeId: conn.sourceNodeId,
+      sourceHandle: conn.sourceHandle,
+      targetNodeId: conn.targetNodeId,
+      targetHandle: conn.targetHandle,
+    }));
+
+    return { nodes: newNodes, connections: newConnections };
+  }, []);
 
   const loadWorkflowIntoEditor = useCallback((workflowData: Workflow, workflowName?: string) => {
     if (!workflowData || !Array.isArray(workflowData.nodes) || !Array.isArray(workflowData.connections)) {
@@ -308,6 +352,21 @@ function WorkflowPage() {
 
   useEffect(() => {
     const initializeEditorState = async () => {
+        const correctedWorkflowJson = localStorage.getItem('kairoCorrectedWorkflow');
+        if (correctedWorkflowJson) {
+            localStorage.removeItem('kairoCorrectedWorkflow'); // Clean up immediately
+            try {
+                const correctedWorkflowData = JSON.parse(correctedWorkflowJson);
+                const workflowToLoad = mapAiWorkflowToInternal(correctedWorkflowData);
+                loadWorkflowIntoEditor(workflowToLoad, `${currentWorkflowNameRef.current} (Corrected)`);
+                toast({ title: 'Corrected Workflow Loaded', description: 'The AI-generated fix has been loaded onto the canvas.' });
+                return; // Exit early to prevent loading the old workflow
+            } catch (error) {
+                console.error("Error loading corrected workflow from localStorage:", error);
+                toast({ title: "Load Error", description: "Could not load the corrected workflow.", variant: "destructive" });
+            }
+        }
+        
         const workflowNameToLoad = searchParams.get('load');
 
         if (workflowNameToLoad) {
@@ -437,50 +496,6 @@ function WorkflowPage() {
     }
   }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
-
-  const mapAiWorkflowToInternal = useCallback((aiWorkflow: GenerateWorkflowFromPromptOutput): Workflow => {
-    let maxIdNum = nextNodeIdRef.current;
-    const newNodes: WorkflowNode[] = aiWorkflow.nodes.map((aiNode, index) => {
-      const idParts = aiNode.id.split('_');
-      const numPart = parseInt(idParts[idParts.length - 1] || '0', 10);
-      if (!isNaN(numPart) && numPart >= maxIdNum) {
-        maxIdNum = numPart + 1;
-      }
-
-      const mappedTypeKey = aiNode.type.toLowerCase();
-      const uiNodeTypeKey = AI_NODE_TYPE_MAPPING[mappedTypeKey] || AI_NODE_TYPE_MAPPING['default'] || 'unknown';
-      const nodeConfigDef = AVAILABLE_NODES_CONFIG.find(n => n.type === uiNodeTypeKey) ||
-                            AVAILABLE_NODES_CONFIG.find(n => n.type === 'unknown')!;
-
-      const defaultX = (index % 5) * (NODE_WIDTH + 60) + 30;
-      const defaultY = Math.floor(index / 5) * (NODE_HEIGHT + 40) + 30;
-
-      return {
-        id: aiNode.id || `${nodeConfigDef.type}_${maxIdNum++}`,
-        type: nodeConfigDef.type,
-        name: aiNode.name || nodeConfigDef.name || `Node ${aiNode.id}`,
-        description: aiNode.description || '',
-        position: aiNode.position || { x: defaultX, y: defaultY },
-        config: { ...nodeConfigDef.defaultConfig, ...(aiNode.config || {}) },
-        inputHandles: nodeConfigDef.inputHandles,
-        outputHandles: nodeConfigDef.outputHandles,
-        aiExplanation: aiNode.aiExplanation || `AI generated node: ${aiNode.name || nodeConfigDef.name}. Type: ${aiNode.type}. Check configuration.`,
-        category: nodeConfigDef.category,
-        lastExecutionStatus: 'pending' as WorkflowNode['lastExecutionStatus'],
-      };
-    });
-    nextNodeIdRef.current = maxIdNum;
-
-    const newConnections: WorkflowConnection[] = aiWorkflow.connections.map((conn) => ({
-      id: conn.id || crypto.randomUUID(),
-      sourceNodeId: conn.sourceNodeId,
-      sourceHandle: conn.sourceHandle,
-      targetNodeId: conn.targetNodeId,
-      targetHandle: conn.targetHandle,
-    }));
-
-    return { nodes: newNodes, connections: newConnections };
-  }, []);
 
   const handleAiPromptSubmit = useCallback((aiOutput: GenerateWorkflowFromPromptOutput) => {
     if (!aiOutput || !aiOutput.nodes) {
@@ -1468,9 +1483,9 @@ function WorkflowPage() {
             onResetView={handleResetView}
             handleGetWorkflowExplanation={handleGetWorkflowExplanation}
             isExplainingWorkflow={isExplainingWorkflow}
-            onUndo={handleUndo}
+            onUndo={onUndo}
             canUndo={canUndo}
-            onRedo={handleRedo}
+            onRedo={onRedo}
             canRedo={canRedo}
             toast={toast}
             onDeleteSelectedConnection={handleDeleteSelectedConnection}
