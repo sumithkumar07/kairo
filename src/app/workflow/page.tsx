@@ -1448,7 +1448,7 @@ function WorkflowPage() {
             onImportWorkflow={handleImportWorkflow}
             workflowName={currentWorkflowNameRef.current}
             isConnecting={isConnecting}
-            onStartConnection={handleStartConnection}
+            onStartConnection={onStartConnection}
             onCompleteConnection={handleCompleteConnection}
             onUpdateConnectionPreview={handleUpdateConnectionPreview}
             connectionPreview={{
