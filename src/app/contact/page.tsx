@@ -33,20 +33,20 @@ export default function ContactPage() {
               <div className="p-4 border rounded-lg bg-background">
                 <p className="text-sm text-muted-foreground mb-1">General Inquiries & Support</p>
                 <a 
-                  href="mailto:support@kairo.example.com" 
+                  href="mailto:kairoaihelp@gmail.com" 
                   className="text-lg font-semibold text-primary hover:underline"
                 >
-                  support@kairo.example.com
+                  kairoaihelp@gmail.com
                 </a>
               </div>
 
               <div className="p-4 border rounded-lg bg-background">
                 <p className="text-sm text-muted-foreground mb-1">Sales & Enterprise</p>
                 <a 
-                  href="mailto:sales@kairo.example.com" 
+                  href="mailto:kairoaihelp@gmail.com" 
                   className="text-lg font-semibold text-primary hover:underline"
                 >
-                  sales@kairo.example.com
+                  kairoaihelp@gmail.com
                 </a>
               </div>
             </div>
