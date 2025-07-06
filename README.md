@@ -9,7 +9,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Styling**: Tailwind CSS with shadcn/ui components
 *   **AI**: Google AI & Genkit
 *   **Database & Auth**: Supabase
-*   **Deployment**: Vercel, Netlify, Firebase App Hosting
+*   **Deployment**: Firebase App Hosting, Vercel, Netlify
 
 ---
 
@@ -270,30 +270,37 @@ Open your browser and navigate to `http://localhost:3000`. The main workflow edi
 
 ## Deployment Guide
 
-Kairo is architected to be deployed on modern hosting platforms like **Vercel**, Netlify, or Firebase App Hosting. Vercel is the recommended choice for the best performance and easiest setup.
+Kairo is architected to be deployed on modern hosting platforms like **Firebase App Hosting**, Vercel, or Netlify.
 
-#### **Step 1: Push to a Git Repository**
-Push your project code to a GitHub, GitLab, or Bitbucket repository.
+### Option 1: Firebase App Hosting (Recommended)
 
-#### **Step 2: Import Project on Vercel**
-1.  Sign up for a [Vercel](https://vercel.com) account (you can use your Git provider account).
-2.  Click **"Add New..." -> "Project"** from your dashboard.
-3.  Import your Kairo Git repository. Vercel will automatically detect the Next.js framework.
+1.  **Push to GitHub:** Make sure your latest code is pushed to a GitHub repository.
+2.  **Create Firebase Project:** Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+3.  **Enable App Hosting:** In your project, navigate to the "Build" section and select "App Hosting". Click "Get Started".
+4.  **Connect GitHub:** Follow the prompts to connect your GitHub account and select your Kairo repository.
+5.  **Configure Backend:** In the App Hosting dashboard for your backend, navigate to the **Settings** tab.
+6.  **Add Secret Variables:** This is the most important step. Add all the environment variables from your local `.env.local` file as **Secrets** in the App Hosting settings.
+    *   `NEXT_PUBLIC_SUPABASE_URL`
+    *   `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    *   `GOOGLE_API_KEY`
+    *   `ENCRYPTION_SECRET_KEY` (Must be identical to your local key)
+    *   `SCHEDULER_SECRET_KEY`
+7.  **Deploy:** Once the secrets are saved, new pushes to your main branch will automatically trigger a new build and deployment.
 
-#### **Step 3: Configure Environment Variables**
-This is the most important step. Your live app will not work without these.
-1.  In your Vercel project settings, navigate to the **Environment Variables** section.
-2.  Add all the variables from your local `.env.local` file (see Step 3a above). **Ensure `ENCRYPTION_SECRET_KEY` is identical to your local key if you want to preserve saved credentials.**
+### Option 2: Vercel or Netlify
 
-#### **Step 4: Run Production Database Schema**
-If you haven't already, you **must** run the SQL script from Step 3b in your **production Supabase project's** SQL Editor.
+1.  **Push to GitHub:** Push your project code to a GitHub, GitLab, or Bitbucket repository.
+2.  **Import Project:** Sign up for an account on Vercel or Netlify and import your Kairo Git repository. The Next.js framework will be automatically detected.
+3.  **Configure Environment Variables:** In your project settings on the hosting platform, navigate to the **Environment Variables** section. Add all the variables from your local `.env.local` file.
+4.  **Deploy:** Click the **"Deploy"** button. Your application will be built and deployed.
 
-#### **Step 5: Deploy**
-Click the **"Deploy"** button on Vercel. Your application will be built and deployed.
+---
 
-#### **Step 6: Configure the Scheduler (Optional)**
+### Post-Deployment: Configure the Scheduler (Optional)
+
 If you use the `schedule` node, you must set up an external service to trigger it.
-1.  Use a service like **Vercel Cron Jobs**, EasyCron, or a GitHub Action.
+
+1.  Use a service like **Google Cloud Scheduler**, Vercel Cron Jobs, EasyCron, or a GitHub Action.
 2.  Create a job that runs at your desired frequency (e.g., every 5 minutes).
 3.  The job must send a `POST` request to: `YOUR_DEPLOYED_URL/api/scheduler/run`
-4.  The request **MUST** include the following header: `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` (using the key you set in the environment variables).
+4.  The request **MUST** include the following header: `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` (using the key you set in your environment variables).
