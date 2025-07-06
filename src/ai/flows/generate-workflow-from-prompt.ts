@@ -38,7 +38,7 @@ const WorkflowConnectionSchema = z.object({
 });
 
 // Define the overall workflow schema, containing nodes and connections.
-const GenerateWorkflowFromPromptOutputSchema = z.object({
+export const GenerateWorkflowFromPromptOutputSchema = z.object({
   nodes: z.array(WorkflowNodeSchema).describe('List of all workflow nodes required to fulfill the user\'s request. Ensure all steps from the prompt are covered.'),
   connections: z.array(WorkflowConnectionSchema).describe('List of all connections between nodes, ensuring a complete data flow from triggers to final actions. Ensure sourcePort and targetPort are specified where applicable and match defined node handles.'),
 });
