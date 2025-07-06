@@ -433,5 +433,3 @@ export async function upgradeToDiamondAction(): Promise<void> {
     const userId = await getUserIdOrThrow();
     await WorkflowStorage.updateUserProfileTier(userId, 'Diamond');
 }
-
-    
