@@ -16,7 +16,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard } from 'lucide-react';
+import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, Compass } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -32,7 +32,8 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/workflow', label: 'Workflow Editor', icon: Workflow },
+  { href: '/hub', label: 'Workflow Hub', icon: Compass },
+  { href: '/workflow', label: 'Editor', icon: Workflow },
   { href: '/run-history', label: 'Run History', icon: History },
   { href: '/mcp', label: 'AI Agent Hub', icon: Cpu },
   { href: '/settings', label: 'Settings', icon: Settings },

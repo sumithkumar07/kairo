@@ -6,9 +6,7 @@ import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, Ser
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import type { GenerateTestDataInput } from '@/ai/flows/generate-test-data-flow';
-import type { GenerateWorkflowIdeasOutput } from '@/ai/flows/generate-workflow-ideas';
-import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, listWorkflowsAction, loadWorkflowAction, saveWorkflowAction, deleteWorkflowAction, generateTestDataForNode, getAgentConfigAction, getCommunityWorkflowsAction, generateWorkflowIdeasAction } from '@/app/actions';
-import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
+import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, saveWorkflowAction, generateTestDataForNode, getAgentConfigAction } from '@/app/actions';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
 import { useToast } from '@/hooks/use-toast';
@@ -24,10 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLayout } from '@/components/app-layout';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
@@ -38,8 +32,7 @@ import { NodeLibrary } from '@/components/node-library';
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 import { produce } from 'immer';
 import { withAuth } from '@/components/auth/with-auth';
-import { useSearchParams } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import Joyride, { type Step, CallBackProps } from 'react-joyride';
 
@@ -80,6 +73,7 @@ function WorkflowPage() {
 
   const { toast } = useToast();
   const { hasProFeatures, isLoggedIn, user } = useSubscription();
+  const router = useRouter();
   const nextNodeIdRef = useRef(1);
   const currentWorkflowNameRef = useRef('Untitled Workflow');
 
@@ -111,18 +105,6 @@ function WorkflowPage() {
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-
-  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
-  const [saveAsName, setSaveAsName] = useState('');
-
-  const [showHubDialog, setShowHubDialog] = useState(false);
-  const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowMetadata[]>([]);
-  const [communityWorkflows, setCommunityWorkflows] = useState<ExampleWorkflow[]>([]);
-  const [workflowToDeleteFromModal, setWorkflowToDeleteFromModal] = useState<string | null>(null);
-  const [hubSearchTerm, setHubSearchTerm] = useState('');
-  const [generatedIdeas, setGeneratedIdeas] = useState<any[]>([]);
-  const [isGeneratingIdeas, setIsGeneratingIdeas] = useState(false);
-  const [ideaQuery, setIdeaQuery] = useState('');
 
   const [isGeneratingTestDataFor, setIsGeneratingTestDataFor] = useState<string|null>(null);
 
@@ -183,7 +165,7 @@ function WorkflowPage() {
     },
     {
       target: '#menubar-file-button',
-      content: 'Use the File menu to create new workflows, save your work, or open the Workflow Hub to explore examples and generate new ideas.',
+      content: 'Use the File menu to create new workflows, save your work, or go to the Workflow Hub to explore examples and generate new ideas.',
       placement: 'bottom',
     },
   ];
@@ -345,69 +327,7 @@ function WorkflowPage() {
     resetHistoryForNewWorkflow(loadedNodes, loadedConnections);
   }, [resetHistoryForNewWorkflow, toast]);
 
-
-  const loadWorkflowsForHub = useCallback(async () => {
-    try {
-      const [userAndExample, community] = await Promise.all([
-        listWorkflowsAction(),
-        getCommunityWorkflowsAction()
-      ]);
-      setSavedWorkflows(userAndExample);
-      setCommunityWorkflows(community);
-    } catch (e: any) {
-      toast({ title: 'Error', description: 'Could not load workflows.', variant: 'destructive' });
-      setSavedWorkflows([]);
-      setCommunityWorkflows([]);
-    }
-  }, [toast]);
-
-  const handleOpenHubDialog = useCallback(async () => {
-    await loadWorkflowsForHub();
-    setShowHubDialog(true);
-  }, [loadWorkflowsForHub]);
-
-  const handleLoadNamedWorkflow = useCallback(async (workflowName: string) => {
-    try {
-      const loadedData = await loadWorkflowAction(workflowName);
-      if (loadedData) {
-        loadWorkflowIntoEditor(loadedData.workflow, loadedData.name);
-        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: loadedData.name, workflow: loadedData.workflow }));
-        toast({ title: 'Workflow Loaded', description: `Workflow "${workflowName}" is now active in the editor.` });
-        setShowHubDialog(false);
-      } else {
-        throw new Error("Workflow data not found.");
-      }
-    } catch (e: any) {
-      toast({ title: 'Load Error', description: `Failed to load workflow "${workflowName}": ${e.message}`, variant: 'destructive' });
-      await loadWorkflowsForHub();
-    }
-  }, [loadWorkflowIntoEditor, toast, loadWorkflowsForHub]);
-  
-  const handleLoadGeneratedWorkflow = (idea: any) => {
-    loadWorkflowIntoEditor(idea.workflow, idea.name);
-    localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: idea.name, workflow: idea.workflow }));
-    toast({ title: 'Workflow Loaded', description: `Workflow "${idea.name}" is now active in the editor.` });
-    setShowHubDialog(false);
-  };
-
-
-  const handleDeleteWorkflowFromModal = useCallback(async () => {
-    if (!workflowToDeleteFromModal) return;
-
-    try {
-      const result = await deleteWorkflowAction(workflowToDeleteFromModal);
-      if (result.success) {
-        toast({ title: 'Workflow Deleted', description: result.message });
-        setSavedWorkflows(prev => prev.filter(wf => wf.name !== workflowToDeleteFromModal));
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (e: any) {
-      toast({ title: 'Error Deleting', description: e.message, variant: 'destructive' });
-    } finally {
-      setWorkflowToDeleteFromModal(null);
-    }
-  }, [workflowToDeleteFromModal, toast]);
+  const handleGoToHub = () => router.push('/hub');
 
   useEffect(() => {
     const initializeEditorState = async () => {
@@ -429,7 +349,17 @@ function WorkflowPage() {
         const workflowNameToLoad = searchParams.get('load');
 
         if (workflowNameToLoad) {
-            await handleLoadNamedWorkflow(workflowNameToLoad);
+            // This is handled by the Hub page now, which sets localStorage.
+            // This check is a fallback.
+            const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
+            if (savedWorkflowJson) {
+                const savedState = JSON.parse(savedWorkflowJson);
+                if (savedState.name === workflowNameToLoad) {
+                    loadWorkflowIntoEditor(savedState.workflow, savedState.name);
+                }
+            } else {
+                router.push('/hub'); // If no local data, go to hub to load it.
+            }
         } else {
             const savedWorkflowJson = localStorage.getItem(CURRENT_WORKFLOW_KEY);
             if (savedWorkflowJson) {
@@ -492,8 +422,8 @@ function WorkflowPage() {
   const handleSaveWorkflow = useCallback(async () => {
     if (typeof window !== 'undefined') {
       if (currentWorkflowNameRef.current === 'Untitled Workflow' && nodes.length > 0) {
-        setSaveAsName(''); 
-        setShowSaveAsDialog(true);
+        router.push('/hub');
+        toast({ title: "Save Your Workflow", description: "Please save your new workflow from the hub to give it a name." });
         return;
       }
       
@@ -517,44 +447,7 @@ function WorkflowPage() {
         toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
       }
     }
-  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
-
-  const handleSaveWorkflowAs = useCallback(() => {
-    if (nodes.length === 0 && connections.length === 0) {
-      toast({ title: 'Empty Workflow', description: 'Cannot save an empty workflow with a name.', variant: 'default' });
-      return;
-    }
-    setSaveAsName(currentWorkflowNameRef.current === 'Untitled Workflow' ? '' : currentWorkflowNameRef.current);
-    setShowSaveAsDialog(true);
-  }, [nodes, connections, toast]);
-
-  const confirmSaveAsWorkflow = useCallback(async () => {
-    if (!saveAsName.trim()) {
-      toast({ title: 'Invalid Name', description: 'Please enter a valid name for the workflow.', variant: 'destructive' });
-      return;
-    }
-
-    const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
-    try {
-      const result = await saveWorkflowAction(saveAsName, workflowToSave);
-      
-      if (result.success) {
-        currentWorkflowNameRef.current = saveAsName;
-        document.title = `${currentWorkflowNameRef.current} - Kairo`;
-        
-        localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: currentWorkflowNameRef.current, workflow: workflowToSave }));
-
-        toast({ title: 'Workflow Saved As', description: `Workflow saved as "${saveAsName}".` });
-        setShowSaveAsDialog(false);
-        saveHistory();
-      } else {
-          toast({ title: 'Save Failed', description: result.message, variant: 'destructive' });
-      }
-    } catch (e: any) {
-      toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
-    }
-  }, [saveAsName, nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
-
+  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory, router]);
 
   const handleAiPromptSubmit = useCallback((aiOutput: GenerateWorkflowFromPromptOutput) => {
     if (!aiOutput || !aiOutput.nodes) {
@@ -1371,23 +1264,6 @@ function WorkflowPage() {
     input.click();
   }, [toast, loadWorkflowIntoEditor]);
   
-  const handleGenerateIdeas = useCallback(async () => {
-    if (!ideaQuery.trim()) {
-        toast({ title: "Query is empty", description: "Please enter a topic to generate ideas." });
-        return;
-    }
-    setIsGeneratingIdeas(true);
-    setGeneratedIdeas([]);
-    try {
-        const result = await generateWorkflowIdeasAction({ query: ideaQuery, count: 4 });
-        setGeneratedIdeas(result.ideas || []);
-    } catch(e: any) {
-        toast({ title: "Failed to generate ideas", description: e.message, variant: "destructive"});
-    } finally {
-        setIsGeneratingIdeas(false);
-    }
-  }, [ideaQuery, toast]);
-
   const EmptyCanvas = () => (
     <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
       <div className="p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm max-w-lg text-center">
@@ -1411,20 +1287,16 @@ function WorkflowPage() {
       const isInputField = (target: EventTarget | null): boolean => {
         return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
       }
-      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog || showSaveAsDialog || showHubDialog || workflowToDeleteFromModal) return;
+      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
       if (isCtrlOrMeta && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        if (event.shiftKey) {
-            handleSaveWorkflowAs();
-        } else {
-            handleSaveWorkflow();
-        }
+        handleSaveWorkflow();
         return;
       }
-      if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleOpenHubDialog(); return; }
+      if (isCtrlOrMeta && event.key.toLowerCase() === 'o') { event.preventDefault(); handleGoToHub(); return; }
       if (isCtrlOrMeta && event.key.toLowerCase() === 'n') { event.preventDefault(); setShowClearCanvasConfirmDialog(true); return; }
 
       if (isCtrlOrMeta && event.key.toLowerCase() === 'enter') { event.preventDefault(); handleRunWorkflow(); return; }
@@ -1458,9 +1330,6 @@ function WorkflowPage() {
         if (selectedNodeId) setSelectedNodeId(null);
         if (selectedConnectionId) setSelectedConnectionId(null);
         if (workflowExplanation) setWorkflowExplanation(null);
-        if (showSaveAsDialog) setShowSaveAsDialog(false);
-        if (showHubDialog) setShowHubDialog(false);
-        if(workflowToDeleteFromModal) setWorkflowToDeleteFromModal(null);
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -1473,18 +1342,13 @@ function WorkflowPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation, showHubDialog, workflowToDeleteFromModal,
-    handleSaveWorkflow, handleRunWorkflow, handleOpenHubDialog,
+    isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
+    handleSaveWorkflow, handleRunWorkflow, handleGoToHub,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, showSaveAsDialog, handleCancelConnection,
-    handleZoomIn, handleZoomOut, handleSaveWorkflowAs
+    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection,
+    handleZoomIn, handleZoomOut
   ]);
   
-  const filteredUserWorkflows = useMemo(() => savedWorkflows.filter(wf => wf.type === 'user' && wf.name.toLowerCase().includes(hubSearchTerm.toLowerCase())), [savedWorkflows, hubSearchTerm]);
-  const filteredExampleWorkflows = useMemo(() => savedWorkflows.filter(wf => wf.type === 'example' && wf.name.toLowerCase().includes(hubSearchTerm.toLowerCase())), [savedWorkflows, hubSearchTerm]);
-  const filteredCommunityWorkflows = useMemo(() => communityWorkflows.filter(wf => wf.name.toLowerCase().includes(hubSearchTerm.toLowerCase())), [communityWorkflows, hubSearchTerm]);
-
-
   return (
     <AppLayout>
       <div className="flex h-full flex-col bg-background text-foreground overflow-hidden">
@@ -1529,8 +1393,7 @@ function WorkflowPage() {
             onToggleNodeLibrary={toggleNodeLibraryPanel}
             isNodeLibraryVisible={isNodeLibraryVisible}
             onSaveWorkflow={handleSaveWorkflow}
-            onSaveWorkflowAs={handleSaveWorkflowAs}
-            onOpenWorkflow={handleOpenHubDialog}
+            onGoToHub={handleGoToHub}
             onNewWorkflow={() => setShowClearCanvasConfirmDialog(true)}
             onExportWorkflow={handleExportWorkflow}
             onImportWorkflow={handleImportWorkflow}
@@ -1640,175 +1503,6 @@ function WorkflowPage() {
               <AlertDialogCancel onClick={() => setShowClearCanvasConfirmDialog(false)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleClearCanvas} className={buttonVariants({ variant: "default" })}>
                 Create New
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        <Dialog open={showSaveAsDialog} onOpenChange={setShowSaveAsDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Save Workflow As</DialogTitle>
-              <DialogDescription>
-                Enter a name for your workflow. This will save the current state of the canvas.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="save-as-name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="save-as-name"
-                  value={saveAsName}
-                  onChange={(e) => setSaveAsName(e.target.value)}
-                  className="col-span-3"
-                  placeholder="e.g., My Awesome Automation"
-                  onKeyDown={(e) => { if (e.key === 'Enter') confirmSaveAsWorkflow(); }}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                  <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button type="button" onClick={confirmSaveAsWorkflow}>
-                  <SaveAll className="mr-2 h-4 w-4" /> Save Workflow
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        <Dialog open={showHubDialog} onOpenChange={setShowHubDialog}>
-            <DialogContent className="sm:max-w-4xl max-h-[80vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Workflow Hub</DialogTitle>
-                    <DialogDescription>Load a saved workflow, explore examples, or generate new ideas with AI.</DialogDescription>
-                </DialogHeader>
-                <Tabs defaultValue="my-workflows" className="flex-1 flex flex-col min-h-0">
-                    <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="my-workflows">My Workflows</TabsTrigger>
-                        <TabsTrigger value="examples">Examples</TabsTrigger>
-                        <TabsTrigger value="community">Community</TabsTrigger>
-                        <TabsTrigger value="generate">Generate Ideas</TabsTrigger>
-                    </TabsList>
-                    <div className="py-2 relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Search workflows..." value={hubSearchTerm} onChange={(e) => setHubSearchTerm(e.target.value)} className="pl-8" />
-                    </div>
-                    <div className="flex-1 min-h-0">
-                        <TabsContent value="my-workflows" className="h-full m-0">
-                            <ScrollArea className="h-full pr-3">
-                                <div className="space-y-2">
-                                    {filteredUserWorkflows.length > 0 ? filteredUserWorkflows.map(wf => (
-                                        <div key={wf.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                            <div className="flex items-center gap-3">
-                                                <WorkflowIcon className="h-5 w-5 text-primary" />
-                                                <div>
-                                                    <p className="font-medium text-sm">{wf.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{wf.description}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => setWorkflowToDeleteFromModal(wf.name)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                                                <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadNamedWorkflow(wf.name)}>Load</Button>
-                                            </div>
-                                        </div>
-                                    )) : <p className="text-sm text-center text-muted-foreground py-8">No saved workflows found.</p>}
-                                </div>
-                            </ScrollArea>
-                        </TabsContent>
-                         <TabsContent value="examples" className="h-full m-0">
-                            <ScrollArea className="h-full pr-3">
-                                <div className="space-y-2">
-                                    {filteredExampleWorkflows.length > 0 ? filteredExampleWorkflows.map(wf => (
-                                        <div key={wf.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                            <div className="flex items-center gap-3">
-                                                <Star className="h-5 w-5 text-amber-500" />
-                                                <div>
-                                                    <p className="font-medium text-sm">{wf.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{wf.description}</p>
-                                                </div>
-                                            </div>
-                                            <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadNamedWorkflow(wf.name)}>Load</Button>
-                                        </div>
-                                    )) : <p className="text-sm text-center text-muted-foreground py-8">No examples found.</p>}
-                                </div>
-                            </ScrollArea>
-                        </TabsContent>
-                         <TabsContent value="community" className="h-full m-0">
-                            <ScrollArea className="h-full pr-3">
-                                 <div className="space-y-2">
-                                    {filteredCommunityWorkflows.length > 0 ? filteredCommunityWorkflows.map(wf => (
-                                        <div key={wf.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                            <div className="flex items-center gap-3">
-                                                <Users className="h-5 w-5 text-sky-500" />
-                                                <div>
-                                                    <p className="font-medium text-sm">{wf.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{wf.description}</p>
-                                                </div>
-                                            </div>
-                                            <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadGeneratedWorkflow(wf)}>Load</Button>
-                                        </div>
-                                    )) : <p className="text-sm text-center text-muted-foreground py-8">No community workflows found.</p>}
-                                </div>
-                            </ScrollArea>
-                        </TabsContent>
-                         <TabsContent value="generate" className="h-full m-0 flex flex-col">
-                             <div className="flex w-full items-center space-x-2">
-                                <Input placeholder="e.g., social media, daily reports..." value={ideaQuery} onChange={(e) => setIdeaQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleGenerateIdeas()} />
-                                <Button onClick={handleGenerateIdeas} disabled={isGeneratingIdeas}>
-                                    {isGeneratingIdeas ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <BrainCircuit className="mr-2 h-4 w-4" />}
-                                    Generate
-                                </Button>
-                             </div>
-                             <div className="flex-1 mt-2 min-h-0">
-                                <ScrollArea className="h-full pr-3">
-                                    {isGeneratingIdeas ? (
-                                        <div className="text-center py-10 text-muted-foreground">
-                                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                                            <p>AI is generating ideas...</p>
-                                        </div>
-                                    ) : generatedIdeas.length > 0 ? (
-                                         <div className="space-y-2">
-                                            {generatedIdeas.map((idea, index) => (
-                                                <div key={index} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                                    <div className="flex items-center gap-3">
-                                                        <Bot className="h-5 w-5 text-violet-500" />
-                                                        <div>
-                                                            <p className="font-medium text-sm">{idea.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{idea.description}</p>
-                                                        </div>
-                                                    </div>
-                                                    <Button variant="default" size="sm" className="h-7" onClick={() => handleLoadGeneratedWorkflow(idea)}>Load</Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-center text-muted-foreground pt-10">Enter a topic above and let AI generate workflow ideas for you.</p>
-                                    )}
-                                </ScrollArea>
-                             </div>
-                        </TabsContent>
-                    </div>
-                </Tabs>
-                <DialogFooter className="mt-4">
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline">Close</Button>
-                    </DialogClose>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-        <AlertDialog open={!!workflowToDeleteFromModal} onOpenChange={(open) => !open && setWorkflowToDeleteFromModal(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Workflow "{workflowToDeleteFromModal}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this workflow? This action cannot be undone and will be permanently removed.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setWorkflowToDeleteFromModal(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteWorkflowFromModal} className={buttonVariants({ variant: "destructive" })}>
-                Delete Workflow
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

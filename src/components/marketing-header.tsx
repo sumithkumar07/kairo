@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, LogIn, Menu, User, LogOut } from 'lucide-react';
+import { Workflow, LogIn, Menu, User, LogOut, Compass } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
@@ -92,7 +92,8 @@ export function MarketingHeader() {
                   </>
                 )}
                 <DropdownMenuItem asChild><Link href="/dashboard">Dashboard</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/workflow">Workflow Editor</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/hub">Workflow Hub</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/workflow">Editor</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/run-history">Run History</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/mcp">Agent Hub</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
