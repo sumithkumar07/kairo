@@ -153,28 +153,33 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
 
   const isLiveMode = !!originalRun.initialData;
 
-  const result = await executeWorkflow(
-    originalRun.workflowSnapshot,
-    !isLiveMode,
-    userId,
-    originalRun.initialData
-  );
+  try {
+    const result = await executeWorkflow(
+      originalRun.workflowSnapshot,
+      !isLiveMode,
+      userId,
+      originalRun.initialData
+    );
 
-  const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
+    const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
 
-  const newRunRecord: WorkflowRunRecord = {
-    id: crypto.randomUUID(),
-    workflowName: `${originalRun.workflowName} (Re-run)`,
-    timestamp: new Date().toISOString(),
-    status: hasErrors ? 'Failed' : 'Success',
-    executionResult: result,
-    initialData: originalRun.initialData,
-    workflowSnapshot: originalRun.workflowSnapshot,
-  };
+    const newRunRecord: WorkflowRunRecord = {
+      id: crypto.randomUUID(),
+      workflowName: `${originalRun.workflowName} (Re-run)`,
+      timestamp: new Date().toISOString(),
+      status: hasErrors ? 'Failed' : 'Success',
+      executionResult: result,
+      initialData: originalRun.initialData,
+      workflowSnapshot: originalRun.workflowSnapshot,
+    };
 
-  await WorkflowStorage.saveRunRecord(newRunRecord, userId);
+    await WorkflowStorage.saveRunRecord(newRunRecord, userId);
+    return newRunRecord;
 
-  return newRunRecord;
+  } catch(error: any) {
+    console.error(`[rerunWorkflowAction] Error re-running workflow ${runId}: ${error.message}`);
+    throw new Error(error.message);
+  }
 }
 
 export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode: boolean): Promise<WorkflowRunRecord> {
@@ -208,52 +213,8 @@ export async function getRunHistoryAction(): Promise<WorkflowRunRecord[]> {
 }
 
 export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, userIdOverride?: string): Promise<GenerateWorkflowFromPromptOutput> {
-  const userId = userIdOverride || await getUserIdOrThrow();
-  const { tier, features } = await getUserFeatures(userId);
-
-  if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
-      const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
-      if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
-          throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
-      }
-  }
-
-  const result = await genkitGenerateWorkflowFromPrompt(input);
-  await WorkflowStorage.incrementMonthlyGenerationCount(userId);
-
-  return result;
-}
-
-export async function suggestNextWorkflowNode(clientInput: { workflowContext: string; currentNodeType?: string }): Promise<SuggestNextNodeOutput> {
-  const inputForGenkit: SuggestNextNodeInput = { ...clientInput, availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description || '', category: n.category })) };
-  return genkitSuggestNextNode(inputForGenkit);
-}
-export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput): Promise<string> {
-  const userId = await getUserIdOrThrow();
-  const { features } = await getUserFeatures(userId);
-  if (!features.canExplainWorkflow) {
-    throw new Error('AI Workflow Explanation is a premium feature. Please upgrade your plan.');
-  }
-  const result = await genkitExplainWorkflow(workflowData);
-  if (!result || !result.explanation) throw new Error("AI failed to provide an explanation.");
-  return result.explanation;
-}
-export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
-    const userId = input.userId || await getUserIdOrNull();
-    
-    // The AI needs the user ID to use its tools, like listing or running workflows.
-    // Ensure it's always included in the input if the user is logged in.
-    if (userId) {
-        input.userId = userId;
-    }
-
-    const result = await genkitAssistantChat(input);
-    if (!result) throw new Error("AI assistant returned an empty response.");
-    return result;
-}
-
-export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string }): Promise<GenerateWorkflowFromPromptOutput> {
-    const userId = await getUserIdOrThrow();
+  try {
+    const userId = userIdOverride || await getUserIdOrThrow();
     const { tier, features } = await getUserFeatures(userId);
 
     if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
@@ -263,30 +224,104 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
         }
     }
 
-    const enhancementResult = await genkitEnhanceUserPrompt({ originalPrompt: input.originalPrompt });
-    const promptForGeneration = enhancementResult?.enhancedPrompt || input.originalPrompt;
-
-    const result = await generateWorkflow({ prompt: promptForGeneration }, userId);
-
+    const result = await genkitGenerateWorkflowFromPrompt(input);
+    await WorkflowStorage.incrementMonthlyGenerationCount(userId);
     return result;
+  } catch (e: any) {
+    console.error(`[generateWorkflow] Error: ${e.message}`);
+    throw new Error(`Failed to generate workflow: ${e.message}`);
+  }
+}
+
+export async function suggestNextWorkflowNode(clientInput: { workflowContext: string; currentNodeType?: string }): Promise<SuggestNextNodeOutput> {
+  try {
+    const inputForGenkit: SuggestNextNodeInput = { ...clientInput, availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description || '', category: n.category })) };
+    return await genkitSuggestNextNode(inputForGenkit);
+  } catch (e: any) {
+    console.error(`[suggestNextWorkflowNode] Error: ${e.message}`);
+    throw new Error(`Failed to suggest next node: ${e.message}`);
+  }
+}
+export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput): Promise<string> {
+  try {
+    const userId = await getUserIdOrThrow();
+    const { features } = await getUserFeatures(userId);
+    if (!features.canExplainWorkflow) {
+      throw new Error('AI Workflow Explanation is a premium feature. Please upgrade your plan.');
+    }
+    const result = await genkitExplainWorkflow(workflowData);
+    if (!result || !result.explanation) throw new Error("AI failed to provide an explanation.");
+    return result.explanation;
+  } catch (e: any) {
+    console.error(`[getWorkflowExplanation] Error: ${e.message}`);
+    throw new Error(`Failed to get workflow explanation: ${e.message}`);
+  }
+}
+export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
+    try {
+        const userId = input.userId || await getUserIdOrNull();
+        if (userId) {
+            input.userId = userId;
+        }
+
+        const result = await genkitAssistantChat(input);
+        if (!result) throw new Error("AI assistant returned an empty response.");
+        return result;
+    } catch (e: any) {
+        console.error(`[assistantChat] Error: ${e.message}`);
+        throw new Error(`Failed to get response from AI assistant: ${e.message}`);
+    }
+}
+
+export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string }): Promise<GenerateWorkflowFromPromptOutput> {
+    try {
+        const userId = await getUserIdOrThrow();
+        const { tier, features } = await getUserFeatures(userId);
+
+        if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
+            const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
+            if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
+                throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
+            }
+        }
+
+        const enhancementResult = await genkitEnhanceUserPrompt({ originalPrompt: input.originalPrompt });
+        const promptForGeneration = enhancementResult?.enhancedPrompt || input.originalPrompt;
+
+        const result = await generateWorkflow({ prompt: promptForGeneration }, userId);
+        return result;
+    } catch (e: any) {
+        console.error(`[enhanceAndGenerateWorkflow] Error: ${e.message}`);
+        throw new Error(`Failed to enhance and generate workflow: ${e.message}`);
+    }
 }
 
 export async function generateTestDataForNode(input: GenerateTestDataInput): Promise<GenerateTestDataOutput> {
-  const userId = await getUserIdOrThrow();
-  const { features } = await getUserFeatures(userId);
-  if (!features.aiTestDataGeneration) {
-    throw new Error('AI Test Data Generation is a premium feature. Please upgrade your plan.');
+  try {
+    const userId = await getUserIdOrThrow();
+    const { features } = await getUserFeatures(userId);
+    if (!features.aiTestDataGeneration) {
+      throw new Error('AI Test Data Generation is a premium feature. Please upgrade your plan.');
+    }
+    return await genkitGenerateTestData(input);
+  } catch (e: any) {
+    console.error(`[generateTestDataForNode] Error: ${e.message}`);
+    throw new Error(`Failed to generate test data: ${e.message}`);
   }
-  return genkitGenerateTestData(input);
 }
 
 export async function diagnoseWorkflowError(input: DiagnoseWorkflowErrorInput): Promise<DiagnoseWorkflowErrorOutput> {
-  const userId = await getUserIdOrThrow();
-  const { features } = await getUserFeatures(userId);
-  if (!features.aiErrorDiagnosis) {
-    throw new Error('AI Error Diagnosis is a premium feature. Please upgrade your plan.');
+  try {
+    const userId = await getUserIdOrThrow();
+    const { features } = await getUserFeatures(userId);
+    if (!features.aiErrorDiagnosis) {
+      throw new Error('AI Error Diagnosis is a premium feature. Please upgrade your plan.');
+    }
+    return await genkitDiagnoseWorkflowError(input);
+  } catch (e: any) {
+    console.error(`[diagnoseWorkflowError] Error: ${e.message}`);
+    throw new Error(`Failed to diagnose workflow error: ${e.message}`);
   }
-  return genkitDiagnoseWorkflowError(input);
 }
 
 export async function listWorkflowsAction(): Promise<SavedWorkflowMetadata[]> {
@@ -299,18 +334,23 @@ export async function getCommunityWorkflowsAction(): Promise<ExampleWorkflow[]> 
 }
 
 export async function generateWorkflowIdeasAction(input: GenerateWorkflowIdeasInput): Promise<GenerateWorkflowIdeasOutput> {
-    const userId = await getUserIdOrThrow();
-    const { tier, features } = await getUserFeatures(userId);
+    try {
+        const userId = await getUserIdOrThrow();
+        const { tier, features } = await getUserFeatures(userId);
 
-    if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
-        const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
-        if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
-            throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
+        if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
+            const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
+            if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
+                throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
+            }
         }
+        const result = await genkitGenerateWorkflowIdeas(input);
+        await WorkflowStorage.incrementMonthlyGenerationCount(userId);
+        return result;
+    } catch (e: any) {
+        console.error(`[generateWorkflowIdeasAction] Error: ${e.message}`);
+        throw new Error(`Failed to generate workflow ideas: ${e.message}`);
     }
-    const result = await genkitGenerateWorkflowIdeas(input);
-    await WorkflowStorage.incrementMonthlyGenerationCount(userId);
-    return result;
 }
 
 
@@ -359,10 +399,15 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
 }
 
 export async function textToSpeechAction(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
-    const userId = await getUserIdOrThrow();
-    // In a real app, you might check for premium features here.
-    // For now, we'll allow it for all users.
-    return genkitTextToSpeech(input);
+    try {
+        const userId = await getUserIdOrThrow();
+        // In a real app, you might check for premium features here.
+        // For now, we'll allow it for all users.
+        return await genkitTextToSpeech(input);
+    } catch (e: any) {
+        console.error(`[textToSpeechAction] Error: ${e.message}`);
+        throw new Error(`Failed to convert text to speech: ${e.message}`);
+    }
 }
 
 

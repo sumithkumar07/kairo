@@ -985,8 +985,10 @@ async function executeFlowInternal(
     let lastNodeOutput: any = null;
 
     if (sortError) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Critical graph error: ${sortError}`, type: 'error' });
-        return { finalWorkflowData: currentWorkflowData, serverLogs, flowError: sortError };
+        const errorMessage = `[ENGINE/${flowLabel}] Critical graph error: ${sortError}`;
+        serverLogs.push({ timestamp: new Date().toISOString(), message: errorMessage, type: 'error' });
+        // Throwing the error here to be caught by the top-level executeWorkflow function
+        throw new Error(errorMessage);
     }
 
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE/${flowLabel}] Starting execution in ${isSimulationMode ? 'SIMULATION' : 'LIVE'} mode for user ${userId}.`, type: 'info' });

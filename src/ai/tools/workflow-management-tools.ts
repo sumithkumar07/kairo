@@ -87,11 +87,12 @@ export const getWorkflowDefinitionTool = ai.defineTool(
 export const runWorkflowTool = ai.defineTool(
     {
         name: 'runWorkflow',
-        description: 'Executes a given workflow definition for a specific user and returns the result. Can be run in "simulation" or "live" mode.',
+        description: 'Executes a given workflow definition for a specific user and returns the result. Can be run in "simulation" or "live" mode. Can accept initial data to trigger the workflow.',
         inputSchema: z.object({
             userId: z.string().describe("The ID of the user for whom to run the workflow."),
             nodes: z.array(WorkflowNodeInputSchema).describe("The array of nodes in the workflow."),
             connections: z.array(WorkflowConnectionInputSchema).describe("The array of connections between the nodes."),
+            initialData: z.any().optional().describe("An optional object to provide initial data to the workflow, typically for trigger nodes. The key should be the trigger node's ID, and the value should be an object containing the data to pass (e.g., {'trigger_node_id': {'requestBody': {'orderId': 123}}})."),
             isSimulation: z.boolean().optional().default(true).describe("Whether to run in simulation mode (default) or live mode. Live mode may interact with real external services."),
         }),
         outputSchema: z.object({
@@ -99,7 +100,7 @@ export const runWorkflowTool = ai.defineTool(
             summary: z.string().describe("A brief summary of the execution, including any error messages."),
         }),
     },
-    async ({ userId, nodes, connections, isSimulation }) => {
+    async ({ userId, nodes, connections, initialData, isSimulation }) => {
         if (!userId) {
             return {
                 status: 'Failed',
@@ -109,7 +110,7 @@ export const runWorkflowTool = ai.defineTool(
 
         console.log(`[Agent Tool] Running workflow with ${nodes.length} nodes for user ${userId} in ${isSimulation ? 'simulation' : 'live'} mode...`);
         try {
-            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation, userId);
+            const result = await executeWorkflow({ nodes: nodes as WorkflowNode[], connections: connections as WorkflowConnection[] }, isSimulation, userId, initialData);
             const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
             const status = hasErrors ? 'Failed' : 'Success';
 
