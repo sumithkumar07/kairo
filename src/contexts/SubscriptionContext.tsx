@@ -117,7 +117,13 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         showSupabaseNotConfiguredToast();
         throw new Error('Supabase not configured');
     }
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
     if (error) {
         toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
         throw error;
