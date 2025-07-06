@@ -161,7 +161,7 @@ function DashboardPage() {
             <div className="flex-1 flex flex-col p-4 sm:p-6 bg-muted/40 overflow-auto">
                 <header className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                        Welcome back, {user?.email.split('@')[0]}!
+                        Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}!
                     </h1>
                     <p className="text-muted-foreground">You're on the <span className="font-semibold text-primary">{stats?.currentTier ?? tierFromContext}</span> plan. Here's a summary of your activities.</p>
                 </header>

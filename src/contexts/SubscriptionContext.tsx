@@ -26,8 +26,6 @@ interface SubscriptionContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  upgradeToGold: () => void;
-  upgradeToDiamond: () => void;
   hasProFeatures: boolean;
   daysRemainingInTrial: number | null;
   isAuthLoading: boolean;
@@ -150,45 +148,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
   }, [supabase, toast, router, showSupabaseNotConfiguredToast]);
 
-  const upgradeToGold = useCallback(async () => {
-    if (!user) {
-        router.push('/login');
-        return;
-    }
-    if (!supabase) {
-        showSupabaseNotConfiguredToast();
-        return;
-    }
-    try {
-        await WorkflowStorage.updateUserProfileTier(user.uid, 'Gold');
-        const { data: { session } } = await supabase.auth.getSession();
-        await updateUserStateFromSession(session);
-        toast({ title: 'Upgrade Successful!', description: 'You now have access to Gold features.' });
-    } catch (e: any) {
-        toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
-    }
-  }, [user, supabase, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
-
-  const upgradeToDiamond = useCallback(async () => {
-    if (!user) {
-        router.push('/login');
-        return;
-    }
-     if (!supabase) {
-        showSupabaseNotConfiguredToast();
-        return;
-    }
-    try {
-        await WorkflowStorage.updateUserProfileTier(user.uid, 'Diamond');
-        const { data: { session } } = await supabase.auth.getSession();
-        await updateUserStateFromSession(session);
-        toast({ title: 'Upgrade Successful!', description: 'You now have full access to Diamond features.' });
-    } catch (e: any) {
-        toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
-    }
-  }, [user, supabase, toast, router, showSupabaseNotConfiguredToast, updateUserStateFromSession]);
-
-
   useEffect(() => {
     if (!supabase) {
       setIsAuthLoading(false);
@@ -217,8 +176,6 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       login, 
       signup, 
       logout, 
-      upgradeToGold,
-      upgradeToDiamond,
       hasProFeatures,
       daysRemainingInTrial,
       isAuthLoading,

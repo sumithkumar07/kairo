@@ -384,3 +384,14 @@ export async function clearRunHistoryAction(): Promise<void> {
     const userId = await getUserIdOrThrow();
     return WorkflowStorage.clearRunHistory(userId);
 }
+
+// Subscription Management Actions
+export async function upgradeToGoldAction(): Promise<void> {
+    const userId = await getUserIdOrThrow();
+    await WorkflowStorage.updateUserProfileTier(userId, 'Gold');
+}
+
+export async function upgradeToDiamondAction(): Promise<void> {
+    const userId = await getUserIdOrThrow();
+    await WorkflowStorage.updateUserProfileTier(userId, 'Diamond');
+}

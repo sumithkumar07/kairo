@@ -10,16 +10,37 @@ import { cn } from '@/lib/utils';
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription'; 
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
+import { upgradeToGoldAction, upgradeToDiamondAction } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function SubscriptionsPage() {
   const { 
     currentTier, 
-    upgradeToGold,
-    upgradeToDiamond,
     isLoggedIn, 
     daysRemainingInTrial,
     hasProFeatures,
   } = useSubscription();
+
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleUpgrade = async (tier: 'Gold' | 'Diamond') => {
+    try {
+      if (tier === 'Gold') {
+        await upgradeToGoldAction();
+      } else {
+        await upgradeToDiamondAction();
+      }
+      toast({ title: 'Upgrade Successful!', description: `You now have access to ${tier} features.` });
+      // Force a reload of the subscription context - a page refresh is the simplest way
+      router.refresh(); 
+      window.location.reload();
+    } catch (e: any) {
+      toast({ title: 'Upgrade Failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
 
   const getTierDisplayName = (tier: typeof currentTier) => {
     if (tier === 'Gold Trial') return 'Gold Trial';
@@ -63,19 +84,19 @@ export default function SubscriptionsPage() {
       return <Button className="w-full text-base py-6" disabled><ShieldCheck className="mr-2 h-4 w-4" />Your Current Plan</Button>;
     }
     if (currentTier === 'Gold Trial' && plan === 'Gold') {
-        return <Button onClick={upgradeToGold} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />Activate Full Gold Plan</Button>;
+        return <Button onClick={() => handleUpgrade('Gold')} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />Activate Full Gold Plan</Button>;
     }
     if (currentTier === 'Gold Trial' && plan === 'Diamond') {
-        return <Button onClick={upgradeToDiamond} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Upgrade to Diamond</Button>;
+        return <Button onClick={() => handleUpgrade('Diamond')} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Upgrade to Diamond</Button>;
     }
     if (!isLoggedIn) {
       return <Button asChild className="w-full text-base py-6"><Link href="/signup"><UserPlus className="mr-2 h-4 w-4" />Sign Up for 15-Day Trial</Link></Button>;
     }
     if (plan === 'Gold') {
-       return <Button onClick={upgradeToGold} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />{currentTier === 'Free' ? 'Upgrade to Gold' : 'Switch to Gold'}</Button>;
+       return <Button onClick={() => handleUpgrade('Gold')} className="w-full text-base py-6"><Workflow className="mr-2 h-4 w-4" />{currentTier === 'Free' ? 'Upgrade to Gold' : 'Switch to Gold'}</Button>;
     }
     if (plan === 'Diamond') {
-       return <Button onClick={upgradeToDiamond} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Upgrade to Diamond</Button>;
+       return <Button onClick={() => handleUpgrade('Diamond')} className="w-full text-base py-6"><ShieldCheck className="mr-2 h-4 w-4" />Upgrade to Diamond</Button>;
     }
   };
   
