@@ -65,6 +65,8 @@ export interface Workflow {
   canvasOffset?: { x: number; y: number };
   zoomLevel?: number;
   isSimulationMode?: boolean;
+  name?: string; // Optional name from AI generation
+  description?: string; // Optional description from AI generation
 }
 
 export interface ExampleWorkflow {

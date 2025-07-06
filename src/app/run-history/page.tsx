@@ -39,22 +39,37 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/comp
 import { useRouter } from 'next/navigation';
 
 
-const JsonSyntaxHighlighter = React.memo(({ jsonString, className }: { jsonString: string; className?: string; }) => {
-  try {
-    const obj = JSON.parse(jsonString);
-    const highlighted = JSON.stringify(obj, null, 2).replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
-      let cls = 'text-green-400 dark:text-green-400';
-      if (/^"/.test(match)) {
-        cls = /:$/.test(match) ? 'text-cyan-400 dark:text-cyan-300' : 'text-amber-400 dark:text-amber-300';
-      }
-      return `<span class="${cls}">${match}</span>`;
-    });
-    return <pre className={cn("text-xs p-2", className)} dangerouslySetInnerHTML={{ __html: highlighted }} />;
-  } catch {
-    return <pre className={cn("text-xs p-2 text-destructive", className)}>{jsonString}</pre>;
-  }
+const DataViewer = React.memo(({ data, className }: { data: any; className?: string; }) => {
+    if (data === null || data === undefined) {
+        return <pre className={cn("text-xs p-2 text-muted-foreground", className)}>null</pre>;
+    }
+
+    if (typeof data === 'string' && data.startsWith('data:audio/wav;base64,')) {
+        return (
+            <div className="p-2">
+                <audio controls className="w-full">
+                    <source src={data} type="audio/wav" />
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+        );
+    }
+    
+    try {
+        const jsonString = JSON.stringify(data, null, 2);
+        const highlighted = jsonString.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+            let cls = 'text-green-400 dark:text-green-400';
+            if (/^"/.test(match)) {
+                cls = /:$/.test(match) ? 'text-cyan-400 dark:text-cyan-300' : 'text-amber-400 dark:text-amber-300';
+            }
+            return `<span class="${cls}">${match}</span>`;
+        });
+        return <pre className={cn("text-xs p-2", className)} dangerouslySetInnerHTML={{ __html: highlighted }} />;
+    } catch {
+        return <pre className={cn("text-xs p-2 text-destructive", className)}>{String(data)}</pre>;
+    }
 });
-JsonSyntaxHighlighter.displayName = 'JsonSyntaxHighlighter';
+DataViewer.displayName = 'DataViewer';
 
 function RunHistoryPage() {
   const [runHistory, setRunHistory] = useState<WorkflowRunRecord[]>([]);
@@ -226,11 +241,11 @@ function RunHistoryPage() {
            )}
            <div>
               <h4 className="font-medium text-sm mb-1.5">Inputs</h4>
-              <JsonSyntaxHighlighter jsonString={JSON.stringify(input || {}, null, 2)} className="bg-background rounded-md"/>
+              <DataViewer data={input || {}} className="bg-background rounded-md"/>
            </div>
            <div>
               <h4 className="font-medium text-sm mb-1.5">Outputs</h4>
-              <JsonSyntaxHighlighter jsonString={JSON.stringify(outputs || {}, null, 2)} className="bg-background rounded-md"/>
+              <DataViewer data={outputs || {}} className="bg-background rounded-md"/>
            </div>
         </div>
       </ScrollArea>

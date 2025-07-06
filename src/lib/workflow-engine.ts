@@ -11,6 +11,7 @@ import * as WorkflowStorage from '@/services/workflow-storage-service';
 import { google } from 'googleapis';
 import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
+import { textToSpeechAction } from '@/app/actions';
 
 
 // Initialize the PostgreSQL connection pool at the module level
@@ -561,6 +562,15 @@ async function executeAggregateDataNode(node: WorkflowNode, config: any, isSimul
     return { output_data: results };
 }
 
+async function executeTextToSpeechNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE TEXTTOSPEECH] SIMULATION: Would convert text to speech.`, type: 'info' });
+        return { audioDataUri: config.simulated_config?.audioDataUri || '' };
+    }
+    const result = await textToSpeechAction({ text: config.text, voice: config.voice });
+    return result;
+}
+
 
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
 
@@ -669,7 +679,7 @@ async function executeOpenAiChatCompletionNode(node: WorkflowNode, config: any, 
             throw new Error(`Invalid JSON for OpenAI messages: ${e.message}`);
         }
     }
-    if (!messages || !Array.isArray(messages)) throw new Error("OpenAI messages are not configured or resolved to a valid array.");
+    if (!messages || !Array.isArray(messages)) throw new Error("OpenAI messages are not configured or are not a valid array.");
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -891,7 +901,7 @@ const nodeExecutionFunctions: Record<string, Function> = {
     formatDate: executeFormatDateNode,
     delay: executeDelayNode,
     aggregateData: executeAggregateDataNode,
-    // Add other utility functions when implemented
+    textToSpeech: executeTextToSpeechNode,
 
     // Integration Nodes
     slackPostMessage: executeSlackPostMessageNode,

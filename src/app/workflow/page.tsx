@@ -233,7 +233,12 @@ function WorkflowPage() {
       targetHandle: conn.targetHandle,
     }));
 
-    return { nodes: newNodes, connections: newConnections };
+    return { 
+        nodes: newNodes, 
+        connections: newConnections,
+        name: aiWorkflow.name,
+        description: aiWorkflow.description,
+    };
   }, []);
 
   const loadWorkflowIntoEditor = useCallback((workflowData: Workflow, workflowName?: string) => {
@@ -398,8 +403,11 @@ function WorkflowPage() {
       return;
     }
     const workflow = mapAiWorkflowToInternal(aiOutput);
-    loadWorkflowIntoEditor(workflow);
-    toast({ title: 'Workflow Generated', description: 'New workflow created by AI.' });
+    loadWorkflowIntoEditor(workflow, workflow.name || 'AI Generated Workflow');
+    toast({ 
+        title: 'Workflow Generated', 
+        description: workflow.description || 'New workflow created by AI and loaded into the editor.'
+    });
   }, [mapAiWorkflowToInternal, toast, loadWorkflowIntoEditor]);
   
   const handleChatSubmit = useCallback(async (messageContent: string, imageDataUri?: string, isSystemMessage: boolean = false) => {
@@ -1344,9 +1352,9 @@ function WorkflowPage() {
             onResetView={handleResetView}
             handleGetWorkflowExplanation={handleGetWorkflowExplanation}
             isExplainingWorkflow={isExplainingWorkflow}
-            handleUndo={handleUndo}
+            onUndo={handleUndo}
             canUndo={canUndo}
-            handleRedo={handleRedo}
+            onRedo={handleRedo}
             canRedo={canRedo}
             toast={toast}
             onDeleteSelectedConnection={handleDeleteSelectedConnection}

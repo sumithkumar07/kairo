@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Defines shared Zod schemas for workflow structures.
  * This file does not use the 'use server' directive, so its contents can be
@@ -33,6 +34,8 @@ export const WorkflowConnectionSchema = z.object({
 
 // Define the overall workflow schema, containing nodes and connections.
 export const GenerateWorkflowFromPromptOutputSchema = z.object({
+  name: z.string().optional().describe("A short, descriptive name for the workflow, generated based on the user's prompt (e.g., 'Social Media Post Scheduler')."),
+  description: z.string().optional().describe("A one-sentence summary of the workflow's purpose, generated from the user's prompt."),
   nodes: z.array(WorkflowNodeSchema).describe('List of all workflow nodes required to fulfill the user\'s request. Ensure all steps from the prompt are covered.'),
   connections: z.array(WorkflowConnectionSchema).describe('List of all connections between nodes, ensuring a complete data flow from triggers to final actions. Ensure sourcePort and targetPort are specified where applicable and match defined node handles.'),
 });

@@ -40,6 +40,11 @@ import {
   type GenerateWorkflowIdeasInput,
   type GenerateWorkflowIdeasOutput,
 } from '@/ai/flows/generate-workflow-ideas';
+import {
+  textToSpeech as genkitTextToSpeech,
+  type TextToSpeechInput,
+  type TextToSpeechOutput,
+} from '@/ai/flows/text-to-speech-flow';
 
 
 import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, DisplayUserApiKey } from '@/types/workflow';
@@ -352,6 +357,14 @@ export async function deleteWorkflowAction(name: string): Promise<{ success: boo
         return { success: false, message: e.message };
     }
 }
+
+export async function textToSpeechAction(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
+    const userId = await getUserIdOrThrow();
+    // In a real app, you might check for premium features here.
+    // For now, we'll allow it for all users.
+    return genkitTextToSpeech(input);
+}
+
 
 // Credential Management Actions
 export async function listCredentialsAction(): Promise<Omit<ManagedCredential, 'value'>[]> {

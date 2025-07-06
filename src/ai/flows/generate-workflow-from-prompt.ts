@@ -1,3 +1,4 @@
+
 // The directive tells the Next.js runtime to execute this code on the server.
 'use server';
 
@@ -50,6 +51,10 @@ const generateWorkflowPrompt = ai.definePrompt({
 For any node requiring external configuration (API keys, specific IDs, etc.) not in the prompt:
 1.  Use a clear placeholder in the node's \`config\`. PREFER \`{{credential.USER_FRIENDLY_NAME}}\` for managed secrets (e.g., \`apiKey: "{{credential.MyOpenAIKey}}"\`). Use \`{{env.A_DESCRIPTIVE_ENV_VAR}}\` for environment variables.
 2.  In the \`aiExplanation\`, EXPLICITLY state what the user must provide, why it's needed, the exact placeholder used, and provide **clear, step-by-step guidance** on how to get it (e.g., for OpenAI keys, direct them to platform.openai.com, API Keys section, and how to add it to Kairo's Credential Manager).
+
+**Workflow Name & Description:**
+- Based on the user's prompt, generate a short, descriptive \`name\` for the workflow (e.g., "Daily Sales Report to Slack").
+- Generate a one-sentence \`description\` that explains the workflow's purpose.
 
 **Workflow Structure:**
 The workflow consists of 'nodes' and 'connections'.
