@@ -1,20 +1,35 @@
-patch-package
+diff --git a/node_modules/react-joyride/dist/index.mjs b/node_modules/react-joyride/dist/index.mjs
+index 7200257..e572097 100644
 --- a/node_modules/react-joyride/dist/index.mjs
 +++ b/node_modules/react-joyride/dist/index.mjs
-@@ -1,6 +1,6 @@
+@@ -1,5 +1,5 @@
+ import React from 'react';
 -import ReactDOM from 'react-dom';
 +import { createRoot } from 'react-dom/client';
  import PropTypes from 'prop-types';
- import { forwardRef, useState, useEffect, useImperativeHandle, useRef, useLayoutEffect, useCallback } from 'react';
- import { Animate } from 'react-simple-animate';
-@@ -112,7 +112,9 @@
-     if (!portalNode.current) {
-       return;
+ import { Manager, Reference, Popper } from 'react-popper';
+ import deepmerge from 'deepmerge';
+@@ -21,11 +21,13 @@
+ 
+     componentDidMount() {
+       if (this.props.portal) {
+-        ReactDOM.render(this.props.children, this.node);
++        this.root = createRoot(this.node);
++        this.root.render(this.props.children);
+       }
      }
--    ReactDOM.unmountComponentAtNode(portalNode.current);
-+    if (portalNode.current) {
-+      createRoot(portalNode.current).unmount();
-+    }
-     if (portalNode.current.parentElement) {
-       portalNode.current.parentElement.removeChild(portalNode.current);
+ 
+     componentDidUpdate() {
++      this.root.render(this.props.children);
+       if (this.props.portal) {
+         return;
+       }
+@@ -33,7 +35,7 @@
      }
+ 
+     componentWillUnmount() {
+-      ReactDOM.unmountComponentAtNode(this.node);
++      this.root.unmount();
+ 
+       if (this.node.parentNode) {
+         this.node.parentNode.removeChild(this.node);
