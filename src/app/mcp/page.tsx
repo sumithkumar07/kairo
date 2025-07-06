@@ -1,30 +1,30 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, Info, Trash2, MoreVertical } from 'lucide-react';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { cn } from '@/lib/utils';
-import { AppLayout } from '@/components/app-layout';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey } from '@/types/workflow';
-import { getMcpHistory } from '@/services/workflow-storage-service';
-import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction, listApiKeysAction, revokeApiKeyAction } from '@/app/actions';
-import { format, formatDistanceToNow } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { withAuth } from '@/components/auth/with-auth';
+import { AppLayout } from '@/components/app-layout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Loader2, Trash2, Bot, Plus, X, KeyRound, Copy, Check, Info, MoreVertical, Terminal, Send, Workflow, User, Settings, Zap } from 'lucide-react';
+import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey, Workflow as WorkflowType } from '@/types/workflow';
+import { getMcpHistory } from '@/services/workflow-storage-service';
+import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction, listApiKeysAction, revokeApiKeyAction, agentCommandAction } from '@/app/actions';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
 
 interface RequiredCredentialInfo {
   name: string;
@@ -32,29 +32,109 @@ interface RequiredCredentialInfo {
   service: string;
 }
 
+interface CommandMessage extends McpCommandRecord {
+    generatedWorkflow?: GenerateWorkflowFromPromptOutput;
+}
+
+
 function MCPDashboardPage() {
   const { toast } = useToast();
-  const { user } = useSubscription();
+  const router = useRouter();
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('terminal');
+
+  // Terminal State
+  const [messages, setMessages] = useState<CommandMessage[]>([]);
+  const [commandInput, setCommandInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Skills State
   const [configuredTools, setConfiguredTools] = useState<Tool[]>([]);
-  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-  const [commandHistory, setCommandHistory] = useState<McpCommandRecord[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [showAddToolDialog, setShowAddToolDialog] = useState(false);
   
+  // Credentials State
   const [credentials, setCredentials] = useState<Omit<ManagedCredential, 'value'>[]>([]);
-  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
   const [showAddCredentialDialog, setShowAddCredentialDialog] = useState(false);
   const [credentialToDeleteId, setCredentialToDeleteId] = useState<string | null>(null);
 
   // API Key State
   const [apiKeys, setApiKeys] = useState<DisplayUserApiKey[]>([]);
-  const [isLoadingApiKeys, setIsLoadingApiKeys] = useState(true);
   const [showNewKeyDialog, setShowNewKeyDialog] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
   const [keyToRevokeId, setKeyToRevokeId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+  
+  const loadInitialData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+        const [history, agentConfig, creds, keys] = await Promise.all([
+            getMcpHistory(),
+            getAgentConfigAction(),
+            listCredentialsAction(),
+            listApiKeysAction(),
+        ]);
+        setMessages(history);
+        const enabledTools = ALL_AVAILABLE_TOOLS.filter(tool => agentConfig.enabledTools.includes(tool.name));
+        setConfiguredTools(enabledTools);
+        setCredentials(creds);
+        setApiKeys(keys);
+    } catch (e: any) {
+        toast({ title: 'Error', description: `Failed to load hub data: ${e.message}`, variant: 'destructive' });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [toast]);
+  
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  const handleSendCommand = async () => {
+    if (!commandInput.trim() || isSending) return;
+    
+    const commandText = commandInput;
+    setCommandInput('');
+    setIsSending(true);
+
+    const optimisticUserMessage: CommandMessage = {
+      id: crypto.randomUUID(),
+      user_id: '', // Not needed on client
+      command: commandText,
+      response: '',
+      status: 'Success',
+      timestamp: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticUserMessage]);
+
+    try {
+        const { responseRecord, generatedWorkflow } = await agentCommandAction(commandText, messages);
+        const finalMessage: CommandMessage = { ...responseRecord, generatedWorkflow };
+        setMessages(prev => [...prev, finalMessage]);
+    } catch (e: any) {
+      const errorMessage: CommandMessage = {
+        id: crypto.randomUUID(),
+        user_id: '',
+        command: '',
+        response: `Error: ${e.message}`,
+        status: 'Failed',
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
 
   const requiredCredentials = useMemo(() => {
@@ -82,67 +162,6 @@ function MCPDashboardPage() {
     return Array.from(requiredMap.values());
   }, []);
 
-
-  const loadAgentConfig = useCallback(async () => {
-    setIsLoadingConfig(true);
-    try {
-      const config = await getAgentConfigAction();
-      const enabledTools = ALL_AVAILABLE_TOOLS.filter(tool => config.enabledTools.includes(tool.name));
-      setConfiguredTools(enabledTools);
-    } catch (e: any) {
-      toast({ title: 'Error', description: 'Could not load agent skill configuration.', variant: 'destructive' });
-    } finally {
-      setIsLoadingConfig(false);
-    }
-  }, [toast]);
-  
-  const loadCredentials = useCallback(async () => {
-    setIsLoadingCredentials(true);
-    try {
-        const creds = await listCredentialsAction();
-        setCredentials(creds);
-    } catch (e: any) {
-        toast({ title: 'Error Loading Credentials', description: e.message, variant: 'destructive' });
-    } finally {
-        setIsLoadingCredentials(false);
-    }
-  }, [toast]);
-
-  const loadHistory = useCallback(async () => {
-    if (!user) return;
-    setIsLoadingHistory(true);
-    try {
-      const history = await getMcpHistory(user.uid);
-      setCommandHistory(history);
-    } catch (e: any) {
-      toast({ title: 'Error', description: 'Could not load command history.', variant: 'destructive' });
-      setCommandHistory([]);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }, [toast, user]);
-
-  const loadApiKeys = useCallback(async () => {
-    setIsLoadingApiKeys(true);
-    try {
-        const keys = await listApiKeysAction();
-        setApiKeys(keys);
-    } catch (e: any) {
-        toast({ title: 'Error Loading API Keys', description: e.message, variant: 'destructive' });
-    } finally {
-        setIsLoadingApiKeys(false);
-    }
-  }, [toast]);
-
-
-  useEffect(() => {
-    if (user) {
-        loadAgentConfig();
-        loadCredentials();
-        loadHistory();
-        loadApiKeys();
-    }
-  }, [user, loadAgentConfig, loadCredentials, loadHistory, loadApiKeys]);
   
   const unconfiguredTools = useMemo(() => {
     const configuredToolNames = new Set(configuredTools.map(t => t.name));
@@ -161,9 +180,9 @@ function MCPDashboardPage() {
       toast({ title: isAdding ? 'Skill Added' : 'Skill Removed', description: `"${tool.name}" has been ${isAdding ? 'added to' : 'removed from'} your agent.` });
     } catch (e: any) {
       toast({ title: 'Error Saving Config', description: 'Could not save the agent skill configuration.', variant: 'destructive' });
-      loadAgentConfig();
+      loadInitialData(); // Re-sync on error
     }
-  }, [configuredTools, toast, loadAgentConfig]);
+  }, [configuredTools, toast, loadInitialData]);
 
 
   const handleGenerateKey = async () => {
@@ -172,7 +191,8 @@ function MCPDashboardPage() {
       const { apiKey, id, prefix } = await generateApiKeyAction();
       setNewApiKey(apiKey);
       setShowNewKeyDialog(true);
-      await loadApiKeys(); // Refresh the list
+      const keys = await listApiKeysAction();
+      setApiKeys(keys);
     } catch (e: any) {
       toast({ title: 'Error', description: `Failed to generate API key: ${e.message}`, variant: 'destructive' });
     } finally {
@@ -218,30 +238,102 @@ function MCPDashboardPage() {
         setCredentialToDeleteId(null);
     }
   };
-
-  const getStatusIndicator = (status: 'Success' | 'Failed') => {
-      const styles = {
-          Success: { Icon: CheckCircle2, color: 'text-green-500' },
-          Failed: { Icon: XCircle, color: 'text-destructive' }
-      };
-      const { Icon, color } = styles[status];
-      return <Icon className={cn("h-4 w-4 shrink-0", color)} title={status}/>;
+  
+  const handleLoadGeneratedWorkflow = (workflowData?: GenerateWorkflowFromPromptOutput) => {
+    if (!workflowData) return;
+    const workflowToSave: WorkflowType = { 
+        nodes: workflowData.nodes, 
+        connections: workflowData.connections 
+    };
+    localStorage.setItem('kairoCurrentWorkflow', JSON.stringify({ name: workflowData.name, workflow: workflowToSave }));
+    toast({ title: 'Workflow Ready', description: `Loading "${workflowData.name}" into the editor.` });
+    router.push('/workflow');
   };
+
 
   return (
     <AppLayout>
-      <Tabs defaultValue="skills" className="flex-1 flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6">
               <h1 className="text-xl font-semibold">AI Agent Hub</h1>
               <TabsList className="grid w-auto grid-cols-2 md:grid-cols-4 h-9">
+                <TabsTrigger value="terminal" className="text-xs px-2 sm:px-3"><Terminal className="h-4 w-4 mr-1 sm:mr-1.5" />Terminal</TabsTrigger>
                 <TabsTrigger value="skills" className="text-xs px-2 sm:px-3"><Settings className="h-4 w-4 mr-1 sm:mr-1.5" />Skills</TabsTrigger>
                 <TabsTrigger value="credentials" className="text-xs px-2 sm:px-3"><KeyRound className="h-4 w-4 mr-1 sm:mr-1.5" />Credentials</TabsTrigger>
                 <TabsTrigger value="connect" className="text-xs px-2 sm:px-3"><Zap className="h-4 w-4 mr-1 sm:mr-1.5" />API Access</TabsTrigger>
-                <TabsTrigger value="history" className="text-xs px-2 sm:px-3"><History className="h-4 w-4 mr-1 sm:mr-1.5" />API History</TabsTrigger>
               </TabsList>
           </header>
           <div className="flex-1 overflow-auto p-4 sm:p-6 bg-muted/40">
               <div className="max-w-4xl mx-auto grid gap-6">
+                  <TabsContent value="terminal" className="m-0 space-y-6">
+                    <Card className="h-[75vh] flex flex-col">
+                        <CardHeader>
+                            <CardTitle>Command Terminal</CardTitle>
+                            <CardDescription>Interact directly with your AI Agent.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-hidden p-0">
+                          <ScrollArea className="h-full bg-background">
+                            <div className="p-4 space-y-4">
+                                {isLoading ? (
+                                    <div className="text-center py-10"><Loader2 className="h-6 w-6 animate-spin mx-auto" /><p className="mt-2 text-sm text-muted-foreground">Loading history...</p></div>
+                                ) : messages.length === 0 ? (
+                                    <div className="text-center py-10 text-muted-foreground">No commands yet. Type a command below to start.</div>
+                                ) : (
+                                    messages.map((msg) => (
+                                        <div key={msg.id}>
+                                            {msg.command && (
+                                                <div className="flex items-start gap-3">
+                                                    <User className="h-4 w-4 mt-1 text-muted-foreground" />
+                                                    <p className="font-mono text-sm font-semibold text-primary">&gt; {msg.command}</p>
+                                                </div>
+                                            )}
+                                            {msg.response && (
+                                                 <div className={cn("flex items-start gap-3 mt-2", msg.status === 'Failed' && "text-destructive")}>
+                                                    <Bot className="h-4 w-4 mt-1" />
+                                                    <div className="flex-1">
+                                                        <p className="whitespace-pre-wrap text-sm">{msg.response}</p>
+                                                        {msg.generatedWorkflow && (
+                                                          <Card className="mt-2">
+                                                              <CardHeader className="p-3">
+                                                                <CardTitle className="text-sm flex items-center gap-2">
+                                                                  <Workflow className="h-4 w-4" /> Workflow Generated
+                                                                </CardTitle>
+                                                                <CardDescription className="text-xs">{msg.generatedWorkflow.name}</CardDescription>
+                                                              </CardHeader>
+                                                              <CardFooter className="p-3">
+                                                                <Button size="sm" onClick={() => handleLoadGeneratedWorkflow(msg.generatedWorkflow)}>
+                                                                    Load into Editor
+                                                                </Button>
+                                                              </CardFooter>
+                                                          </Card>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+                          </ScrollArea>
+                        </CardContent>
+                        <CardFooter className="border-t p-3">
+                            <div className="flex w-full items-center gap-2">
+                                <Input 
+                                    placeholder="e.g., Generate a workflow to check the weather..." 
+                                    value={commandInput}
+                                    onChange={(e) => setCommandInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSendCommand()}
+                                    disabled={isSending || isLoading}
+                                    className="h-9"
+                                />
+                                <Button onClick={handleSendCommand} disabled={isSending || isLoading || !commandInput.trim()} className="h-9">
+                                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                        </CardFooter>
+                    </Card>
+                  </TabsContent>
                   <TabsContent value="skills" className="m-0 space-y-6">
                       <Card>
                           <CardHeader>
@@ -255,7 +347,7 @@ function MCPDashboardPage() {
                           </CardHeader>
                           <CardContent>
                               <div className="space-y-2">
-                                  {isLoadingConfig ? (
+                                  {isLoading ? (
                                     <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading skills...</div>
                                   ) : configuredTools.length > 0 ? (
                                       configuredTools.map((tool) => (
@@ -299,7 +391,7 @@ function MCPDashboardPage() {
                                 </p>
                             </div>
                             <div className="space-y-2">
-                                {isLoadingCredentials ? (
+                                {isLoading ? (
                                     <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading credentials...</div>
                                 ) : credentials.length > 0 ? (
                                     credentials.map((cred) => (
@@ -359,7 +451,7 @@ function MCPDashboardPage() {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-2">
-                                {isLoadingApiKeys ? (
+                                {isLoading ? (
                                     Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)
                                 ) : apiKeys.length > 0 ? (
                                     apiKeys.map((key) => (
@@ -405,47 +497,6 @@ function MCPDashboardPage() {
                           </CardContent>
                       </Card>
                   </TabsContent>
-                  <TabsContent value="history" className="m-0">
-                      <Card>
-                          <CardHeader>
-                              <CardTitle>API Command History</CardTitle>
-                              <CardDescription>A log of commands sent to the AI agent via its API endpoint.</CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                              {isLoadingHistory ? (
-                                  <div className="text-center py-12"><Loader2 className="h-8 w-8 text-primary mx-auto animate-spin" /></div>
-                              ) : commandHistory.length === 0 ? (
-                                  <div className="text-center text-muted-foreground text-sm py-12">
-                                  <History className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                                  Command history will appear here once you use the API endpoint.
-                                  </div>
-                              ) : (
-                                  <ScrollArea className="h-96">
-                                      <div className="space-y-4">
-                                      {commandHistory.map(record => (
-                                          <div key={record.id} className="p-3 border rounded-lg bg-muted/30">
-                                          <div className="flex justify-between items-start">
-                                              <div className="flex-1">
-                                              <p className="text-sm font-mono text-foreground font-semibold">
-                                                  <span className="text-primary">&gt;</span> {record.command}
-                                              </p>
-                                              <p className="text-sm text-muted-foreground mt-1.5 whitespace-pre-wrap">{record.response}</p>
-                                              </div>
-                                              <div className="flex items-center gap-2 text-xs text-muted-foreground ml-4 shrink-0">
-                                              {getStatusIndicator(record.status)}
-                                              <span title={new Date(record.timestamp).toLocaleString()}>
-                                                  {formatDistanceToNow(new Date(record.timestamp), { addSuffix: true })}
-                                              </span>
-                                              </div>
-                                          </div>
-                                          </div>
-                                      ))}
-                                      </div>
-                                  </ScrollArea>
-                              )}
-                          </CardContent>
-                      </Card>
-                  </TabsContent>
               </div>
           </div>
       </Tabs>
@@ -478,7 +529,7 @@ function MCPDashboardPage() {
               )}
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="default">Done</Button></DialogClose>
+            <Button type="button" variant="default" onClick={() => setShowAddToolDialog(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -489,7 +540,8 @@ function MCPDashboardPage() {
             const result = await saveCredentialAction(name, value, service);
             if (result.success) {
                 toast({ title: "Credential Saved", description: result.message });
-                loadCredentials();
+                const creds = await listCredentialsAction();
+                setCredentials(creds);
                 return true;
             } else {
                 toast({ title: "Save Failed", description: result.message, variant: "destructive" });
@@ -594,7 +646,7 @@ function AddCredentialDialog({ open, onOpenChange, onSave }: { open: boolean, on
           </div>
         </div>
         <DialogFooter>
-          <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="submit" onClick={handleSave} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Credential

@@ -47,7 +47,7 @@ import {
 } from '@/ai/flows/text-to-speech-flow';
 
 
-import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, DisplayUserApiKey } from '@/types/workflow';
+import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, DisplayUserApiKey, McpCommandRecord } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
@@ -477,4 +477,65 @@ export async function upgradeToGoldAction(): Promise<void> {
 export async function upgradeToDiamondAction(): Promise<void> {
     const userId = await getUserIdOrThrow();
     await WorkflowStorage.updateUserProfileTier(userId, 'Diamond');
+}
+
+// Agent Hub Interactive Command Action
+export async function agentCommandAction(command: string, history: McpCommandRecord[]): Promise<{
+    responseRecord: McpCommandRecord,
+    generatedWorkflow?: GenerateWorkflowFromPromptOutput
+}> {
+    const userId = await getUserIdOrThrow();
+    let status: 'Success' | 'Failed' = 'Success';
+    let aiResponseText = '';
+    let generatedWorkflow: GenerateWorkflowFromPromptOutput | undefined = undefined;
+
+    try {
+        const agentConfig = await WorkflowStorage.getAgentConfig(userId);
+        const chatHistoryForAi = history.slice(-5).map(h => ({
+            sender: h.command ? 'user' : 'ai',
+            message: h.command || h.response
+        }));
+
+        const chatInput: AssistantChatInput = {
+            userMessage: command,
+            enabledTools: agentConfig.enabledTools,
+            userId,
+            chatHistory: chatHistoryForAi,
+        };
+
+        const chatResult = await assistantChat(chatInput);
+        aiResponseText = chatResult.aiResponse;
+        
+        if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
+            try {
+                generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt }, userId);
+                aiResponseText += "\n\n[Action: Workflow Generated. See above.]";
+            } catch (genError: any) {
+                status = 'Failed';
+                aiResponseText = `I tried to generate the workflow, but encountered an error: ${genError.message}`;
+            }
+        }
+    } catch (e: any) {
+        status = 'Failed';
+        aiResponseText = `An error occurred while processing your command: ${e.message}`;
+    }
+
+    const responseRecord = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        command: command,
+        response: aiResponseText,
+        status,
+        timestamp: new Date().toISOString(),
+    };
+
+    await WorkflowStorage.saveMcpCommand(responseRecord, userId);
+    
+    return {
+        responseRecord: {
+            ...responseRecord,
+            command, // ensure command is part of the returned record
+        },
+        generatedWorkflow
+    };
 }

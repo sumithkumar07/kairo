@@ -359,13 +359,15 @@ export async function incrementMonthlyGenerationCount(userId: string): Promise<v
 // MCP Command History
 // ========================
 
-export async function getMcpHistory(userId: string): Promise<McpCommandRecord[]> {
+export async function getMcpHistory(): Promise<McpCommandRecord[]> {
   const supabase = await getSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return [];
 
   const { data, error } = await supabase
     .from('mcp_command_history')
     .select('*')
-    .eq('user_id', userId)
+    .eq('user_id', session.user.id)
     .order('timestamp', { ascending: false })
     .limit(MAX_MCP_HISTORY);
     
