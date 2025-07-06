@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'genkit';
 // We can reuse the output schema from the main generator, as each "idea" is a full workflow.
 import {GenerateWorkflowFromPromptOutputSchema} from '@/ai/schemas';
 

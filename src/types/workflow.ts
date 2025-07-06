@@ -3,6 +3,8 @@
 import type { LucideIcon } from 'lucide-react';
 import type { Tool as GenkitTool } from 'genkit';
 import type { SubscriptionTier } from './subscription';
+import type { DiagnoseWorkflowErrorOutput } from '@/ai/flows/diagnose-workflow-error-flow';
+
 
 export interface RetryConfig {
   attempts: number; 
@@ -189,3 +191,5 @@ export interface UserApiKey {
 }
 
 export interface DisplayUserApiKey extends Omit<UserApiKey, 'key_hash' | 'user_id'> {}
+
+export type { DiagnoseWorkflowErrorOutput };
