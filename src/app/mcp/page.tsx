@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import type { McpCommandRecord, Tool, ManagedCredential } from '@/types/workflow';
-import { getMcpHistory, saveAgentConfig as saveAgentConfigService, getAgentConfig as getAgentConfigService } from '@/services/workflow-storage-service';
+import { getMcpHistory } from '@/services/workflow-storage-service';
 import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction } from '@/app/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
