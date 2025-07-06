@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
+import type { SuggestNextNodeOutput } from '@/types/workflow';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle, Paperclip, X } from 'lucide-react';

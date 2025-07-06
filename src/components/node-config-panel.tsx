@@ -1,8 +1,7 @@
 
 'use client';
 
-import type { WorkflowNode, AvailableNodeType, ConfigFieldSchema, RetryConfig, OnErrorWebhookConfig } from '@/types/workflow';
-import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
+import type { WorkflowNode, AvailableNodeType, ConfigFieldSchema, RetryConfig, OnErrorWebhookConfig, SuggestNextNodeOutput } from '@/types/workflow';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';

@@ -2,9 +2,8 @@
 'use client';
 
 import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow } from '@/types/workflow';
+import type { WorkflowNode, WorkflowConnection, Workflow, AvailableNodeType, ServerLogOutput, WorkflowRunRecord, ChatMessage, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, SuggestNextNodeOutput } from '@/types/workflow';
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-import type { SuggestNextNodeOutput } from '@/ai/flows/suggest-next-node';
 import type { GenerateTestDataInput } from '@/ai/flows/generate-test-data-flow';
 import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation, enhanceAndGenerateWorkflow, assistantChat, saveWorkflowAction, generateTestDataForNode, getAgentConfigAction } from '@/app/actions';
 import { useSubscription } from '@/contexts/SubscriptionContext';

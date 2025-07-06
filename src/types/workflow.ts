@@ -193,3 +193,8 @@ export interface UserApiKey {
 export interface DisplayUserApiKey extends Omit<UserApiKey, 'key_hash' | 'user_id'> {}
 
 export type { DiagnoseWorkflowErrorOutput };
+
+export type SuggestNextNodeOutput = {
+  suggestedNode: string;
+  reason: string;
+};
