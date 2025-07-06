@@ -1,4 +1,5 @@
 
+
 import type { LucideIcon } from 'lucide-react';
 import type { Tool as GenkitTool } from 'genkit';
 import type { SubscriptionTier } from './subscription';
@@ -72,7 +73,7 @@ export interface ExampleWorkflow {
 
 export interface SavedWorkflowMetadata {
   name: string;
-  type: 'example' | 'user';
+  type: 'example' | 'user' | 'community';
   description?: string;
   updated_at?: string;
 }

@@ -9,6 +9,7 @@ import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, Ag
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 import { encrypt, decrypt } from './encryption-service';
 import crypto from 'crypto';
+import communityWorkflowsData from '@/data/community_workflows.json';
 
 
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
@@ -56,6 +57,13 @@ export async function listAllWorkflows(userId?: string | null): Promise<SavedWor
   return [...exampleWorkflows, ...savedUserWorkflows];
 }
 
+export async function getCommunityWorkflows(): Promise<ExampleWorkflow[]> {
+    // In a real app, this might fetch from a database or a remote service.
+    // For this prototype, we'll just return the imported JSON data.
+    return communityWorkflowsData as ExampleWorkflow[];
+}
+
+
 export async function getIsUserWorkflow(name: string, userId: string): Promise<boolean> {
   const supabase = await getSupabaseClient();
   const { count, error } = await supabase
@@ -92,6 +100,12 @@ export async function getWorkflowByName(name: string, userId?: string | null): P
   if (exampleWorkflow) {
     return exampleWorkflow.workflow;
   }
+  
+  const communityWorkflow = communityWorkflowsData.find(wf => wf.name === name);
+    if (communityWorkflow) {
+        return communityWorkflow.workflow;
+  }
+
 
   if (!userId) return null; // Can't fetch user workflows if not logged in
 

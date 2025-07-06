@@ -9,7 +9,6 @@ import {
 import {
   enhanceUserPrompt as genkitEnhanceUserPrompt,
   type EnhanceUserPromptInput,
-  type EnhanceUserPromptOutput
 } from '@/ai/flows/enhance-user-prompt-flow';
 import {
   suggestNextNode as genkitSuggestNextNode,
@@ -36,8 +35,14 @@ import {
   type DiagnoseWorkflowErrorInput,
   type DiagnoseWorkflowErrorOutput,
 } from '@/ai/flows/diagnose-workflow-error-flow';
+import {
+  generateWorkflowIdeas as genkitGenerateWorkflowIdeas,
+  type GenerateWorkflowIdeasInput,
+  type GenerateWorkflowIdeasOutput,
+} from '@/ai/flows/generate-workflow-ideas';
 
-import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig } from '@/types/workflow';
+
+import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
@@ -269,6 +274,26 @@ export async function listWorkflowsAction(): Promise<SavedWorkflowMetadata[]> {
   const userId = await getUserIdOrNull();
   return WorkflowStorage.listAllWorkflows(userId);
 }
+
+export async function getCommunityWorkflowsAction(): Promise<ExampleWorkflow[]> {
+  return WorkflowStorage.getCommunityWorkflows();
+}
+
+export async function generateWorkflowIdeasAction(input: GenerateWorkflowIdeasInput): Promise<GenerateWorkflowIdeasOutput> {
+    const userId = await getUserIdOrThrow();
+    const { tier, features } = await getUserFeatures(userId);
+
+    if (features.aiWorkflowGenerationsPerMonth !== 'unlimited') {
+        const currentCount = await WorkflowStorage.getMonthlyGenerationCount(userId);
+        if (currentCount >= features.aiWorkflowGenerationsPerMonth) {
+            throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
+        }
+    }
+    const result = await genkitGenerateWorkflowIdeas(input);
+    await WorkflowStorage.incrementMonthlyGenerationCount(userId);
+    return result;
+}
+
 
 export async function loadWorkflowAction(name: string): Promise<{ name: string; workflow: Workflow } | null> {
   const userId = await getUserIdOrNull();

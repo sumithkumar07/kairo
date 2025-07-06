@@ -1,0 +1,187 @@
+
+[
+    {
+        "name": "Community: GitHub Issue to Slack Alert",
+        "description": "When a new issue is created in a specific GitHub repository, this workflow immediately posts a formatted alert to a designated Slack channel, ensuring rapid team awareness.",
+        "workflow": {
+            "nodes": [
+                {
+                    "id": "github_webhook_1",
+                    "type": "webhookTrigger",
+                    "name": "GitHub Issue Webhook",
+                    "description": "Receives issue creation events from GitHub.",
+                    "position": { "x": 50, "y": 50 },
+                    "config": {
+                        "pathSuffix": "github-issue-community-alert",
+                        "simulatedRequestBody": "{\"action\":\"opened\",\"issue\":{\"html_url\":\"https://github.com/test/repo/issues/1\",\"title\":\"UI Bug on Login Page\",\"user\":{\"login\":\"testuser\"}}}"
+                    },
+                    "aiExplanation": "This Webhook Trigger is the entry point. Configure this URL in your GitHub repository's webhook settings to listen for 'issues' events. It will receive a payload from GitHub whenever an issue is opened, edited, etc."
+                },
+                {
+                    "id": "filter_opened_only",
+                    "type": "conditionalLogic",
+                    "name": "Filter for 'Opened' Issues",
+                    "description": "Ensures the workflow only proceeds for newly opened issues.",
+                    "position": { "x": 50, "y": 190 },
+                    "inputMapping": { "action": "{{github_webhook_1.requestBody.action}}" },
+                    "config": {
+                        "condition": "{{action}} === 'opened'"
+                    },
+                    "aiExplanation": "This Condition node acts as a filter. It checks if the 'action' field in the webhook payload from GitHub is exactly 'opened'. This prevents the workflow from running for other issue events like closing or editing."
+                },
+                {
+                    "id": "format_slack_message",
+                    "type": "concatenateStrings",
+                    "name": "Format Slack Message",
+                    "description": "Constructs a rich message for the Slack alert.",
+                    "position": { "x": 50, "y": 330 },
+                    "inputMapping": {
+                        "shouldRun": "{{filter_opened_only.result}}",
+                        "issue_title": "{{github_webhook_1.requestBody.issue.title}}",
+                        "issue_url": "{{github_webhook_1.requestBody.issue.html_url}}",
+                        "user_login": "{{github_webhook_1.requestBody.issue.user.login}}"
+                    },
+                    "config": {
+                        "_flow_run_condition": "{{shouldRun}}",
+                        "stringsToConcatenate": [
+                            "🚨 New GitHub Issue Created!\\n",
+                            "*Title:* ",
+                            "{{issue_title}}",
+                            "\\n",
+                            "*Opened by:* ",
+                            "{{user_login}}",
+                            "\\n",
+                            "*Link:* ",
+                            "{{issue_url}}"
+                        ],
+                        "separator": ""
+                    },
+                    "aiExplanation": "This node constructs the message that will be sent to Slack. It only runs if the previous Condition node's result was true. It uses an Input Mapping to pull the issue title, URL, and user's login from the initial webhook payload and combines them into a formatted string."
+                },
+                {
+                    "id": "post_to_slack",
+                    "type": "slackPostMessage",
+                    "name": "Post to #dev-alerts",
+                    "description": "Posts the final message to the Slack channel.",
+                    "position": { "x": 50, "y": 470 },
+                    "inputMapping": {
+                        "message_text": "{{format_slack_message.output_data}}"
+                    },
+                    "config": {
+                        "channel": "#dev-alerts",
+                        "text": "{{message_text}}",
+                        "token": "{{credential.SlackBotToken}}",
+                        "simulated_config": { "ok": true }
+                    },
+                    "aiExplanation": "This is the final action. It takes the formatted message from the previous step and posts it to the '#dev-alerts' Slack channel. For this to work in Live Mode, you must create a credential named 'SlackBotToken' in the Agent Hub with your Slack App's Bot Token."
+                }
+            ],
+            "connections": [
+                { "id": "c1", "sourceNodeId": "github_webhook_1", "sourceHandle": "requestBody", "targetNodeId": "filter_opened_only", "targetHandle": "input" },
+                { "id": "c2", "sourceNodeId": "filter_opened_only", "sourceHandle": "result", "targetNodeId": "format_slack_message", "targetHandle": "input" },
+                { "id": "c3", "sourceNodeId": "format_slack_message", "sourceHandle": "output_data", "targetNodeId": "post_to_slack", "targetHandle": "input" }
+            ]
+        }
+    },
+    {
+        "name": "Community: Daily Weather Report",
+        "description": "Fetches the weather for a predefined city every morning and sends a summary email. A simple, reliable daily information workflow.",
+        "workflow": {
+            "nodes": [
+                {
+                    "id": "daily_schedule_weather",
+                    "type": "schedule",
+                    "name": "Daily at 8 AM",
+                    "description": "Triggers this workflow every day at 8 AM.",
+                    "position": { "x": 50, "y": 50 },
+                    "config": {
+                        "cron": "0 8 * * *"
+                    },
+                    "aiExplanation": "This Schedule node triggers the workflow every morning at 8 AM. This requires an external cron job service to call the scheduler API endpoint. See the README for setup details."
+                },
+                {
+                    "id": "get_city_env",
+                    "type": "getEnvironmentVariable",
+                    "name": "Get City from Env",
+                    "description": "Retrieves the target city from an environment variable.",
+                    "position": { "x": 50, "y": 190 },
+                    "config": {
+                        "variableName": "WEATHER_CITY",
+                        "failIfNotSet": true
+                    },
+                    "aiExplanation": "This node retrieves the target city for the weather report from a server environment variable named `WEATHER_CITY`. You must set this variable in your deployment environment (e.g., `WEATHER_CITY=London`)."
+                },
+                {
+                    "id": "fetch_weather_api",
+                    "type": "httpRequest",
+                    "name": "Fetch Weather API",
+                    "description": "Fetches weather data from a public API.",
+                    "position": { "x": 50, "y": 330 },
+                    "inputMapping": {
+                        "city": "{{get_city_env.value}}"
+                    },
+                    "config": {
+                        "url": "https://wttr.in/{{city}}?format=j1",
+                        "method": "GET",
+                        "simulatedResponse": "{\"current_condition\":[{\"temp_C\":\"15\",\"weatherDesc\":[{\"value\":\"Partly cloudy\"}]}],\"weather\":[{\"avgtempC\":\"18\",\"astronomy\":[{\"sunrise\":\"06:30 AM\"}]}]}"
+                    },
+                    "aiExplanation": "This node makes an HTTP GET request to a free weather API (wttr.in) for the city retrieved from the previous step. It requests the data in JSON format."
+                },
+                {
+                    "id": "format_email_body",
+                    "type": "concatenateStrings",
+                    "name": "Format Email Body",
+                    "description": "Creates a human-readable summary of the weather data.",
+                    "position": { "x": 50, "y": 470 },
+                    "inputMapping": {
+                        "city": "{{get_city_env.value}}",
+                        "current_temp": "{{fetch_weather_api.response.current_condition[0].temp_C}}",
+                        "description": "{{fetch_weather_api.response.current_condition[0].weatherDesc[0].value}}",
+                        "sunrise": "{{fetch_weather_api.response.weather[0].astronomy[0].sunrise}}"
+                    },
+                    "config": {
+                        "stringsToConcatenate": [
+                            "Good morning! Here is your daily weather report for ",
+                            "{{city}}",
+                            ":\\n\\n",
+                            "Current Temperature: ",
+                            "{{current_temp}}",
+                            "°C\\n",
+                            "Conditions: ",
+                            "{{description}}",
+                            "\\n",
+                            "Sunrise: ",
+                            "{{sunrise}}"
+                        ],
+                        "separator": ""
+                    },
+                    "aiExplanation": "This node takes the various pieces of data from the weather API response and formats them into a single, easy-to-read string for the email body."
+                },
+                {
+                    "id": "send_weather_email",
+                    "type": "sendEmail",
+                    "name": "Send Daily Report",
+                    "description": "Emails the formatted weather report.",
+                    "position": { "x": 50, "y": 610 },
+                    "inputMapping": {
+                        "city": "{{get_city_env.value}}",
+                        "email_body": "{{format_email_body.output_data}}"
+                    },
+                    "config": {
+                        "to": "{{env.REPORT_RECIPIENT_EMAIL}}",
+                        "subject": "Daily Weather Report for {{city}}",
+                        "body": "{{email_body}}",
+                        "simulatedMessageId": "sim_weather_email_123"
+                    },
+                    "aiExplanation": "This final node sends the email. It uses the `REPORT_RECIPIENT_EMAIL` environment variable for the 'To' address and the subject/body from the previous steps. For Live Mode, your server must be configured with SMTP environment variables (e.g., EMAIL_HOST, EMAIL_USER)."
+                }
+            ],
+            "connections": [
+                { "id": "cw1", "sourceNodeId": "daily_schedule_weather", "sourceHandle": "triggered_at", "targetNodeId": "get_city_env", "targetHandle": "input" },
+                { "id": "cw2", "sourceNodeId": "get_city_env", "sourceHandle": "value", "targetNodeId": "fetch_weather_api", "targetHandle": "input" },
+                { "id": "cw3", "sourceNodeId": "fetch_weather_api", "sourceHandle": "response", "targetNodeId": "format_email_body", "targetHandle": "input" },
+                { "id": "cw4", "sourceNodeId": "format_email_body", "sourceHandle": "output_data", "targetNodeId": "send_weather_email", "targetHandle": "input" }
+            ]
+        }
+    }
+]
