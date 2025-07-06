@@ -1344,9 +1344,9 @@ function WorkflowPage() {
             onResetView={handleResetView}
             handleGetWorkflowExplanation={handleGetWorkflowExplanation}
             isExplainingWorkflow={isExplainingWorkflow}
-            onUndo={handleUndo}
+            handleUndo={handleUndo}
             canUndo={canUndo}
-            onRedo={handleRedo}
+            handleRedo={handleRedo}
             canRedo={canRedo}
             toast={toast}
             onDeleteSelectedConnection={handleDeleteSelectedConnection}
@@ -1385,7 +1385,7 @@ function WorkflowPage() {
                     onCancelConnection={handleCancelConnection}
                     chatHistory={chatHistory}
                     isChatLoading={isChatLoading}
-                    onChatSubmit={(message, image) => handleChatSubmit(message, image)}
+                    onChatSubmit={handleChatSubmit}
                     onClearChat={() => setChatHistory([])}
                     isExplainingWorkflow={isExplainingWorkflow}
                     workflowExplanation={workflowExplanation}
