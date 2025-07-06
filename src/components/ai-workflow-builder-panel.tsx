@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Zap, Bot, MessageSquareText, Sparkles, Loader2, Minus, Plus, Undo2, Redo2, File as FileIcon, FolderOpen, Save, FilePlus, UploadCloud, DownloadCloud, PanelLeftClose, PanelLeftOpen, SaveAll } from 'lucide-react';
+import { Zap, Bot, MessageSquareText, Sparkles, Loader2, Minus, Plus, Undo2, Redo2, File as FileIcon, FolderOpen, Save, FilePlus, UploadCloud, DownloadCloud, PanelLeftClose, PanelLeftOpen, SaveAll, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
 import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
