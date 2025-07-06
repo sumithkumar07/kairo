@@ -1,35 +1,23 @@
 diff --git a/node_modules/react-joyride/dist/index.mjs b/node_modules/react-joyride/dist/index.mjs
-index 7200257..e572097 100644
+index 81b6817..5164472 100644
 --- a/node_modules/react-joyride/dist/index.mjs
 +++ b/node_modules/react-joyride/dist/index.mjs
-@@ -1,5 +1,5 @@
- import React from 'react';
--import ReactDOM from 'react-dom';
-+import { createRoot } from 'react-dom/client';
- import PropTypes from 'prop-types';
- import { Manager, Reference, Popper } from 'react-popper';
- import deepmerge from 'deepmerge';
-@@ -21,11 +21,13 @@
- 
-     componentDidMount() {
-       if (this.props.portal) {
--        ReactDOM.render(this.props.children, this.node);
-+        this.root = createRoot(this.node);
-+        this.root.render(this.props.children);
+@@ -1,6 +1,6 @@
+ import React, { useMemo, useCallback, useState, useEffect, useRef, forwardRef, createContext, useContext } from 'react';
+ import { styled } from 'goober';
+-import { createPortal, findDOMNode, unmountComponentAtNode as unmountComponentAtNode$1 } from 'react-dom';
++import { createPortal, findDOMNode } from 'react-dom';
+ import { createRoot } from 'react-dom/client';
+ import { computePosition, offset, flip, shift, autoPlacement, arrow as arrow$1, hide } from '@floating-ui/dom';
+ import { deepmerge } from 'deepmerge-ts';
+@@ -207,7 +207,9 @@
+         if (isReact18) {
+           root.current.unmount();
+         } else {
+-          unmountComponentAtNode$1(portal.current);
++          import('react-dom').then(function (ReactDOM) {
++            ReactDOM.unmountComponentAtNode(portal.current);
++          });
+         }
+         document.body.removeChild(portal.current);
        }
-     }
- 
-     componentDidUpdate() {
-+      this.root.render(this.props.children);
-       if (this.props.portal) {
-         return;
-       }
-@@ -33,7 +35,7 @@
-     }
- 
-     componentWillUnmount() {
--      ReactDOM.unmountComponentAtNode(this.node);
-+      this.root.unmount();
- 
-       if (this.node.parentNode) {
-         this.node.parentNode.removeChild(this.node);
