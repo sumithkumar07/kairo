@@ -460,6 +460,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Appends one or more rows to a Google Sheet. Requires a Google Service Account to be authorized for the target sheet. To get a Service Account key, go to the Google Cloud Console, create a service account, generate a JSON key, and then share your Google Sheet with the service account\'s email address. Save the entire JSON key file contents as a credential named `GoogleServiceAccount` in the AI Agent Hub.',
   },
   {
     type: 'slackPostMessage',
@@ -479,6 +480,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Posts a message to a public or private Slack channel. Requires a Slack Bot Token. To get one, go to api.slack.com, create a new Slack App, add it to your workspace, grant it the `chat:write` permission scope, and copy the "Bot User OAuth Token". Save this token in the AI Agent Hub as a credential named `SlackBotToken`.',
   },
   {
     type: 'openAiChatCompletion',
@@ -498,6 +500,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Sends a chat completion request to the OpenAI API. To use this, you need an OpenAI API key. Go to platform.openai.com, navigate to "API Keys," generate a new secret key, and save it in the AI Agent Hub as a credential named `OpenAIKey`.',
   },
   {
     type: 'stripeCreatePaymentLink',
@@ -516,6 +519,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Creates a Stripe Payment Link for one or more products. You will need a Stripe API Secret Key. Go to your Stripe Dashboard, navigate to Developers > API Keys, and find your secret key (it will start with `sk_live_` or `sk_test_`). Save this key in the AI Agent Hub as a credential named `StripeApiKey`.',
   },
   {
     type: 'hubspotCreateContact',
@@ -535,6 +539,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Creates a new contact in your HubSpot account. To get your API key, go to your HubSpot account settings, navigate to Integrations > API Key, and create a new key. Save this key in the AI Agent Hub as a credential named `HubSpotApiKey`.',
   },
   {
     type: 'twilioSendSms',
@@ -556,6 +561,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Sends an SMS message via Twilio. You need your Account SID and Auth Token from your Twilio Console dashboard. Save them in the AI Agent Hub as credentials named `TwilioAccountSid` and `TwilioAuthToken`. You also need a Twilio phone number, which you should set as an environment variable (`TWILIO_FROM_NUMBER`) or provide directly.',
   },
   {
     type: 'githubCreateIssue',
@@ -577,6 +583,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: 'Creates a new issue in a GitHub repository. This requires a GitHub Personal Access Token (PAT) with the `repo` scope. You can generate one in your GitHub account under Settings > Developer settings > Personal access tokens. Save the token in the AI Agent Hub as a credential named `GitHubToken`.',
   },
   {
     type: 'dropboxUploadFile',
