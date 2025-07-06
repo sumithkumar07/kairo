@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 // We can reuse the output schema from the main generator, as each "idea" is a full workflow.
-import {GenerateWorkflowFromPromptOutputSchema} from './generate-workflow-from-prompt';
+import {GenerateWorkflowFromPromptOutputSchema} from '@/ai/schemas';
 
 const GenerateWorkflowIdeasInputSchema = z.object({
   query: z.string().describe('The user\'s topic or query for workflow ideas (e.g., "social media", "data processing", "daily reports").'),

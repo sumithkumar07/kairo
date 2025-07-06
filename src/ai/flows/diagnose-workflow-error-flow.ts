@@ -10,21 +10,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { GenerateWorkflowFromPromptOutputSchema } from './generate-workflow-from-prompt';
+import { GenerateWorkflowFromPromptOutputSchema, WorkflowNodeSchema, WorkflowConnectionSchema } from '@/ai/schemas';
 
 // Input Schemas
-const WorkflowNodeSchema = z.object({
-  id: z.string(),
-  type: z.string(),
-  name: z.string().optional(),
-  config: z.any().optional(),
-});
-const WorkflowConnectionSchema = z.object({
-  sourceNodeId: z.string(),
-  targetNodeId: z.string(),
-  sourceHandle: z.string().optional(),
-  targetHandle: z.string().optional(),
-});
 const ServerLogOutputSchema = z.object({
   timestamp: z.string(),
   message: z.string(),

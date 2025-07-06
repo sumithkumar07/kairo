@@ -10,24 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-
-// Re-using schemas from generate-workflow-from-prompt for consistency in node/connection structure
-const WorkflowNodeSchema = z.object({
-  id: z.string(),
-  type: z.string(),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  position: z.object({ x: z.number(), y: z.number() }),
-  config: z.any().optional(),
-  aiExplanation: z.string().optional(),
-});
-
-const WorkflowConnectionSchema = z.object({
-  sourceNodeId: z.string(),
-  sourceHandle: z.string().optional(),
-  targetNodeId: z.string(),
-  targetHandle: z.string().optional(),
-});
+import { WorkflowNodeSchema, WorkflowConnectionSchema } from '@/ai/schemas';
 
 const ExplainWorkflowInputSchema = z.object({
   nodes: z.array(WorkflowNodeSchema).describe('List of all workflow nodes.'),
