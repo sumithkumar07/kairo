@@ -1,0 +1,20 @@
+patch-package
+--- a/node_modules/react-joyride/dist/index.mjs
++++ b/node_modules/react-joyride/dist/index.mjs
+@@ -1,6 +1,6 @@
+-import ReactDOM from 'react-dom';
++import { createRoot } from 'react-dom/client';
+ import PropTypes from 'prop-types';
+ import { forwardRef, useState, useEffect, useImperativeHandle, useRef, useLayoutEffect, useCallback } from 'react';
+ import { Animate } from 'react-simple-animate';
+@@ -112,7 +112,9 @@
+     if (!portalNode.current) {
+       return;
+     }
+-    ReactDOM.unmountComponentAtNode(portalNode.current);
++    if (portalNode.current) {
++      createRoot(portalNode.current).unmount();
++    }
+     if (portalNode.current.parentElement) {
+       portalNode.current.parentElement.removeChild(portalNode.current);
+     }
