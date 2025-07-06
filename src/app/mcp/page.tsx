@@ -103,7 +103,6 @@ function MCPDashboardPage() {
     if (!user) return;
     setIsLoadingHistory(true);
     try {
-      // Direct action call
       const history = await getMcpHistory(user.uid);
       setCommandHistory(history);
     } catch (e: any) {
