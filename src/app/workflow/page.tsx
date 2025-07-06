@@ -1345,9 +1345,9 @@ function WorkflowPage() {
             onResetView={handleResetView}
             handleGetWorkflowExplanation={handleGetWorkflowExplanation}
             isExplainingWorkflow={isExplainingWorkflow}
-            onUndo={onUndo}
+            onUndo={handleUndo}
             canUndo={canUndo}
-            onRedo={onRedo}
+            onRedo={handleRedo}
             canRedo={canRedo}
             toast={toast}
             onDeleteSelectedConnection={handleDeleteSelectedConnection}
