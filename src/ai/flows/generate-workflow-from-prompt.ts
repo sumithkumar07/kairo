@@ -47,10 +47,14 @@ const generateWorkflowPrompt = ai.definePrompt({
 - The \`logMessage\` node's config **must** use an \`inputMapping\` to capture the error message, like this: \`"inputMapping": { "errorMessage": "{{id_of_failing_node.error}}" }\`, and its message config should be: \`"config": { "message": "Node 'Name of Failing Node' failed: {{errorMessage}}" }\`.
 - This is not optional; it is a critical requirement for building robust, production-ready workflows.
 
-**Crucial for User Setup & AI Explanation:**
-For any node requiring external configuration (API keys, specific IDs, etc.) not in the prompt:
-1.  Use a clear placeholder in the node's \`config\`. PREFER \`{{credential.USER_FRIENDLY_NAME}}\` for managed secrets (e.g., \`apiKey: "{{credential.MyOpenAIKey}}"\`). Use \`{{env.A_DESCRIPTIVE_ENV_VAR}}\` for environment variables.
-2.  In the \`aiExplanation\`, EXPLICITLY state what the user must provide, why it's needed, the exact placeholder used, and provide **clear, step-by-step guidance** on how to get it (e.g., for OpenAI keys, direct them to platform.openai.com, API Keys section, and how to add it to Kairo's Credential Manager).
+**CRITICAL: Mandatory, High-Quality 'aiExplanation' for EVERY Node**
+For EVERY node you generate, you MUST provide a high-quality \`aiExplanation\`. This is the most important part of your output for user guidance.
+1.  Explain the node's purpose in the workflow.
+2.  If it uses \`inputMapping\`, explain what data it's receiving and from where.
+3.  If it requires any external configuration (API keys, specific IDs, etc.):
+    - Use a clear placeholder in the node's \`config\`. PREFER \`{{credential.USER_FRIENDLY_NAME}}\` for managed secrets (e.g., \`apiKey: "{{credential.MyOpenAIKey}}"\`). Use \`{{env.A_DESCRIPTIVE_ENV_VAR}}\` for environment variables.
+    - In the \`aiExplanation\`, EXPLICITLY state what the user must provide, why it's needed, the exact placeholder used, and provide **clear, step-by-step guidance** on how to get it (e.g., for OpenAI keys, direct them to platform.openai.com, API Keys section, and how to add it to Kairo's Credential Manager).
+4.  Explain any advanced configuration you added, like `retry` policies or the `error` handle connection.
 
 **Workflow Name & Description:**
 - Based on the user's prompt, generate a short, descriptive \`name\` for the workflow (e.g., "Daily Sales Report to Slack").
@@ -72,7 +76,7 @@ The workflow consists of 'nodes' and 'connections'.
     - Conditional Execution: If a node should only run based on a condition, add \`_flow_run_condition: "{{id_of_conditional_node.result}}"\` to its \`config\`. The condition node's \`result\` must be a boolean.
     - Simulation Data: For nodes with external effects (\`httpRequest\`, \`aiTask\`, etc.), you MUST provide simulation data fields (\`simulatedResponse\`, \`simulatedOutput\`, \`simulated_config\`, etc.) in the \`config\`.
     - Advanced Error Handling: For nodes that might fail, consider adding a \`retry\` object to the config (e.g., \`"retry": {"attempts": 3, "delayMs": 1000}\`).
-- \`aiExplanation\`: (CRITICAL) Your friendly, clear, and actionable explanation for the node. Explain its purpose, its \`inputMapping\`, any user-setup required for credentials (with guidance), and any error handling (\`retry\`, visual \`error\` path) you've configured.
+- \`aiExplanation\`: (CRITICAL, MANDATORY) Your friendly, clear, and actionable explanation for the node, following the detailed rules above.
 
 Given the following user prompt, generate a JSON object representing the entire workflow, adhering strictly to these principles.
 User Prompt: "{{prompt}}"

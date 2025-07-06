@@ -257,10 +257,10 @@ export function NodeConfigPanel({
             {node.aiExplanation && (
               <AccordionItem value="ai-explanation">
                   <AccordionTrigger className="text-xs font-medium text-muted-foreground hover:no-underline [&[data-state=open]]:text-primary">
-                    <div className="flex items-center gap-2"><Info className="h-4 w-4"/>AI Explanation</div>
+                    <div className="flex items-center gap-2"><Info className="h-4 w-4 text-sky-500"/>AI Explanation</div>
                   </AccordionTrigger>
                   <AccordionContent className="pt-2">
-                      <Card className="p-3 bg-accent/20 dark:bg-accent/10 text-xs text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border-accent/30 shadow-sm break-words">
+                      <Card className="p-3 bg-accent/10 dark:bg-accent/10 text-xs text-accent-foreground/90 space-y-2 whitespace-pre-wrap leading-relaxed border-accent/20 shadow-sm break-words">
                         {node.aiExplanation}
                       </Card>
                   </AccordionContent>

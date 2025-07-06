@@ -142,6 +142,8 @@ function RunHistoryPage() {
       toast({ title: 'Diamond Feature', description: 'AI Error Diagnosis is a premium feature. Please upgrade your plan.', variant: 'default' });
       return;
     }
+    if (diagnosingRunId === run.id) return; // Prevent re-running if already done for this run
+
     setIsDiagnosing(true);
     setDiagnosingRunId(run.id);
     setDiagnosis(null);
@@ -159,7 +161,7 @@ function RunHistoryPage() {
     } finally {
         setIsDiagnosing(false);
     }
-  }, [isDiamondOrTrial, toast]);
+  }, [isDiamondOrTrial, toast, diagnosingRunId]);
   
   useEffect(() => {
     if (selectedRun && selectedRun.status === 'Failed' && diagnosingRunId !== selectedRun.id) {
@@ -215,7 +217,7 @@ function RunHistoryPage() {
   
   const handleLoadCorrectedWorkflow = (correctedWorkflow: any) => {
     if (typeof window !== 'undefined' && correctedWorkflow) {
-        localStorage.setItem('kairoCorrectedWorkflow', JSON.stringify(correctedWorkflow));
+        localStorage.setItem('kairoCurrentWorkflow', JSON.stringify(correctedWorkflow));
         localStorage.setItem('kairoCorrectedWorkflowOriginalName', selectedRun?.workflowName || 'Workflow');
         router.push('/workflow');
         handleCloseDialog();
@@ -534,5 +536,3 @@ function RunHistoryPage() {
 }
 
 export default withAuth(RunHistoryPage);
-
-    

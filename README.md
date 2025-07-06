@@ -1,3 +1,4 @@
+
 # Kairo - AI Workflow Automation
 
 Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This repository contains the full source code for the Kairo platform.
@@ -9,7 +10,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Styling**: Tailwind CSS with shadcn/ui components
 *   **AI**: Google AI & Genkit
 *   **Database & Auth**: Supabase
-*   **Deployment**: Firebase App Hosting, Vercel, Netlify
+*   **Deployment**: Vercel, Firebase App Hosting, Netlify
 
 ---
 
@@ -270,28 +271,30 @@ Open your browser and navigate to `http://localhost:3000`. The main workflow edi
 
 ## Deployment Guide
 
-Kairo is architected to be deployed on modern hosting platforms like **Firebase App Hosting**, Vercel, or Netlify.
+Kairo is architected to be deployed on modern hosting platforms like **Vercel**, **Firebase App Hosting**, or **Netlify**.
 
-### Option 1: Firebase App Hosting (Recommended)
+### Option 1: Vercel (Recommended)
 
 1.  **Push to GitHub:** Make sure your latest code is pushed to a GitHub repository.
+2.  **Import Project:** Sign up for an account on [Vercel](https://vercel.com) and import your Kairo Git repository. The Next.js framework will be automatically detected.
+3.  **Configure Environment Variables:** In your project settings on Vercel, navigate to the **Environment Variables** section. Add all the variables from your local `.env.local` file.
+4.  **Deploy:** Click the **"Deploy"** button. Your application will be built and deployed. Vercel will automatically provide a public URL.
+
+### Option 2: Firebase App Hosting
+
+1.  **Push to GitHub:** Ensure your latest code is pushed to a GitHub repository.
 2.  **Create Firebase Project:** Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
 3.  **Enable App Hosting:** In your project, navigate to the "Build" section and select "App Hosting". Click "Get Started".
 4.  **Connect GitHub:** Follow the prompts to connect your GitHub account and select your Kairo repository.
 5.  **Configure Backend:** In the App Hosting dashboard for your backend, navigate to the **Settings** tab.
 6.  **Add Secret Variables:** This is the most important step. Add all the environment variables from your local `.env.local` file as **Secrets** in the App Hosting settings.
-    *   `NEXT_PUBLIC_SUPABASE_URL`
-    *   `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-    *   `GOOGLE_API_KEY`
-    *   `ENCRYPTION_SECRET_KEY` (Must be identical to your local key)
-    *   `SCHEDULER_SECRET_KEY`
 7.  **Deploy:** Once the secrets are saved, new pushes to your main branch will automatically trigger a new build and deployment.
 
-### Option 2: Vercel or Netlify
+### Option 3: Netlify
 
 1.  **Push to GitHub:** Push your project code to a GitHub, GitLab, or Bitbucket repository.
-2.  **Import Project:** Sign up for an account on Vercel or Netlify and import your Kairo Git repository. The Next.js framework will be automatically detected.
-3.  **Configure Environment Variables:** In your project settings on the hosting platform, navigate to the **Environment Variables** section. Add all the variables from your local `.env.local` file.
+2.  **Import Project:** Sign up for an account on [Netlify](https://www.netlify.com/) and import your Kairo Git repository. The Next.js framework will be automatically detected.
+3.  **Configure Environment Variables:** In your project settings on the Netlify platform, navigate to the **Environment Variables** section. Add all the variables from your local `.env.local` file.
 4.  **Deploy:** Click the **"Deploy"** button. Your application will be built and deployed.
 
 ---
@@ -300,7 +303,7 @@ Kairo is architected to be deployed on modern hosting platforms like **Firebase 
 
 If you use the `schedule` node, you must set up an external service to trigger it.
 
-1.  Use a service like **Google Cloud Scheduler**, Vercel Cron Jobs, EasyCron, or a GitHub Action.
+1.  Use a service like **Vercel Cron Jobs**, **Google Cloud Scheduler**, or a free service like **EasyCron**.
 2.  Create a job that runs at your desired frequency (e.g., every 5 minutes).
 3.  The job must send a `POST` request to: `YOUR_DEPLOYED_URL/api/scheduler/run`
 4.  The request **MUST** include the following header: `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` (using the key you set in your environment variables).

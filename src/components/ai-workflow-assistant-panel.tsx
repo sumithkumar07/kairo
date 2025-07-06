@@ -236,7 +236,7 @@ export function AIWorkflowAssistantPanel({
           <Label className="text-sm font-medium flex items-center gap-2 select-none">
             <Power className="h-4 w-4 text-muted-foreground" /> Run Controls
           </Label>
-          <div title={isSimulationMode ? "Running in Simulation Mode" : "Running in Live Mode"} className="flex items-center space-x-2">
+          <div title={isSimulationMode ? "Simulation Mode: Uses mock data, no real API calls." : "Live Mode: Interacts with real services, may incur costs."} className="flex items-center space-x-2">
             <TestTube2 className={cn("h-4 w-4", !isSimulationMode && "text-muted-foreground")} />
             <Switch id="simulation-mode-switch" checked={!isSimulationMode} onCheckedChange={(checked) => onToggleSimulationMode(!checked)} aria-label="Toggle simulation mode" className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 data-[state=checked]:bg-green-600 [&>span[data-state=checked]]:translate-x-4 [&>span[data-state=unchecked]]:translate-x-0.5" />
             <AlertTriangle className={cn("h-4 w-4", isSimulationMode && "text-muted-foreground")} />
@@ -244,7 +244,7 @@ export function AIWorkflowAssistantPanel({
         </div>
         <Button onClick={onRunWorkflow} disabled={currentIsLoadingAnyAIButChat || isChatLoading} className="w-full h-9 text-sm">
           {isWorkflowRunning ? <RotateCcw className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-          {isWorkflowRunning ? 'Executing...' : `Run ${isSimulationMode ? '(Simulated)' : '(Live)'}`}
+          {isWorkflowRunning ? 'Executing...' : `Run in ${isSimulationMode ? 'Simulation Mode' : 'Live Mode'}`}
         </Button>
       </div>
 

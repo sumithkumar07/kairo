@@ -51,7 +51,7 @@ For each idea, you MUST provide:
 3.  **workflow**: The full, executable workflow definition as a JSON object containing 'nodes' and 'connections'. This definition MUST adhere to the same strict rules as the main workflow generator, including:
     -   Logical layout of nodes using 'position'.
     -   Correct use of 'inputMapping' to pass data between nodes.
-    -   Inclusion of 'aiExplanation' for each node to guide the user.
+    -   **MANDATORY**: Inclusion of a high-quality 'aiExplanation' for each and every node to guide the user. This explanation must detail the node's purpose and any required setup (e.g., credentials).
     -   Use of placeholders like '{{credential.YourApiKey}}' for required secrets.
     -   Inclusion of simulation data (e.g., 'simulatedResponse') for nodes with external effects.
     -   Mandatory visual error handling for any node that might fail (e.g., httpRequest).
