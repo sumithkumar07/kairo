@@ -1,70 +1,81 @@
-diff --git a/node_modules/react-joyride/dist/index.js b/node_modules/react-joyride/dist/index.js
-index 03a2745..c3f58a3 100644
---- a/node_modules/react-joyride/dist/index.js
-+++ b/node_modules/react-joyride/dist/index.js
-@@ -9,7 +9,7 @@
+diff --git a/node_modules/react-joyride/es/components/Portal.js b/node_modules/react-joyride/es/components/Portal.js
+index 9980540..a259c03 100644
+--- a/node_modules/react-joyride/es/components/Portal.js
++++ b/node_modules/react-joyride/es/components/Portal.js
+@@ -1,5 +1,5 @@
+ import PropTypes from 'prop-types';
+-import ReactDOM from 'react-dom';
++import { createRoot } from 'react-dom/client';
+ import { Component } from 'react';
  
- var _reactFloater = _interopRequireDefault(require("react-floater"));
+ export default class Portal extends Component {
+@@ -11,6 +11,7 @@
  
--var ReactDOM = _interopRequireWildcard(require("react-dom"));
+   componentDidMount() {
+     this.renderPortal();
++    this.root = createRoot(this.node);
+   }
+ 
+   componentDidUpdate() {
+@@ -21,7 +22,7 @@
+       return;
+     }
+ 
+-    ReactDOM.unmountComponentAtNode(this.node);
++    this.root.unmount();
+ 
+     if (this.node.parentNode) {
+       this.node.parentNode.removeChild(this.node);
+@@ -32,7 +33,7 @@
+     if (!this.props.portal) {
+       return;
+     }
+-    ReactDOM.render(this.props.portal, this.node);
++    this.root.render(this.props.portal);
+   }
+ 
+   render() {
+diff --git a/node_modules/react-joyride/lib/components/Portal.js b/node_modules/react-joyride/lib/components/Portal.js
+index 45145f3..a43411a 100644
+--- a/node_modules/react-joyride/lib/components/Portal.js
++++ b/node_modules/react-joyride/lib/components/Portal.js
+@@ -11,7 +11,7 @@
+ var _propTypes = _interopRequireDefault(require("prop-types"));
+ 
+ var _react = require("react");
+-var _reactDom = _interopRequireDefault(require("react-dom"));
 +var _client = require("react-dom/client");
  
- var _deepmerge = _interopRequireDefault(require("deepmerge"));
+ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
  
-@@ -628,7 +628,7 @@
+@@ -32,6 +32,7 @@
  
-     key: "componentWillUnmount",
-     value: function componentWillUnmount() {
--      ReactDOM.unmountComponentAtNode(this.tooltip);
-+      this.root.unmount();
-       /* istanbul ignore else */
+     _this.renderPortal = function () {
+       if (!_this.props.portal) {
+         return;
+       }
+@@ -39,7 +40,7 @@
+-      _reactDom.default.render(_this.props.portal, _this.node);
++      _this.root.render(_this.props.portal);
+     };
  
-       if (this.resizeObserver) {
-@@ -688,7 +688,11 @@
-       document.body.appendChild(this.tooltip);
+     _this.node = document.createElement('div');
+@@ -51,6 +52,7 @@
+ 
+   _createClass(Portal, [{
+     key: "componentDidMount",
+     value: function componentDidMount() {
+       this.renderPortal();
++      this.root = (0, _client.createRoot)(this.node);
      }
- 
--    ReactDOM.render( /*#__PURE__*/_react.default.createElement(_Tooltip.default, props), this.tooltip);
-+    if (!this.root) {
-+      this.root = (0, _client.createRoot)(this.tooltip);
-+    }
-+
-+    this.root.render( /*#__PURE__*/_react.default.createElement(_Tooltip.default, props));
-   };
- 
-   _proto.render = function render() {
-diff --git a/node_modules/react-joyride/dist/index.mjs b/node_modules/react-joyride/dist/index.mjs
-index 19f5d37..278a9c1 100644
---- a/node_modules/react-joyride/dist/index.mjs
-+++ b/node_modules/react-joyride/dist/index.mjs
-@@ -1,7 +1,7 @@
- import React from 'react';
- import PropTypes from 'prop-types';
- import Floater from 'react-floater';
--import * as ReactDOM from 'react-dom';
-+import { createRoot } from 'react-dom/client';
- import deepmerge from 'deepmerge';
- import { canUseDOM, getElement, isElement, isFunction, isNumber, isString, log, onResize, onScroll } from 'react-joyride/lib/utils';
- 
-@@ -512,7 +512,7 @@
-     key: "componentWillUnmount",
-     value: function componentWillUnmount() {
-       if (this.tooltip) {
--        ReactDOM.unmountComponentAtNode(this.tooltip);
-+        this.root.unmount();
+   }, {
+     key: "componentDidUpdate",
+@@ -62,7 +64,7 @@
+         return;
        }
  
-       /* istanbul ignore else */
-@@ -569,7 +569,13 @@
-       document.body.appendChild(this.tooltip);
-     }
+-      _reactDom.default.unmountComponentAtNode(this.node);
++      this.root.unmount();
  
--    ReactDOM.render( /*#__PURE__*/React.createElement(Tooltip, props), this.tooltip);
-+    if (!this.root) {
-+      this.root = createRoot(this.tooltip);
-+    }
-+
-+    this.root.render( /*#__PURE__*/React.createElement(Tooltip, props));
-   };
- 
-   _proto.render = function render() {
+       if (this.node.parentNode) {
+         this.node.parentNode.removeChild(this.node);
