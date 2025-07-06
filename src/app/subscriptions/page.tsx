@@ -206,7 +206,7 @@ export default function SubscriptionsPage() {
                   </div>
               </div>
                <div className="flex justify-between items-center pt-2">
-                <CardTitle className="text-2xl font-semibold text-primary">Diamond</CardTitle>
+                <CardTitle className="text-2xl font-semibold text-primary">Diamond Tier</CardTitle>
                 {isLoggedIn && currentTier === 'Diamond' && 
                   <span className="px-3 py-1 text-xs font-semibold text-primary-foreground bg-primary rounded-full shadow-sm">
                     {getTierDisplayName(currentTier)}
