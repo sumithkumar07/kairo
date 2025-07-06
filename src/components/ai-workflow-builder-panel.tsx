@@ -108,9 +108,9 @@ export function AIWorkflowBuilderPanel({
   const { isLoggedIn, isDiamondOrTrial } = useSubscription();
 
   return (
-    <main className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
+    <main id="workflow-canvas-panel" className="flex-1 flex flex-col bg-background dot-grid-background relative overflow-hidden">
         <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-2">
-            <Menubar className="rounded-md border shadow-sm bg-background/80 backdrop-blur-sm">
+            <Menubar id="menubar-file-button" className="rounded-md border shadow-sm bg-background/80 backdrop-blur-sm">
                 <MenubarMenu>
                     <MenubarTrigger>File</MenubarTrigger>
                     <MenubarContent>

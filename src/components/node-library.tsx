@@ -53,7 +53,7 @@ const NodeLibraryComponent = ({ availableNodes }: NodeLibraryProps) => {
   }, [availableNodes, searchTerm]);
 
   return (
-    <aside className="w-72 border-r bg-card h-full flex flex-col shadow-md">
+    <aside id="node-library-panel" className="w-72 border-r bg-card h-full flex flex-col shadow-md">
       <div className="p-4 border-b">
         <h2 className="text-lg font-semibold text-foreground">Node Library</h2>
         <p className="text-sm text-muted-foreground">Drag nodes to the canvas</p>

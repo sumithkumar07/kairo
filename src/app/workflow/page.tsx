@@ -41,11 +41,14 @@ import { withAuth } from '@/components/auth/with-auth';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+import Joyride, { type Step, CallBackProps } from 'react-joyride';
+
 
 const CURRENT_WORKFLOW_KEY = 'kairoCurrentWorkflow';
 const ASSISTANT_PANEL_VISIBLE_KEY = 'kairoAssistantPanelVisible';
 const NODE_LIBRARY_VISIBLE_KEY = 'kairoNodeLibraryVisible';
 const CHAT_HISTORY_STORAGE_KEY = 'kairoChatHistory';
+const TOUR_COMPLETED_KEY = 'kairoTourCompleted_v1';
 const CHAT_CONTEXT_MESSAGE_LIMIT = 6;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
@@ -123,11 +126,67 @@ function WorkflowPage() {
 
   const [isGeneratingTestDataFor, setIsGeneratingTestDataFor] = useState<string|null>(null);
 
+  const [runTour, setRunTour] = useState(false);
+
   const searchParams = useSearchParams();
 
   const selectedNode = useMemo(() => {
     return nodes.find(node => node.id === selectedNodeId) || null;
   }, [nodes, selectedNodeId]);
+
+  useEffect(() => {
+    const tourCompleted = localStorage.getItem(TOUR_COMPLETED_KEY);
+    if (!tourCompleted) {
+      setRunTour(true);
+    }
+  }, []);
+
+  const handleJoyrideCallback = (data: CallBackProps) => {
+    const { status } = data;
+    const finishedStatuses: string[] = ['finished', 'skipped'];
+    if (finishedStatuses.includes(status)) {
+      setRunTour(false);
+      localStorage.setItem(TOUR_COMPLETED_KEY, 'true');
+    }
+  };
+  
+  const tourSteps: Step[] = [
+    {
+      target: 'body',
+      content: 'Welcome to Kairo! Let\'s take a quick tour of the workflow editor.',
+      placement: 'center',
+    },
+    {
+      target: '#node-library-panel',
+      content: 'This is the Node Library. You can find all the building blocks for your workflows here. Just drag and drop them onto the canvas to get started.',
+      placement: 'right',
+    },
+    {
+      target: '#workflow-canvas-panel',
+      content: 'This is your canvas. You can pan by dragging and zoom with your scroll wheel. This is where you\'ll visually design your automation.',
+      placement: 'center',
+    },
+    {
+      target: '#ai-assistant-panel',
+      content: 'And this is your AI Assistant. It\'s your co-pilot for building, debugging, and understanding workflows.',
+      placement: 'left',
+    },
+    {
+      target: '#ai-chat-textarea',
+      content: 'Simply type a description of the workflow you want to build, and the AI will generate it for you. For example: "When a new file is uploaded to Dropbox, summarize it and send the summary to Slack."',
+      placement: 'left',
+    },
+    {
+      target: '#run-controls-panel',
+      content: 'Once you have a workflow, use these controls to test it. You can run it in "Simulation Mode" with mock data, or switch to "Live Mode" to use real services.',
+      placement: 'left',
+    },
+    {
+      target: '#menubar-file-button',
+      content: 'Use the File menu to create new workflows, save your work, or open the Workflow Hub to explore examples and generate new ideas.',
+      placement: 'bottom',
+    },
+  ];
 
   useEffect(() => {
     if (chatHistory.length > 0) {
@@ -1429,6 +1488,20 @@ function WorkflowPage() {
   return (
     <AppLayout>
       <div className="flex h-full flex-col bg-background text-foreground overflow-hidden">
+        <Joyride
+          callback={handleJoyrideCallback}
+          continuous
+          run={runTour}
+          scrollToFirstStep
+          showProgress
+          showSkipButton
+          steps={tourSteps}
+          styles={{
+            options: {
+              zIndex: 10000,
+            },
+          }}
+        />
         {isLoadingAiWorkflow && (
           <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 backdrop-blur-sm">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -1465,7 +1538,7 @@ function WorkflowPage() {
             isConnecting={isConnecting}
             onStartConnection={onStartConnection}
             onCompleteConnection={handleCompleteConnection}
-            onUpdateConnectionPreview={handleUpdateConnectionPreview}
+            onUpdateConnectionPreview={onUpdateConnectionPreview}
             connectionPreview={{
               startNodeId: connectionStartNodeId,
               startHandleId: connectionStartHandleId,
@@ -1493,7 +1566,7 @@ function WorkflowPage() {
           />
 
           {isAssistantVisible && (
-            <aside className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
+            <aside id="ai-assistant-panel" className="w-96 border-l bg-card shadow-sm flex flex-col overflow-hidden">
               {selectedNode && selectedNodeType && !isConnecting && !workflowExplanation && !selectedConnectionId ? (
                   <NodeConfigPanel
                     node={selectedNode}

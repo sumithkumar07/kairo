@@ -201,7 +201,7 @@ export function AIWorkflowAssistantPanel({
 
   return (
     <div className="flex flex-col h-full bg-card">
-      <div className="p-3 border-b space-y-3">
+      <div id="run-controls-panel" className="p-3 border-b space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium flex items-center gap-2 select-none">
             <Power className="h-4 w-4 text-muted-foreground" /> Run Controls

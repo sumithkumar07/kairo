@@ -136,3 +136,24 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* Joyride Tour Styles */
+:root {
+  --react-joyride-arrow-color: hsl(var(--card));
+  --react-joyride-background-color: hsl(var(--card));
+  --react-joyride-beacon-inner-color: hsl(var(--primary));
+  --react-joyride-beacon-outer-color: hsl(var(--primary) / 0.5);
+  --react-joyride-text-color: hsl(var(--card-foreground));
+  --react-joyride-primary-color: hsl(var(--primary));
+  --react-joyride-overlay-color: rgba(0, 0, 0, 0.6);
+  --react-joyride-z-index: 101;
+}
+
+.dark {
+    --react-joyride-arrow-color: hsl(var(--card));
+    --react-joyride-background-color: hsl(var(--card));
+    --react-joyride-beacon-inner-color: hsl(var(--primary));
+    --react-joyride-beacon-outer-color: hsl(var(--primary) / 0.5);
+    --react-joyride-text-color: hsl(var(--card-foreground));
+    --react-joyride-primary-color: hsl(var(--primary));
+}
