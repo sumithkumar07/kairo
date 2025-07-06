@@ -1,4 +1,3 @@
-
 // The directive tells the Next.js runtime to execute this code on the server.
 'use server';
 
@@ -54,7 +53,7 @@ For EVERY node you generate, you MUST provide a high-quality \`aiExplanation\`. 
 3.  If it requires any external configuration (API keys, specific IDs, etc.):
     - Use a clear placeholder in the node's \`config\`. PREFER \`{{credential.USER_FRIENDLY_NAME}}\` for managed secrets (e.g., \`apiKey: "{{credential.MyOpenAIKey}}"\`). Use \`{{env.A_DESCRIPTIVE_ENV_VAR}}\` for environment variables.
     - In the \`aiExplanation\`, EXPLICITLY state what the user must provide, why it's needed, the exact placeholder used, and provide **clear, step-by-step guidance** on how to get it (e.g., for OpenAI keys, direct them to platform.openai.com, API Keys section, and how to add it to Kairo's Credential Manager).
-4.  Explain any advanced configuration you added, like `retry` policies or the `error` handle connection.
+4.  Explain any advanced configuration you added, like 'retry' policies or the 'error' handle connection.
 
 **Workflow Name & Description:**
 - Based on the user's prompt, generate a short, descriptive \`name\` for the workflow (e.g., "Daily Sales Report to Slack").
