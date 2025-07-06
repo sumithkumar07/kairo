@@ -278,11 +278,13 @@ function WorkflowPage() {
         const correctedWorkflowJson = localStorage.getItem('kairoCorrectedWorkflow');
         if (correctedWorkflowJson) {
             localStorage.removeItem('kairoCorrectedWorkflow'); // Clean up immediately
+            const originalName = localStorage.getItem('kairoCorrectedWorkflowOriginalName') || 'Untitled Workflow';
+            localStorage.removeItem('kairoCorrectedWorkflowOriginalName');
             try {
                 const correctedWorkflowData = JSON.parse(correctedWorkflowJson);
                 const workflowToLoad = mapAiWorkflowToInternal(correctedWorkflowData);
-                loadWorkflowIntoEditor(workflowToLoad, `${currentWorkflowNameRef.current} (Corrected)`);
-                toast({ title: 'Corrected Workflow Loaded', description: 'The AI-generated fix has been loaded onto the canvas.' });
+                loadWorkflowIntoEditor(workflowToLoad, `${originalName} (Corrected)`);
+                toast({ title: 'Corrected Workflow Loaded', description: 'The AI-generated fix has been loaded onto the canvas for your review.' });
                 return; // Exit early to prevent loading the old workflow
             } catch (error) {
                 console.error("Error loading corrected workflow from localStorage:", error);

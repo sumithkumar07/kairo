@@ -29,7 +29,7 @@ export type DiagnoseWorkflowErrorInput = z.infer<typeof DiagnoseWorkflowErrorInp
 // Output Schema
 const DiagnoseWorkflowErrorOutputSchema = z.object({
   diagnosis: z.string().describe("A clear, concise explanation of the root cause of the failure. Identify the failing node and the reason for its failure (e.g., bad input, misconfiguration, external API error)."),
-  recommendedFix: z.string().describe("A step-by-step recommendation on how to fix the workflow. Be specific (e.g., 'Add a Conditional Logic node after the HTTP Request to check if the status code is 200 before attempting to parse the JSON.')."),
+  recommendedFix: z.string().describe("A step-by-step recommendation on how to fix the workflow. Be specific (e.g., '1. Add a Conditional Logic node after the HTTP Request. 2. Set its condition to check if the status code is 200. 3. Reconnect the 'Parse JSON' node to the output of the new conditional node.')."),
   correctedWorkflow: GenerateWorkflowFromPromptOutputSchema.optional().describe("If a fix is possible, provide the complete, corrected workflow definition as a JSON object with 'nodes' and 'connections'. This new definition should implement the recommended fix. If the workflow cannot be fixed automatically, this field should be omitted."),
 });
 export type DiagnoseWorkflowErrorOutput = z.infer<typeof DiagnoseWorkflowErrorOutputSchema>;
@@ -63,13 +63,13 @@ const errorDiagnoserPrompt = ai.definePrompt({
     *   **Logic Error**: Is there a faulty condition in a conditional node, or is a node being skipped incorrectly?
     *   **External Service Error**: Did an external API return an error?
 3.  **Formulate Diagnosis**: State clearly which node failed and why. Be direct.
-4.  **Recommend a Fix**: Provide a clear, actionable solution.
-5.  **Generate Corrected Workflow**: Based on your analysis, generate a complete, corrected JSON definition for the workflow in the \`correctedWorkflow\` output field.
-    *   You MUST adhere to the same rules as the main workflow generator: Use \`inputMapping\` to pass data, lay out nodes logically with \`position\`, and provide clear \`aiExplanation\` for any changed or added nodes.
-    *   If the fix involves adding a new node (e.g., a conditional check or a logging node), create a new, unique ID for it and position it appropriately.
-    *   Preserve the positions, names, and configurations of all unaffected nodes.
-    *   Update connections as necessary to implement the fix.
-    *   If the workflow is unfixable (e.g., the error is due to a fundamental external issue beyond the workflow's control), you may omit the \`correctedWorkflow\` field.
+4.  **Recommend a Fix**: Provide a clear, actionable, step-by-step solution that a user could follow manually if they chose to. Be specific (e.g., "1. Add a 'Conditional Logic' node after 'Fetch User API'. 2. Set its condition to '{{status_code}} == 200'. 3. Reconnect the 'Parse JSON' node to the output of the new conditional node.").
+5.  **Generate Corrected Workflow**: Based on your analysis, generate a complete, corrected JSON definition for the workflow in the \`correctedWorkflow\` output field. This is the most critical part.
+    *   **Preservation is Key**: You MUST preserve the exact positions, names, configurations, and IDs of all unaffected nodes. The corrected workflow should look as close to the original as possible, with only the necessary changes.
+    *   **Explain Your Changes**: For any node you add or modify, you MUST provide a clear, user-friendly \`aiExplanation\` detailing *what* you changed and *why*. For new nodes, explain their purpose. For modified nodes, explain the configuration change.
+    *   **Layout Logic**: If you add a new node (like a conditional check), position it logically between the source of the error and the next step. For example, if an HTTP request at (100, 200) fails and you add a conditional, place the conditional at (100, 340) and move the subsequent nodes down.
+    *   **Adherence to Rules**: Adhere to all standard workflow generation rules: use \`inputMapping\` for data flow, use placeholders for credentials (\`{{credential.NAME}}\`), etc.
+    *   **Omission**: If the workflow is unfixable (e.g., the error is due to an external service being permanently offline or a fundamental logic issue that requires human intervention), you may omit the \`correctedWorkflow\` field, but you must explain why in the \`recommendedFix\`.
 
 Workflow Nodes:
 \`\`\`json

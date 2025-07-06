@@ -85,6 +85,7 @@ function RunHistoryPage() {
 
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [diagnosis, setDiagnosis] = useState<DiagnoseWorkflowErrorOutput | null>(null);
+  const [diagnosingRunId, setDiagnosingRunId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'success', 'failed'
@@ -136,12 +137,13 @@ function RunHistoryPage() {
     }
   };
 
-  const handleDiagnoseError = async (run: WorkflowRunRecord) => {
+  const handleDiagnoseError = useCallback(async (run: WorkflowRunRecord) => {
     if (!isDiamondOrTrial) {
       toast({ title: 'Diamond Feature', description: 'AI Error Diagnosis is a premium feature. Please upgrade your plan.', variant: 'default' });
       return;
     }
     setIsDiagnosing(true);
+    setDiagnosingRunId(run.id);
     setDiagnosis(null);
     setActiveDetailTab('diagnosis');
     try {
@@ -157,8 +159,14 @@ function RunHistoryPage() {
     } finally {
         setIsDiagnosing(false);
     }
-  };
+  }, [isDiamondOrTrial, toast]);
   
+  useEffect(() => {
+    if (selectedRun && selectedRun.status === 'Failed' && diagnosingRunId !== selectedRun.id) {
+        handleDiagnoseError(selectedRun);
+    }
+  }, [selectedRun, diagnosingRunId, handleDiagnoseError]);
+
   const clearHistory = async () => {
     try {
       await clearRunHistoryAction();
@@ -202,12 +210,24 @@ function RunHistoryPage() {
     setSelectedNodeInSnapshot(null);
     setActiveDetailTab('logs');
     setDiagnosis(null);
+    setDiagnosingRunId(null);
   };
   
   const handleLoadCorrectedWorkflow = (correctedWorkflow: any) => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && correctedWorkflow) {
         localStorage.setItem('kairoCorrectedWorkflow', JSON.stringify(correctedWorkflow));
+        localStorage.setItem('kairoCorrectedWorkflowOriginalName', selectedRun?.workflowName || 'Workflow');
         router.push('/workflow');
+        handleCloseDialog();
+    }
+  };
+
+  const handleViewDetails = (run: WorkflowRunRecord) => {
+    setSelectedRun(run);
+    if (run.status === 'Failed') {
+      setActiveDetailTab('diagnosis');
+    } else {
+      setActiveDetailTab('logs');
     }
   };
 
@@ -339,7 +359,7 @@ function RunHistoryPage() {
                       <p className="text-sm text-muted-foreground">{format(new Date(run.timestamp), 'PPpp')} ({formatDistanceToNow(new Date(run.timestamp), { addSuffix: true })})</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setSelectedRun(run)}><Eye className="mr-2 h-4 w-4" />View Details</Button>
+                  <Button variant="outline" size="sm" onClick={() => handleViewDetails(run)}><Eye className="mr-2 h-4 w-4" />View Details</Button>
                 </div>
               )) : (
                 <div className="text-center text-muted-foreground py-16">
@@ -425,15 +445,24 @@ function RunHistoryPage() {
                   <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="flex-1 flex flex-col">
                     <div className="p-2 border-b">
                       <TabsList className="grid w-full grid-cols-3 h-9">
+                        <TabsTrigger value="diagnosis" className="text-xs gap-1.5" disabled={selectedRun.status !== 'Failed'}>
+                          <Bot className="h-4 w-4"/>AI Diagnosis
+                        </TabsTrigger>
                         <TabsTrigger value="logs" className="text-xs gap-1.5"><ListChecks className="h-4 w-4"/>Logs</TabsTrigger>
                         <TabsTrigger value="data" className="text-xs gap-1.5" disabled={!selectedNodeInSnapshot}>
                           <Database className="h-4 w-4"/>Node Data
                         </TabsTrigger>
-                        <TabsTrigger value="diagnosis" className="text-xs gap-1.5" disabled={selectedRun.status !== 'Failed'}>
-                          <Bot className="h-4 w-4"/>AI Diagnosis
-                        </TabsTrigger>
                       </TabsList>
                     </div>
+                    <TabsContent value="diagnosis" className="flex-1 overflow-hidden mt-0">
+                       <div className="flex flex-col h-full">
+                          <div className="p-3 border-b bg-muted/30">
+                            <h3 className="font-semibold text-foreground flex items-center gap-2"><Bot className="h-4 w-4 text-primary"/>AI Error Diagnosis</h3>
+                            <p className="text-xs text-muted-foreground">AI-powered analysis of the workflow failure.</p>
+                          </div>
+                          {renderDiagnosis()}
+                       </div>
+                    </TabsContent>
                     <TabsContent value="logs" className="flex-1 overflow-hidden mt-0">
                        <div className="flex flex-col h-full">
                           <div className="p-3 border-b bg-muted/30">
@@ -452,15 +481,6 @@ function RunHistoryPage() {
                           {renderNodeRunData()}
                        </div>
                     </TabsContent>
-                    <TabsContent value="diagnosis" className="flex-1 overflow-hidden mt-0">
-                       <div className="flex flex-col h-full">
-                          <div className="p-3 border-b bg-muted/30">
-                            <h3 className="font-semibold text-foreground flex items-center gap-2"><Bot className="h-4 w-4 text-primary"/>AI Error Diagnosis</h3>
-                            <p className="text-xs text-muted-foreground">AI-powered analysis of the workflow failure.</p>
-                          </div>
-                          {renderDiagnosis()}
-                       </div>
-                    </TabsContent>
                   </Tabs>
                 </div>
             </div>
@@ -473,7 +493,7 @@ function RunHistoryPage() {
                            <span>
                              <Button variant="outline" onClick={() => handleDiagnoseError(selectedRun)} disabled={isDiagnosing || !isDiamondOrTrial}>
                                {isDiagnosing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4"/>}
-                               {isDiagnosing ? 'Diagnosing...' : 'Ask AI to Debug'}
+                               {isDiagnosing ? 'Diagnosing...' : 'Re-run Diagnosis'}
                              </Button>
                            </span>
                          </TooltipTrigger>
