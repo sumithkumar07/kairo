@@ -185,5 +185,7 @@ export interface UserApiKey {
     key_hash: string; // A SHA-256 hash of the API key
     prefix: string; // The non-secret prefix of the key (e.g., "kairo_sk_")
     created_at: string;
-    last_used_at?: string;
+    last_used_at?: string | null;
 }
+
+export interface DisplayUserApiKey extends Omit<UserApiKey, 'key_hash' | 'user_id'> {}

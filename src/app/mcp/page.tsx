@@ -4,17 +4,18 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, Info, Trash2 } from 'lucide-react';
+import { Settings, History, Zap, Plus, X, CheckCircle2, XCircle, Loader2, KeyRound, Copy, Check, Info, Trash2, MoreVertical } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/app-layout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import type { McpCommandRecord, Tool, ManagedCredential } from '@/types/workflow';
+import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey } from '@/types/workflow';
 import { getMcpHistory } from '@/services/workflow-storage-service';
-import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction } from '@/app/actions';
-import { formatDistanceToNow } from 'date-fns';
+import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction, listApiKeysAction, revokeApiKeyAction } from '@/app/actions';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { withAuth } from '@/components/auth/with-auth';
 import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { findPlaceholdersInObject } from '@/lib/workflow-utils';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RequiredCredentialInfo {
   name: string;
@@ -45,8 +47,13 @@ function MCPDashboardPage() {
   const [showAddCredentialDialog, setShowAddCredentialDialog] = useState(false);
   const [credentialToDeleteId, setCredentialToDeleteId] = useState<string | null>(null);
 
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isKeyLoading, setIsKeyLoading] = useState(false);
+  // API Key State
+  const [apiKeys, setApiKeys] = useState<DisplayUserApiKey[]>([]);
+  const [isLoadingApiKeys, setIsLoadingApiKeys] = useState(true);
+  const [showNewKeyDialog, setShowNewKeyDialog] = useState(false);
+  const [newApiKey, setNewApiKey] = useState<string | null>(null);
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+  const [keyToRevokeId, setKeyToRevokeId] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
 
@@ -54,12 +61,9 @@ function MCPDashboardPage() {
     const requiredMap = new Map<string, RequiredCredentialInfo>();
     
     AVAILABLE_NODES_CONFIG.forEach(node => {
-        // We only check `defaultConfig` because that's where permanent placeholders live.
-        // User-entered config is dynamic and can't be statically analyzed.
         const placeholders = findPlaceholdersInObject({ config: node.defaultConfig });
         placeholders.secrets.forEach(secretName => {
             if (!requiredMap.has(secretName)) {
-                // Infer service from node type, e.g., 'googleSheetsAppendRow' -> 'Google Sheets'
                 const serviceGuess = node.type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 
                 requiredMap.set(secretName, {
@@ -118,13 +122,27 @@ function MCPDashboardPage() {
     }
   }, [toast, user]);
 
+  const loadApiKeys = useCallback(async () => {
+    setIsLoadingApiKeys(true);
+    try {
+        const keys = await listApiKeysAction();
+        setApiKeys(keys);
+    } catch (e: any) {
+        toast({ title: 'Error Loading API Keys', description: e.message, variant: 'destructive' });
+    } finally {
+        setIsLoadingApiKeys(false);
+    }
+  }, [toast]);
+
+
   useEffect(() => {
     if (user) {
         loadAgentConfig();
         loadCredentials();
         loadHistory();
+        loadApiKeys();
     }
-  }, [user, loadAgentConfig, loadCredentials, loadHistory]);
+  }, [user, loadAgentConfig, loadCredentials, loadHistory, loadApiKeys]);
   
   const unconfiguredTools = useMemo(() => {
     const configuredToolNames = new Set(configuredTools.map(t => t.name));
@@ -149,26 +167,40 @@ function MCPDashboardPage() {
 
 
   const handleGenerateKey = async () => {
-    setIsKeyLoading(true);
+    setIsGeneratingKey(true);
     try {
-      const newKey = await generateApiKeyAction();
-      setApiKey(newKey);
-      setIsCopied(false);
-      toast({ title: 'API Key Generated', description: 'Copy your new API key now. You will not be able to see it again.' });
+      const { apiKey, id, prefix } = await generateApiKeyAction();
+      setNewApiKey(apiKey);
+      setShowNewKeyDialog(true);
+      await loadApiKeys(); // Refresh the list
     } catch (e: any) {
       toast({ title: 'Error', description: `Failed to generate API key: ${e.message}`, variant: 'destructive' });
     } finally {
-      setIsKeyLoading(false);
+      setIsGeneratingKey(false);
     }
   };
 
   const handleCopyKey = () => {
-    if (!apiKey) return;
-    navigator.clipboard.writeText(apiKey);
+    if (!newApiKey) return;
+    navigator.clipboard.writeText(newApiKey);
     setIsCopied(true);
     toast({ title: 'Copied to Clipboard!' });
     setTimeout(() => setIsCopied(false), 2000);
   };
+  
+  const handleRevokeKey = async () => {
+    if (!keyToRevokeId) return;
+    try {
+        await revokeApiKeyAction(keyToRevokeId);
+        toast({ title: 'API Key Revoked', description: 'The key has been successfully deleted.' });
+        setApiKeys(prev => prev.filter(key => key.id !== keyToRevokeId));
+    } catch (e: any) {
+        toast({ title: 'Error', description: `Failed to revoke key: ${e.message}`, variant: 'destructive' });
+    } finally {
+        setKeyToRevokeId(null);
+    }
+  };
+
 
   const handleDeleteCredential = async () => {
     if (!credentialToDeleteId) return;
@@ -311,74 +343,65 @@ function MCPDashboardPage() {
                         </CardContent>
                     </Card>
                   </TabsContent>
-                  <TabsContent value="connect" className="m-0">
+                  <TabsContent value="connect" className="m-0 space-y-6">
+                        <Card>
+                          <CardHeader>
+                              <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle>Programmatic API Access</CardTitle>
+                                    <CardDescription>Manage your API keys to control the Agent from other apps.</CardDescription>
+                                </div>
+                                <Button size="sm" onClick={handleGenerateKey} disabled={isGeneratingKey}>
+                                    {isGeneratingKey ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                                    Generate New Key
+                                </Button>
+                              </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                                {isLoadingApiKeys ? (
+                                    Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)
+                                ) : apiKeys.length > 0 ? (
+                                    apiKeys.map((key) => (
+                                        <div key={key.id} className="flex items-center gap-4 p-3 pr-2 border rounded-lg bg-background">
+                                            <div className="p-2 bg-muted rounded-md"><KeyRound className="h-5 w-5 text-muted-foreground" /></div>
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-sm font-mono">{key.prefix}••••••••</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                  Created {format(new Date(key.created_at), "MMM d, yyyy")}
+                                                  {key.last_used_at && ` • Last used ${formatDistanceToNow(new Date(key.last_used_at), { addSuffix: true })}`}
+                                                </p>
+                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4"/></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => setKeyToRevokeId(key.id)} className="text-destructive focus:text-destructive">
+                                                        <Trash2 className="mr-2 h-4 w-4"/> Revoke Key
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-6 text-sm text-muted-foreground">No API keys created yet.</div>
+                                )}
+                            </div>
+                          </CardContent>
+                      </Card>
                       <Card>
                           <CardHeader>
-                              <CardTitle>Programmatic API Access</CardTitle>
-                              <CardDescription>Use this information to control your Kairo AI Agent from your own applications via its API.</CardDescription>
+                            <CardTitle>API Usage Example</CardTitle>
+                            <CardDescription>Use an API key to send commands to the agent.</CardDescription>
                           </CardHeader>
-                          <CardContent className="space-y-6">
-                              <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent API Endpoint</div>
-                                  <pre className="mt-1 text-sm p-2 bg-muted rounded-md font-mono">/api/mcp</pre>
-                              </div>
-                              
-                              <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2"><KeyRound className="h-3.5 w-3.5"/>Authentication & Usage</div>
-                                  <p className="text-sm mt-2 text-muted-foreground">Generate a unique API key. This key is tied to your user account. The key must be sent in the <code className="text-xs bg-muted p-1 rounded font-mono">Authorization</code> header as <code className="text-xs bg-muted p-1 rounded font-mono">Bearer YOUR_API_KEY</code>.</p>
-                                  <div className="mt-4">
-                                    <Button onClick={handleGenerateKey} disabled={isKeyLoading}>
-                                        {isKeyLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <KeyRound className="h-4 w-4 mr-2" />}
-                                        Generate New API Key
-                                    </Button>
-                                    {apiKey && (
-                                        <div className="mt-4 space-y-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                                          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">Your New API Key</p>
-                                          <p className="text-xs text-yellow-700 dark:text-yellow-300">This is the only time you will see this key. Copy it and store it somewhere safe.</p>
-                                          <div className="flex items-center gap-2 p-2 border rounded-md bg-background">
-                                            <pre className="text-sm font-mono flex-1 truncate">{apiKey}</pre>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyKey}>
-                                              {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                                            </Button>
-                                          </div>
-                                        </div>
-                                    )}
-                                  </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="text-sm font-medium">API Examples</div>
-                                <Tabs defaultValue="curl" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2 h-9">
-                                        <TabsTrigger value="curl" className="text-xs">cURL</TabsTrigger>
-                                        <TabsTrigger value="fetch" className="text-xs">JavaScript Fetch</TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="curl">
-                                        <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
-                                            {`curl -X POST "http://localhost:3000/api/mcp" \\
--H "Authorization: Bearer ${apiKey || 'YOUR_KAIRO_API_KEY'}" \\
+                          <CardContent>
+                              <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
+                                  {`curl -X POST "${typeof window !== 'undefined' ? window.location.origin : ''}/api/mcp" \\
+-H "Authorization: Bearer YOUR_API_KEY" \\
 -H "Content-Type: application/json" \\
 -d '{"command": "Generate a workflow to get the weather and email it."}'`}
-                                        </pre>
-                                    </TabsContent>
-                                    <TabsContent value="fetch">
-                                        <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
-                                            {`const response = await fetch('http://localhost:3000/api/mcp', {
-  method: 'POST',
-  headers: {
-    'Authorization': \`Bearer ${apiKey || 'YOUR_KAIRO_API_KEY'}\`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    command: 'Generate a workflow to get the weather and email it.'
-  })
-});
-
-const data = await response.json();
-console.log(data);`}
-                                        </pre>
-                                    </TabsContent>
-                                </Tabs>
-                              </div>
+                              </pre>
                           </CardContent>
                       </Card>
                   </TabsContent>
@@ -488,6 +511,39 @@ console.log(data);`}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={!!keyToRevokeId} onOpenChange={(open) => !open && setKeyToRevokeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to revoke this API key? This action is permanent and cannot be undone. Any application using this key will immediately lose access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setKeyToRevokeId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRevokeKey} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Yes, Revoke Key</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <Dialog open={showNewKeyDialog} onOpenChange={(open) => {if (!open) { setShowNewKeyDialog(false); setNewApiKey(null); }}}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>New API Key Generated</DialogTitle>
+                <DialogDescription>
+                    Copy this key and store it in a secure location. You will not be able to see it again.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+                <pre className="text-sm font-mono flex-1 truncate">{newApiKey}</pre>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyKey}>
+                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
+            </div>
+             <DialogFooter>
+                <Button onClick={() => { setShowNewKeyDialog(false); setNewApiKey(null); }}>Done</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

@@ -42,7 +42,7 @@ import {
 } from '@/ai/flows/generate-workflow-ideas';
 
 
-import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow } from '@/types/workflow';
+import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, DisplayUserApiKey } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
@@ -234,9 +234,14 @@ export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput)
   return result.explanation;
 }
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
-  const result = await genkitAssistantChat(input);
-  if (!result) throw new Error("AI assistant returned an empty response.");
-  return result;
+    const userId = await getUserIdOrNull();
+    // Ensure userId is present if tools are enabled or user is logged in
+    if (!input.userId && userId) {
+        input.userId = userId;
+    }
+    const result = await genkitAssistantChat(input);
+    if (!result) throw new Error("AI assistant returned an empty response.");
+    return result;
 }
 
 export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string }): Promise<GenerateWorkflowFromPromptOutput> {
@@ -381,10 +386,21 @@ export async function saveAgentConfigAction(config: AgentConfig): Promise<void> 
     return WorkflowStorage.saveAgentConfig(config, userId);
 }
 
-export async function generateApiKeyAction(): Promise<string> {
+export async function generateApiKeyAction(): Promise<{ apiKey: string; id: string; prefix: string; }> {
     const userId = await getUserIdOrThrow();
     return WorkflowStorage.generateApiKey(userId);
 }
+
+export async function listApiKeysAction(): Promise<DisplayUserApiKey[]> {
+    const userId = await getUserIdOrThrow();
+    return WorkflowStorage.listApiKeysForUser(userId);
+}
+
+export async function revokeApiKeyAction(keyId: string): Promise<void> {
+    const userId = await getUserIdOrThrow();
+    return WorkflowStorage.revokeApiKey(keyId, userId);
+}
+
 
 export async function clearRunHistoryAction(): Promise<void> {
     const userId = await getUserIdOrThrow();

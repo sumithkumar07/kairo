@@ -5,7 +5,7 @@
  */
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential, SubscriptionTier } from '@/types/workflow';
+import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential, SubscriptionTier, UserApiKey, DisplayUserApiKey } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 import { encrypt, decrypt } from './encryption-service';
 import crypto from 'crypto';
@@ -555,27 +555,57 @@ function hashApiKey(apiKey: string): string {
     return crypto.createHash('sha256').update(apiKey).digest('hex');
 }
 
-export async function generateApiKey(userId: string): Promise<string> {
+export async function generateApiKey(userId: string): Promise<{ apiKey: string; id: string; prefix: string; }> {
     const supabase = await getSupabaseClient();
     const prefix = 'kairo_sk_';
     const secretPart = crypto.randomBytes(24).toString('hex');
     const apiKey = `${prefix}${secretPart}`;
     const keyHash = hashApiKey(apiKey);
 
-    const { error } = await supabase.from('user_api_keys').insert({
+    const { data, error } = await supabase.from('user_api_keys').insert({
         user_id: userId,
         key_hash: keyHash,
         prefix: prefix,
-    });
+    }).select('id').single();
     
-    if (error) {
+    if (error || !data) {
         console.error('[Storage Service] Error saving new API key hash:', error);
         throw new Error('Could not generate API key.');
     }
 
     // Return the full, unhashed key to the user ONCE.
-    return apiKey;
+    return { apiKey, id: data.id, prefix };
 }
+
+export async function listApiKeysForUser(userId: string): Promise<DisplayUserApiKey[]> {
+    const supabase = await getSupabaseClient();
+    const { data, error } = await supabase
+        .from('user_api_keys')
+        .select('id, prefix, created_at, last_used_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('[Storage Service] Error listing API keys:', error);
+        throw new Error('Could not list API keys.');
+    }
+    return data;
+}
+
+export async function revokeApiKey(keyId: string, userId: string): Promise<void> {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase
+        .from('user_api_keys')
+        .delete()
+        .eq('id', keyId)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error(`[Storage Service] Error revoking API key ID '${keyId}':`, error);
+        throw new Error('Could not revoke API key.');
+    }
+}
+
 
 export async function findUserByApiKey(apiKey: string): Promise<string | null> {
     if (!apiKey.startsWith('kairo_sk_')) {
