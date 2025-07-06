@@ -9,7 +9,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'zod';
+import {z} from 'genkit';
 
 const GenerateTestDataInputSchema = z.object({
   nodeType: z.string().describe('The type of the node for which to generate data (e.g., httpRequest, webhookTrigger).'),

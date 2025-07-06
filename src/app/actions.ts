@@ -223,6 +223,11 @@ export async function suggestNextWorkflowNode(clientInput: { workflowContext: st
   return genkitSuggestNextNode(inputForGenkit);
 }
 export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput): Promise<string> {
+  const userId = await getUserIdOrThrow();
+  const { features } = await getUserFeatures(userId);
+  if (!features.canExplainWorkflow) {
+    throw new Error('AI Workflow Explanation is a premium feature. Please upgrade your plan.');
+  }
   const result = await genkitExplainWorkflow(workflowData);
   if (!result || !result.explanation) throw new Error("AI failed to provide an explanation.");
   return result.explanation;

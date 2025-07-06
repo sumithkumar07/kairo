@@ -24,9 +24,9 @@ const WorkflowNodeSchema = z.object({
 
 const WorkflowConnectionSchema = z.object({
   sourceNodeId: z.string(),
-  sourcePort: z.string().optional(),
+  sourceHandle: z.string().optional(),
   targetNodeId: z.string(),
-  targetPort: z.string().optional(),
+  targetHandle: z.string().optional(),
 });
 
 const ExplainWorkflowInputSchema = z.object({
