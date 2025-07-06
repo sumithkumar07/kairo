@@ -1,19 +1,6 @@
-
 # Kairo - AI Workflow Automation
 
-Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This feature-rich prototype includes an interactive visual editor, AI-driven workflow generation, a live debugging history, and a programmatic API for agent control.
-
-## Key Features
-
-*   **AI-Powered Workflow Generation**: Describe your desired automation in plain text, and Kairo's AI will draft an initial workflow for you on the canvas.
-*   **Visual Workflow Editor**: A drag-and-drop interface to build and modify workflows by connecting various functional nodes.
-*   **Node Library**: A collection of pre-built nodes for common tasks like HTTP requests, email sending, data parsing, AI tasks, conditional logic, loops, parallel execution, and more.
-*   **Live & Simulation Modes**: Test your workflows with mock data in "Simulation Mode" before switching to "Live Mode" for execution with real data and services.
-*   **AI Assistant Panel**: Get suggestions for next steps, explanations for existing workflows, and help with node configuration through a conversational chat interface.
-*   **Visual Run History & Debugging**: Review past workflow executions with a visual representation of the workflow, including the status of each node and the data that flowed through it. Re-run failed workflows with one click.
-*   **AI Agent Hub**: Configure your AI agent's skills (available tools/nodes), manage credentials securely, and get an API key to control the agent programmatically.
-*   **Cloud & Example Storage**: Save your workflows to your Supabase cloud database for persistent storage, or load pre-built example workflows to explore features.
-*   **Scheduled Workflows**: Trigger workflows based on a CRON schedule to automate recurring tasks.
+Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This repository contains the full source code for the Kairo platform.
 
 ## Technology Stack
 
@@ -24,28 +11,37 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Database & Auth**: Supabase
 *   **Deployment**: Ready for Vercel, Netlify, or Firebase App Hosting
 
-## Getting Started
-
-1.  **Prerequisites**: Ensure you have Node.js and npm/yarn installed.
-2.  **Clone Repository**: `git clone <repository-url>`
-3.  **Install Dependencies**: `npm install`
-4.  **Crucial Setup**: Follow the steps in the **"Environment & Database Setup"** section below. This is required for the app to function.
-5.  **Run Development Server**: `npm run dev`
-6.  **Open in Browser**: Navigate to `http://localhost:3000`. The main editor is at `/workflow`.
-
 ---
 
-## Environment & Database Setup
+## Getting Started
 
-This is the most important section for getting Kairo running.
+Follow these steps to get a local instance of Kairo running.
 
-### Step 1: Set Up Environment Variables
+### 1. Prerequisites
+
+*   Node.js (v18 or later recommended)
+*   npm or yarn
+
+### 2. Clone Repository
+
+```bash
+git clone https://github.com/your-repo/kairo.git
+cd kairo
+```
+
+### 3. Install Dependencies
+
+```bash
+npm install
+```
+
+### 4. Environment & Database Setup (Crucial)
+
+This is the most important section for getting Kairo running. You **must** configure your environment variables and set up the database schema.
+
+#### **Step 4a: Set Up Environment Variables**
 
 Create a file named `.env.local` in the root of your project by copying the `.env` file. You must fill in the following core variables.
-
-#### **Core App Configuration (Required)**
-
-These are **essential** for the app's core features to function.
 
 *   `NEXT_PUBLIC_SUPABASE_URL="YOUR_SUPABASE_PROJECT_URL"`
     *   **Purpose**: Connects to your Supabase project for user accounts and data storage.
@@ -67,9 +63,7 @@ These are **essential** for the app's core features to function.
     *   **Purpose**: A secret key to protect the scheduler endpoint (`/api/scheduler/run`), which triggers scheduled workflows.
     *   **How to get it**: Create another strong, secret string, different from your other keys.
 
----
-
-### Step 2: Set Up the Database
+#### **Step 4b: Set Up the Database**
 
 To save workflows and view run history, you must set up the database tables in your Supabase project. **This is a one-time setup.**
 
@@ -159,9 +153,7 @@ CREATE TABLE public.user_api_keys (
     last_used_at timestamptz
 );
 ALTER TABLE public.user_api_keys ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own API keys" ON public.user_api_keys FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own API keys" ON public.user_api_keys FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Create a function to find a user by their API key hash
 CREATE OR REPLACE FUNCTION public.find_user_by_api_key(p_key_hash text)
@@ -177,9 +169,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-
 -- Create a PostgreSQL function to securely search for a workflow by its webhook path
--- This function can be called via RPC and respects Row Level Security.
 CREATE OR REPLACE FUNCTION find_workflow_by_webhook_path(path_suffix_to_find text)
 RETURNS TABLE(user_id_result uuid, workflow_data_result jsonb)
 LANGUAGE plpgsql
@@ -195,7 +185,7 @@ BEGIN
 END;
 $$;
 
--- Create the table for tracking monthly run counts per user
+-- Create tables for tracking usage stats
 CREATE TABLE public.workflow_runs_monthly (
     user_id uuid NOT NULL,
     year_month text NOT NULL,
@@ -206,7 +196,6 @@ CREATE TABLE public.workflow_runs_monthly (
 ALTER TABLE public.workflow_runs_monthly ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to manage their own run counts" ON public.workflow_runs_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- Create the table for tracking monthly AI generation counts per user
 CREATE TABLE public.ai_generations_monthly (
     user_id uuid NOT NULL,
     year_month text NOT NULL,
@@ -216,7 +205,6 @@ CREATE TABLE public.ai_generations_monthly (
 );
 ALTER TABLE public.ai_generations_monthly ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow users to manage their own generation counts" ON public.ai_generations_monthly FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
 
 -- Create the table for storing user subscription info
 CREATE TABLE public.user_profiles (
@@ -229,9 +217,8 @@ CREATE TABLE public.user_profiles (
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own profile." ON public.user_profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update their own profile." ON public.user_profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
--- User deletion is handled by 'ON DELETE CASCADE' from the auth.users table.
 
--- Create an RPC function to atomically increment the monthly run count
+-- Create RPC functions to atomically increment monthly counts
 CREATE OR REPLACE FUNCTION increment_run_count(p_user_id uuid)
 RETURNS void AS $$
 BEGIN
@@ -242,7 +229,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create an RPC function to atomically increment the monthly AI generation count
 CREATE OR REPLACE FUNCTION increment_generation_count(p_user_id uuid)
 RETURNS void AS $$
 BEGIN
@@ -253,9 +239,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
 -- Add a function and trigger to automatically create a user profile on signup.
--- This is more reliable than client-side creation.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -276,74 +260,26 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
-### Step 3: Configure Credentials & Scheduling
+### 5. Run Development Server
 
-#### Credentials for Live Mode
-The application includes a UI-driven **Credential Manager** in the **AI Agent Hub** (under the "Credentials" tab). This is the recommended way to securely save and manage API keys and other secrets. When you create a credential with the name `MyApiKey`, you can reference it in any node configuration using the placeholder `{{credential.MyApiKey}}`.
+You are now ready to start the local development server.
 
-The Agent Hub provides a **"Required Credentials Guide"** that automatically inspects all available nodes and tells you which credentials you need to add for specific integrations (e.g., `StripeApiKey` for Stripe nodes).
+```bash
+npm run dev
+```
 
-For local development, the system will fall back to resolving these `{{credential.NAME}}` placeholders from your `.env.local` file if a matching credential is not found in the manager.
+Open your browser and navigate to `http://localhost:3000`. The main workflow editor is at `/workflow`.
 
-> **Credential Security**: Credentials saved via the UI are encrypted at rest in the database using AES-256-GCM. The security of your credentials depends on the strength and confidentiality of your `ENCRYPTION_SECRET_KEY` set in your environment variables.
+---
 
-#### Scheduled Workflows (`schedule` node)
-To enable workflows that run on a schedule, you must set up an external service to call the application's scheduler endpoint. This is a standard pattern for serverless environments.
-
-1.  **Set the `SCHEDULER_SECRET_KEY`** in your `.env.local` file. This is required.
-2.  **Configure a Cron Job Service**: Use a service like [cron-job.org](https://cron-job.org/), [EasyCron](https://www.easycron.com/), or your hosting provider's built-in cron features (e.g., Vercel Cron Jobs, Netlify Scheduled Functions) to send a `POST` request to the following URL at a regular interval (e.g., every minute):
-    *   **URL**: `YOUR_DEPLOYED_APP_URL/api/scheduler/run`
-    *   **Method**: `POST`
-    *   **Header**: You must include an `Authorization` header with the value `Bearer YOUR_SCHEDULER_SECRET_KEY`.
-
-The endpoint will then check all saved workflows and execute any that are due to run based on their `schedule` node's CRON expression.
-
-## Deployment Checklist
+## Deployment
 
 Kairo is architected to be deployed on modern hosting platforms like Netlify, Vercel, or Firebase App Hosting.
 
-1.  **Configure Environment Variables**: This is the most critical step. Go to your hosting provider's dashboard and add all variables from the **"Core App Configuration"** section above. Add any optional variables you need as well.
+1.  **Configure Environment Variables**: This is the most critical step. Go to your hosting provider's dashboard and add all variables from the "Core App Configuration" section above.
 2.  **Run the Database Schema SQL**: If you haven't already, you **must** run the SQL script provided in the database setup section in your production Supabase project's SQL Editor.
 3.  **Confirm Build Settings**: Most platforms will detect a Next.js project automatically. Ensure the settings are:
     *   **Build Command**: `next build`
     *   **Publish Directory**: `.next`
-4.  **Set Up Scheduler (Optional)**: If you use the `schedule` node, configure an external cron job service as described above to call your deployed scheduler endpoint.
+4.  **Set Up Scheduler (Optional)**: If you use the `schedule` node, configure an external cron job service (e.g., Vercel Cron Jobs, EasyCron) to send a `POST` request to `YOUR_DEPLOYED_APP_URL/api/scheduler/run` at a regular interval. You must include an `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` header.
 5.  **Deploy**: Trigger the deployment from your hosting provider's dashboard.
-
-## API & Agent Hub Details
-
-### Live Webhook Trigger (`webhookTrigger` node)
-
-*   **Base URL:** Live webhooks are exposed at `/api/workflow-webhooks/YOUR_PATH_SUFFIX`.
-*   **Workflow Storage:** For a webhook to be triggered, the workflow containing it **must be saved** using the editor's "Save" feature.
-*   **Security:** If a `securityToken` (e.g., `{{credential.MyWebhookSecret}}`) is configured, the live request must include an `X-Webhook-Token` header with the matching secret value.
-
-### AI Agent Hub API (`/api/mcp`)
-
-*   **Authentication**: The API uses per-user API keys for authentication. You can generate your key in the AI Agent Hub under the "API Access" tab.
-*   **Usage**: Send a `POST` request to `/api/mcp`.
-*   **Header**: Include an `Authorization` header with the value `Bearer YOUR_KAIRO_API_KEY`.
-*   **Body**: The request body should be a JSON object: `{ "command": "Your command for the AI" }`.
-
-## Project Structure
-
--   `/src/app`: Next.js pages and API routes.
--   `/src/ai`: Genkit flows (`/flows`) and tools (`/tools`).
--   `/src/components`: Reusable React components.
--   `/src/config`: Static configuration for nodes and example workflows.
--   `/src/contexts`: React Context providers for global state.
--   `/src/services`: Server-side logic for interacting with the Supabase database.
--   `/src/types`: TypeScript type definitions.
--   `/src/lib`: Utility functions.
-
-## Known Limitations
-
-*   **Single Instance Deployment**: To prevent potential race conditions, deploying as a single instance is recommended.
-*   **No Automated Tests**: The project does not currently include a testing framework (e.g., Jest, Playwright).
-
-## Future Enhancements
-
-*   **Real-time Collaboration**: Implement features for multiple users to collaborate on the same workflow in real-time.
-*   **Expanded Node Library**: Continuously add new integration and utility nodes.
-*   **Workflow Versioning**: Allow users to save and revert to different versions of their workflows.
-*   **Team Management Features**: Introduce roles, permissions, and shared workspaces for collaborative projects.
