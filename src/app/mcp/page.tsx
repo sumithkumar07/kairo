@@ -54,13 +54,18 @@ function MCPDashboardPage() {
     const requiredMap = new Map<string, RequiredCredentialInfo>();
     
     AVAILABLE_NODES_CONFIG.forEach(node => {
-        const placeholders = findPlaceholdersInObject({ config: node.defaultConfig, inputMapping: {} });
+        // We only check `defaultConfig` because that's where permanent placeholders live.
+        // User-entered config is dynamic and can't be statically analyzed.
+        const placeholders = findPlaceholdersInObject({ config: node.defaultConfig });
         placeholders.secrets.forEach(secretName => {
             if (!requiredMap.has(secretName)) {
+                // Infer service from node type, e.g., 'googleSheetsAppendRow' -> 'Google Sheets'
+                const serviceGuess = node.type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                
                 requiredMap.set(secretName, {
                     name: secretName,
                     nodes: [],
-                    service: node.name.split(':')[0] 
+                    service: node.name.split(':')[0] || serviceGuess,
                 });
             }
             const info = requiredMap.get(secretName)!;
