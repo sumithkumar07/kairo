@@ -197,7 +197,8 @@ export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode
 }
 
 export async function getRunHistoryAction(): Promise<WorkflowRunRecord[]> {
-  const userId = await getUserIdOrThrow();
+  const userId = await getUserIdOrNull();
+  if (!userId) return []; // Return empty array if no user, instead of throwing
   return WorkflowStorage.getRunHistory(userId);
 }
 
