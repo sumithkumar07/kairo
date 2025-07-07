@@ -22,7 +22,7 @@ const MinimalWorkflowNodeSchema = z.object({
   type: z.string(),
   name: z.string().optional(),
   description: z.string().optional(),
-  config: z.any().optional().describe("Node's configuration object. The AI should infer common required fields based on node type (e.g., \"url\" for \"httpRequest\", \"prompt\" for \"aiTask\"). Consider general structure like 'url', 'method', 'body', 'headers' for 'httpRequest'; 'prompt', 'model' for 'aiTask'; 'queryText', 'queryParams' for 'databaseQuery'; 'to', 'subject', 'body' for 'sendEmail'; 'pathSuffix' for 'webhookTrigger', 'condition' for 'conditionalLogic', 'inputArrayPath' for 'forEach', etc."),
+  config: z.any().optional().describe("Node's configuration object. The AI should infer common required fields based on node type (e.g., \"url\" for \"httpRequest\", \"prompt\" for \"aiTask\"). Consider general structure like 'url', 'method', 'body', 'headers' for 'httpRequest'; 'prompt', 'model' for 'aiTask'; 'queryText', 'queryParams' for 'databaseQuery'; 'to', 'subject', 'body' for 'sendEmail'; 'pathSuffix' for 'webhookTrigger', 'condition' for 'conditionalLogic', 'inputArrayPath' for 'forEach', etc. Crucially, this config includes simulation data like `simulatedResponse` which can be used to infer the node's output data structure."),
   inputHandles: z.array(z.string()).optional().describe("List of input handle names."),
   outputHandles: z.array(z.string()).optional().describe("List of output handle names."),
   aiExplanation: z.string().optional().describe("AI-generated explanation for this node, if available."),
@@ -132,6 +132,7 @@ Your primary directive is to think like an agent. Follow these steps for every u
 5.  **General Assistance**:
     -   Answer general questions about Kairo's features and workflow automation concepts.
     -   Provide guidance on where to find external credentials (e.g., "You can find your API key in your service provider's dashboard, usually under 'Developer Settings' or 'API'").
+    -   If the user asks "what data is available from the previous node?" or a similar question, use the `currentWorkflowContext` to identify the selected node. Then, look at the `currentWorkflowConnections` to find the source node connected to it. Finally, inspect that source node's `config` in `currentWorkflowNodes`, specifically looking for simulation data fields like `simulatedResponse` or `simulatedOutput`. Use this to explain the structure of the data available. For example: "The 'Fetch User' node provides a `response` object. Based on its simulation data, it looks like you can use placeholders like `{{Fetch_User.response.id}}` and `{{Fetch_User.response.email}}`."
 
 {{#if imageDataUri}}
 User has provided an image for context. Analyze this image in conjunction with the user's message. The image is the primary source of truth if it conflicts with the text.
