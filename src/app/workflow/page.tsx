@@ -605,7 +605,7 @@ function WorkflowPage() {
     }
 
     try {
-      const result = await runWorkflowFromEditor({ nodes, connections, canvasOffset, zoomLevel, isSimulationMode });
+      const result = await runWorkflowFromEditor({ nodes, connections, canvasOffset, zoomLevel, isSimulationMode }, currentWorkflowNameRef.current);
 
       const updatedNodes = nodes.map(existingNode => {
         const executedNodeData = result.executionResult.finalWorkflowData[existingNode.id];

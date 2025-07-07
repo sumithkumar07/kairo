@@ -182,16 +182,20 @@ export async function rerunWorkflowAction(runId: string): Promise<WorkflowRunRec
   }
 }
 
-export async function runWorkflowFromEditor(workflow: Workflow, isSimulationMode: boolean): Promise<WorkflowRunRecord> {
+export async function runWorkflowFromEditor(workflow: Workflow, workflowName: string, isSimulationMode: boolean): Promise<WorkflowRunRecord> {
     const userId = await getUserIdOrThrow();
     
     try {
         const result = await executeWorkflow(workflow, isSimulationMode, userId);
         const hasErrors = Object.values(result.finalWorkflowData).some((nodeOutput: any) => nodeOutput.lastExecutionStatus === 'error');
         
+        const runName = workflowName && workflowName !== 'Untitled Workflow' 
+            ? workflowName 
+            : `Manual Run: ${new Date().toISOString()}`;
+
         const newRunRecord: WorkflowRunRecord = {
             id: crypto.randomUUID(),
-            workflowName: `Manual Run: ${new Date().toISOString()}`,
+            workflowName: runName,
             timestamp: new Date().toISOString(),
             status: hasErrors ? 'Failed' : 'Success',
             executionResult: result,
