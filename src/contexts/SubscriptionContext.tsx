@@ -115,7 +115,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const signup = useCallback(async (email: string, password: string) => {
     if (!supabase) {
         showSupabaseNotConfiguredToast();
-        throw new Error('Supabase not configured');
+        return;
     }
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -126,7 +126,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     });
     if (error) {
         toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
-        throw error;
+        return;
     }
     toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
   }, [supabase, toast, showSupabaseNotConfiguredToast]);
@@ -134,12 +134,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (email: string, password: string) => {
     if (!supabase) {
         showSupabaseNotConfiguredToast();
-        throw new Error('Supabase not configured');
+        return;
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
-      throw error;
+      return;
     }
     toast({ title: 'Login Successful!', description: 'Welcome back!' });
   }, [supabase, toast, showSupabaseNotConfiguredToast]);
