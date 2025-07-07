@@ -543,5 +543,3 @@ export async function agentCommandAction(command: string, history: McpCommandRec
         generatedWorkflow
     };
 }
-
-    
