@@ -7,15 +7,16 @@ import { useToast } from '@/hooks/use-toast';
 import { withAuth } from '@/components/auth/with-auth';
 import { AppLayout } from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Bot, SaveAll, File, FolderOpen, Save, Zap, Users, BrainCircuit, Search, Star, Workflow as WorkflowIcon } from 'lucide-react';
+import { Loader2, Trash2, Bot, Plus, X, KeyRound, Copy, Check, Info, MoreVertical, Terminal, Send, Workflow as WorkflowIcon, User, Settings, Zap, Search, Star, Users, FilePlus } from 'lucide-react';
 import type { SavedWorkflowMetadata, ExampleWorkflow, Workflow } from '@/types/workflow';
 import { listWorkflowsAction, getCommunityWorkflowsAction, generateWorkflowIdeasAction, loadWorkflowAction, deleteWorkflowAction } from '@/app/actions';
 import { buttonVariants } from '@/components/ui/button';
+import Link from 'next/link';
 
 function WorkflowHubPage() {
     const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflowMetadata[]>([]);
@@ -111,96 +112,121 @@ function WorkflowHubPage() {
     const filteredExampleWorkflows = useMemo(() => savedWorkflows.filter(wf => wf.type === 'example' && wf.name.toLowerCase().includes(hubSearchTerm.toLowerCase())), [savedWorkflows, hubSearchTerm]);
     const filteredCommunityWorkflows = useMemo(() => communityWorkflows.filter(wf => wf.name.toLowerCase().includes(hubSearchTerm.toLowerCase())), [communityWorkflows, hubSearchTerm]);
 
-    const renderWorkflowList = (workflows: any[], type: 'user' | 'example' | 'community' | 'generated') => {
-        if (isLoading) return <div className="text-center py-10"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>;
-        if (workflows.length === 0) return <p className="text-sm text-center text-muted-foreground py-10">No workflows found.</p>;
-
+    const renderWorkflowGrid = (workflows: any[], type: 'user' | 'example' | 'community' | 'generated') => {
         const icons = {
-            user: <WorkflowIcon className="h-5 w-5 text-primary" />,
-            example: <Star className="h-5 w-5 text-amber-500" />,
-            community: <Users className="h-5 w-5 text-sky-500" />,
-            generated: <Bot className="h-5 w-5 text-violet-500" />
+            user: <WorkflowIcon className="h-6 w-6 text-primary" />,
+            example: <Star className="h-6 w-6 text-amber-500" />,
+            community: <Users className="h-6 w-6 text-sky-500" />,
+            generated: <Bot className="h-6 w-6 text-violet-500" />
         };
-
         const loadHandler = type === 'generated' ? handleLoadGeneratedWorkflow : handleLoadWorkflow;
-        const nameKey = type === 'user' || type === 'example' ? 'name' : 'name';
-        const descKey = type === 'user' || type === 'example' ? 'description' : 'description';
 
-        return (
-            <div className="space-y-2">
-                {workflows.map((wf, index) => (
-                    <div key={`${type}-${wf.name}-${index}`} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                            {icons[type]}
-                            <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate" title={wf[nameKey]}>{wf[nameKey]}</p>
-                                <p className="text-xs text-muted-foreground truncate" title={wf[descKey]}>{wf[descKey]}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-4">
-                            {type === 'user' && (
-                                <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => setWorkflowToDelete(wf.name)}><Trash2 className="h-4 w-4" /></Button>
-                            )}
-                            <Button variant="default" size="sm" className="h-8" onClick={() => loadHandler(type === 'generated' ? wf : wf.name)}>Load</Button>
-                        </div>
+        const emptyStates = {
+            user: (
+                <div className="col-span-full flex flex-col items-center justify-center text-center py-16 bg-muted/30 rounded-lg">
+                    <WorkflowIcon className="h-16 w-16 text-muted-foreground/40 mb-4"/>
+                    <h3 className="text-lg font-semibold">No Saved Workflows</h3>
+                    <p className="text-sm text-muted-foreground mt-1 mb-4">Create a workflow in the editor and save it to see it here.</p>
+                    <Button asChild><Link href="/workflow"><FilePlus className="mr-2 h-4 w-4"/>Create a Workflow</Link></Button>
+                </div>
+            ),
+            example: <p className="col-span-full text-sm text-center text-muted-foreground py-10">No example workflows found.</p>,
+            community: <p className="col-span-full text-sm text-center text-muted-foreground py-10">No community workflows found.</p>,
+            generated: (
+                <div className="col-span-full flex flex-col items-center justify-center text-center py-16 bg-muted/30 rounded-lg">
+                    <Bot className="h-16 w-16 text-muted-foreground/40 mb-4"/>
+                    <h3 className="text-lg font-semibold">Generate Workflow Ideas</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Enter a topic above and let AI generate workflow templates for you.</p>
+                </div>
+            ),
+        }
+        
+        if (isLoading) return <div className="col-span-full text-center py-10"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
+        if (workflows.length === 0) return emptyStates[type];
+        
+
+        return workflows.map((wf, index) => (
+             <Card key={`${type}-${wf.name}-${index}`} className="flex flex-col hover:shadow-lg transition-shadow duration-200">
+                <CardHeader className="flex-row items-start gap-4 space-y-0 pb-4">
+                    <div className="p-2 bg-muted rounded-md">{icons[type]}</div>
+                    <div className="flex-1">
+                        <CardTitle className="text-base truncate" title={wf.name}>{wf.name}</CardTitle>
+                        <CardDescription className="text-xs line-clamp-2 mt-1" title={wf.description}>{wf.description}</CardDescription>
                     </div>
-                ))}
-            </div>
-        );
+                </CardHeader>
+                <CardFooter className="mt-auto flex justify-end gap-2 pt-4 border-t">
+                    {type === 'user' && (
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setWorkflowToDelete(wf.name)}><Trash2 className="h-4 w-4 mr-2" />Delete</Button>
+                    )}
+                    <Button size="sm" onClick={() => loadHandler(type === 'generated' ? wf : wf.name)}>Load into Editor</Button>
+                </CardFooter>
+            </Card>
+        ));
     };
 
     return (
         <AppLayout>
-            <div className="flex-1 flex flex-col p-4 sm:p-6 bg-muted/40 overflow-auto">
+            <div className="flex-1 flex flex-col p-4 sm:p-6 bg-muted/40 overflow-hidden">
                 <header className="mb-6">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Workflow Hub</h1>
                     <p className="max-w-2xl text-muted-foreground">Manage your workflows, explore templates, or generate new ideas with AI.</p>
                 </header>
-                <Card className="flex-1 flex flex-col">
-                    <CardContent className="p-4 sm:p-6 flex-1 flex flex-col">
-                        <Tabs defaultValue="my-workflows" className="flex-1 flex flex-col">
-                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto md:h-10">
+                <div className="flex-1 flex flex-col min-h-0">
+                    <Tabs defaultValue="my-workflows" className="flex-1 flex flex-col min-h-0">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pb-4 border-b">
+                            <TabsList className="grid w-full sm:w-auto grid-cols-2 md:grid-cols-4 h-auto sm:h-10">
                                 <TabsTrigger value="my-workflows">My Workflows</TabsTrigger>
                                 <TabsTrigger value="examples">Examples</TabsTrigger>
                                 <TabsTrigger value="community">Community</TabsTrigger>
                                 <TabsTrigger value="generate">Generate Ideas</TabsTrigger>
                             </TabsList>
-                            <div className="py-4 relative">
+                             <div className="relative w-full sm:max-w-xs">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input placeholder="Search workflows..." value={hubSearchTerm} onChange={(e) => setHubSearchTerm(e.target.value)} className="pl-9" />
+                                <Input placeholder="Search workflows..." value={hubSearchTerm} onChange={(e) => setHubSearchTerm(e.target.value)} className="pl-9 h-9" />
                             </div>
-                            <div className="flex-1 min-h-0 border rounded-lg bg-background">
-                                <TabsContent value="my-workflows" className="h-full m-0">
-                                    <ScrollArea className="h-full">{renderWorkflowList(filteredUserWorkflows, 'user')}</ScrollArea>
-                                </TabsContent>
-                                <TabsContent value="examples" className="h-full m-0">
-                                    <ScrollArea className="h-full">{renderWorkflowList(filteredExampleWorkflows, 'example')}</ScrollArea>
-                                </TabsContent>
-                                <TabsContent value="community" className="h-full m-0">
-                                    <ScrollArea className="h-full">{renderWorkflowList(filteredCommunityWorkflows, 'community')}</ScrollArea>
-                                </TabsContent>
-                                <TabsContent value="generate" className="h-full m-0 flex flex-col">
-                                    <div className="flex w-full items-center space-x-2 p-4 border-b">
-                                        <Input placeholder="e.g., social media, daily reports..." value={ideaQuery} onChange={(e) => setIdeaQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleGenerateIdeas()} />
-                                        <Button onClick={handleGenerateIdeas} disabled={isGeneratingIdeas}>
-                                            {isGeneratingIdeas ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
-                                            Generate
-                                        </Button>
-                                    </div>
-                                    <ScrollArea className="flex-1">
-                                        {isGeneratingIdeas ? (
-                                            <div className="text-center py-10 text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" /><p>AI is generating ideas...</p></div>
-                                        ) : generatedIdeas.length > 0 ? (
-                                            renderWorkflowList(generatedIdeas, 'generated')
-                                        ) : (
-                                            <p className="text-sm text-center text-muted-foreground pt-10">Enter a topic above and let AI generate workflow ideas for you.</p>
-                                        )}
-                                    </ScrollArea>
-                                </TabsContent>
-                            </div>
-                        </Tabs>
-                    </CardContent>
-                </Card>
+                        </div>
+                        <div className="flex-1 overflow-hidden mt-4">
+                            <TabsContent value="my-workflows" className="h-full m-0">
+                                <ScrollArea className="h-full pr-4 -mr-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                                    {renderWorkflowGrid(filteredUserWorkflows, 'user')}
+                                  </div>
+                                </ScrollArea>
+                            </TabsContent>
+                            <TabsContent value="examples" className="h-full m-0">
+                                <ScrollArea className="h-full pr-4 -mr-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                                    {renderWorkflowGrid(filteredExampleWorkflows, 'example')}
+                                  </div>
+                                </ScrollArea>
+                            </TabsContent>
+                            <TabsContent value="community" className="h-full m-0">
+                               <ScrollArea className="h-full pr-4 -mr-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                                    {renderWorkflowGrid(filteredCommunityWorkflows, 'community')}
+                                  </div>
+                                </ScrollArea>
+                            </TabsContent>
+                            <TabsContent value="generate" className="h-full m-0 flex flex-col">
+                                <div className="flex w-full items-center space-x-2 p-4 border rounded-lg bg-card mb-4">
+                                    <Input placeholder="e.g., social media, daily reports..." value={ideaQuery} onChange={(e) => setIdeaQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleGenerateIdeas()} className="h-9"/>
+                                    <Button onClick={handleGenerateIdeas} disabled={isGeneratingIdeas} className="h-9">
+                                        {isGeneratingIdeas ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
+                                        Generate
+                                    </Button>
+                                </div>
+                                <ScrollArea className="flex-1 pr-4 -mr-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+                                    {isGeneratingIdeas 
+                                        ? <div className="col-span-full text-center py-10 text-muted-foreground"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" /><p>AI is generating ideas...</p></div>
+                                        : renderWorkflowGrid(generatedIdeas, 'generated')
+                                    }
+                                  </div>
+                                </ScrollArea>
+                            </TabsContent>
+                        </div>
+                    </Tabs>
+                </div>
             </div>
             <AlertDialog open={!!workflowToDelete} onOpenChange={(open) => !open && setWorkflowToDelete(null)}>
                 <AlertDialogContent>
