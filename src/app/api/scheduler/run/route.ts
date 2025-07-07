@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(`[API Scheduler] Check complete. Triggered ${triggeredCount} out of ${scheduledWorkflows.length} checked workflows.`);
+
     return NextResponse.json({
       message: 'Scheduler check complete.',
       workflowsChecked: scheduledWorkflows.length,

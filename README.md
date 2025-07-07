@@ -8,7 +8,7 @@ Kairo is a Next.js application designed to help users visually create, manage, a
 *   **Framework**: Next.js (App Router)
 *   **Language**: TypeScript
 *   **Styling**: Tailwind CSS with shadcn/ui components
-*   **AI**: Google AI & Genkit (with support for OpenAI)
+*   **AI**: Google AI & Genkit
 *   **Database & Auth**: Supabase
 *   **Deployment**: Vercel, Firebase App Hosting, Netlify
 
@@ -51,10 +51,6 @@ Create a file named `.env.local` in the root of your project by copying the `.en
 *   `GOOGLE_API_KEY="YOUR_GOOGLE_CLOUD_API_KEY"`
     *   **Purpose**: Powers all Google AI features (workflow generation, assistant chat, etc.).
     *   **How to get it**: In the Google Cloud Console, create a project, enable the "AI Platform" and "Vertex AI" APIs, and create an API key under "APIs & Services" > "Credentials".
-
-*   `OPENAI_API_KEY="YOUR_OPENAI_API_KEY"` (Optional)
-    *   **Purpose**: Powers OpenAI models (e.g., GPT-4) in the `AI Task` node.
-    *   **How to get it**: In your OpenAI dashboard at platform.openai.com, go to "API Keys" and create a new secret key.
 
 *   `ENCRYPTION_SECRET_KEY="YOUR_32_CHARACTER_ENCRYPTION_SECRET"`
     *   **Purpose**: A **critical** secret key used to encrypt and decrypt credentials managed in the AI Agent Hub (e.g., your OpenAI API key).
@@ -305,9 +301,9 @@ Kairo is architected to be deployed on modern hosting platforms like **Vercel**,
 
 ### Post-Deployment: Configure the Scheduler (Optional)
 
-If you use the `schedule` node, you must set up an external service to trigger it.
+If you use the `schedule` node to run workflows automatically, you must set up an external service to trigger it.
 
 1.  Use a service like **Vercel Cron Jobs**, **Google Cloud Scheduler**, or a free service like **EasyCron**.
-2.  Create a job that runs at your desired frequency (e.g., every 5 minutes).
+2.  Create a job that runs at your desired frequency (e.g., every minute or every 5 minutes).
 3.  The job must send a `POST` request to: `YOUR_DEPLOYED_URL/api/scheduler/run`
 4.  The request **MUST** include the following header: `Authorization: Bearer YOUR_SCHEDULER_SECRET_KEY` (using the key you set in your environment variables).

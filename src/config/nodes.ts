@@ -129,7 +129,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'schedule',
     name: 'Schedule',
     icon: Clock,
-    description: 'Triggers workflow on a defined schedule using CRON expressions.',
+    description: 'Triggers workflow on a schedule using a CRON expression. Requires an external service to call the scheduler API for live runs. Manual runs from the editor trigger it immediately.',
     category: 'trigger',
     defaultConfig: { cron: '0 * * * *' }, 
     configSchema: {
@@ -139,7 +139,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: [],
     outputHandles: ['triggered_at', 'error'],
-    aiExplanation: 'Triggers the workflow based on the provided CRON expression. For this to work in production, you must set up an external cron job service to send a POST request to your app\'s /api/scheduler/run endpoint at a regular interval (e.g., every minute). See the README for full setup instructions.',
+    aiExplanation: 'This node triggers the workflow based on its CRON schedule (e.g., \'0 9 * * *\' for 9 AM daily). For live production runs, you must set up an external service (like Vercel Cron Jobs or Google Cloud Scheduler) to make a POST request to your app\'s `/api/scheduler/run` endpoint. When you run the workflow manually from the editor, this node will trigger immediately for testing purposes.',
   },
   {
     type: 'sendEmail',

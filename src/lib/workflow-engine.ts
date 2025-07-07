@@ -337,6 +337,13 @@ async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimu
     return { requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery, status: 'success' };
 }
 
+async function executeScheduleNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    const triggerTime = allWorkflowData[node.id]?.triggered_at || new Date().toISOString();
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SCHEDULE] Triggered at ${triggerTime}.`, type: 'info' });
+    return { triggered_at: triggerTime };
+}
+
+
 async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
         serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE HTTPREQUEST] SIMULATION: Would make ${config.method || 'GET'} request to ${config.url}`, type: 'info' });
@@ -388,10 +395,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     if (provider === 'googleai' && !process.env.GOOGLE_API_KEY) {
         throw new Error("GOOGLE_API_KEY environment variable is not set. It's required for Google AI Tasks in Live Mode.");
     }
-    if (provider === 'openai' && !process.env.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY environment variable is not set. It's required for OpenAI Tasks in Live Mode.");
-    }
-
+    
     const modelIdentifier = `${provider}/${modelName}`;
     const model = ai.model(modelIdentifier);
     if (!model) {
@@ -950,6 +954,7 @@ async function executeYoutubeFetchTrendingNode(node: WorkflowNode, config: any, 
 
 const nodeExecutionFunctions: Record<string, Function> = {
     webhookTrigger: executeWebhookTriggerNode,
+    schedule: executeScheduleNode,
     httpRequest: executeHttpRequestNode,
     aiTask: executeAiTaskNode,
     parseJson: executeParseJsonNode,
@@ -1160,16 +1165,34 @@ export async function executeWorkflow(workflow: Workflow, isSimulationMode: bool
             }
         }
     }
+    
+    let mutableInitialData = initialData ? { ...initialData } : undefined;
+    const serverLogs: ServerLogOutput[] = [];
+
+    // Special handling for editor-initiated runs of scheduled workflows
+    if (!mutableInitialData) {
+        // Find trigger nodes that don't depend on other nodes
+        const nodesWithInputs = new Set(workflow.connections.map(c => c.targetNodeId));
+        const rootNodes = workflow.nodes.filter(n => !nodesWithInputs.has(n.id));
+        const scheduleNode = rootNodes.find(n => n.type === 'schedule');
+
+        if (scheduleNode) {
+            mutableInitialData = {
+                [scheduleNode.id]: { triggered_at: new Date().toISOString() }
+            };
+            serverLogs.push({ timestamp: new Date().toISOString(), message: `[ENGINE] Manually triggering schedule node '${scheduleNode.name}' for editor run.`, type: 'info' });
+        }
+    }
+
 
     try {
-        const serverLogs: ServerLogOutput[] = [];
         const initialWorkflowData: Record<string, any> = {};
 
         // Pre-populate with initial trigger data if available
-        if (initialData) {
-            for (const nodeId in initialData) {
+        if (mutableInitialData) {
+            for (const nodeId in mutableInitialData) {
                 if (workflow.nodes.some(n => n.id === nodeId)) {
-                    initialWorkflowData[nodeId] = initialData[nodeId];
+                    initialWorkflowData[nodeId] = mutableInitialData[nodeId];
                 }
             }
         }
