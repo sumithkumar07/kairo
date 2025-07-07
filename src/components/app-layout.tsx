@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -147,7 +146,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             {isLoggedIn ? (
                               <>
                                 <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-                                <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={logout} className="cursor-pointer">
                                   <LogOut className="mr-2 h-4 w-4" />
