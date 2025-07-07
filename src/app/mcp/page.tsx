@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/alert-dialog";
 import { Loader2, Trash2, Bot, Plus, X, KeyRound, Copy, Check, Info, MoreVertical, Terminal, Send, Workflow, User, Settings, Zap } from 'lucide-react';
-import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey, Workflow as WorkflowType } from '@/types/workflow';
+import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey, Workflow as WorkflowType, RequiredCredentialInfo } from '@/types/workflow';
 import { getMcpHistory } from '@/services/workflow-storage-service';
 import { listCredentialsAction, saveCredentialAction, deleteCredentialAction, generateApiKeyAction, saveAgentConfigAction, getAgentConfigAction, listApiKeysAction, revokeApiKeyAction, agentCommandAction } from '@/app/actions';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -25,12 +25,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { GenerateWorkflowFromPromptOutput } from '@/ai/flows/generate-workflow-from-prompt';
-
-interface RequiredCredentialInfo {
-  name: string;
-  nodes: string[];
-  service: string;
-}
 
 interface CommandMessage extends McpCommandRecord {
     generatedWorkflow?: GenerateWorkflowFromPromptOutput;

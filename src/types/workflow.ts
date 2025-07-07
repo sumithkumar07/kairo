@@ -199,3 +199,9 @@ export type SuggestNextNodeOutput = {
   suggestedNode: string;
   reason: string;
 };
+
+export interface RequiredCredentialInfo {
+  name: string;
+  nodes: string[];
+  service: string;
+}
