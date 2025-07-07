@@ -38,8 +38,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       simulatedRequestBody: '{"message": "Hello from simulated webhook!"}',
       simulatedRequestHeaders: '{"Content-Type": "application/json", "X-Custom-Header": "SimValue"}',
       simulatedRequestQuery: '{"param1": "test", "param2": "true"}',
-      retry: {},
-      onErrorWebhook: undefined,
     },
     configSchema: {
       pathSuffix: { label: 'Path Suffix', type: 'string', placeholder: 'e.g., customer-updates-hook', helperText: "Unique path for this webhook. Full URL: /api/workflow-webhooks/YOUR_SUFFIX", required: true },
@@ -65,8 +63,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       fileNamePattern: '*.csv', 
       pollingIntervalSeconds: 60,
       simulatedFileEvent: '{"eventType": "create", "filePath": "/uploads/new_report.csv", "fileName": "new_report.csv"}',
-      retry: {},
-      onErrorWebhook: undefined,
     },
     configSchema: {
       directoryPath: { label: 'Directory Path', type: 'string', placeholder: '/mnt/shared_drive/input_files or {{env.WATCH_FOLDER}}', required: true },
@@ -86,7 +82,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: KeyRound,
     description: 'Retrieves the value of an environment variable from the server. Can be configured to fail if the variable is not set.',
     category: 'io',
-    defaultConfig: { variableName: '', failIfNotSet: false, retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { variableName: '', failIfNotSet: false },
     configSchema: {
       variableName: { label: 'Variable Name', type: 'string', placeholder: 'e.g., MY_API_KEY', required: true, helperText: 'The name of the environment variable to retrieve.' },
       failIfNotSet: { label: 'Fail if Not Set', type: 'boolean', defaultValue: false, helperText: 'If true, the node will error if the environment variable is not found.' },
@@ -107,8 +103,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         method: 'GET', 
         headers: '{\n  "Authorization": "{{credential.MyApiToken}}"\n}', 
         body: '', 
-        retry: {}, 
-        onErrorWebhook: undefined, 
         simulatedResponse: '{"message": "Simulated HTTP success"}',
         simulatedStatusCode: 200 
     },
@@ -137,7 +131,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Clock,
     description: 'Triggers workflow on a defined schedule using CRON expressions.',
     category: 'trigger',
-    defaultConfig: { cron: '0 * * * *', retry: {}, onErrorWebhook: undefined, }, 
+    defaultConfig: { cron: '0 * * * *' }, 
     configSchema: {
       cron: { label: 'Cron Expression', type: 'string', defaultValue: '0 * * * *', placeholder: 'e.g., 0 9 * * MON', required: true, helperText: 'e.g. "0 9 * * MON" for 9 AM every Monday.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -153,7 +147,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Mail,
     description: 'Sends an email using an SMTP server. Requires EMAIL_* environment variables to be configured for live mode.',
     category: 'action',
-    defaultConfig: { to: '', subject: '', body: '', retry: {}, onErrorWebhook: undefined, simulatedMessageId: 'simulated-email-id-123' },
+    defaultConfig: { to: '', subject: '', body: '', simulatedMessageId: 'simulated-email-id-123' },
     configSchema: {
       to: { label: 'To', type: 'string', placeholder: 'recipient@example.com or {{input.email}}', required: true },
       subject: { label: 'Subject', type: 'string', placeholder: 'Workflow Notification: {{input.status}}', required: true },
@@ -171,7 +165,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Database,
     description: 'Executes a SQL query against a PostgreSQL database. Requires the DB_CONNECTION_STRING environment variable to be set.',
     category: 'io',
-    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', retry: {}, onErrorWebhook: undefined, simulatedResults: '[]', simulatedRowCount: 0 },
+    defaultConfig: { queryText: 'SELECT * FROM my_table WHERE id = $1;', queryParams: '["{{input.id}}"]', simulatedResults: '[]', simulatedRowCount: 0 },
     configSchema: {
       queryText: { label: 'SQL Query (use $1, $2 for parameters)', type: 'textarea', placeholder: 'SELECT * FROM users WHERE id = $1 AND status = $2;', required: true },
       queryParams: { label: 'Query Parameters (JSON array)', type: 'json', placeholder: '["{{input.userId}}", "active"]', helperText: "Array of values or placeholders for $1, $2, etc." },
@@ -193,8 +187,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     defaultConfig: { 
         maxResults: 10, 
         simulated_config: { events: [{"summary": "Team Sync", "start": {"dateTime": "2024-09-15T10:00:00-07:00"}, "end": {"dateTime": "2024-09-15T11:00:00-07:00"}}, {"summary": "Project Deadline", "start": {"date": "2024-09-20"}, "end": {"date": "2024-09-21"}}]}, 
-        retry: {}, 
-        onErrorWebhook: undefined 
     },
     configSchema: {
       maxResults: { label: 'Max Results (Optional)', type: 'number', defaultValue: 10, placeholder: '10', helperText: 'Maximum number of events to return.' },
@@ -211,7 +203,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Braces,
     description: 'Parses a JSON string and optionally extracts data using a JSON path (e.g., $.data[0].name).',
     category: 'logic',
-    defaultConfig: { jsonString: '', path: '', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { jsonString: '', path: '' },
     configSchema: {
       jsonString: { label: 'JSON Input (e.g. {{prev_node.response}})', type: 'textarea', placeholder: '{{previous_node.response}}', required: true },
       path: { label: 'Extraction Path (e.g. $.data.items[0].name)', type: 'string', placeholder: '$.data.items[0].name', helperText: 'Uses basic dot notation path. Leave empty to return the full parsed object.' },
@@ -238,18 +230,39 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs a task using a generative AI model (e.g., Gemini). Requires a GOOGLE_API_KEY environment variable for live mode.',
+    description: 'Performs a task using a generative AI model from providers like Google AI or OpenAI. Requires the appropriate API key environment variable for live mode.',
     category: 'ai',
-    defaultConfig: { prompt: '', model: 'googleai/gemini-1.5-pro-latest', retry: {}, onErrorWebhook: undefined, simulatedOutput: 'This is a simulated AI response.' },
+    defaultConfig: { 
+        modelProvider: 'googleai',
+        model: 'gemini-1.5-pro-latest',
+        prompt: '',
+        simulatedOutput: 'This is a simulated AI response.' 
+    },
     configSchema: {
+      modelProvider: {
+        label: 'Model Provider',
+        type: 'select',
+        options: ['googleai'],
+        defaultValue: 'googleai',
+        required: true,
+        helperText: 'Select the AI provider for the model.'
+      },
+      model: { 
+        label: 'Model ID', 
+        type: 'string', 
+        defaultValue: 'gemini-1.5-pro-latest', 
+        placeholder: 'e.g., gemini-1.5-pro-latest', 
+        required: true,
+        helperText: 'The specific model ID to use from the selected provider.'
+      },
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}', required: true },
-      model: { label: 'Model ID', type: 'string', defaultValue: 'googleai/gemini-1.5-pro-latest', placeholder: 'e.g., googleai/gemini-1.5-pro-latest', required: true },
       simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response.', helperText: 'Text output from the AI model when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
+    aiExplanation: "Performs a generative AI task using a configured Google AI model. To use this node in Live Mode, ensure the `GOOGLE_API_KEY` environment variable is set on your server. Enter the desired model ID, such as `gemini-1.5-pro-latest`.",
   },
   {
     type: 'conditionalLogic',
@@ -257,7 +270,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Filter,
     description: 'Evaluates a condition to produce a true/false result. Use this to control the flow of your workflow.',
     category: 'logic',
-    defaultConfig: { condition: '', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { condition: '' },
     configSchema: {
         condition: { label: 'Condition string (e.g., {{data.value}} == "success", {{data.count}} > 10, {{data.isValid}} === true)', type: 'string', placeholder: '{{data.temperature}} > 30', required: true, helperText: 'Use the output of this node in a subsequent node\'s `_flow_run_condition` config field.' },
         ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -278,8 +291,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       flowGroupConnections: '[]', 
       inputMapping: '{}', 
       outputMapping: '{}',
-      retry: {},
-      onErrorWebhook: undefined,
     },
     configSchema: {
       flowGroupNodes: { label: 'Flow Group Nodes (JSON Array of Node definitions)', type: 'json', placeholder: '[{\n  "id":"sub_node_1", \n  "type":"logMessage", \n  "name":"Log in Group", \n  "position":{"x":10,"y":10},\n  "config":{"message":"Message from sub-flow {{inputMapping.dataFromParent}}"}\n}]', helperText: 'Define the nodes for this group.', required: true },
@@ -304,8 +315,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       iterationConnections: '[]',
       iterationResultSource: '', 
       continueOnError: false,
-      retry: {}, 
-      onErrorWebhook: undefined,
     },
     configSchema: {
       inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.users}}', helperText: 'Placeholder for the array to iterate over.', required: true },
@@ -330,8 +339,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       loopNodes: '[]',
       loopConnections: '[]',
       maxIterations: 100, 
-      retry: {}, 
-      onErrorWebhook: undefined,
     },
     configSchema: {
       condition: { label: 'Loop Condition (evaluates to boolean)', type: 'string', placeholder: '{{data.status}} === "pending" || {{counter.value}} < 10', helperText: 'The loop continues as long as this condition is true. Evaluated before each iteration.', required: true },
@@ -354,8 +361,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     defaultConfig: {
       branches: '[]',
       concurrencyLimit: 0,
-      retry: {},
-      onErrorWebhook: undefined,
     },
     configSchema: {
       branches: { 
@@ -388,8 +393,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       instructions: 'Please review and provide input.',
       inputFieldsSchema: '[{"id": "approval", "label": "Approve?", "type": "boolean", "defaultValue": true}]',
       simulatedResponse: '{"approval": true, "notes": "Simulated approval"}',
-      retry: {},
-      onErrorWebhook: undefined,
     },
     configSchema: {
       instructions: { label: 'User Instructions', type: 'textarea', placeholder: 'Describe what the user needs to do.', required: true },
@@ -412,8 +415,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       inputMapping: '{}',
       outputMapping: '{}',
       simulatedOutput: '{"simulatedResult": "data from called workflow"}',
-      retry: {},
-      onErrorWebhook: undefined,
     },
     configSchema: {
       calledWorkflowId: { label: 'Called Workflow ID', type: 'string', placeholder: 'e.g., "customer_onboarding_flow_v2"', required: true },
@@ -432,7 +433,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Timer,
     description: 'Pauses workflow execution for a specified duration in milliseconds. Useful for rate limiting or waiting for external processes.',
     category: 'control',
-    defaultConfig: { delayMs: 1000, retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { delayMs: 1000 },
     configSchema: {
       delayMs: { label: 'Delay (milliseconds)', type: 'number', defaultValue: 1000, required: true, placeholder: 'e.g., 5000 for 5 seconds', helperText: 'The duration for which the workflow will pause.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -448,7 +449,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Appends a new row to a Google Sheet. Requires a Google Service Account credential for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { credentialName: 'GoogleServiceAccount', spreadsheetId: '', range: 'Sheet1', values: '[["{{input.name}}", "{{input.email}}"]]', retry: {}, onErrorWebhook: undefined, simulated_config: { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } },
+    defaultConfig: { credentialName: 'GoogleServiceAccount', spreadsheetId: '', range: 'Sheet1', values: '[["{{input.name}}", "{{input.email}}"]]', simulated_config: { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } },
     configSchema: {
       credentialName: { label: 'Credential Name', type: 'string', defaultValue: 'GoogleServiceAccount', placeholder: 'GoogleServiceAccount', helperText: 'The name of the credential in Credential Manager that holds your Google Service Account JSON key.', required: true },
       spreadsheetId: { label: 'Spreadsheet ID', type: 'string', placeholder: 'Enter your Google Sheet ID here', required: true, helperText: 'Find this in your Google Sheet URL.' },
@@ -469,7 +470,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Posts a message to a Slack channel. Requires a Slack Bot Token for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { channel: '#general', text: 'Hello from Kairo!', token: '{{credential.SlackBotToken}}', retry: {}, onErrorWebhook: undefined, simulated_config: { ok: true, ts: new Date().getTime().toString() } },
+    defaultConfig: { channel: '#general', text: 'Hello from Kairo!', token: '{{credential.SlackBotToken}}', simulated_config: { ok: true, ts: new Date().getTime().toString() } },
     configSchema: {
       channel: { label: 'Channel ID or Name', type: 'string', placeholder: '#general or C12345678', required: true },
       text: { label: 'Message Text', type: 'textarea', placeholder: 'New order received: {{input.orderId}}', required: true },
@@ -489,7 +490,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Generates a chat completion using OpenAI models. Requires an OpenAI API Key for live mode.',
     category: 'ai',
     isAdvanced: true,
-    defaultConfig: { model: 'gpt-4', messages: '[{"role": "user", "content": "Hello, world!"}]', apiKey: '{{credential.OpenAIKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { choices: [{ message: { role: 'assistant', content: 'Hello! How can I help you today?' } }] } },
+    defaultConfig: { model: 'gpt-4', messages: '[{"role": "user", "content": "Hello, world!"}]', apiKey: '{{credential.OpenAIKey}}', simulated_config: { choices: [{ message: { role: 'assistant', content: 'Hello! How can I help you today?' } }] } },
     configSchema: {
       model: { label: 'Model', type: 'string', defaultValue: 'gpt-4', placeholder: 'gpt-4, gpt-3.5-turbo', required: true },
       messages: { label: 'Messages (JSON Array)', type: 'json', placeholder: '[{"role": "user", "content": "{{input.prompt}}"}]', helperText: 'An array of message objects (role and content).', required: true },
@@ -509,7 +510,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Creates a Stripe Payment Link. Requires a Stripe API Key for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { line_items: '[{"price_data": {"currency": "usd", "product_data": {"name": "T-shirt"}, "unit_amount": 2000}, "quantity": 1}]', apiKey: '{{credential.StripeApiKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { id: 'plink_sim_123', url: 'https://checkout.stripe.com/pay/plink_sim_123' } },
+    defaultConfig: { line_items: '[{"price_data": {"currency": "usd", "product_data": {"name": "T-shirt"}, "unit_amount": 2000}, "quantity": 1}]', apiKey: '{{credential.StripeApiKey}}', simulated_config: { id: 'plink_sim_123', url: 'https://checkout.stripe.com/pay/plink_sim_123' } },
     configSchema: {
       line_items: { label: 'Line Items (JSON Array)', type: 'json', placeholder: '[{"price": "price_123", "quantity": 1}]', helperText: 'Array of line items for the payment link.', required: true },
       apiKey: { label: 'Stripe API Key', type: 'string', placeholder: '{{credential.StripeApiKey}}', helperText: "Use {{credential.StripeApiKey}} for a managed credential.", required: true },
@@ -528,7 +529,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Creates a new contact in HubSpot. Requires a HubSpot API Key for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { email: '{{input.email}}', properties: '{"firstname": "{{input.firstName}}", "lastname": "{{input.lastName}}"}', apiKey: '{{credential.HubSpotApiKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { id: "sim_contact_12345", properties: { email: "simulated@example.com", firstname: "Simulated", lastname: "User" }, createdAt: "2024-01-01T12:00:00Z" } },
+    defaultConfig: { email: '{{input.email}}', properties: '{"firstname": "{{input.firstName}}", "lastname": "{{input.lastName}}"}', apiKey: '{{credential.HubSpotApiKey}}', simulated_config: { id: "sim_contact_12345", properties: { email: "simulated@example.com", firstname: "Simulated", lastname: "User" }, createdAt: "2024-01-01T12:00:00Z" } },
     configSchema: {
       email: { label: 'Email', type: 'string', placeholder: '{{trigger.body.email}}', required: true },
       properties: { label: 'Contact Properties (JSON)', type: 'json', placeholder: '{"firstname": "{{trigger.body.fname}}"}', helperText: 'JSON object of HubSpot contact properties.', required: true },
@@ -548,7 +549,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Sends an SMS message using Twilio. Requires Twilio credentials for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { to: '{{input.phone}}', from: '{{env.TWILIO_FROM_NUMBER}}', body: 'Message from Kairo!', accountSid: '{{credential.TwilioAccountSid}}', authToken: '{{credential.TwilioAuthToken}}', retry: {}, onErrorWebhook: undefined, simulated_config: { sid: "SM_sim_12345", status: "queued" } },
+    defaultConfig: { to: '{{input.phone}}', from: '{{env.TWILIO_FROM_NUMBER}}', body: 'Message from Kairo!', accountSid: '{{credential.TwilioAccountSid}}', authToken: '{{credential.TwilioAuthToken}}', simulated_config: { sid: "SM_sim_12345", status: "queued" } },
     configSchema: {
       to: { label: 'To Phone Number', type: 'string', placeholder: '+15551234567', required: true },
       from: { label: 'From Phone Number (Twilio)', type: 'string', placeholder: '{{env.TWILIO_FROM_NUMBER}}', required: true },
@@ -570,7 +571,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Creates an issue in a GitHub repository. Requires a GitHub Token for live mode.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { owner: '{{env.GITHUB_REPO_OWNER}}', repo: '{{env.GITHUB_REPO_NAME}}', title: 'New issue from Kairo', body: 'Details: {{input.details}}', token: '{{credential.GitHubToken}}', retry: {}, onErrorWebhook: undefined, simulated_config: { number: 99, html_url: "https://github.com/example/repo/issues/99" } },
+    defaultConfig: { owner: '{{env.GITHUB_REPO_OWNER}}', repo: '{{env.GITHUB_REPO_NAME}}', title: 'New issue from Kairo', body: 'Details: {{input.details}}', token: '{{credential.GitHubToken}}', simulated_config: { number: 99, html_url: "https://github.com/example/repo/issues/99" } },
     configSchema: {
       owner: { label: 'Repository Owner', type: 'string', placeholder: 'e.g., octocat', required: true },
       repo: { label: 'Repository Name', type: 'string', placeholder: 'e.g., Hello-World', required: true },
@@ -592,7 +593,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Uploads a file to a Dropbox path. Note: This node is simulated. A real implementation would require a Dropbox Token.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { path: '/kairo-uploads/{{input.filename}}', content_placeholder: '{{input.file_content}}', token: '{{credential.DropboxToken}}', retry: {}, onErrorWebhook: undefined, simulated_config: { id: "id:sim_abc123", name: "simulated_file.txt", path_display: "/kairo-uploads/simulated_file.txt" } },
+    defaultConfig: { path: '/kairo-uploads/{{input.filename}}', content_placeholder: '{{input.file_content}}', token: '{{credential.DropboxToken}}', simulated_config: { id: "id:sim_abc123", name: "simulated_file.txt", path_display: "/kairo-uploads/simulated_file.txt" } },
     configSchema: {
       path: { label: 'File Path in Dropbox', type: 'string', placeholder: '/Apps/Kairo/{{trigger.body.filename}}', required: true },
       content_placeholder: { label: 'File Content (Placeholder)', type: 'string', placeholder: '{{api_node.response}}', helperText: 'A placeholder that resolves to the content to be uploaded.', required: true },
@@ -611,7 +612,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Fetches the top trending videos from YouTube for a specific region.',
     category: 'integrations', 
     isAdvanced: true,
-    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{credential.YouTubeApiKey}}', retry: {}, onErrorWebhook: undefined, simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
+    defaultConfig: { region: 'US', maxResults: 3, apiKey: '{{credential.YouTubeApiKey}}', simulated_config: { videos: [{id: 'sim1', title: 'Simulated Video 1'}, {id: 'sim2', title: 'Simulated Video 2'}] } },
     configSchema: {
       region: { label: 'Region Code', type: 'string', defaultValue: 'US', placeholder: 'US, GB, IN, etc.', required: true },
       maxResults: { label: 'Max Results', type: 'number', defaultValue: 3, placeholder: 'Number of videos', required: true },
@@ -631,7 +632,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Simulates downloading a YouTube video. A real implementation would require a server-side library like youtube-dl.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { videoUrl: '', quality: 'best', retry: {}, onErrorWebhook: undefined, simulated_config: { filePath: '/simulated/path/to/video.mp4'} },
+    defaultConfig: { videoUrl: '', quality: 'best', simulated_config: { filePath: '/simulated/path/to/video.mp4'} },
     configSchema: {
       videoUrl: { label: 'Video URL', type: 'string', placeholder: '{{prev_node.videos[0].url}}', required: true },
       quality: { label: 'Quality', type: 'select', options: ['best', '1080p', '720p', '480p'], defaultValue: 'best', required: true },
@@ -649,7 +650,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Simulates converting a video to a short format (e.g., under 60s). A real implementation would use a library like FFmpeg.',
     category: 'action',
     isAdvanced: true,
-    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', retry: {}, onErrorWebhook: undefined, simulated_config: { shortFilePath: '/simulated/path/to/short.mp4' } },
+    defaultConfig: { inputFile: '', duration: 60, strategy: 'center_cut', simulated_config: { shortFilePath: '/simulated/path/to/short.mp4' } },
     configSchema: {
       inputFile: { label: 'Input Video File Path', type: 'string', placeholder: '{{download_node.filePath}}', required: true },
       duration: { label: 'Short Duration (seconds)', type: 'number', defaultValue: 60, required: true },
@@ -668,7 +669,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Simulates uploading a video short to YouTube. A real implementation would require YouTube API OAuth credentials.',
     category: 'integrations',
     isAdvanced: true,
-    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{credential.YouTubeOAuth}}', retry: {}, onErrorWebhook: undefined, simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
+    defaultConfig: { filePath: '', title: '', description: '', tags: [], privacy: 'public', credentials: '{{credential.YouTubeOAuth}}', simulated_config: { uploadStatus: 'success', videoId: 'simulated-short-id'} },
     configSchema: {
       filePath: { label: 'Video File Path', type: 'string', placeholder: '{{convert_node.shortFilePath}}', required: true },
       title: { label: 'Title', type: 'string', placeholder: 'My Awesome Short', required: true },
@@ -689,7 +690,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: WorkflowIcon,
     description: 'A generic, configurable step. Used by the AI when a specific pre-built node isn\'t available. Its execution is simulated.',
     category: 'action', 
-    defaultConfig: { task_description: '', parameters: {}, retry: {}, onErrorWebhook: undefined, simulated_config: {message: "Simulated custom action output"} },
+    defaultConfig: { task_description: '', parameters: {}, simulated_config: {message: "Simulated custom action output"} },
     configSchema: {
       task_description: {label: 'Task Description', type: 'string', placeholder: 'Describe what this node should do', required: true},
       parameters: { label: 'Parameters (JSON)', type: 'textarea', placeholder: '{\n  "custom_param": "value"\n}'},
@@ -706,7 +707,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: CaseSensitive,
     description: 'Converts an input string to uppercase.',
     category: 'logic',
-    defaultConfig: { inputString: '', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { inputString: '' },
     configSchema: {
       inputString: { label: 'Input String', type: 'string', placeholder: '{{input.text}}', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -721,7 +722,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: CaseSensitive,
     description: 'Converts an input string to lowercase.',
     category: 'logic',
-    defaultConfig: { inputString: '', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { inputString: '' },
     configSchema: {
       inputString: { label: 'Input String', type: 'string', placeholder: '{{input.text}}', required: true },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
@@ -736,7 +737,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: Combine,
     description: 'Joins an array of strings into a single string, with an optional separator.',
     category: 'logic',
-    defaultConfig: { stringsToConcatenate: '[]', separator: '', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { stringsToConcatenate: '[]', separator: '' },
     configSchema: {
       stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]', required: true },
       separator: { label: 'Separator', type: 'string', placeholder: 'e.g., a space or comma', defaultValue: '' },
@@ -752,7 +753,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: SplitSquareHorizontal,
     description: 'Splits a string into an array of substrings based on a delimiter.',
     category: 'logic',
-    defaultConfig: { inputString: '', delimiter: ',', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { inputString: '', delimiter: ',' },
     configSchema: {
       inputString: { label: 'Input String', type: 'string', placeholder: '{{input.csv_line}}', required: true },
       delimiter: { label: 'Delimiter', type: 'string', placeholder: 'e.g., , or |', defaultValue: ',', required: true },
@@ -768,7 +769,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: CalendarDays,
     description: 'Formats a date string (e.g., ISO 8601) into a custom format using date-fns tokens.',
     category: 'logic',
-    defaultConfig: { inputDateString: '', outputFormatString: 'yyyy-MM-dd HH:mm:ss', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { inputDateString: '', outputFormatString: 'yyyy-MM-dd HH:mm:ss' },
     configSchema: {
       inputDateString: { label: 'Input Date String/ISO', type: 'string', placeholder: '{{api_node.response.createdAt}}', required: true },
       outputFormatString: { label: 'Output Date Format (date-fns)', type: 'string', defaultValue: 'yyyy-MM-dd HH:mm:ss', placeholder: 'EEEE, MMMM do, yyyy', required: true },
@@ -784,7 +785,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     icon: ListOrdered,
     description: 'Performs aggregation operations (e.g., SUM, COUNT, JOIN) on an array of data.',
     category: 'logic',
-    defaultConfig: { inputArrayPath: '', operations: '[{"type": "SUM", "inputPath": "item.amount", "outputPath": "totalRevenue"}]', retry: {}, onErrorWebhook: undefined, },
+    defaultConfig: { inputArrayPath: '', operations: '[{"type": "SUM", "inputPath": "item.amount", "outputPath": "totalRevenue"}]' },
     configSchema: {
       inputArrayPath: { label: 'Input Array Path', type: 'string', placeholder: '{{api_node.response.items}}', helperText: 'Placeholder for the array to process.', required: true },
       operations: { label: 'Aggregation Operations (JSON Array)', type: 'json', placeholder: '[{"type": "SUM", "inputPath": "item.amount", "outputPath": "totalRevenue"}, {"type": "JOIN", "inputPath": "item.email", "outputPath": "emailList", "separator": ","}]', helperText: 'Define aggregations. Use "item.property" to access data. Supported types: SUM, AVERAGE, COUNT, MIN, MAX, JOIN, COLLECT.', required: true },

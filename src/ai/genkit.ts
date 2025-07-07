@@ -11,20 +11,18 @@ if (!process.env.GOOGLE_API_KEY) {
   console.error("[GENKIT.TS INITIALIZATION] FATAL: GOOGLE_API_KEY is not defined in the environment. Genkit GoogleAI plugin will likely fail to initialize, leading to errors when using the 'ai' object.");
 }
 
-// Define a Google AI model.
-const geminiPro = googleAI.model('gemini-1.5-pro-latest');
+// Setup for plugins
+const plugins = [
+    googleAI(),
+];
+
+// OpenAI plugin support removed to fix build issues.
+if (process.env.OPENAI_API_KEY) {
+    console.log('[GENKIT.TS INITIALIZATION] OpenAI plugin support has been temporarily removed due to a missing package. OpenAI models will not be available.');
+}
 
 export const ai = genkit({
-  plugins: [
-    googleAI(), // Configure Genkit with the Google AI plugin
-  ],
-  models: [
-    geminiPro,
-    // You can add other Google AI models here if needed
-    // e.g., googleAI.model('gemini-1.5-flash-latest')
-  ],
+  plugins: plugins,
   // Set the default model for the `ai` instance.
   model: 'googleai/gemini-1.5-pro-latest', 
 });
-
-

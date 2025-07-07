@@ -371,12 +371,34 @@ async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulat
 
 async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AITASK] SIMULATION: Would send prompt to model ${config.model || 'default'}.`, type: 'info' });
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AITASK] SIMULATION: Would send prompt to model ${config.modelProvider}/${config.model}.`, type: 'info' });
         return { output: config.simulatedOutput || "Simulated AI output." };
     }
-    if (!process.env.GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY environment variable is not set. It's required for AI Tasks in Live Mode.");
-    if (!config.prompt) throw new Error(`AI Prompt is not configured or resolved.`);
-    const genkitResponse = await ai.generate({ prompt: String(config.prompt), model: (config.model || 'googleai/gemini-1.5-flash-latest') as any });
+
+    const provider = config.modelProvider || 'googleai';
+    const modelName = config.model;
+
+    if (!modelName) {
+        throw new Error("AI Model ID is not configured in the AI Task node.");
+    }
+    if (!config.prompt) {
+        throw new Error(`AI Prompt is not configured or resolved.`);
+    }
+
+    if (provider === 'googleai' && !process.env.GOOGLE_API_KEY) {
+        throw new Error("GOOGLE_API_KEY environment variable is not set. It's required for Google AI Tasks in Live Mode.");
+    }
+    if (provider === 'openai' && !process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY environment variable is not set. It's required for OpenAI Tasks in Live Mode.");
+    }
+
+    const modelIdentifier = `${provider}/${modelName}`;
+    const model = ai.model(modelIdentifier);
+    if (!model) {
+        throw new Error(`Model '${modelIdentifier}' not found or its provider is not configured. Check your genkit.ts and environment variables.`);
+    }
+
+    const genkitResponse = await ai.generate({ prompt: String(config.prompt), model });
     return { output: genkitResponse.text };
 }
 
