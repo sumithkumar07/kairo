@@ -217,7 +217,7 @@ function RunHistoryPage() {
   
   const handleLoadCorrectedWorkflow = (correctedWorkflow: any) => {
     if (typeof window !== 'undefined' && correctedWorkflow) {
-        localStorage.setItem('kairoCurrentWorkflow', JSON.stringify(correctedWorkflow));
+        localStorage.setItem('kairoCorrectedWorkflow', JSON.stringify(correctedWorkflow));
         localStorage.setItem('kairoCorrectedWorkflowOriginalName', selectedRun?.workflowName || 'Workflow');
         router.push('/workflow');
         handleCloseDialog();
@@ -233,6 +233,30 @@ function RunHistoryPage() {
     }
   };
 
+  const handleLoadSnapshot = (run: WorkflowRunRecord) => {
+    if (!run.workflowSnapshot) {
+      toast({
+        title: 'Snapshot Not Available',
+        description: 'This run record does not contain a workflow snapshot.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const snapshotName = `${run.workflowName} (Snapshot @ ${format(new Date(run.timestamp), 'h:mm a')})`;
+    
+    localStorage.setItem('kairoCurrentWorkflow', JSON.stringify({
+        name: snapshotName, 
+        workflow: run.workflowSnapshot 
+    }));
+    
+    toast({
+      title: 'Workflow Snapshot Loaded',
+      description: 'The exact workflow version from this run is now in the editor.',
+    });
+    router.push('/workflow');
+    handleCloseDialog();
+  };
 
   const renderNodeRunData = () => {
     if (!selectedNodeInSnapshot || !selectedRun) {
@@ -509,6 +533,15 @@ function RunHistoryPage() {
                    )}
                 </div>
                 <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        disabled={!selectedRun.workflowSnapshot}
+                        onClick={() => handleLoadSnapshot(selectedRun)}
+                        title="Load this exact workflow version into the editor."
+                    >
+                        <FileJson className="mr-2 h-4 w-4" />
+                        Load Snapshot
+                    </Button>
                     <Button 
                         variant="outline" 
                         disabled={isRerunning || !selectedRun.workflowSnapshot} 
@@ -516,7 +549,7 @@ function RunHistoryPage() {
                         title={!selectedRun.workflowSnapshot ? "Cannot re-run a workflow without a saved snapshot." : "Re-run this workflow with the same initial data."}
                     >
                         {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                        {isRerunning ? 'Re-running...' : 'Re-run Workflow'}
+                        {isRerunning ? 'Re-running...' : 'Re-run'}
                     </Button>
                     <DialogClose asChild><Button type="button" variant="default">Close</Button></DialogClose>
                 </div>
