@@ -9,7 +9,7 @@ import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation,
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, X, Bot, SaveAll, File, FolderOpen, Save, Zap, Users, BrainCircuit, Search, Star, Workflow as WorkflowIcon } from 'lucide-react';
+import { Loader2, Trash2, X, Bot, SaveAll, File, FolderOpen, Save, Zap, Users, BrainCircuit, Search, Star, Workflow as WorkflowIcon, Wand2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
 import { NodeLibrary } from '@/components/node-library';
+import { Textarea } from '@/components/ui/textarea';
 
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
@@ -51,6 +52,50 @@ interface HistoryEntry {
   canvasOffset: { x: number; y: number };
   zoomLevel: number;
 }
+
+function AIOnboardingPanel({ onGenerate, isLoading }: { onGenerate: (prompt: string) => void, isLoading: boolean }) {
+  const [prompt, setPrompt] = useState('');
+
+  const handleGenerateClick = () => {
+    if (prompt.trim()) {
+      onGenerate(prompt);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+      <div className="p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm max-w-2xl w-full text-center">
+        <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
+          <Bot className="h-12 w-12 text-primary" />
+        </div>
+        <h3 className="text-2xl font-semibold text-foreground mb-2">Describe Your Workflow</h3>
+        <p className="text-muted-foreground text-sm mb-6">
+          Start by telling our AI what you want to automate. It will build the initial workflow for you on the canvas.
+        </p>
+        <div className="space-y-4">
+          <Textarea
+            placeholder="e.g., Every morning at 8 AM, fetch the top 3 trending videos from YouTube and post their titles and URLs to my Slack channel named #updates."
+            className="min-h-[100px] text-base"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            disabled={isLoading}
+          />
+          <Button
+            size="lg"
+            className="w-full text-lg py-7"
+            onClick={handleGenerateClick}
+            disabled={isLoading || !prompt.trim()}
+          >
+            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
+            Generate Workflow
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-4">Or, drag nodes from the library on the left to build manually.</p>
+      </div>
+    </div>
+  );
+}
+
 
 function WorkflowPage() {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
@@ -527,6 +572,23 @@ function WorkflowPage() {
       setIsChatLoading(false); 
     }
   }, [user, chatHistory, nodes, connections, selectedNodeId, handleAiPromptSubmit, toast, enabledTools]);
+
+  const handleOnboardingGenerate = useCallback(async (prompt: string) => {
+    setIsLoadingAiWorkflow(true);
+    try {
+      const generatedWorkflow = await enhanceAndGenerateWorkflow({ originalPrompt: prompt });
+      handleAiPromptSubmit(generatedWorkflow);
+    } catch (genError: any) {
+      console.error('Error generating workflow from onboarding panel:', genError);
+      toast({
+        title: 'AI Generation Failed',
+        description: `Sorry, I couldn't generate the workflow. Error: ${genError.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingAiWorkflow(false);
+    }
+  }, [handleAiPromptSubmit, toast]);
 
 
   const handleNodeConfigChange = useCallback((nodeId: string, newConfig: Record<string, any>) => {
@@ -1213,20 +1275,6 @@ function WorkflowPage() {
     input.click();
   }, [toast, loadWorkflowIntoEditor]);
   
-  const EmptyCanvas = () => (
-    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-      <div className="p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm max-w-lg text-center">
-        <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
-            <Zap className="h-12 w-12 text-primary" />
-        </div>
-        <h3 className="text-2xl font-semibold text-foreground mb-1">Start Building Your Workflow</h3>
-        <p className="text-muted-foreground text-sm">
-            Drag nodes from the library, or ask the AI assistant to generate a workflow from a prompt.
-        </p>
-      </div>
-    </div>
-  );
-
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1 && historyIndex !== -1;
@@ -1360,7 +1408,7 @@ function WorkflowPage() {
             canRedo={canRedo}
             toast={toast}
             onDeleteSelectedConnection={handleDeleteSelectedConnection}
-            EmptyCanvasComponent={<EmptyCanvas />}
+            EmptyCanvasComponent={<AIOnboardingPanel onGenerate={handleOnboardingGenerate} isLoading={isLoadingAiWorkflow} />}
           />
 
           {isAssistantVisible && (
