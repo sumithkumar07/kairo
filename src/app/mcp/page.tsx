@@ -696,5 +696,3 @@ function AddCredentialDialog({ open, onOpenChange, onSave }: { open: boolean, on
 
 
 export default withAuth(MCPDashboardPage);
-
-    
