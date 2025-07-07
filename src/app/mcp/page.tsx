@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/alert-dialog";
 import { Loader2, Trash2, Bot, Plus, X, KeyRound, Copy, Check, Info, MoreVertical, Terminal, Send, Workflow, User, Settings, Zap } from 'lucide-react';
 import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey, Workflow as WorkflowType } from '@/types/workflow';
 import { getMcpHistory } from '@/services/workflow-storage-service';
@@ -163,10 +163,34 @@ function MCPDashboardPage() {
   }, []);
 
   
-  const unconfiguredTools = useMemo(() => {
-    const configuredToolNames = new Set(configuredTools.map(t => t.name));
-    return ALL_AVAILABLE_TOOLS.filter(t => !configuredToolNames.has(t.name));
+  const configuredSkillsByService = useMemo(() => {
+    const grouped = new Map<string, Tool[]>();
+    configuredTools.forEach(tool => {
+        const service = tool.service || 'General';
+        if (!grouped.has(service)) {
+            grouped.set(service, []);
+        }
+        grouped.get(service)!.push(tool);
+    });
+    return grouped;
   }, [configuredTools]);
+
+
+  const unconfiguredToolsByService = useMemo(() => {
+    const configuredToolNames = new Set(configuredTools.map(t => t.name));
+    const unconfigured = ALL_AVAILABLE_TOOLS.filter(t => !configuredToolNames.has(t.name));
+    
+    const grouped = new Map<string, Tool[]>();
+    unconfigured.forEach(tool => {
+        const service = tool.service || 'General';
+        if (!grouped.has(service)) {
+            grouped.set(service, []);
+        }
+        grouped.get(service)!.push(tool);
+    });
+    return grouped;
+  }, [configuredTools]);
+
 
   const handleToolToggle = useCallback(async (tool: Tool, isAdding: boolean) => {
     const updatedToolNames = isAdding
@@ -346,27 +370,35 @@ function MCPDashboardPage() {
                               </div>
                           </CardHeader>
                           <CardContent>
-                              <div className="space-y-2">
-                                  {isLoading ? (
-                                    <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading skills...</div>
-                                  ) : configuredTools.length > 0 ? (
-                                      configuredTools.map((tool) => (
-                                          <div key={tool.name} className="flex items-center gap-4 p-2 border rounded-lg bg-background hover:bg-muted/50">
-                                              <div className="p-1 bg-muted rounded-md">
-                                                  <tool.icon className="h-5 w-5 text-muted-foreground" />
-                                              </div>
-                                              <div className="flex-1">
-                                                  <p className="font-medium text-sm">{tool.name}</p>
-                                              </div>
-                                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToolToggle(tool, false)}>
-                                                  <X className="h-4 w-4 text-destructive" />
-                                              </Button>
-                                          </div>
-                                      ))
-                                  ) : (
-                                  <div className="text-center py-6 text-sm text-muted-foreground">No skills configured. Click "Add Skill" to get started.</div>
-                                  )}
-                              </div>
+                            {isLoading ? (
+                                <div className="text-center py-6 text-sm text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading skills...</div>
+                            ) : configuredSkillsByService.size > 0 ? (
+                                <div className="space-y-4">
+                                    {Array.from(configuredSkillsByService.entries()).map(([service, tools]) => (
+                                        <div key={service}>
+                                            <h3 className="text-sm font-semibold text-muted-foreground mb-2">{service}</h3>
+                                            <div className="space-y-2">
+                                                {tools.map((tool) => (
+                                                    <div key={tool.name} className="flex items-start gap-4 p-3 border rounded-lg bg-background hover:bg-muted/50">
+                                                        <div className="p-1.5 bg-muted rounded-md mt-1">
+                                                            <tool.icon className="h-5 w-5 text-muted-foreground" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="font-medium text-sm">{tool.name}</p>
+                                                            <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleToolToggle(tool, false)}>
+                                                            <X className="h-4 w-4 text-destructive" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-6 text-sm text-muted-foreground">No skills configured. Click "Add Skill" to get started.</div>
+                            )}
                           </CardContent>
                       </Card>
                   </TabsContent>
@@ -507,21 +539,26 @@ function MCPDashboardPage() {
             <DialogDescription>Select a capability to add to your AI Agent.</DialogDescription>
           </DialogHeader>
           <div className="py-2">
-              {unconfiguredTools.length === 0 ? (
+              {unconfiguredToolsByService.size === 0 ? (
                 <p className="text-sm text-center text-muted-foreground py-4">All available skills have been added.</p>
               ) : (
                 <ScrollArea className="h-64 border rounded-md">
-                    <div className="p-2 space-y-1">
-                      {unconfiguredTools.map(tool => (
-                        <div key={tool.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                          <div className="flex items-center gap-3">
-                            <tool.icon className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium text-sm">{tool.name}</p>
-                              <p className="text-xs text-muted-foreground">{tool.service}</p>
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => handleToolToggle(tool, true)}>Add</Button>
+                    <div className="p-2 space-y-3">
+                      {Array.from(unconfiguredToolsByService.entries()).map(([service, tools]) => (
+                        <div key={service}>
+                            <h4 className="text-xs font-semibold text-muted-foreground px-2 py-1">{service}</h4>
+                             {tools.map(tool => (
+                                <div key={tool.name} className="flex items-start justify-between p-2 rounded-md hover:bg-muted">
+                                  <div className="flex items-center gap-3">
+                                    <tool.icon className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium text-sm">{tool.name}</p>
+                                      <p className="text-xs text-muted-foreground">{tool.description}</p>
+                                    </div>
+                                  </div>
+                                  <Button variant="outline" size="sm" onClick={() => { handleToolToggle(tool, true); setShowAddToolDialog(false); }} className="shrink-0 ml-2">Add</Button>
+                                </div>
+                              ))}
                         </div>
                       ))}
                     </div>
@@ -659,3 +696,5 @@ function AddCredentialDialog({ open, onOpenChange, onSave }: { open: boolean, on
 
 
 export default withAuth(MCPDashboardPage);
+
+    
