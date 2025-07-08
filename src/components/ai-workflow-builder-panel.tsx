@@ -26,6 +26,7 @@ interface AIWorkflowBuilderPanelProps {
   onSaveWorkflow: () => void;
   onGoToHub: () => void;
   onNewWorkflow: () => void;
+  onSaveAsWorkflow: () => void;
   onExportWorkflow: () => void;
   onImportWorkflow: () => void;
   workflowName: string;
@@ -74,6 +75,7 @@ export function AIWorkflowBuilderPanel({
   onSaveWorkflow,
   onGoToHub,
   onNewWorkflow,
+  onSaveAsWorkflow,
   onExportWorkflow,
   onImportWorkflow,
   workflowName,
@@ -116,7 +118,7 @@ export function AIWorkflowBuilderPanel({
                         <MenubarItem onClick={onGoToHub}><FolderOpen className="mr-2 h-4 w-4" />Open Hub... <MenubarShortcut>Ctrl+O</MenubarShortcut></MenubarItem>
                         <MenubarSeparator />
                         <MenubarItem onClick={onSaveWorkflow} disabled={!hasWorkflow}><Save className="mr-2 h-4 w-4" />Save <MenubarShortcut>Ctrl+S</MenubarShortcut></MenubarItem>
-                        <MenubarItem onClick={onGoToHub} disabled={!hasWorkflow}><SaveAll className="mr-2 h-4 w-4" />Save As... <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut></MenubarItem>
+                        <MenubarItem onClick={onSaveAsWorkflow} disabled={!hasWorkflow}><SaveAll className="mr-2 h-4 w-4" />Save As... <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut></MenubarItem>
                         <MenubarSeparator />
                         <MenubarItem onClick={onImportWorkflow}><UploadCloud className="mr-2 h-4 w-4" />Import from File...</MenubarItem>
                         <MenubarItem onClick={onExportWorkflow} disabled={!hasWorkflow}><DownloadCloud className="mr-2 h-4 w-4" />Export to File...</MenubarItem>

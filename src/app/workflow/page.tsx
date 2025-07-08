@@ -21,12 +21,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AppLayout } from '@/components/app-layout';
 import { AIWorkflowBuilderPanel } from '@/components/ai-workflow-builder-panel';
 import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-panel';
 import { NodeConfigPanel } from '@/components/node-config-panel';
 import { NodeLibrary } from '@/components/node-library';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 
 import { AVAILABLE_NODES_CONFIG, AI_NODE_TYPE_MAPPING, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
@@ -139,6 +142,7 @@ function WorkflowPage() {
   const [showDeleteNodeConfirmDialog, setShowDeleteNodeConfirmDialog] = useState(false);
   const [nodeToDeleteId, setNodeToDeleteId] = useState<string | null>(null);
   const [showClearCanvasConfirmDialog, setShowClearCanvasConfirmDialog] = useState(false);
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -405,11 +409,35 @@ function WorkflowPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSaveAsWorkflow = async (name: string): Promise<boolean> => {
+    if (!name.trim()) {
+        toast({ title: 'Invalid Name', description: 'Workflow name cannot be empty.', variant: 'destructive' });
+        return false;
+    }
+    const workflowToSave: Workflow = { nodes, connections, canvasOffset, zoomLevel, isSimulationMode };
+    try {
+        const result = await saveWorkflowAction(name, workflowToSave);
+        if (result.success) {
+            toast({ title: 'Workflow Saved', description: `Workflow successfully saved as "${name}".` });
+            currentWorkflowNameRef.current = name;
+            document.title = `${name} - Kairo`;
+            localStorage.setItem(CURRENT_WORKFLOW_KEY, JSON.stringify({ name: name, workflow: workflowToSave }));
+            saveHistory();
+            return true;
+        } else {
+            toast({ title: 'Save Failed', description: result.message, variant: 'destructive' });
+            return false;
+        }
+    } catch (e: any) {
+        toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
+        return false;
+    }
+  };
+
   const handleSaveWorkflow = useCallback(async () => {
     if (typeof window !== 'undefined') {
       if (currentWorkflowNameRef.current === 'Untitled Workflow' && nodes.length > 0) {
-        router.push('/hub');
-        toast({ title: "Save Your Workflow", description: "Please save your new workflow from the hub to give it a name." });
+        setShowSaveAsDialog(true);
         return;
       }
       
@@ -433,7 +461,7 @@ function WorkflowPage() {
         toast({ title: 'Save Error', description: e.message, variant: 'destructive' });
       }
     }
-  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory, router]);
+  }, [nodes, connections, canvasOffset, zoomLevel, isSimulationMode, toast, saveHistory]);
 
   const handleAiPromptSubmit = useCallback((aiOutput: GenerateWorkflowFromPromptOutput) => {
     if (!aiOutput || !aiOutput.nodes) {
@@ -1270,7 +1298,7 @@ function WorkflowPage() {
       const isInputField = (target: EventTarget | null): boolean => {
         return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
       }
-      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog) return;
+      if (isInputField(document.activeElement) || showDeleteNodeConfirmDialog || showClearCanvasConfirmDialog || showSaveAsDialog) return;
 
       const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -1328,10 +1356,65 @@ function WorkflowPage() {
     isConnecting, selectedNodeId, selectedConnectionId, workflowExplanation,
     handleSaveWorkflow, handleRunWorkflow, handleGoToHub,
     handleDeleteNode, handleDeleteSelectedConnection, handleUndo, handleRedo,
-    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, handleCancelConnection,
+    showDeleteNodeConfirmDialog, showClearCanvasConfirmDialog, showSaveAsDialog, handleCancelConnection,
     handleZoomIn, handleZoomOut
   ]);
   
+  function SaveAsDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (name: string) => Promise<boolean> }) {
+    const [name, setName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+  
+    useEffect(() => {
+      if (open) {
+        setName(currentWorkflowNameRef.current === 'Untitled Workflow' ? '' : currentWorkflowNameRef.current);
+      }
+    }, [open]);
+  
+    const handleConfirmSave = async () => {
+      setIsSaving(true);
+      const success = await onSave(name);
+      setIsSaving(false);
+      if (success) {
+        onOpenChange(false);
+      }
+    };
+  
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Save Workflow As</DialogTitle>
+            <DialogDescription>
+              Give your workflow a unique name to save it to your account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="wf-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="wf-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g., Daily Sales Report"
+                onKeyDown={(e) => e.key === 'Enter' && handleConfirmSave()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" onClick={handleConfirmSave} disabled={isSaving || !name.trim()}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Workflow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="flex h-full flex-col bg-background text-foreground overflow-hidden">
@@ -1364,6 +1447,7 @@ function WorkflowPage() {
             onSaveWorkflow={handleSaveWorkflow}
             onGoToHub={handleGoToHub}
             onNewWorkflow={() => setShowClearCanvasConfirmDialog(true)}
+            onSaveAsWorkflow={() => setShowSaveAsDialog(true)}
             onExportWorkflow={handleExportWorkflow}
             onImportWorkflow={handleImportWorkflow}
             workflowName={currentWorkflowNameRef.current}
@@ -1477,11 +1561,14 @@ function WorkflowPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <SaveAsDialog
+            open={showSaveAsDialog}
+            onOpenChange={setShowSaveAsDialog}
+            onSave={handleSaveAsWorkflow}
+        />
       </div>
     </AppLayout>
   );
 }
 
 export default withAuth(WorkflowPage);
-
-    
