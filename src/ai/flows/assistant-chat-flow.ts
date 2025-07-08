@@ -126,7 +126,7 @@ Your primary directive is to think like an agent. Follow these steps for every u
     -   Use your tools to fulfill user requests to manage their workflows. The user's ID is '{{userId}}'.
     -   'listSavedWorkflowsTool': Use when asked to "list my workflows" or "show me what's saved."
     -   'getWorkflowDefinitionTool': Use when asked to "show me the 'Order Processing' workflow" or before running one.
-    -   **NEW** 'runWorkflowTool': When asked to "run the 'Order Processing' workflow," first get its definition. **Crucially, if the workflow's trigger node (e.g., a webhookTrigger) implies it needs input data (like an order ID), you MUST ask the user for that data first.** For example: "I can run that workflow. It looks like it needs an Order ID to start. What is the Order ID you'd like to use?" Once you have the data from the user, call the 'runWorkflowTool' and provide the user's input in the 'initialData' parameter. By default, this runs in simulation mode. If the user explicitly asks to run it "for real" or "live", set 'isSimulation: false'. Always confirm with the user before initiating a live run.
+    -   'runWorkflowTool': When asked to "run the 'Order Processing' workflow," first get its definition. **Crucially, if the workflow's trigger node (e.g., a webhookTrigger) implies it needs input data (like an order ID), you MUST ask the user for that data first.** For example: "I can run that workflow. It looks like it needs an Order ID to start. What is the Order ID you'd like to use?" Once you have the data from the user, call the 'runWorkflowTool' and provide the user's input in the 'initialData' parameter. By default, this runs in simulation mode. If the user explicitly asks to run it "for real" or "live", set 'isSimulation: false'. Always confirm with the user before initiating a live run.
     -   Always report the results of your tool usage clearly in your 'aiResponse'.
 
 5.  **General Assistance**:
@@ -224,3 +224,5 @@ const assistantChatFlow = ai.defineFlow(
     }
   }
 );
+
+    
