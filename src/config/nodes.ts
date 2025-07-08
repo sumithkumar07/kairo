@@ -296,6 +296,34 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     aiExplanation: 'Generates an image using a powerful AI model. The output "imageDataUri" can be used in other nodes, for example, to upload the image or include it in an HTML email. This is a premium feature and requires a configured Google AI provider.'
   },
   {
+    type: 'textToSpeech',
+    name: 'Text to Speech',
+    icon: Speaker,
+    description: 'Converts text into audible speech using an AI model.',
+    category: 'ai',
+    isAdvanced: true,
+    defaultConfig: { 
+      text: '{{input.text}}',
+      voice: 'Algenib',
+      simulated_config: { audioDataUri: '' }
+    },
+    configSchema: {
+      text: { label: 'Text to Convert', type: 'textarea', placeholder: 'Hello, this is a test.', required: true },
+      voice: { 
+        label: 'Voice', 
+        type: 'select', 
+        options: ['Algenib', 'Achernar', 'Enif', 'Hadar', 'Markab', 'Rigel'],
+        defaultValue: 'Algenib', 
+        helperText: 'Select a pre-built voice for the speech synthesis.',
+        required: true 
+      },
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"audioDataUri": "data:audio/wav;base64,..."}', helperText: 'Data returned by this node when in simulation mode. Must contain a valid (even if silent) base64 WAV data URI.', required: true},
+    },
+    inputHandles: ['input'],
+    outputHandles: ['audioDataUri', 'error'],
+    aiExplanation: 'Converts the input text into speech audio. This node uses the Gemini Text-to-Speech model. The output is a data URI containing WAV audio data, which can be played in a browser.'
+  },
+  {
     type: 'conditionalLogic',
     name: 'Condition',
     icon: Filter,
@@ -825,34 +853,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input_array_data'],
     outputHandles: ['output_data', 'error'],
-  },
-  {
-    type: 'textToSpeech',
-    name: 'Text to Speech',
-    icon: Speaker,
-    description: 'Converts text into audible speech using an AI model.',
-    category: 'ai',
-    isAdvanced: true,
-    defaultConfig: { 
-      text: '{{input.text}}',
-      voice: 'Algenib',
-      simulated_config: { audioDataUri: '' }
-    },
-    configSchema: {
-      text: { label: 'Text to Convert', type: 'textarea', placeholder: 'Hello, this is a test.', required: true },
-      voice: { 
-        label: 'Voice', 
-        type: 'select', 
-        options: ['Algenib', 'Achernar', 'Enif', 'Hadar', 'Markab', 'Rigel'],
-        defaultValue: 'Algenib', 
-        helperText: 'Select a pre-built voice for the speech synthesis.',
-        required: true 
-      },
-      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"audioDataUri": "data:audio/wav;base64,..."}', helperText: 'Data returned by this node when in simulation mode. Must contain a valid (even if silent) base64 WAV data URI.', required: true},
-    },
-    inputHandles: ['input'],
-    outputHandles: ['audioDataUri', 'error'],
-    aiExplanation: 'Converts the input text into speech audio. This node uses the Gemini Text-to-Speech model. The output is a data URI containing WAV audio data, which can be played in a browser.'
   },
   {
     type: 'unknown',
