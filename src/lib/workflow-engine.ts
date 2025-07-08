@@ -12,6 +12,7 @@ import { google } from 'googleapis';
 import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import { textToSpeechAction } from '@/app/actions';
+import { generateImage } from '@/ai/flows/generate-image-flow';
 
 
 // Initialize the PostgreSQL connection pool at the module level
@@ -405,6 +406,21 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     const genkitResponse = await ai.generate({ prompt: String(config.prompt), model });
     return { output: genkitResponse.text };
 }
+
+async function executeGenerateImageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GENERATEIMAGE] SIMULATION: Would generate image for prompt: "${config.prompt}".`, type: 'info' });
+        return { imageDataUri: config.simulated_config?.imageDataUri };
+    }
+
+    if (!config.prompt) {
+        throw new Error('Prompt is not configured or resolved for Generate Image node.');
+    }
+
+    const result = await generateImage({ prompt: config.prompt });
+    return result;
+}
+
 
 async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     let dataToParse: any;
@@ -968,6 +984,7 @@ const nodeExecutionFunctions: Record<string, Function> = {
     schedule: executeScheduleNode,
     httpRequest: executeHttpRequestNode,
     aiTask: executeAiTaskNode,
+    generateImage: executeGenerateImageNode,
     parseJson: executeParseJsonNode,
     sendEmail: executeSendEmailNode,
     databaseQuery: executeDbQueryNode,

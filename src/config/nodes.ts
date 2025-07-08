@@ -1,6 +1,6 @@
 
 import type { AvailableNodeType, RetryConfig, OnErrorWebhookConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone, Speaker } from 'lucide-react';
+import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone, Speaker, Image } from 'lucide-react';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
@@ -275,6 +275,25 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
     aiExplanation: "Performs a generative AI task using a configured Google AI model. To use this node in Live Mode, ensure the `GOOGLE_API_KEY` environment variable is set on your server. Enter the desired model ID, such as `gemini-1.5-pro-latest`.",
+  },
+  {
+    type: 'generateImage',
+    name: 'Generate Image',
+    icon: Image,
+    description: 'Generates an image from a text prompt using an AI model. Outputs a data URI of the generated image.',
+    category: 'ai',
+    isAdvanced: true,
+    defaultConfig: {
+      prompt: 'A photorealistic image of a futuristic cityscape at sunset',
+      simulated_config: { imageDataUri: 'https://placehold.co/512x512.png' }
+    },
+    configSchema: {
+      prompt: { label: 'Prompt', type: 'textarea', placeholder: 'A photorealistic image of a futuristic cityscape at sunset', required: true, helperText: 'A descriptive prompt of the image you want to generate.' },
+      simulated_config: { label: 'Simulated Output (JSON for Simulation Mode)', type: 'json', placeholder: '{"imageDataUri": "data:image/png;base64,..."}', helperText: 'A data URI of a placeholder image to use during simulation.', required: true },
+    },
+    inputHandles: ['input'],
+    outputHandles: ['imageDataUri', 'error'],
+    aiExplanation: 'Generates an image using a powerful AI model. The output "imageDataUri" can be used in other nodes, for example, to upload the image or include it in an HTML email. This is a premium feature and requires a configured Google AI provider.'
   },
   {
     type: 'conditionalLogic',
@@ -956,6 +975,10 @@ export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
   'tts': 'textToSpeech',
   'speak': 'textToSpeech',
   'generate audio': 'textToSpeech',
+  'generateimage': 'generateImage',
+  'generate image': 'generateImage',
+  'create image': 'generateImage',
+  'image generation': 'generateImage',
 
   // Grouping / Sub-flows
   'executeflowgroup': 'executeFlowGroup',
