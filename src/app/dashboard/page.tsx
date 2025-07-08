@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AppLayout } from '@/components/app-layout';
@@ -350,5 +349,3 @@ function DashboardPage() {
 }
 
 export default withAuth(DashboardPage);
-
-    
