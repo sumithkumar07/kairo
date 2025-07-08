@@ -35,7 +35,7 @@ const navItems = [
   { href: '/hub', label: 'Workflow Hub', icon: Compass },
   { href: '/workflow', label: 'Editor', icon: Workflow },
   { href: '/run-history', label: 'Run History', icon: History },
-  { href: '/mcp', label: 'AI Agent Hub', icon: Cpu },
+  { href: '/agent-hub', label: 'AI Agent Hub', icon: Cpu },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

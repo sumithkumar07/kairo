@@ -31,7 +31,7 @@ interface CommandMessage extends McpCommandRecord {
 }
 
 
-function MCPDashboardPage() {
+function AgentHubPage() {
   const { toast } = useToast();
   const router = useRouter();
 
@@ -132,28 +132,65 @@ function MCPDashboardPage() {
 
 
   const requiredCredentials = useMemo(() => {
-    const requiredMap = new Map<string, RequiredCredentialInfo>();
-    
+    const requiredMap = new Map<string, {
+        name: string;
+        users: string[];
+        services: Set<string>;
+    }>();
+
+    // 1. Scan nodes for credential placeholders
     AVAILABLE_NODES_CONFIG.forEach(node => {
         const placeholders = findPlaceholdersInObject({ config: node.defaultConfig });
         placeholders.secrets.forEach(secretName => {
+            const serviceGuess = node.type.replace(/([A-Z])/g, ' $1').split(' ')[0];
+            const serviceName = ALL_AVAILABLE_TOOLS.find(t => t.service.toLowerCase().includes(serviceGuess.toLowerCase()))?.service || node.name.split(':')[0] || 'General';
+
             if (!requiredMap.has(secretName)) {
-                const serviceGuess = node.type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                
                 requiredMap.set(secretName, {
                     name: secretName,
-                    nodes: [],
-                    service: node.name.split(':')[0] || serviceGuess,
+                    users: [],
+                    services: new Set<string>([serviceName]),
                 });
             }
             const info = requiredMap.get(secretName)!;
-            if (!info.nodes.includes(node.name)) {
-                info.nodes.push(node.name);
+            const userName = `Node: ${node.name}`;
+            if (!info.users.includes(userName)) {
+                info.users.push(userName);
             }
         });
     });
 
-    return Array.from(requiredMap.values());
+    // 2. Scan AI agent tools for required credentials
+    const toolCredentialMap: Record<string, {name: string, service: string}> = {
+        'youtubeFindVideo': { name: 'YouTubeApiKey', service: 'YouTube'},
+        'youtubeGetReport': { name: 'YouTubeApiKey', service: 'YouTube'},
+        'googleDriveFindFile': { name: 'GoogleServiceAccount', service: 'Google Drive'},
+    };
+    
+    ALL_AVAILABLE_TOOLS.forEach(tool => {
+        if (toolCredentialMap[tool.name]) {
+            const credInfo = toolCredentialMap[tool.name];
+            if (!requiredMap.has(credInfo.name)) {
+                requiredMap.set(credInfo.name, {
+                    name: credInfo.name,
+                    users: [],
+                    services: new Set<string>([credInfo.service]),
+                });
+            }
+            const info = requiredMap.get(credInfo.name)!;
+            const toolUserName = `AI Skill: ${tool.name}`;
+            if (!info.users.includes(toolUserName)) {
+                info.users.push(toolUserName);
+            }
+            info.services.add(credInfo.service);
+        }
+    });
+
+    // Convert map to array and services Set to array
+    return Array.from(requiredMap.values()).map(info => ({
+        ...info,
+        services: Array.from(info.services),
+    }));
   }, []);
 
   
@@ -443,20 +480,20 @@ function MCPDashboardPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Required Credentials Guide</CardTitle>
-                            <CardDescription>A guide to credentials used by nodes in the Node Library.</CardDescription>
+                            <CardDescription>A guide to credentials used by nodes in the Node Library or by AI skills.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
                                 {requiredCredentials.map(info => (
                                     <div key={info.name} className="p-3 border rounded-lg bg-muted/30">
-                                        <p className="font-semibold text-sm text-foreground">{info.service}</p>
-                                        <p className="text-xs text-muted-foreground mb-1.5">Used by: {info.nodes.join(', ')}</p>
+                                        <p className="font-semibold text-sm text-foreground">{info.services.join(' / ')}</p>
+                                        <p className="text-xs text-muted-foreground mb-1.5">Used by: {info.users.join(', ')}</p>
                                         <p className="text-sm">
                                             Create a credential named <code className="text-xs bg-background p-1 rounded font-mono text-amber-600 dark:text-amber-400">{info.name}</code> to use this integration.
                                         </p>
                                     </div>
                                 ))}
-                                {requiredCredentials.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No nodes require credentials.</p>}
+                                {requiredCredentials.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No nodes or skills require credentials.</p>}
                             </div>
                         </CardContent>
                     </Card>
@@ -515,7 +552,7 @@ function MCPDashboardPage() {
                           </CardHeader>
                           <CardContent>
                               <pre className="text-xs p-3 bg-muted rounded-md font-mono whitespace-pre-wrap overflow-x-auto">
-                                  {`curl -X POST "${typeof window !== 'undefined' ? window.location.origin : ''}/api/mcp" \\
+                                  {`curl -X POST "${typeof window !== 'undefined' ? window.location.origin : ''}/api/agent-hub" \\
 -H "Authorization: Bearer YOUR_API_KEY" \\
 -H "Content-Type: application/json" \\
 -d '{"command": "Generate a workflow to get the weather and email it."}'`}
@@ -689,4 +726,6 @@ function AddCredentialDialog({ open, onOpenChange, onSave }: { open: boolean, on
 }
 
 
-export default withAuth(MCPDashboardPage);
+export default withAuth(AgentHubPage);
+
+    
