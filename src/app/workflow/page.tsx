@@ -1453,6 +1453,7 @@ function WorkflowPage() {
                     initialCanvasSuggestion={initialCanvasSuggestion}
                     isLoadingSuggestion={isLoadingInitialSuggestion || isLoadingSuggestion}
                     onAddSuggestedNode={handleAddSuggestedNode}
+                    enabledTools={enabledTools}
                   />
                 )}
             </aside>

@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import type { SuggestNextNodeOutput } from '@/types/workflow';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import type { SuggestNextNodeOutput, Tool } from '@/types/workflow';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Loader2, Send, XCircle, FileText, Wand2, ChevronRight, ListChecks, Trash2, MousePointer2, Link as LinkIcon, Play, RotateCcw, Settings2, MessageSquare, Bot, User, Power, TestTube2, AlertTriangle, Paperclip, X, StopCircle, Volume2, AlertCircle } from 'lucide-react';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { textToSpeechAction } from '@/app/actions';
+import { ALL_AVAILABLE_TOOLS } from '@/ai/tools';
 
 
 interface AIWorkflowAssistantPanelProps {
@@ -40,6 +41,7 @@ interface AIWorkflowAssistantPanelProps {
   initialCanvasSuggestion: SuggestNextNodeOutput | null;
   isLoadingSuggestion: boolean;
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
+  enabledTools: string[];
 }
 
 export function AIWorkflowAssistantPanel({
@@ -64,12 +66,17 @@ export function AIWorkflowAssistantPanel({
   initialCanvasSuggestion,
   isLoadingSuggestion,
   onAddSuggestedNode,
+  enabledTools,
 }: AIWorkflowAssistantPanelProps) {
   const [chatInput, setChatInput] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
   const [activeAudio, setActiveAudio] = useState<{ id: string; status: 'loading' | 'playing' | 'error'; audio?: HTMLAudioElement } | null>(null);
+
+  const availableSkills = useMemo(() => {
+    return ALL_AVAILABLE_TOOLS.filter(tool => enabledTools.includes(tool.name));
+  }, [enabledTools]);
 
   useEffect(() => {
     if (chatScrollAreaRef.current) {
@@ -268,6 +275,32 @@ export function AIWorkflowAssistantPanel({
           </TooltipProvider>
         )}
       </div>
+
+      <Accordion type="single" collapsible className="px-3 py-1 border-b">
+        <AccordionItem value="item-1" className="border-b-0">
+          <AccordionTrigger className="text-xs hover:no-underline py-2">
+              <div className="flex items-center gap-2">
+                  <Settings2 className="h-4 w-4 text-muted-foreground" />
+                  <span>AI has {availableSkills.length} skills available</span>
+              </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="text-xs text-muted-foreground pb-2">The assistant can use these tools to help you:</p>
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+              {availableSkills.map(skill => (
+                <div key={skill.name} className="flex items-start gap-2 text-xs p-2 bg-muted/50 rounded-md">
+                  <skill.icon className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                  <div>
+                    <p className="font-semibold">{skill.name}</p>
+                    <p className="text-muted-foreground">{skill.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
 
        <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
         <div className="space-y-4">
