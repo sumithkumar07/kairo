@@ -472,9 +472,20 @@ async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationM
 
 async function executeLogMessageNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-    const resolvedMessage = await resolveValue(config?.message, allWorkflowData, serverLogs, userId, config.input); // Pass mapped inputs to resolveValue
-    const finalMessage = typeof resolvedMessage === 'object' ? JSON.stringify(resolvedMessage, null, 2) : resolvedMessage;
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${finalMessage}`, type: 'info' });
+    let finalMessage: any;
+
+    if (config.logFullInput) {
+        // If the "Log Full Input" flag is set, log the entire resolved input object.
+        // `config.input` already contains the resolved input mappings.
+        finalMessage = config.input;
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${JSON.stringify(finalMessage, null, 2)}`, type: 'info' });
+    } else {
+        // Otherwise, resolve the message string as before.
+        const resolvedMessage = await resolveValue(config?.message, allWorkflowData, serverLogs, userId, config.input);
+        finalMessage = typeof resolvedMessage === 'object' ? JSON.stringify(resolvedMessage, null, 2) : resolvedMessage;
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE LOGMESSAGE] ${nodeIdentifier}: ${finalMessage}`, type: 'info' });
+    }
+    
     return { output: finalMessage };
 }
 

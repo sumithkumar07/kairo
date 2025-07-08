@@ -217,11 +217,23 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'logMessage',
     name: 'Log Message',
     icon: Terminal,
-    description: 'Logs a message to the workflow execution history. Useful for debugging and monitoring workflow state.',
+    description: 'Logs a message or an entire data object to the workflow execution history. Useful for debugging.',
     category: 'io',
-    defaultConfig: { message: 'Workflow log: {{input}}' },
+    defaultConfig: { message: 'Workflow log: {{input}}', logFullInput: false },
     configSchema: {
-      message: { label: 'Message to Log', type: 'textarea', placeholder: 'Current value: {{data.value}}', required: true, helperText: 'You can use placeholders to log dynamic data.' },
+      logFullInput: {
+        label: 'Log Full Input Object',
+        type: 'boolean',
+        defaultValue: false,
+        helperText: 'If checked, this node will log the entire input object it receives, ignoring the message field.'
+      },
+      message: { 
+        label: 'Message to Log', 
+        type: 'textarea', 
+        placeholder: 'Current value: {{data.value}}', 
+        required: false,
+        helperText: 'You can use placeholders to log dynamic data. This is ignored if "Log Full Input Object" is checked.' 
+      },
     },
     inputHandles: ['input'],
     outputHandles: ['output'],
