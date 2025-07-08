@@ -45,6 +45,9 @@ import {
   type TextToSpeechInput,
   type TextToSpeechOutput,
 } from '@/ai/flows/text-to-speech-flow';
+import {
+  generateImage as genkitGenerateImage
+} from '@/ai/flows/generate-image-flow';
 
 
 import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, DisplayUserApiKey, McpCommandRecord } from '@/types/workflow';
@@ -237,9 +240,12 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, u
   }
 }
 
-export async function suggestNextWorkflowNode(clientInput: { workflowContext: string; currentNodeType?: string }): Promise<SuggestNextNodeOutput> {
+export async function suggestNextWorkflowNode(clientInput: { workflowContext: string; leafNodes?: { id: string, name: string, type: string, description?: string }[] }): Promise<SuggestNextNodeOutput> {
   try {
-    const inputForGenkit: SuggestNextNodeInput = { ...clientInput, availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description || '', category: n.category })) };
+    const inputForGenkit: SuggestNextNodeInput = { 
+      ...clientInput, 
+      availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description || '', category: n.category })) 
+    };
     return await genkitSuggestNextNode(inputForGenkit);
   } catch (e: any) {
     console.error(`[suggestNextWorkflowNode] Error: ${e.message}`);
@@ -411,6 +417,20 @@ export async function textToSpeechAction(input: TextToSpeechInput): Promise<Text
     } catch (e: any) {
         console.error(`[textToSpeechAction] Error: ${e.message}`);
         throw new Error(`Failed to convert text to speech: ${e.message}`);
+    }
+}
+
+export async function generateImageAction(prompt: string) {
+    try {
+        const userId = await getUserIdOrThrow();
+        const { features } = await getUserFeatures(userId);
+        if (!features.accessToAdvancedNodes) { // Gating image generation as an "advanced" feature
+            throw new Error('AI Image Generation is a premium feature. Please upgrade your plan.');
+        }
+        return await genkitGenerateImage({ prompt });
+    } catch (e: any) {
+        console.error(`[generateImageAction] Error: ${e.message}`);
+        throw new Error(`Failed to generate image: ${e.message}`);
     }
 }
 

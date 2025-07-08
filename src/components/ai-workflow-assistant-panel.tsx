@@ -38,7 +38,7 @@ interface AIWorkflowAssistantPanelProps {
   isExplainingWorkflow: boolean;
   workflowExplanation: string | null;
   onClearExplanation: () => void;
-  initialCanvasSuggestion: SuggestNextNodeOutput | null;
+  generalSuggestion: SuggestNextNodeOutput | null;
   isLoadingSuggestion: boolean;
   onAddSuggestedNode: (suggestedNodeTypeString: string) => void;
   enabledTools: string[];
@@ -63,7 +63,7 @@ export function AIWorkflowAssistantPanel({
   isExplainingWorkflow,
   workflowExplanation,
   onClearExplanation,
-  initialCanvasSuggestion,
+  generalSuggestion,
   isLoadingSuggestion,
   onAddSuggestedNode,
   enabledTools,
@@ -140,8 +140,8 @@ export function AIWorkflowAssistantPanel({
 
 
   const currentIsLoadingAnyAIButChat = isExplainingWorkflow || isLoadingSuggestion || isWorkflowRunning;
-  const suggestedNodeConfig = initialCanvasSuggestion?.suggestedNode
-    ? AVAILABLE_NODES_CONFIG.find(n => n.type === initialCanvasSuggestion.suggestedNode)
+  const suggestedNodeConfig = generalSuggestion?.suggestedNode
+    ? AVAILABLE_NODES_CONFIG.find(n => n.type === generalSuggestion.suggestedNode)
     : null;
 
   if (workflowExplanation || isExplainingWorkflow) {
@@ -304,18 +304,18 @@ export function AIWorkflowAssistantPanel({
 
        <ScrollArea className="flex-1 p-4" viewportRef={chatScrollAreaRef}>
         <div className="space-y-4">
-          {chatHistory.length === 0 && isCanvasEmpty && !isLoadingSuggestion && initialCanvasSuggestion && suggestedNodeConfig && (
+          {generalSuggestion && suggestedNodeConfig && (
             <Card className="p-3.5 bg-primary/10 text-primary-foreground/90 border border-primary/30 space-y-2.5 shadow-md mb-3">
-              <p className="font-semibold flex items-center gap-2 text-sm"><Wand2 className="h-4 w-4 text-primary" /> Start with a <span className="text-primary">{suggestedNodeConfig.name}</span> node?</p>
-              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{initialCanvasSuggestion.reason}</p>
-              <Button size="sm" onClick={() => onAddSuggestedNode(initialCanvasSuggestion.suggestedNode)} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs" disabled={currentIsLoadingAnyAIButChat || isChatLoading}>
+              <p className="font-semibold flex items-center gap-2 text-sm"><Wand2 className="h-4 w-4 text-primary" /> {isCanvasEmpty ? 'Start with this?' : 'Next Step Suggestion:'}</p>
+              <p className="text-xs text-primary-foreground/80 italic ml-6 leading-relaxed break-words">{generalSuggestion.reason}</p>
+              <Button size="sm" onClick={() => onAddSuggestedNode(generalSuggestion.suggestedNode)} className="w-full bg-primary/80 hover:bg-primary text-primary-foreground mt-1.5 h-8 text-xs" disabled={currentIsLoadingAnyAIButChat || isChatLoading}>
                 Add {suggestedNodeConfig.name} Node <ChevronRight className="ml-auto h-4 w-4" />
               </Button>
             </Card>
           )}
-          {chatHistory.length === 0 && isCanvasEmpty && isLoadingSuggestion && (
+          {isLoadingSuggestion && !generalSuggestion && (
             <Card className="p-3 bg-muted/40 text-sm text-muted-foreground flex items-center justify-center gap-2 border-border shadow-sm mb-3">
-              <Loader2 className="h-4 w-4 animate-spin" /> <span>AI is thinking of a good starting point...</span>
+              <Loader2 className="h-4 w-4 animate-spin" /> <span>AI is thinking of a good next step...</span>
             </Card>
           )}
           {chatHistory.map((chat) => (

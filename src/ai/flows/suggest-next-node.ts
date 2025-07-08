@@ -19,16 +19,25 @@ const AvailableNodeTypeSchema = z.object({
   category: z.string().describe('The category of the node (e.g., trigger, action, logic).')
 });
 
+const LeafNodeSchema = z.object({
+    id: z.string(),
+    type: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+});
+
 const SuggestNextNodeInputSchema = z.object({
-  currentNodeType: z.string().optional().describe('The type of the current (last added or selected) node. Can be empty if this is the first node.'),
-  workflowContext: z.string().describe('Context about the current workflow, like its goal or existing nodes. (e.g., "User wants to process customer orders. Current nodes: Trigger -> Fetch Orders API").'),
-  availableNodeTypes: z.array(AvailableNodeTypeSchema).describe('A list of all available node types the AI can suggest from.'),
+  // Replaced currentNodeType with leafNodes for more context
+  leafNodes: z.array(LeafNodeSchema).optional().describe('A list of current leaf nodes (nodes with open primary outputs) that could be a source for the next step. If empty, it means the canvas is empty.'),
+  workflowContext: z.string().describe('General context about the workflow\'s goal or the nodes already on the canvas. (e.g., "User wants to process customer orders.")'),
+  availableNodeTypes: z.array(AvailableNodeType).describe('A list of all available node types the AI can suggest from.'),
 });
 export type SuggestNextNodeInput = z.infer<typeof SuggestNextNodeInputSchema>;
 
 const SuggestNextNodeOutputSchema = z.object({
   suggestedNode: z.string().describe('The type of the suggested next node. This MUST be one of the types from the input availableNodeTypes list.'),
   reason: z.string().describe('The reasoning behind the suggestion, explaining why this node is a good fit given the context and available options.'),
+  sourceNodeToConnect: z.string().optional().describe('If the suggestion involves connecting from an existing node, this is the ID of the leaf node to connect from.'),
 });
 export type SuggestNextNodeOutput = z.infer<typeof SuggestNextNodeOutputSchema>;
 
@@ -43,13 +52,17 @@ const prompt = ai.definePrompt({
   output: {schema: SuggestNextNodeOutputSchema},
   prompt: `You are an AI Workflow Design Assistant. Your task is to suggest the most logical next node to add to a user's workflow based on the current context and a list of available node types.
 
-Current Workflow Information:
-{{#if currentNodeType}}
-- Last Added/Selected Node Type: {{{currentNodeType}}}
+Workflow Context/Goal: {{{workflowContext}}}
+
+{{#if leafNodes}}
+Current Leaf Nodes (nodes with open outputs):
+{{#each leafNodes}}
+- Node Name: "{{this.name}}", Type: "{{this.type}}", ID: "{{this.id}}"{{#if this.description}}, Description: "{{this.description}}"{{/if}}
+{{/each}}
+Based on these leaf nodes, suggest a logical next step. This could be a node that processes the output of one of the leaf nodes, or a new parallel task. If you suggest connecting from a leaf, specify its ID in the 'sourceNodeToConnect' field.
 {{else}}
-- This might be the first node in the workflow.
+The workflow canvas is empty. Suggest a good trigger node to start the workflow.
 {{/if}}
-- Workflow Context/Goal: {{{workflowContext}}}
 
 Available Node Types (Suggest ONLY from this list):
 {{#each availableNodeTypes}}
@@ -58,9 +71,10 @@ Available Node Types (Suggest ONLY from this list):
 
 Based on the information above, analyze the user's likely intent and the capabilities of the available nodes.
 Suggest the 'type' of the single most logical next node to add.
-Provide a concise reason for your suggestion, explaining how it helps achieve the workflow goal or logically follows the current node.
+Provide a concise reason for your suggestion, explaining how it helps achieve the workflow goal or logically follows the current node(s).
+If your suggestion connects to an existing leaf node, provide its ID in 'sourceNodeToConnect'.
 
-Format your response as a JSON object with "suggestedNode" (the chosen node type) and "reason" fields.
+Format your response as a JSON object with "suggestedNode", "reason", and optionally "sourceNodeToConnect" fields.
 The "suggestedNode" MUST be one of the 'type' values from the "Available Node Types" list provided above.
 `,
 });

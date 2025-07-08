@@ -198,6 +198,7 @@ export type { DiagnoseWorkflowErrorOutput };
 export type SuggestNextNodeOutput = {
   suggestedNode: string;
   reason: string;
+  sourceNodeToConnect?: string;
 };
 
 export interface RequiredCredentialInfo {
