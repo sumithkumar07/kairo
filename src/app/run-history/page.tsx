@@ -57,6 +57,14 @@ const DataViewer = React.memo(({ data, className }: { data: any; className?: str
         );
     }
     
+    if (typeof data === 'string' && data.startsWith('data:image/')) {
+        return (
+            <div className="p-2 bg-background rounded-md">
+                <img src={data} alt="Generated image from workflow run" className="max-w-full h-auto rounded-md border" />
+            </div>
+        );
+    }
+    
     try {
         const jsonString = JSON.stringify(data, null, 2);
         const highlighted = jsonString.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
