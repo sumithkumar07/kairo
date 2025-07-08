@@ -202,6 +202,6 @@ export type SuggestNextNodeOutput = {
 
 export interface RequiredCredentialInfo {
   name: string;
-  nodes: string[];
-  service: string;
+  users: string[]; // List of nodes or AI skills that use this credential
+  services: string[]; // List of services associated with this credential
 }
