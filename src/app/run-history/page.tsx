@@ -27,6 +27,8 @@ import {
   diagnoseWorkflowError,
   getRunHistoryAction,
   clearRunHistoryAction,
+  listWorkflowsAction,
+  loadWorkflowAction,
 } from '@/app/actions';
 import type { DiagnoseWorkflowErrorOutput } from '@/ai/flows/diagnose-workflow-error-flow';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
@@ -73,6 +75,7 @@ DataViewer.displayName = 'DataViewer';
 
 function RunHistoryPage() {
   const [runHistory, setRunHistory] = useState<WorkflowRunRecord[]>([]);
+  const [savedWorkflowNames, setSavedWorkflowNames] = useState<Set<string>>(new Set());
   const [selectedRun, setSelectedRun] = useState<WorkflowRunRecord | null>(null);
   const [selectedNodeInSnapshot, setSelectedNodeInSnapshot] = useState<WorkflowNode | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState('logs');
@@ -94,11 +97,16 @@ function RunHistoryPage() {
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const history = await getRunHistoryAction();
+      const [history, workflows] = await Promise.all([
+        getRunHistoryAction(),
+        listWorkflowsAction(),
+      ]);
       setRunHistory(history);
+      const userWorkflowNames = new Set(workflows.filter(wf => wf.type === 'user').map(wf => wf.name));
+      setSavedWorkflowNames(userWorkflowNames);
     } catch (e: any) {
-      console.error("Error loading run history:", e);
-      toast({ title: 'Error', description: 'Could not load run history from server.', variant: 'destructive' });
+      console.error("Error loading page data:", e);
+      toast({ title: 'Error', description: 'Could not load page data from server.', variant: 'destructive' });
       setRunHistory([]);
     } finally {
       setIsLoading(false);
@@ -223,6 +231,22 @@ function RunHistoryPage() {
         handleCloseDialog();
     }
   };
+  
+  const handleEditLatestVersion = async (workflowName: string) => {
+    try {
+        const loadedData = await loadWorkflowAction(workflowName);
+        if (loadedData) {
+            localStorage.setItem('kairoCurrentWorkflow', JSON.stringify({ name: loadedData.name, workflow: loadedData.workflow }));
+            toast({ title: 'Workflow Loaded', description: `Loading latest version of "${workflowName}" into the editor.` });
+            router.push('/workflow');
+            handleCloseDialog();
+        } else {
+            throw new Error("Could not find the latest version of this workflow. It may have been deleted.");
+        }
+    } catch (e: any) {
+        toast({ title: 'Load Error', description: `Failed to load workflow: ${e.message}`, variant: 'destructive' });
+    }
+};
 
   const handleViewDetails = (run: WorkflowRunRecord) => {
     setSelectedRun(run);
@@ -534,6 +558,15 @@ function RunHistoryPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button
+                        variant="secondary"
+                        disabled={!savedWorkflowNames.has(selectedRun.workflowName)}
+                        onClick={() => handleEditLatestVersion(selectedRun.workflowName)}
+                        title="Open the latest saved version of this workflow in the editor."
+                    >
+                        <Edit3 className="mr-2 h-4 w-4" />
+                        Edit Latest
+                    </Button>
+                    <Button
                         variant="outline"
                         disabled={!selectedRun.workflowSnapshot}
                         onClick={() => handleLoadSnapshot(selectedRun)}
@@ -569,3 +602,5 @@ function RunHistoryPage() {
 }
 
 export default withAuth(RunHistoryPage);
+
+    
