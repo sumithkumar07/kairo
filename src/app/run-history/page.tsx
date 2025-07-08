@@ -602,5 +602,3 @@ function RunHistoryPage() {
 }
 
 export default withAuth(RunHistoryPage);
-
-    
