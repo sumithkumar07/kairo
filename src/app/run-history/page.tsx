@@ -557,33 +557,59 @@ function RunHistoryPage() {
                    )}
                 </div>
                 <div className="flex gap-2">
-                    <Button
-                        variant="secondary"
-                        disabled={!savedWorkflowNames.has(selectedRun.workflowName)}
-                        onClick={() => handleEditLatestVersion(selectedRun.workflowName)}
-                        title="Open the latest saved version of this workflow in the editor."
-                    >
-                        <Edit3 className="mr-2 h-4 w-4" />
-                        Edit Latest
-                    </Button>
-                    <Button
-                        variant="outline"
-                        disabled={!selectedRun.workflowSnapshot}
-                        onClick={() => handleLoadSnapshot(selectedRun)}
-                        title="Load this exact workflow version into the editor."
-                    >
-                        <FileJson className="mr-2 h-4 w-4" />
-                        Load Snapshot
-                    </Button>
-                    <Button 
-                        variant="outline" 
-                        disabled={isRerunning || !selectedRun.workflowSnapshot} 
-                        onClick={() => handleRerun(selectedRun.id)}
-                        title={!selectedRun.workflowSnapshot ? "Cannot re-run a workflow without a saved snapshot." : "Re-run this workflow with the same initial data."}
-                    >
-                        {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                        {isRerunning ? 'Re-running...' : 'Re-run'}
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                                variant="secondary"
+                                disabled={!savedWorkflowNames.has(selectedRun.workflowName)}
+                                onClick={() => handleEditLatestVersion(selectedRun.workflowName)}
+                            >
+                                <Edit3 className="mr-2 h-4 w-4" />
+                                Edit Latest
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Open the latest saved version of this workflow in the editor.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Button
+                                variant="outline"
+                                disabled={!selectedRun.workflowSnapshot}
+                                onClick={() => handleLoadSnapshot(selectedRun)}
+                            >
+                                <FileJson className="mr-2 h-4 w-4" />
+                                Load Snapshot
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Load this exact workflow version into the editor.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                         <TooltipTrigger asChild>
+                           <span>
+                             <Button 
+                                variant="outline" 
+                                disabled={isRerunning || !selectedRun.workflowSnapshot} 
+                                onClick={() => handleRerun(selectedRun.id)}
+                            >
+                                {isRerunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
+                                {isRerunning ? 'Re-running...' : 'Re-run'}
+                            </Button>
+                           </span>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Re-run this workflow with the same initial data.</p>
+                         </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <DialogClose asChild><Button type="button" variant="default">Close</Button></DialogClose>
                 </div>
             </DialogFooter>
