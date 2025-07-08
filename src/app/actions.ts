@@ -533,7 +533,7 @@ export async function agentCommandAction(command: string, history: McpCommandRec
         if (chatResult.isWorkflowGenerationRequest && chatResult.workflowGenerationPrompt) {
             try {
                 generatedWorkflow = await generateWorkflow({ prompt: chatResult.workflowGenerationPrompt }, userId);
-                aiResponseText += "\n\n[Action: Workflow Generated. See above.]";
+                aiResponseText += `\n\n[Action: Workflow Generated. See below.]`;
             } catch (genError: any) {
                 status = 'Failed';
                 aiResponseText = `I tried to generate the workflow, but encountered an error: ${genError.message}`;
