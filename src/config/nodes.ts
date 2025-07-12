@@ -1,6 +1,6 @@
-
 import type { AvailableNodeType, RetryConfig, OnErrorWebhookConfig } from '@/types/workflow';
-import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone, Speaker, Image } from 'lucide-react';
+import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone, Speaker, Image, FileText, CheckCircle2 } from 'lucide-react';
+import { ALL_INTEGRATIONS } from './integrations';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
@@ -174,7 +174,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
-    inputHandles: ['input'], 
+    inputHandles: ['input_array_data'], 
     outputHandles: ['results', 'rowCount', 'error'],
   },
   {
@@ -798,8 +798,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     category: 'logic',
     defaultConfig: { stringsToConcatenate: '[]', separator: '' },
     configSchema: {
-      stringsToConcatenate: { label: 'Strings/Placeholders to Concatenate (JSON array)', type: 'json', placeholder: '["Hello ", "{{input.name}}", "!"]', required: true },
-      separator: { label: 'Separator', type: 'string', placeholder: 'e.g., a space or comma', defaultValue: '' },
+      stringsToConcatenate: { label: 'Strings to Concatenate (JSON Array)', type: 'json', placeholder: '["Hello", "World", "!"]', required: true },
+      separator: { label: 'Separator (Optional)', type: 'string', placeholder: ' ' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
@@ -867,6 +867,418 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output'],
+  },
+  {
+    type: 'conditionalBranch',
+    name: 'Conditional Branch',
+    icon: GitBranch,
+    description: 'Routes workflow execution based on conditions. Evaluates conditions in order and takes the first matching branch.',
+    category: 'logic',
+    defaultConfig: {
+      conditions: [
+        { id: 'condition1', expression: '{{input.value}} > 10', label: 'High Value', output: 'high' },
+        { id: 'condition2', expression: '{{input.value}} > 5', label: 'Medium Value', output: 'medium' }
+      ],
+      defaultBranch: 'else',
+      defaultOutput: 'low'
+    },
+    configSchema: {
+      conditions: {
+        label: 'Conditions (JSON Array)',
+        type: 'json',
+        placeholder: '[{"id":"cond1","expression":"{{input.value}} > 10","label":"High Value","output":"high"}]',
+        helperText: 'Array of condition objects with id, expression, label, and output. Conditions are evaluated in order.',
+        required: true
+      },
+      defaultBranch: {
+        label: 'Default Branch Label',
+        type: 'string',
+        placeholder: 'else',
+        helperText: 'Label for the default branch when no conditions match'
+      },
+      defaultOutput: {
+        label: 'Default Output Value',
+        type: 'string',
+        placeholder: 'low',
+        helperText: 'Value to output when no conditions match'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['condition1', 'condition2', 'else', 'error'],
+    aiExplanation: 'Evaluates conditions in sequence and routes to the first matching branch. Use expressions like "{{input.value}} > 10" or "{{input.status}} === \'active\'". The default branch is taken if no conditions match.',
+  },
+  {
+    type: 'dataTransform',
+    name: 'Data Transform',
+    icon: Filter,
+    description: 'Transforms data using mapping rules, filtering, or aggregation operations.',
+    category: 'logic',
+    defaultConfig: {
+      transformType: 'map',
+      mappingRules: [
+        { source: '{{input.name}}', target: 'fullName' },
+        { source: '{{input.email}}', target: 'contactEmail' }
+      ],
+      filterCondition: '',
+      aggregateFunction: 'count',
+      groupBy: ''
+    },
+    configSchema: {
+      transformType: {
+        label: 'Transform Type',
+        type: 'select',
+        options: ['map', 'filter', 'reduce', 'group'],
+        defaultValue: 'map',
+        helperText: 'Type of transformation to perform'
+      },
+      mappingRules: {
+        label: 'Mapping Rules (JSON Array)',
+        type: 'json',
+        placeholder: '[{"source":"{{input.name}}","target":"fullName"}]',
+        helperText: 'Array of source-to-target mappings for map operations',
+        relevantForTypes: ['map']
+      },
+      filterCondition: {
+        label: 'Filter Condition',
+        type: 'string',
+        placeholder: '{{item.value}} > 10',
+        helperText: 'Condition to filter items (for filter operations)',
+        relevantForTypes: ['filter']
+      },
+      aggregateFunction: {
+        label: 'Aggregate Function',
+        type: 'select',
+        options: ['count', 'sum', 'average', 'min', 'max', 'concat'],
+        defaultValue: 'count',
+        helperText: 'Function to apply when reducing data',
+        relevantForTypes: ['reduce']
+      },
+      groupBy: {
+        label: 'Group By Field',
+        type: 'string',
+        placeholder: '{{item.category}}',
+        helperText: 'Field to group by (for group operations)',
+        relevantForTypes: ['group']
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['transformed', 'error'],
+    aiExplanation: 'Transforms data using various operations. Map: transforms object structure. Filter: removes items that don\'t match condition. Reduce: aggregates data using functions like sum, count, average. Group: groups items by a field.',
+  },
+  {
+    type: 'errorRecovery',
+    name: 'Error Recovery',
+    icon: RotateCcw,
+    description: 'Implements advanced error recovery strategies including retry, fallback, circuit breaker, and dead letter queue.',
+    category: 'control',
+    isAdvanced: true,
+    defaultConfig: {
+      recoveryStrategy: 'retry',
+      maxAttempts: 3,
+      backoffMs: 1000,
+      backoffFactor: 2,
+      circuitBreakerThreshold: 5,
+      circuitBreakerTimeout: 60000,
+      fallbackNodeId: '',
+      dlqEndpoint: '',
+      retryOnStatusCodes: [500, 503, 429],
+      retryOnErrorKeywords: ['timeout', 'unavailable']
+    },
+    configSchema: {
+      recoveryStrategy: {
+        label: 'Recovery Strategy',
+        type: 'select',
+        options: ['retry', 'fallback', 'circuit-breaker', 'dead-letter-queue'],
+        defaultValue: 'retry',
+        helperText: 'Strategy to use when this node fails'
+      },
+      maxAttempts: {
+        label: 'Max Retry Attempts',
+        type: 'number',
+        defaultValue: 3,
+        helperText: 'Maximum number of retry attempts',
+        relevantForTypes: ['retry']
+      },
+      backoffMs: {
+        label: 'Initial Backoff (ms)',
+        type: 'number',
+        defaultValue: 1000,
+        helperText: 'Initial delay before first retry',
+        relevantForTypes: ['retry']
+      },
+      backoffFactor: {
+        label: 'Backoff Factor',
+        type: 'number',
+        defaultValue: 2,
+        helperText: 'Multiplier for exponential backoff',
+        relevantForTypes: ['retry']
+      },
+      circuitBreakerThreshold: {
+        label: 'Circuit Breaker Threshold',
+        type: 'number',
+        defaultValue: 5,
+        helperText: 'Number of failures before opening circuit',
+        relevantForTypes: ['circuit-breaker']
+      },
+      circuitBreakerTimeout: {
+        label: 'Circuit Breaker Timeout (ms)',
+        type: 'number',
+        defaultValue: 60000,
+        helperText: 'Time before attempting to close circuit',
+        relevantForTypes: ['circuit-breaker']
+      },
+      fallbackNodeId: {
+        label: 'Fallback Node ID',
+        type: 'string',
+        placeholder: 'fallback_node_1',
+        helperText: 'ID of node to execute as fallback',
+        relevantForTypes: ['fallback']
+      },
+      dlqEndpoint: {
+        label: 'Dead Letter Queue Endpoint',
+        type: 'string',
+        placeholder: 'https://api.example.com/dlq',
+        helperText: 'Endpoint to send failed messages',
+        relevantForTypes: ['dead-letter-queue']
+      },
+      retryOnStatusCodes: {
+        label: 'Retry on Status Codes (JSON Array)',
+        type: 'json',
+        placeholder: '[500, 503, 429]',
+        helperText: 'HTTP status codes that trigger retry',
+        relevantForTypes: ['retry']
+      },
+      retryOnErrorKeywords: {
+        label: 'Retry on Error Keywords (JSON Array)',
+        type: 'json',
+        placeholder: '["timeout", "unavailable"]',
+        helperText: 'Error message keywords that trigger retry',
+        relevantForTypes: ['retry']
+      },
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'error'],
+    aiExplanation: 'Implements sophisticated error recovery strategies. Retry: attempts operation multiple times with exponential backoff. Fallback: executes alternative node when primary fails. Circuit Breaker: prevents cascading failures by temporarily stopping requests. Dead Letter Queue: sends failed messages to external endpoint for later processing.',
+  },
+  {
+    type: 'parallelExecution',
+    name: 'Parallel Execution',
+    icon: GitFork,
+    description: 'Executes multiple branches of nodes concurrently for improved performance.',
+    category: 'control',
+    isAdvanced: true,
+    defaultConfig: {
+      branches: [
+        {
+          id: 'branch1',
+          name: 'Branch 1',
+          nodes: [],
+          connections: [],
+          inputMapping: {},
+          outputSource: ''
+        }
+      ],
+      concurrencyLimit: 0,
+      timeoutMs: 30000
+    },
+    configSchema: {
+      branches: {
+        label: 'Branches (JSON Array)',
+        type: 'json',
+        placeholder: '[{"id":"branch1","name":"Branch 1","nodes":[],"connections":[],"inputMapping":{},"outputSource":""}]',
+        helperText: 'Array of branch definitions with nodes, connections, and mappings',
+        required: true
+      },
+      concurrencyLimit: {
+        label: 'Concurrency Limit',
+        type: 'number',
+        defaultValue: 0,
+        placeholder: '0 (unlimited)',
+        helperText: 'Maximum number of branches to run simultaneously. 0 = unlimited.'
+      },
+      timeoutMs: {
+        label: 'Timeout (ms)',
+        type: 'number',
+        defaultValue: 30000,
+        helperText: 'Maximum time to wait for all branches to complete'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['results', 'error'],
+    aiExplanation: 'Executes multiple workflow branches in parallel for improved performance. Each branch can have its own nodes and connections. Use inputMapping to pass data to branches and outputSource to collect results. Set concurrencyLimit to control resource usage.',
+  },
+  {
+    type: 'workflowTemplate',
+    name: 'Workflow Template',
+    icon: FileText,
+    description: 'Loads and executes a predefined workflow template with customizable parameters.',
+    category: 'group',
+    defaultConfig: {
+      templateId: '',
+      parameters: {},
+      version: 'latest'
+    },
+    configSchema: {
+      templateId: {
+        label: 'Template ID',
+        type: 'string',
+        placeholder: 'email-notification-template',
+        helperText: 'ID of the workflow template to load',
+        required: true
+      },
+      parameters: {
+        label: 'Template Parameters (JSON)',
+        type: 'json',
+        placeholder: '{"recipient": "{{input.email}}", "subject": "Notification"}',
+        helperText: 'Parameters to pass to the template'
+      },
+      version: {
+        label: 'Template Version',
+        type: 'string',
+        defaultValue: 'latest',
+        placeholder: 'latest or specific version',
+        helperText: 'Version of the template to use'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'error'],
+    aiExplanation: 'Loads and executes a predefined workflow template. Templates are reusable workflow patterns that can be customized with parameters. This enables workflow composition and promotes reusability across different use cases.',
+  },
+  {
+    type: 'apiRateLimiter',
+    name: 'API Rate Limiter',
+    icon: Timer,
+    description: 'Controls the rate of API calls to prevent hitting rate limits and ensure fair usage.',
+    category: 'control',
+    isAdvanced: true,
+    defaultConfig: {
+      requestsPerSecond: 10,
+      burstLimit: 50,
+      windowSize: 60000,
+      strategy: 'token-bucket'
+    },
+    configSchema: {
+      requestsPerSecond: {
+        label: 'Requests Per Second',
+        type: 'number',
+        defaultValue: 10,
+        helperText: 'Maximum requests allowed per second'
+      },
+      burstLimit: {
+        label: 'Burst Limit',
+        type: 'number',
+        defaultValue: 50,
+        helperText: 'Maximum requests allowed in burst'
+      },
+      windowSize: {
+        label: 'Window Size (ms)',
+        type: 'number',
+        defaultValue: 60000,
+        helperText: 'Time window for rate limiting'
+      },
+      strategy: {
+        label: 'Rate Limiting Strategy',
+        type: 'select',
+        options: ['token-bucket', 'leaky-bucket', 'fixed-window', 'sliding-window'],
+        defaultValue: 'token-bucket',
+        helperText: 'Algorithm used for rate limiting'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['output', 'error'],
+    aiExplanation: 'Implements rate limiting to control API call frequency. Prevents hitting rate limits and ensures fair usage of external APIs. Supports multiple strategies like token bucket, leaky bucket, and sliding window algorithms.',
+  },
+  {
+    type: 'dataValidation',
+    name: 'Data Validation',
+    icon: CheckCircle2,
+    description: 'Validates data against schemas and business rules to ensure data quality.',
+    category: 'logic',
+    defaultConfig: {
+      validationRules: [
+        { field: 'email', type: 'email', required: true },
+        { field: 'age', type: 'number', min: 18, max: 100 }
+      ],
+      strictMode: false,
+      customValidators: []
+    },
+    configSchema: {
+      validationRules: {
+        label: 'Validation Rules (JSON Array)',
+        type: 'json',
+        placeholder: '[{"field":"email","type":"email","required":true}]',
+        helperText: 'Array of validation rules for different fields',
+        required: true
+      },
+      strictMode: {
+        label: 'Strict Mode',
+        type: 'boolean',
+        defaultValue: false,
+        helperText: 'If true, stops execution on first validation error'
+      },
+      customValidators: {
+        label: 'Custom Validators (JSON Array)',
+        type: 'json',
+        placeholder: '[{"field":"custom","expression":"{{input.value}} > 0"}]',
+        helperText: 'Custom validation expressions'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['valid', 'invalid', 'error'],
+    aiExplanation: 'Validates data against schemas and business rules. Supports common validations like email, number ranges, required fields, and custom expressions. Can output valid and invalid data separately for different processing paths.',
+  },
+  {
+    type: 'workflowMetrics',
+    name: 'Workflow Metrics',
+    icon: TrendingUp,
+    description: 'Collects and reports metrics about workflow execution for monitoring and optimization.',
+    category: 'io',
+    isAdvanced: true,
+    defaultConfig: {
+      metrics: ['execution_time', 'memory_usage', 'api_calls', 'error_rate'],
+      customMetrics: [],
+      exportFormat: 'json'
+    },
+    configSchema: {
+      metrics: {
+        label: 'Metrics to Collect (JSON Array)',
+        type: 'json',
+        placeholder: '["execution_time", "memory_usage", "api_calls"]',
+        helperText: 'Standard metrics to collect',
+        required: true
+      },
+      customMetrics: {
+        label: 'Custom Metrics (JSON Array)',
+        type: 'json',
+        placeholder: '[{"name":"custom_metric","expression":"{{input.value}}"}]',
+        helperText: 'Custom metrics to calculate'
+      },
+      exportFormat: {
+        label: 'Export Format',
+        type: 'select',
+        options: ['json', 'csv', 'prometheus'],
+        defaultValue: 'json',
+        helperText: 'Format for exporting metrics'
+      },
+      ...GENERIC_RETRY_CONFIG_SCHEMA,
+      ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
+    },
+    inputHandles: ['input'],
+    outputHandles: ['metrics', 'error'],
+    aiExplanation: 'Collects execution metrics for monitoring and optimization. Tracks performance, resource usage, API calls, and custom metrics. Exports data in various formats for integration with monitoring systems.',
   }
 ];
 
