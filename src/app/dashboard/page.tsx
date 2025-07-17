@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, StatsCard, FeatureCard, MetricCard } from '@/components/ui/enhanced-card';
+import { Button } from '@/components/ui/enhanced-button';
+import { SearchInput } from '@/components/ui/enhanced-input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AppLayout } from '@/components/app-layout';
+import { DashboardLayout } from '@/components/layout/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
 import Link from 'next/link';
 import {
