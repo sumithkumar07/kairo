@@ -4,8 +4,10 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
+import { AuthProvider } from '@/components/auth/auth-provider';
 import { cn } from '@/lib/utils'; 
 import { ThemeProvider } from '@/components/theme-provider';
+import { initializeDatabase } from '@/lib/database';
 
 const inter = Inter({ 
   subsets: ['latin'],
