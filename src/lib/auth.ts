@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, hashPassword, verifyPassword, generateSessionToken, isValidEmail } from './database';
+import { db, hashPassword, verifyPassword, generateSessionToken, isValidEmail } from './database-server';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export interface User {
   id: string;
@@ -55,21 +54,6 @@ export async function verifySession(token: string): Promise<User | null> {
     console.error('[AUTH] Error verifying session:', error);
     return null;
   }
-}
-
-// Client-side authentication functions
-export async function getCurrentUser(): Promise<User | null> {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  
-  const token = getCookie('session-token');
-  
-  if (!token) {
-    return null;
-  }
-  
-  return await verifySession(token);
 }
 
 export async function getCurrentUserFromRequest(request: NextRequest): Promise<User | null> {
@@ -156,58 +140,6 @@ export async function signIn(email: string, password: string): Promise<{ user: U
     }, 
     token 
   };
-}
-
-export async function signOut(): Promise<void> {
-  // Clear cookie on client side
-  if (typeof window !== 'undefined') {
-    document.cookie = 'session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-  }
-}
-
-// Cookie utilities
-export function getCookie(name: string): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-  return null;
-}
-
-export function setCookie(name: string, value: string, days = 1): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  
-  const expires = new Date();
-  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-  
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;secure;samesite=lax`;
-}
-
-export function clearCookie(name: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  
-  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-}
-
-// Middleware helper
-export async function withAuth(request: NextRequest): Promise<{ user: User; response?: NextResponse }> {
-  const user = await getCurrentUserFromRequest(request);
-  
-  if (!user) {
-    return {
-      user: null as any,
-      response: NextResponse.redirect(new URL('/login', request.url))
-    };
-  }
-  
-  return { user };
 }
 
 // Route protection
