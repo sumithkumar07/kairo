@@ -244,11 +244,11 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs a task using a generative AI model from providers like Google AI or OpenAI. Requires the appropriate API key environment variable for live mode.',
+    description: 'Performs a task using Mistral AI for text generation, analysis, and processing.',
     category: 'ai',
     defaultConfig: { 
-        modelProvider: 'googleai',
-        model: 'gemini-1.5-pro-latest',
+        modelProvider: 'mistral',
+        model: 'mistral-small-latest',
         prompt: '',
         simulatedOutput: 'This is a simulated AI response.' 
     },
@@ -256,18 +256,18 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       modelProvider: {
         label: 'Model Provider',
         type: 'select',
-        options: ['googleai'],
-        defaultValue: 'googleai',
+        options: ['mistral'],
+        defaultValue: 'mistral',
         required: true,
         helperText: 'Select the AI provider for the model.'
       },
       model: { 
         label: 'Model ID', 
-        type: 'string', 
-        defaultValue: 'gemini-1.5-pro-latest', 
-        placeholder: 'e.g., gemini-1.5-pro-latest', 
+        type: 'select',
+        options: ['mistral-small-latest', 'mistral-large-latest', 'mistral-medium-latest', 'codestral-latest'],
+        defaultValue: 'mistral-small-latest', 
         required: true,
-        helperText: 'The specific model ID to use from the selected provider.'
+        helperText: 'The specific Mistral model to use.'
       },
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}', required: true },
       simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response.', helperText: 'Text output from the AI model when in simulation mode.' },
@@ -276,7 +276,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
-    aiExplanation: "Performs a generative AI task using a configured Google AI model. To use this node in Live Mode, ensure the `GOOGLE_API_KEY` environment variable is set on your server. Enter the desired model ID, such as `gemini-1.5-pro-latest`.",
+    aiExplanation: "Performs a generative AI task using Mistral AI models. To use this node in Live Mode, ensure the `MISTRAL_API_KEY` environment variable is set on your server. The model will generate text based on your prompt using the selected Mistral model.",
   },
   {
     type: 'generateImage',
