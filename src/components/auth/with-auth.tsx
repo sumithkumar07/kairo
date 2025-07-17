@@ -1,35 +1,31 @@
 
 'use client';
 
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import { AppLayout } from '@/components/app-layout';
+import React from 'react';
+import { useAuth } from './auth-provider';
+import { useRouter } from 'next/navigation';
 
 export function withAuth<P extends object>(Component: React.ComponentType<P>) {
-  return function WithAuth(props: P) {
-    const { isLoggedIn, isAuthLoading } = useSubscription();
+  return function AuthenticatedComponent(props: P) {
+    const { user, isLoading } = useAuth();
     const router = useRouter();
-    const pathname = usePathname();
 
-    useEffect(() => {
-      if (!isAuthLoading && !isLoggedIn) {
-        router.push(`/login?redirect_url=${encodeURIComponent(pathname)}`);
+    React.useEffect(() => {
+      if (!isLoading && !user) {
+        router.push('/login');
       }
-    }, [isLoggedIn, isAuthLoading, router, pathname]);
+    }, [user, isLoading, router]);
 
-    if (isAuthLoading || !isLoggedIn) {
+    if (isLoading) {
       return (
-        <AppLayout>
-            <div className="flex-1 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4 text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Verifying access...</p>
-                </div>
-            </div>
-        </AppLayout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
       );
+    }
+
+    if (!user) {
+      return null;
     }
 
     return <Component {...props} />;
