@@ -510,7 +510,7 @@ function WorkflowPage() {
           {/* Right Sidebar */}
           <div className="w-80 border-l bg-card flex flex-col">
             <Tabs defaultValue="config" className="flex-1 flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 m-2">
+              <TabsList className="grid w-full grid-cols-3 m-2">
                 <TabsTrigger value="config" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   Config
@@ -518,6 +518,10 @@ function WorkflowPage() {
                 <TabsTrigger value="assistant" className="flex items-center gap-2">
                   <Bot className="h-4 w-4" />
                   Assistant
+                </TabsTrigger>
+                <TabsTrigger value="cares" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  CARES
                 </TabsTrigger>
               </TabsList>
 
