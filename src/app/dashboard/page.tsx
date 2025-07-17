@@ -54,7 +54,54 @@ import {
   Search,
   SortAsc,
   Grid,
-  List
+  List,
+  LineChart,
+  PieChart,
+  Gauge,
+  Flame,
+  Fingerprint,
+  Cpu,
+  MousePointer,
+  Palette,
+  Wand2,
+  Infinity,
+  Lock,
+  Boxes,
+  FlaskConical,
+  Microscope,
+  Megaphone,
+  Compass,
+  Radar,
+  Wrench,
+  Cog,
+  Crosshair,
+  Sliders,
+  AlertCircle,
+  Lightbulb,
+  Building,
+  Headphones,
+  FileText,
+  Code,
+  CreditCard,
+  Network,
+  Container,
+  Zap as ZapIcon,
+  PlayCircle,
+  PauseCircle,
+  StopCircle,
+  RotateCcw,
+  FastForward,
+  CloudLightning,
+  Workflow as WorkflowIcon,
+  GitBranch,
+  MessageSquare,
+  Webhook,
+  MonitorSpeaker,
+  Wifi,
+  Server,
+  HardDrive,
+  MemoryStick,
+  Cpu as CpuIcon
 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -63,67 +110,102 @@ const workflows = [
   {
     id: '1',
     name: 'Customer Onboarding Flow',
-    description: 'Automated welcome email sequence and CRM sync',
+    description: 'Automated welcome email sequence and CRM sync with Mistral AI personalization',
     status: 'active',
     lastRun: '2 hours ago',
     success: 98.5,
     runs: 1247,
     category: 'Marketing',
     nodes: 12,
-    integrations: ['Mailchimp', 'Salesforce', 'Slack'],
+    integrations: ['Mailchimp', 'Salesforce', 'Slack', 'Mistral AI'],
     created: '2024-01-15',
-    isStarred: true
+    isStarred: true,
+    performance: 'excellent'
   },
   {
     id: '2',
     name: 'Invoice Processing Pipeline',
-    description: 'Extract data from invoices and update accounting system',
+    description: 'Extract data from invoices using AI and update accounting systems automatically',
     status: 'active',
     lastRun: '30 minutes ago',
     success: 95.2,
     runs: 892,
     category: 'Finance',
     nodes: 8,
-    integrations: ['QuickBooks', 'AWS S3', 'Stripe'],
+    integrations: ['QuickBooks', 'AWS S3', 'Stripe', 'Mistral AI'],
     created: '2024-01-20',
-    isStarred: false
+    isStarred: false,
+    performance: 'good'
   },
   {
     id: '3',
     name: 'Social Media Analytics',
-    description: 'Collect and analyze social media metrics daily',
+    description: 'Collect and analyze social media metrics with AI-powered insights',
     status: 'paused',
     lastRun: '1 day ago',
     success: 92.8,
     runs: 456,
     category: 'Analytics',
     nodes: 15,
-    integrations: ['Twitter', 'Google Analytics', 'Notion'],
+    integrations: ['Twitter', 'Google Analytics', 'Notion', 'Mistral AI'],
     created: '2024-01-25',
-    isStarred: false
+    isStarred: false,
+    performance: 'good'
   },
   {
     id: '4',
-    name: 'Support Ticket Routing',
-    description: 'Intelligent ticket assignment and priority setting',
+    name: 'AI Support Ticket Routing',
+    description: 'Intelligent ticket assignment and priority setting with natural language processing',
     status: 'active',
     lastRun: '5 minutes ago',
     success: 99.1,
     runs: 2341,
     category: 'Support',
     nodes: 18,
-    integrations: ['Zendesk', 'Slack', 'Mistral AI'],
+    integrations: ['Zendesk', 'Slack', 'Mistral AI', 'Intercom'],
     created: '2024-02-01',
-    isStarred: true
+    isStarred: true,
+    performance: 'excellent'
+  },
+  {
+    id: '5',
+    name: 'Lead Qualification Bot',
+    description: 'Automatically qualify leads using AI conversation and scoring',
+    status: 'active',
+    lastRun: '1 hour ago',
+    success: 94.7,
+    runs: 1876,
+    category: 'Sales',
+    nodes: 22,
+    integrations: ['HubSpot', 'Twilio', 'Mistral AI', 'Calendly'],
+    created: '2024-02-05',
+    isStarred: false,
+    performance: 'good'
+  },
+  {
+    id: '6',
+    name: 'Content Generation Pipeline',
+    description: 'AI-powered content creation and publishing workflow',
+    status: 'active',
+    lastRun: '45 minutes ago',
+    success: 97.3,
+    runs: 634,
+    category: 'Marketing',
+    nodes: 14,
+    integrations: ['WordPress', 'Buffer', 'Mistral AI', 'Unsplash'],
+    created: '2024-02-10',
+    isStarred: true,
+    performance: 'excellent'
   }
 ];
 
 const recentRuns = [
-  { id: '1', workflow: 'Customer Onboarding Flow', status: 'success', duration: '2.3s', time: '5 minutes ago' },
-  { id: '2', workflow: 'Invoice Processing Pipeline', status: 'success', duration: '1.8s', time: '12 minutes ago' },
-  { id: '3', workflow: 'Support Ticket Routing', status: 'success', duration: '0.9s', time: '18 minutes ago' },
-  { id: '4', workflow: 'Customer Onboarding Flow', status: 'failed', duration: '3.2s', time: '25 minutes ago' },
-  { id: '5', workflow: 'Social Media Analytics', status: 'success', duration: '4.1s', time: '1 hour ago' }
+  { id: '1', workflow: 'AI Support Ticket Routing', status: 'success', duration: '0.9s', time: '2 minutes ago', nodes: 18 },
+  { id: '2', workflow: 'Customer Onboarding Flow', status: 'success', duration: '2.3s', time: '5 minutes ago', nodes: 12 },
+  { id: '3', workflow: 'Invoice Processing Pipeline', status: 'success', duration: '1.8s', time: '12 minutes ago', nodes: 8 },
+  { id: '4', workflow: 'Lead Qualification Bot', status: 'success', duration: '3.2s', time: '18 minutes ago', nodes: 22 },
+  { id: '5', workflow: 'Content Generation Pipeline', status: 'success', duration: '4.1s', time: '25 minutes ago', nodes: 14 },
+  { id: '6', workflow: 'Customer Onboarding Flow', status: 'failed', duration: '2.7s', time: '1 hour ago', nodes: 12 }
 ];
 
 const stats = [
@@ -132,8 +214,9 @@ const stats = [
     value: '24',
     change: '+12%',
     trend: 'up',
-    icon: Workflow,
-    color: 'text-blue-500'
+    icon: WorkflowIcon,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10'
   },
   {
     title: 'Successful Runs',
@@ -141,23 +224,26 @@ const stats = [
     change: '+23%',
     trend: 'up',
     icon: CheckCircle,
-    color: 'text-green-500'
+    color: 'text-green-500',
+    bgColor: 'bg-green-500/10'
   },
   {
-    title: 'Active Integrations',
+    title: 'AI Integrations',
     value: '18',
-    change: '+3',
+    change: '+6',
     trend: 'up',
-    icon: Globe,
-    color: 'text-purple-500'
+    icon: Brain,
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10'
   },
   {
     title: 'Avg Response Time',
     value: '1.4s',
     change: '-15%',
     trend: 'down',
-    icon: Timer,
-    color: 'text-orange-500'
+    icon: Zap,
+    color: 'text-orange-500',
+    bgColor: 'bg-orange-500/10'
   }
 ];
 
@@ -167,29 +253,40 @@ const quickActions = [
     description: 'Build a new automation from scratch',
     icon: Plus,
     href: '/workflow',
-    color: 'bg-blue-500'
+    color: 'bg-gradient-to-r from-blue-500 to-blue-600',
+    textColor: 'text-white'
   },
   {
     title: 'AI Generator',
     description: 'Generate workflow with Mistral AI',
     icon: Brain,
     href: '/workflow?ai=true',
-    color: 'bg-purple-500'
+    color: 'bg-gradient-to-r from-purple-500 to-purple-600',
+    textColor: 'text-white'
   },
   {
     title: 'Templates',
     description: 'Start from proven templates',
     icon: Layers,
     href: '/templates',
-    color: 'bg-green-500'
+    color: 'bg-gradient-to-r from-green-500 to-green-600',
+    textColor: 'text-white'
   },
   {
     title: 'Integrations',
     description: 'Connect your favorite tools',
     icon: Globe,
     href: '/integrations',
-    color: 'bg-orange-500'
+    color: 'bg-gradient-to-r from-orange-500 to-orange-600',
+    textColor: 'text-white'
   }
+];
+
+const performanceMetrics = [
+  { label: 'CPU Usage', value: 34, color: 'bg-blue-500', icon: Cpu },
+  { label: 'Memory', value: 67, color: 'bg-green-500', icon: MemoryStick },
+  { label: 'Network', value: 23, color: 'bg-purple-500', icon: Wifi },
+  { label: 'Storage', value: 45, color: 'bg-orange-500', icon: HardDrive }
 ];
 
 function DashboardPage() {
@@ -207,10 +304,10 @@ function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'text-green-500 bg-green-500/10';
-      case 'paused': return 'text-yellow-500 bg-yellow-500/10';
-      case 'error': return 'text-red-500 bg-red-500/10';
-      default: return 'text-gray-500 bg-gray-500/10';
+      case 'active': return 'text-green-500 bg-green-500/10 border-green-500/20';
+      case 'paused': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+      case 'error': return 'text-red-500 bg-red-500/10 border-red-500/20';
+      default: return 'text-gray-500 bg-gray-500/10 border-gray-500/20';
     }
   };
 
@@ -223,23 +320,38 @@ function DashboardPage() {
     }
   };
 
+  const getPerformanceIcon = (performance: string) => {
+    switch (performance) {
+      case 'excellent': return <Flame className="h-4 w-4 text-green-500" />;
+      case 'good': return <CheckCircle className="h-4 w-4 text-blue-500" />;
+      case 'fair': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      default: return <AlertCircle className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-8">
-        {/* Header */}
+        {/* Enhanced Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back, {user?.displayName || 'User'}! Here's your automation overview.
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
+              <Badge variant="outline" className="bg-gradient-to-r from-primary/10 to-purple-600/10">
+                <Sparkles className="w-3 h-3 mr-1" />
+                AI Powered
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-lg">
+              Welcome back, {user?.displayName || 'User'}! Here's your intelligent automation overview.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
-            <Button size="sm" asChild>
+            <Button size="sm" asChild className="bg-gradient-to-r from-primary to-purple-600">
               <Link href="/workflow">
                 <Plus className="h-4 w-4 mr-2" />
                 New Workflow
@@ -248,40 +360,41 @@ function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats Overview */}
+        {/* Enhanced Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
-            <Card key={index} className="hover:shadow-md transition-all duration-200">
+            <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className={`text-xs flex items-center gap-1 mt-1 ${
-                      stat.trend === 'up' ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      <TrendingUp className={`h-3 w-3 ${stat.trend === 'down' ? 'rotate-180' : ''}`} />
-                      {stat.change} from last month
-                    </p>
-                  </div>
-                  <div className={`p-3 rounded-lg bg-muted/50`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${stat.bgColor} group-hover:scale-110 transition-transform`}>
                     <stat.icon className={`h-6 w-6 ${stat.color}`} />
                   </div>
+                  <div className={`text-xs flex items-center gap-1 px-2 py-1 rounded-full ${
+                    stat.trend === 'up' ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'
+                  }`}>
+                    <TrendingUp className={`h-3 w-3 ${stat.trend === 'down' ? 'rotate-180' : ''}`} />
+                    {stat.change}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{stat.title}</p>
+                  <p className="text-3xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">from last month</p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Quick Actions */}
-        <Card>
+        {/* Enhanced Quick Actions */}
+        <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Rocket className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Rocket className="h-6 w-6" />
               Quick Actions
             </CardTitle>
-            <CardDescription>
-              Get started with common tasks and workflows
+            <CardDescription className="text-base">
+              Get started with common tasks and AI-powered workflows
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -290,16 +403,16 @@ function DashboardPage() {
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto p-4 flex flex-col items-center gap-3 hover:shadow-md transition-all"
+                  className="h-auto p-6 flex flex-col items-center gap-4 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50"
                   asChild
                 >
                   <Link href={action.href}>
-                    <div className={`p-3 rounded-lg ${action.color} text-white`}>
-                      <action.icon className="h-6 w-6" />
+                    <div className={`p-4 rounded-xl ${action.color} group-hover:scale-110 transition-transform`}>
+                      <action.icon className={`h-6 w-6 ${action.textColor}`} />
                     </div>
                     <div className="text-center">
-                      <p className="font-medium">{action.title}</p>
-                      <p className="text-xs text-muted-foreground">{action.description}</p>
+                      <p className="font-semibold text-base">{action.title}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{action.description}</p>
                     </div>
                   </Link>
                 </Button>
@@ -308,10 +421,39 @@ function DashboardPage() {
           </CardContent>
         </Card>
 
+        {/* Enhanced Performance Metrics */}
+        <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Gauge className="h-6 w-6" />
+              System Performance
+            </CardTitle>
+            <CardDescription className="text-base">
+              Real-time monitoring of your automation infrastructure
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {performanceMetrics.map((metric, index) => (
+                <div key={index} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <metric.icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{metric.label}</span>
+                    </div>
+                    <span className="text-sm font-bold">{metric.value}%</span>
+                  </div>
+                  <Progress value={metric.value} className={`h-2 ${metric.color}`} />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="workflows" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3">
             <TabsTrigger value="workflows" className="flex items-center gap-2">
-              <Workflow className="h-4 w-4" />
+              <WorkflowIcon className="h-4 w-4" />
               Workflows
             </TabsTrigger>
             <TabsTrigger value="activity" className="flex items-center gap-2">
@@ -325,9 +467,9 @@ function DashboardPage() {
           </TabsList>
 
           <TabsContent value="workflows" className="space-y-6">
-            {/* Workflow Filters */}
-            <Card>
-              <CardContent className="p-4">
+            {/* Enhanced Workflow Filters */}
+            <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+              <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -365,6 +507,13 @@ function DashboardPage() {
                     >
                       Analytics
                     </Button>
+                    <Button
+                      variant={selectedCategory === 'sales' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedCategory('sales')}
+                    >
+                      Sales
+                    </Button>
                   </div>
                   
                   <div className="flex items-center gap-2">
@@ -373,7 +522,7 @@ function DashboardPage() {
                       <input
                         type="text"
                         placeholder="Search workflows..."
-                        className="pl-10 pr-4 py-2 border rounded-md text-sm w-64"
+                        className="pl-10 pr-4 py-2 border rounded-md text-sm w-64 bg-background/50 border-border/50 focus:border-primary/50"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
@@ -390,22 +539,23 @@ function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Workflows Grid/List */}
+            {/* Enhanced Workflows Grid/List */}
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
               {filteredWorkflows.map((workflow) => (
-                <Card key={workflow.id} className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
-                  <CardHeader className="pb-3">
+                <Card key={workflow.id} className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-card via-card to-card/50 border-border/50">
+                  <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-lg font-semibold line-clamp-1">
+                        <div className="flex items-center gap-2 mb-3">
+                          <CardTitle className="text-xl font-bold line-clamp-1">
                             {workflow.name}
                           </CardTitle>
                           {workflow.isStarred && (
                             <Star className="h-4 w-4 text-yellow-500 fill-current" />
                           )}
+                          {getPerformanceIcon(workflow.performance)}
                         </div>
-                        <CardDescription className="line-clamp-2">
+                        <CardDescription className="line-clamp-2 text-base">
                           {workflow.description}
                         </CardDescription>
                       </div>
@@ -414,48 +564,54 @@ function DashboardPage() {
                       </Button>
                     </div>
                     
-                    <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center justify-between pt-3">
                       <Badge className={getStatusColor(workflow.status)}>
                         {workflow.status}
                       </Badge>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="bg-primary/10">
                         {workflow.category}
                       </Badge>
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-muted-foreground">Success Rate</p>
+                        <p className="text-sm text-muted-foreground mb-2">Success Rate</p>
                         <div className="flex items-center gap-2">
                           <Progress value={workflow.success} className="flex-1 h-2" />
-                          <span className="font-medium">{workflow.success}%</span>
+                          <span className="font-bold text-sm">{workflow.success}%</span>
                         </div>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Total Runs</p>
-                        <p className="font-medium">{workflow.runs.toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground mb-2">Total Runs</p>
+                        <p className="font-bold text-lg">{workflow.runs.toLocaleString()}</p>
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Integrations</p>
-                      <div className="flex flex-wrap gap-1">
-                        {workflow.integrations.slice(0, 3).map((integration, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {integration}
-                          </Badge>
-                        ))}
-                        {workflow.integrations.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{workflow.integrations.length - 3}
-                          </Badge>
-                        )}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">Nodes</p>
+                        <span className="font-medium">{workflow.nodes}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Integrations</p>
+                        <div className="flex flex-wrap gap-1">
+                          {workflow.integrations.slice(0, 3).map((integration, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {integration}
+                            </Badge>
+                          ))}
+                          {workflow.integrations.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{workflow.integrations.length - 3}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center justify-between pt-4 border-t">
                       <div className="text-sm text-muted-foreground">
                         Last run: {workflow.lastRun}
                       </div>
@@ -471,7 +627,7 @@ function DashboardPage() {
                           </Link>
                         </Button>
                         <Button variant="ghost" size="sm">
-                          <Play className="h-4 w-4" />
+                          <PlayCircle className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -481,14 +637,16 @@ function DashboardPage() {
             </div>
             
             {filteredWorkflows.length === 0 && (
-              <Card className="text-center py-12">
+              <Card className="text-center py-16 bg-gradient-to-r from-card via-card to-card/50 border-border/50">
                 <CardContent>
-                  <Workflow className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No workflows found</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <div className="p-4 bg-primary/10 rounded-full inline-block mb-6">
+                    <WorkflowIcon className="h-12 w-12 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">No workflows found</h3>
+                  <p className="text-muted-foreground mb-6 text-lg">
                     {searchQuery ? 'Try adjusting your search criteria' : 'Create your first workflow to get started'}
                   </p>
-                  <Button asChild>
+                  <Button asChild size="lg" className="bg-gradient-to-r from-primary to-purple-600">
                     <Link href="/workflow">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Workflow
@@ -500,35 +658,38 @@ function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">
-            <Card>
+            <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
               <CardHeader>
-                <CardTitle>Recent Workflow Runs</CardTitle>
-                <CardDescription>
-                  Latest execution results from your workflows
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Activity className="h-6 w-6" />
+                  Recent Workflow Runs
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Latest execution results from your AI-powered workflows
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {recentRuns.map((run) => (
-                    <div key={run.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={run.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors border-border/50">
                       <div className="flex items-center gap-4">
                         <div className={`p-2 rounded-full ${getRunStatusColor(run.status)}`}>
                           {run.status === 'success' ? (
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-5 w-5" />
                           ) : run.status === 'failed' ? (
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-5 w-5" />
                           ) : (
-                            <Clock className="h-4 w-4" />
+                            <Clock className="h-5 w-5" />
                           )}
                         </div>
                         <div>
-                          <p className="font-medium">{run.workflow}</p>
+                          <p className="font-semibold text-base">{run.workflow}</p>
                           <p className="text-sm text-muted-foreground">
-                            Duration: {run.duration} • {run.time}
+                            Duration: {run.duration} • {run.nodes} nodes • {run.time}
                           </p>
                         </div>
                       </div>
-                      <Badge variant={run.status === 'success' ? 'default' : 'destructive'}>
+                      <Badge variant={run.status === 'success' ? 'default' : 'destructive'} className="capitalize">
                         {run.status}
                       </Badge>
                     </div>
@@ -540,64 +701,81 @@ function DashboardPage() {
 
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
+              <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
                 <CardHeader>
-                  <CardTitle>Performance Metrics</CardTitle>
-                  <CardDescription>
-                    Workflow execution statistics
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <BarChart3 className="h-6 w-6" />
+                    Performance Metrics
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Workflow execution statistics and insights
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Total Executions</span>
-                      <span className="font-medium">4,936</span>
+                      <span className="text-sm font-medium">Total Executions</span>
+                      <span className="font-bold text-lg">4,936</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Success Rate</span>
-                      <span className="font-medium text-green-500">96.8%</span>
+                      <span className="text-sm font-medium">Success Rate</span>
+                      <span className="font-bold text-lg text-green-500">96.8%</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Average Duration</span>
-                      <span className="font-medium">1.4s</span>
+                      <span className="text-sm font-medium">Average Duration</span>
+                      <span className="font-bold text-lg">1.4s</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Error Rate</span>
-                      <span className="font-medium text-red-500">3.2%</span>
+                      <span className="text-sm font-medium">Error Rate</span>
+                      <span className="font-bold text-lg text-red-500">3.2%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">AI Processing Time</span>
+                      <span className="font-bold text-lg text-purple-500">0.8s</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
                 <CardHeader>
-                  <CardTitle>Resource Usage</CardTitle>
-                  <CardDescription>
-                    Current plan utilization
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <PieChart className="h-6 w-6" />
+                    Resource Usage
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Current plan utilization and limits
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm">Workflow Runs</span>
+                        <span className="text-sm font-medium">Workflow Runs</span>
                         <span className="text-sm text-muted-foreground">1,247 / 10,000</span>
                       </div>
                       <Progress value={12.47} className="h-2" />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm">Active Workflows</span>
+                        <span className="text-sm font-medium">Active Workflows</span>
                         <span className="text-sm text-muted-foreground">24 / 100</span>
                       </div>
                       <Progress value={24} className="h-2" />
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm">API Calls</span>
+                        <span className="text-sm font-medium">API Calls</span>
                         <span className="text-sm text-muted-foreground">8,432 / 50,000</span>
                       </div>
                       <Progress value={16.86} className="h-2" />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">AI Processing</span>
+                        <span className="text-sm text-muted-foreground">2,341 / 25,000</span>
+                      </div>
+                      <Progress value={9.36} className="h-2" />
                     </div>
                   </div>
                 </CardContent>
