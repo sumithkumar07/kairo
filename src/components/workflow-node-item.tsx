@@ -70,12 +70,42 @@ const WorkflowNodeItemComponent = ({
 
   const hasWarning = !configCompleteCheck || unconnectedInputsCheck;
 
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 90) return 'text-green-600';
+    if (confidence >= 70) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getConfidenceBadgeVariant = (confidence: number) => {
+    if (confidence >= 90) return 'default';
+    if (confidence >= 70) return 'secondary';
+    return 'destructive';
+  };
+
+  const getRiskLevelColor = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'low': return 'text-green-600';
+      case 'medium': return 'text-yellow-600';
+      case 'high': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getRiskLevelIcon = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'low': return <Shield className="h-3 w-3" />;
+      case 'medium': return <AlertTriangle className="h-3 w-3" />;
+      case 'high': return <AlertCircleIcon className="h-3 w-3" />;
+      default: return <HelpCircle className="h-3 w-3" />;
+    }
+  };
+
   const getHandleAbsolutePosition = (handleId: string, isOutput: boolean): { x: number, y: number } => {
     const handles = isOutput ? nodeType?.outputHandles : nodeType?.inputHandles;
     const numHandles = handles?.length || 1;
     const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
     
-    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (index + 1);
+    const yOnNode = (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
     const xOnNode = isOutput ? NODE_WIDTH : 0;
     
     return { x: node.position.x + xOnNode, y: node.position.y + yOnNode };
