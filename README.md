@@ -1,15 +1,40 @@
 
-# Kairo - AI Workflow Automation
+# Kairo - AI Workflow Automation Platform
 
-Kairo is a Next.js application designed to help users visually create, manage, and automate workflows with the assistance of AI. This repository contains the full source code for the Kairo platform.
+Kairo is a comprehensive AI-powered workflow automation platform that implements the CARES framework for trustworthy AI automation. Built with Next.js 15, it provides a professional workflow editor with advanced features including real-time collaboration, explainable AI decisions, self-healing data, and comprehensive ROI tracking.
+
+## 🎯 Key Features
+
+### CARES Framework Implementation
+- **✅ Comprehensive Explainability**: AI decision tracking with confidence indicators, reasoning explanations, and risk assessment
+- **✅ Human-AI Collaboration**: Real-time review requests, escalation triggers, and collaborative workflows
+- **✅ Self-Healing Data**: Automatic data validation, duplicate detection, and cross-system lookups
+- **✅ Resilient Integration**: Retry logic, error handling, and webhook notifications
+- **✅ Dynamic Exception Handling**: Error recovery strategies and alternative execution paths
+- **✅ Adoption Boosters**: AI-powered workflow generation and intelligent suggestions
+- **✅ Ethical Safeguards**: Role-based access control and audit trails
+- **✅ ROI Transparency**: Time saved calculations, cost analysis, and performance metrics
+
+### Advanced Workflow Editor
+- **Professional Canvas**: Zoom, pan, minimap, grid snapping, and alignment guides
+- **Multi-select Operations**: Box selection, keyboard shortcuts, bulk operations
+- **Real-time Collaboration**: Multi-user editing, presence indicators, and comment system
+- **Performance Monitoring**: Real-time metrics, bottleneck detection, and optimization recommendations
+- **30+ Pre-built Nodes**: Comprehensive library of integrations and actions
+
+### AI-First Architecture
+- **Mistral AI Integration**: Advanced reasoning capabilities for complex workflows
+- **Google AI (Genkit)**: Workflow generation and intelligent assistance
+- **Context-aware Assistant**: Smart suggestions and error diagnosis
+- **Natural Language Processing**: Generate workflows from plain English descriptions
 
 ## Technology Stack
 
-*   **Framework**: Next.js (App Router)
+*   **Framework**: Next.js 15 (App Router)
 *   **Language**: TypeScript
-*   **Styling**: Tailwind CSS with shadcn/ui components
-*   **AI**: Google AI & Genkit
-*   **Database & Auth**: Supabase
+*   **Styling**: Tailwind CSS with Radix UI components
+*   **AI**: Mistral AI + Google AI (Genkit)
+*   **Database & Auth**: Supabase with Row Level Security
 *   **Deployment**: Vercel, Firebase App Hosting, Netlify
 
 ---
