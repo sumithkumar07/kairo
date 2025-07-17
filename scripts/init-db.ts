@@ -1,4 +1,4 @@
-import { initializeDatabase } from '@/lib/database';
+import { initializeDatabase } from '@/lib/database-server';
 
 async function main() {
   try {
