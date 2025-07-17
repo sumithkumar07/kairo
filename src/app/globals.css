@@ -299,7 +299,7 @@
   }
 
   .workflow-connection.selected {
-    @apply stroke-primary stroke-3;
+    @apply stroke-primary stroke-2;
   }
 
   /* Dashboard specific */
