@@ -1,8 +1,5 @@
-import { defineFlow } from 'genkit';
-import { googleai } from '@/ai/genkit';
-import { generate } from 'genkit';
+import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
 import { z } from 'zod';
-import { enhancedAgent } from '../agentic-ai/enhanced-agent';
 import type { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 
