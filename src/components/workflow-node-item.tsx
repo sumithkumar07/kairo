@@ -26,6 +26,18 @@ interface WorkflowNodeItemProps {
   connections: WorkflowConnection[]; 
   readOnly?: boolean;
   executionData?: any;
+  // CARES Framework props
+  aiDecision?: {
+    id: string;
+    confidence: number;
+    reasoning: string;
+    riskLevel: 'low' | 'medium' | 'high';
+    alternatives?: string[];
+    humanReviewRequired?: boolean;
+  };
+  onShowReasoning?: (nodeId: string, decisionId: string) => void;
+  onRequestHumanReview?: (nodeId: string, reason: string) => void;
+  showCARESIndicators?: boolean;
 }
 
 
