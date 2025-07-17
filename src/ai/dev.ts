@@ -2,6 +2,7 @@
 import { config } from 'dotenv';
 config();
 
+// AI flows using Mistral instead of Genkit
 import '@/ai/flows/suggest-next-node.ts';
 import '@/ai/flows/generate-workflow-from-prompt.ts';
 import '@/ai/flows/enhance-user-prompt-flow.ts'; 
@@ -13,5 +14,4 @@ import '@/ai/flows/generate-workflow-ideas.ts';
 import '@/ai/flows/text-to-speech-flow.ts';
 import '@/ai/flows/generate-image-flow.ts';
 
-// Import tools to register them with Genkit
-import '@/ai/tools/index.ts';
+console.log('[AI DEV] Mistral AI flows loaded successfully');
