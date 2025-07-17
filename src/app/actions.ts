@@ -64,20 +64,16 @@ import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscriptio
 // ================================================================= //
 
 async function getUserIdOrThrow(): Promise<string> {
-    const cookieStore = cookies();
-    const supabase = createServerActionClient({ cookies: () => cookieStore });
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
         throw new Error('User not authenticated.');
     }
-    return session.user.id;
+    return currentUser.id;
 }
 
 async function getUserIdOrNull(): Promise<string | null> {
-    const cookieStore = cookies();
-    const supabase = createServerActionClient({ cookies: () => cookieStore });
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.user?.id || null;
+    const currentUser = await getCurrentUser();
+    return currentUser?.id || null;
 }
 
 async function getUserFeatures(userId: string): Promise<{ tier: SubscriptionTier, features: SubscriptionFeatures }> {
