@@ -174,6 +174,53 @@ const WorkflowNodeItemComponent = ({
           {node.name || nodeType?.name || 'Unknown Node'}
         </CardTitle>
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* CARES Framework Indicators */}
+          {showCARESIndicators && aiDecision && (
+            <>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant={getConfidenceBadgeVariant(aiDecision.confidence)}
+                      className="text-xs px-1 py-0.5"
+                    >
+                      {aiDecision.confidence}%
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="text-xs">AI Confidence: {aiDecision.confidence}%</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={cn("flex items-center", getRiskLevelColor(aiDecision.riskLevel))}>
+                      {getRiskLevelIcon(aiDecision.riskLevel)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="text-xs">Risk Level: {aiDecision.riskLevel}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              {aiDecision.humanReviewRequired && (
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Users className="h-3 w-3 text-orange-500" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p className="text-xs">Human review required</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </>
+          )}
+          
           {getStatusIndicator()}
           {hasWarning && nodeExecutionStatus !== 'error' && !readOnly && ( 
             <TooltipProvider delayDuration={100}>
