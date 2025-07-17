@@ -1,13 +1,11 @@
-import { Mistral } from '@mistralai/client-ts';
+import MistralClient from '@mistralai/mistralai';
 
 // Initialize Mistral client
 const apiKey = process.env.MISTRAL_API_KEY || 'G63uwYlEeS65iN6qD74Njkv7FhULixXa';
 
 console.log('[MISTRAL] Initializing Mistral client with API key:', apiKey.substring(0, 8) + '...');
 
-export const mistralClient = new Mistral({
-  apiKey: apiKey
-});
+export const mistralClient = new MistralClient(apiKey);
 
 export interface MistralChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -35,7 +33,7 @@ export async function chatWithMistral(
   try {
     console.log('[MISTRAL] Making chat request with', messages.length, 'messages');
     
-    const response = await mistralClient.chat.create({
+    const response = await mistralClient.chat({
       model: options.model || 'mistral-small-latest',
       messages: messages,
       temperature: options.temperature || 0.7,
