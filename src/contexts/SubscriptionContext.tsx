@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
@@ -6,11 +5,8 @@ import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscriptio
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { isSupabaseConfigured } from '@/lib/supabase';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import * as WorkflowStorage from '@/services/workflow-storage-service';
-import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
-
+import { getCurrentUser, signIn, signUp, signOut } from '@/lib/auth';
+import { getUserProfile } from '@/services/database-service';
 
 interface User {
   email: string;
@@ -37,7 +33,6 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [currentTier, setCurrentTier] = useState<SubscriptionTier>('Free');
   const [features, setFeatures] = useState<SubscriptionFeatures>(FREE_TIER_FEATURES);
   const [trialEndDate, setTrialEndDate] = useState<Date | null>(null);
@@ -47,61 +42,58 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Create the supabase client instance once, scoped to this provider.
-  // This uses the recommended helper for client components.
-  const [supabase] = useState(() => isSupabaseConfigured ? createClientComponentClient() : null);
-
   const isLoggedIn = !!user;
+  const isSupabaseConfigured = true; // Always true now with PostgreSQL
 
-  const showSupabaseNotConfiguredToast = useCallback(() => {
-    toast({
-        title: 'Authentication Disabled',
-        description: 'Supabase is not configured. Please set up your environment variables to enable user accounts.',
-        variant: 'destructive',
-    });
-  }, [toast]);
-  
-  const updateUserStateFromSession = useCallback(async (currentSession: Session | null) => {
-    const supabaseUser = currentSession?.user;
-
-    if (supabaseUser?.email) {
-      setUser({ email: supabaseUser.email, uid: supabaseUser.id });
-      const profile = await WorkflowStorage.getUserProfile(supabaseUser.id);
+  const updateUserStateFromUser = useCallback(async (currentUser: any) => {
+    if (currentUser?.email) {
+      setUser({ email: currentUser.email, uid: currentUser.id });
       
-      let tier: SubscriptionTier = 'Free';
-      let features: SubscriptionFeatures = FREE_TIER_FEATURES;
-      let pro = false;
-      let trialEnd: Date | null = null;
-      let daysLeft: number | null = null;
-      
-      if (profile) {
-        trialEnd = profile.trial_end_date ? new Date(profile.trial_end_date) : null;
+      try {
+        const profile = await getUserProfile(currentUser.id);
+        
+        let tier: SubscriptionTier = 'Free';
+        let features: SubscriptionFeatures = FREE_TIER_FEATURES;
+        let pro = false;
+        let trialEnd: Date | null = null;
+        let daysLeft: number | null = null;
+        
+        if (profile) {
+          trialEnd = profile.trial_end_date ? new Date(profile.trial_end_date) : null;
 
-        if (profile.subscription_tier === 'Diamond') {
+          if (profile.subscription_tier === 'Diamond') {
             tier = 'Diamond';
             features = DIAMOND_TIER_FEATURES;
             pro = true;
-        } else if (profile.subscription_tier === 'Gold') {
+          } else if (profile.subscription_tier === 'Gold') {
             tier = 'Gold';
             features = GOLD_TIER_FEATURES;
             pro = true;
-        } else if (trialEnd && trialEnd > new Date()) {
+          } else if (trialEnd && trialEnd > new Date()) {
             tier = 'Gold Trial';
             features = GOLD_TIER_FEATURES;
             pro = true;
             const diffTime = trialEnd.getTime() - new Date().getTime();
             daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-        } else {
-             daysLeft = 0;
+          } else {
+            daysLeft = 0;
+          }
         }
+        
+        setCurrentTier(tier);
+        setFeatures(features);
+        setHasProFeatures(pro);
+        setTrialEndDate(trialEnd);
+        setDaysRemainingInTrial(daysLeft);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        // Set defaults on error
+        setCurrentTier('Free');
+        setFeatures(FREE_TIER_FEATURES);
+        setHasProFeatures(false);
+        setTrialEndDate(null);
+        setDaysRemainingInTrial(null);
       }
-      
-      setCurrentTier(tier);
-      setFeatures(features);
-      setHasProFeatures(pro);
-      setTrialEndDate(trialEnd);
-      setDaysRemainingInTrial(daysLeft);
-
     } else {
       setUser(null);
       setCurrentTier('Free');
@@ -113,64 +105,96 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signup = useCallback(async (email: string, password: string) => {
-    if (!supabase) {
-        showSupabaseNotConfiguredToast();
-        return;
+    try {
+      const { user, token } = await signUp(email, password);
+      
+      // Set cookie
+      document.cookie = `session-token=${token}; path=/; max-age=${24 * 60 * 60}; secure; samesite=lax`;
+      
+      await updateUserStateFromUser(user);
+      toast({ 
+        title: 'Signup Successful!', 
+        description: 'Your 15-day Gold trial has started. Welcome to Kairo!' 
+      });
+      
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({ 
+        title: 'Signup Failed', 
+        description: error.message || 'Failed to create account', 
+        variant: 'destructive' 
+      });
     }
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    if (error) {
-        toast({ title: 'Signup Failed', description: error.message, variant: 'destructive' });
-        return;
-    }
-    toast({ title: 'Signup Successful!', description: 'Your 15-day Gold trial has started. Check your email to verify your account.' });
-  }, [supabase, toast, showSupabaseNotConfiguredToast]);
+  }, [toast, router, updateUserStateFromUser]);
 
   const login = useCallback(async (email: string, password: string) => {
-    if (!supabase) {
-        showSupabaseNotConfiguredToast();
-        return;
+    try {
+      const { user, token } = await signIn(email, password);
+      
+      // Set cookie
+      document.cookie = `session-token=${token}; path=/; max-age=${24 * 60 * 60}; secure; samesite=lax`;
+      
+      await updateUserStateFromUser(user);
+      toast({ 
+        title: 'Login Successful!', 
+        description: 'Welcome back!' 
+      });
+      
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({ 
+        title: 'Login Failed', 
+        description: error.message || 'Invalid credentials', 
+        variant: 'destructive' 
+      });
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      toast({ title: 'Login Failed', description: error.message, variant: 'destructive' });
-      return;
-    }
-    toast({ title: 'Login Successful!', description: 'Welcome back!' });
-  }, [supabase, toast, showSupabaseNotConfiguredToast]);
+  }, [toast, router, updateUserStateFromUser]);
 
   const logout = useCallback(async () => {
-    if (!supabase) {
-        showSupabaseNotConfiguredToast();
-        return;
+    try {
+      await signOut();
+      
+      // Clear cookie
+      document.cookie = 'session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      
+      setUser(null);
+      setCurrentTier('Free');
+      setFeatures(FREE_TIER_FEATURES);
+      setHasProFeatures(false);
+      setTrialEndDate(null);
+      setDaysRemainingInTrial(null);
+      
+      router.push('/');
+      toast({ 
+        title: 'Logged Out', 
+        description: 'You have been successfully logged out.' 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Logout Failed', 
+        description: error.message || 'Failed to logout', 
+        variant: 'destructive' 
+      });
     }
-    await supabase.auth.signOut();
-    router.push('/');
-    toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-  }, [supabase, toast, router, showSupabaseNotConfiguredToast]);
+  }, [toast, router]);
 
+  // Check authentication on mount
   useEffect(() => {
-    if (!supabase) {
-      setIsAuthLoading(false);
-      return;
-    }
-
-    setIsAuthLoading(true);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      await updateUserStateFromSession(session);
-      setIsAuthLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
+    const checkAuth = async () => {
+      try {
+        setIsAuthLoading(true);
+        const currentUser = await getCurrentUser();
+        await updateUserStateFromUser(currentUser);
+      } catch (error) {
+        console.error('Error checking auth:', error);
+        setUser(null);
+      } finally {
+        setIsAuthLoading(false);
+      }
     };
-  }, [updateUserStateFromSession, supabase]);
+
+    checkAuth();
+  }, [updateUserStateFromUser]);
 
   return (
     <SubscriptionContext.Provider value={{ 
@@ -199,5 +223,3 @@ export const useSubscription = (): SubscriptionContextType => {
   }
   return context;
 };
-
-    
