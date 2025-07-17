@@ -25,6 +25,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Initialize database on server start
+  if (typeof window === 'undefined') {
+    initializeDatabase().catch(console.error);
+  }
+
   return (
     <html lang="en" suppressHydrationWarning={true}> 
       <body className={cn("font-sans antialiased", inter.variable, "bg-background text-foreground")} suppressHydrationWarning={true}>
@@ -34,10 +39,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SubscriptionProvider>
-            {children}
-            <Toaster />
-          </SubscriptionProvider>
+          <AuthProvider>
+            <SubscriptionProvider>
+              {children}
+              <Toaster />
+            </SubscriptionProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
