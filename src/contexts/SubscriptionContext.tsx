@@ -5,8 +5,7 @@ import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscriptio
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser, signIn, signUp, signOut } from '@/lib/auth';
-import { getUserProfile } from '@/services/database-service';
+import { getCurrentUser, signIn, signUp, signOut, setCookie, clearCookie } from '@/lib/auth-client';
 
 interface User {
   email: string;
@@ -44,6 +43,19 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const isLoggedIn = !!user;
   const isSupabaseConfigured = true; // Always true now with PostgreSQL
+
+  const getUserProfile = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/user/profile/${userId}`);
+      if (!response.ok) {
+        return null;
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  };
 
   const updateUserStateFromUser = useCallback(async (currentUser: any) => {
     if (currentUser?.email) {
@@ -109,7 +121,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       const { user, token } = await signUp(email, password);
       
       // Set cookie
-      document.cookie = `session-token=${token}; path=/; max-age=${24 * 60 * 60}; secure; samesite=lax`;
+      setCookie('session-token', token, 1);
       
       await updateUserStateFromUser(user);
       toast({ 
@@ -132,7 +144,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       const { user, token } = await signIn(email, password);
       
       // Set cookie
-      document.cookie = `session-token=${token}; path=/; max-age=${24 * 60 * 60}; secure; samesite=lax`;
+      setCookie('session-token', token, 1);
       
       await updateUserStateFromUser(user);
       toast({ 
@@ -155,7 +167,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       await signOut();
       
       // Clear cookie
-      document.cookie = 'session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      clearCookie('session-token');
       
       setUser(null);
       setCurrentTier('Free');
