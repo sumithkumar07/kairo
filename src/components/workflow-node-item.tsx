@@ -235,6 +235,57 @@ const WorkflowNodeItemComponent = ({
       <CardContent className="p-2 text-[11px] text-muted-foreground flex-grow overflow-hidden relative leading-tight">
         <p className="truncate" title={node.description || 'No description'}>{node.description || 'No description'}</p>
         
+        {/* CARES Framework Action Buttons */}
+        {showCARESIndicators && aiDecision && !readOnly && (
+          <div className="flex items-center gap-1 mt-1">
+            {onShowReasoning && (
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShowReasoning(node.id, aiDecision.id);
+                      }}
+                    >
+                      <Brain className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">Show AI reasoning</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
+            {onRequestHumanReview && (aiDecision.confidence < 85 || aiDecision.humanReviewRequired) && (
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestHumanReview(node.id, `Low confidence decision (${aiDecision.confidence}%)`);
+                      }}
+                    >
+                      <Users className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">Request human review</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
+        
         {nodeType?.inputHandles?.map((handleId, index) => {
           const numHandles = nodeType.inputHandles?.length || 1;
           const yOffsetPercentage = (100 / (numHandles + 1)) * (index + 1);
