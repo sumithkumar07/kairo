@@ -1,14 +1,12 @@
-import { MistralApi } from '@mistralai/mistralai';
+import { Mistral } from '@mistralai/client-ts';
 
 // Initialize Mistral client
-const apiKey = process.env.MISTRAL_API_KEY;
+const apiKey = process.env.MISTRAL_API_KEY || 'G63uwYlEeS65iN6qD74Njkv7FhULixXa';
 
-if (!apiKey) {
-  console.error('[MISTRAL] MISTRAL_API_KEY is not defined in environment variables');
-}
+console.log('[MISTRAL] Initializing Mistral client with API key:', apiKey.substring(0, 8) + '...');
 
-export const mistralClient = new MistralApi({
-  apiKey: apiKey || 'G63uwYlEeS65iN6qD74Njkv7FhULixXa'
+export const mistralClient = new Mistral({
+  apiKey: apiKey
 });
 
 export interface MistralChatMessage {
@@ -35,7 +33,9 @@ export async function chatWithMistral(
   } = {}
 ): Promise<MistralChatResponse> {
   try {
-    const response = await mistralClient.chat.complete({
+    console.log('[MISTRAL] Making chat request with', messages.length, 'messages');
+    
+    const response = await mistralClient.chat.create({
       model: options.model || 'mistral-small-latest',
       messages: messages,
       temperature: options.temperature || 0.7,
@@ -47,6 +47,8 @@ export async function chatWithMistral(
     if (!choice || !choice.message) {
       throw new Error('No response from Mistral API');
     }
+
+    console.log('[MISTRAL] Received response successfully');
 
     return {
       content: choice.message.content || '',
