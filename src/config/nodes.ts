@@ -1,6 +1,7 @@
 import type { AvailableNodeType, RetryConfig, OnErrorWebhookConfig } from '@/types/workflow';
 import { Bot, Braces, FileJson, GitBranch, HelpCircle, LogOut, Network, Play, Terminal, Workflow as WorkflowIcon, Database, Mail, Clock, Youtube, TrendingUp, DownloadCloud, Scissors, UploadCloud, Filter, Combine, SplitSquareHorizontal, ListOrdered, Milestone, CaseSensitive, GitFork, Layers, Repeat, RotateCcw, LucideIcon, UserCheck, Share2, FilePlus2, Timer, CalendarDays, Webhook, KeyRound, Sheet, MessageSquare, CreditCard, AlertCircle, Github, UserPlus, Smartphone, Speaker, Image, FileText, CheckCircle2 } from 'lucide-react';
 import { ALL_INTEGRATIONS } from './integrations';
+import MISTRAL_AI_INTEGRATIONS from './mistral';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
