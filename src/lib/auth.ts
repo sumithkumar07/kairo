@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { db, hashPassword, verifyPassword, generateSessionToken, isValidEmail } from './database';
 import jwt from 'jsonwebtoken';
@@ -58,9 +57,13 @@ export async function verifySession(token: string): Promise<User | null> {
   }
 }
 
+// Client-side authentication functions
 export async function getCurrentUser(): Promise<User | null> {
-  const cookieStore = cookies();
-  const token = cookieStore.get('session-token')?.value;
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
+  const token = getCookie('session-token');
   
   if (!token) {
     return null;
@@ -156,25 +159,41 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 }
 
 export async function signOut(): Promise<void> {
-  const cookieStore = cookies();
-  cookieStore.delete('session-token');
+  // Clear cookie on client side
+  if (typeof window !== 'undefined') {
+    document.cookie = 'session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  }
 }
 
 // Cookie utilities
-export function setSessionCookie(token: string): void {
-  const cookieStore = cookies();
-  cookieStore.set('session-token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: SESSION_DURATION / 1000, // Convert to seconds
-    path: '/'
-  });
+export function getCookie(name: string): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
 }
 
-export function clearSessionCookie(): void {
-  const cookieStore = cookies();
-  cookieStore.delete('session-token');
+export function setCookie(name: string, value: string, days = 1): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  const expires = new Date();
+  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+  
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;secure;samesite=lax`;
+}
+
+export function clearCookie(name: string): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
 }
 
 // Middleware helper
