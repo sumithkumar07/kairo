@@ -247,7 +247,7 @@
 
   /* Form enhancements */
   .form-field {
-    @apply relative group;
+    @apply relative;
   }
 
   .form-field input:focus + label,
