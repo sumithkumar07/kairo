@@ -4,8 +4,10 @@
 import React from 'react';
 import type { WorkflowNode, AvailableNodeType, WorkflowConnection } from '@/types/workflow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { GripVertical, AlertTriangle, CheckCircle2, XCircle, Loader2, SkipForward, AlertCircleIcon } from 'lucide-react'; 
+import { GripVertical, AlertTriangle, CheckCircle2, XCircle, Loader2, SkipForward, AlertCircleIcon, Brain, Users, Eye, HelpCircle, Gauge, Target, Shield } from 'lucide-react'; 
 import { NODE_HEIGHT, NODE_WIDTH, getDataTransformIcon, getCanvasNodeStyling } from '@/config/nodes';
 import { isConfigComplete, hasUnconnectedInputs } from '@/lib/workflow-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
