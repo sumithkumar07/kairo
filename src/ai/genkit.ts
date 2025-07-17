@@ -1,28 +1,31 @@
 
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai'; // Import Google AI plugin
+import { mistralClient, chatWithMistral, MistralChatMessage } from '@/lib/mistral';
 
-// CRITICAL CHECK for GOOGLE_API_KEY availability during Genkit initialization
+// CRITICAL CHECK for MISTRAL_API_KEY availability
 console.log(
-  '[GENKIT.TS INITIALIZATION] GOOGLE_API_KEY check. Available: ',
-  process.env.GOOGLE_API_KEY ? `Yes (starts with: ${process.env.GOOGLE_API_KEY.substring(0, 8)}...)` : 'No / Empty / Undefined'
+  '[MISTRAL AI] MISTRAL_API_KEY check. Available: ',
+  process.env.MISTRAL_API_KEY ? `Yes (starts with: ${process.env.MISTRAL_API_KEY.substring(0, 8)}...)` : 'Using fallback key'
 );
-if (!process.env.GOOGLE_API_KEY) {
-  console.error("[GENKIT.TS INITIALIZATION] FATAL: GOOGLE_API_KEY is not defined in the environment. Genkit GoogleAI plugin will likely fail to initialize, leading to errors when using the 'ai' object.");
+
+if (!process.env.MISTRAL_API_KEY) {
+  console.log("[MISTRAL AI] Using fallback API key for Mistral integration");
 }
 
-// Setup for plugins
-const plugins = [
-    googleAI(),
-];
-
-// OpenAI plugin support removed to fix build issues.
-if (process.env.OPENAI_API_KEY) {
-    console.log('[GENKIT.TS INITIALIZATION] OpenAI plugin support has been temporarily removed due to a missing package. OpenAI models will not be available.');
-}
-
-export const ai = genkit({
-  plugins: plugins,
-  // Set the default model for the `ai` instance.
-  model: 'googleai/gemini-1.5-pro-latest', 
-});
+// Export Mistral client and utilities for use throughout the app
+export const ai = {
+  chat: chatWithMistral,
+  client: mistralClient,
+  
+  // Helper method to generate content
+  async generate(prompt: string, options: { model?: string; temperature?: number; max_tokens?: number } = {}) {
+    const messages: MistralChatMessage[] = [
+      { role: 'user', content: prompt }
+    ];
+    
+    return await chatWithMistral(messages, {
+      model: options.model || 'mistral-small-latest',
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens || 1000
+    });
+  }
+};
