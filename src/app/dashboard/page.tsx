@@ -331,70 +331,91 @@ function DashboardPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-8">
-        {/* Enhanced Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-bold text-foreground">Dashboard</h1>
-              <Badge variant="outline" className="bg-gradient-to-r from-primary/10 to-purple-600/10">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI Powered
-              </Badge>
+    <DashboardLayout>
+      <div className="space-y-8 animate-fade-in">
+        {/* Enhanced Welcome Section */}
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-purple-500/5 to-pink-500/5 rounded-2xl" />
+          <div className="relative p-8 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-r from-primary to-purple-600 rounded-xl">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-foreground">
+                      Welcome back, {user?.displayName || 'User'}!
+                    </h1>
+                    <p className="text-muted-foreground text-lg">
+                      Your AI automation workspace is ready
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span>All systems operational</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    <span>PostgreSQL connected</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4" />
+                    <span>Mistral AI ready</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  leftIcon={<RefreshCw className="h-4 w-4" />}
+                  animation="glow"
+                >
+                  Refresh
+                </Button>
+                <Button 
+                  variant="gradient" 
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  animation="scale"
+                  asChild
+                >
+                  <Link href="/workflow">
+                    New Workflow
+                  </Link>
+                </Button>
+              </div>
             </div>
-            <p className="text-muted-foreground text-lg">
-              Welcome back, {user?.displayName || 'User'}! Here's your intelligent automation overview.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-            <Button size="sm" asChild className="bg-gradient-to-r from-primary to-purple-600">
-              <Link href="/workflow">
-                <Plus className="h-4 w-4 mr-2" />
-                New Workflow
-              </Link>
-            </Button>
           </div>
         </div>
 
         {/* Enhanced Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
-            <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${stat.bgColor} group-hover:scale-110 transition-transform`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                  <div className={`text-xs flex items-center gap-1 px-2 py-1 rounded-full ${
-                    stat.trend === 'up' ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'
-                  }`}>
-                    <TrendingUp className={`h-3 w-3 ${stat.trend === 'down' ? 'rotate-180' : ''}`} />
-                    {stat.change}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">{stat.title}</p>
-                  <p className="text-3xl font-bold text-foreground">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">from last month</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div key={index} className={`animate-fade-in-up stagger-${index + 1}`}>
+              <StatsCard
+                title={stat.title}
+                value={stat.value}
+                change={stat.change}
+                trend={stat.trend}
+                icon={<stat.icon className="h-6 w-6" />}
+                className="hover:scale-105 transition-transform duration-300"
+              />
+            </div>
           ))}
         </div>
 
         {/* Enhanced Quick Actions */}
-        <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+        <Card variant="premium" className="animate-fade-in-up stagger-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
+            <CardTitle className="flex items-center gap-2 text-2xl">
               <Rocket className="h-6 w-6" />
               Quick Actions
             </CardTitle>
-            <CardDescription className="text-base">
+            <CardDescription size="lg">
               Get started with common tasks and AI-powered workflows
             </CardDescription>
           </CardHeader>
@@ -405,6 +426,7 @@ function DashboardPage() {
                   key={index}
                   variant="outline"
                   className="h-auto p-6 flex flex-col items-center gap-4 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50"
+                  animation="scale"
                   asChild
                 >
                   <Link href={action.href}>
@@ -423,36 +445,34 @@ function DashboardPage() {
         </Card>
 
         {/* Enhanced Performance Metrics */}
-        <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+        <Card variant="premium" className="animate-fade-in-up stagger-3">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
+            <CardTitle className="flex items-center gap-2 text-2xl">
               <Gauge className="h-6 w-6" />
               System Performance
             </CardTitle>
-            <CardDescription className="text-base">
+            <CardDescription size="lg">
               Real-time monitoring of your automation infrastructure
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {performanceMetrics.map((metric, index) => (
-                <div key={index} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <metric.icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{metric.label}</span>
-                    </div>
-                    <span className="text-sm font-bold">{metric.value}%</span>
-                  </div>
-                  <Progress value={metric.value} className={`h-2 ${metric.color}`} />
-                </div>
+                <MetricCard
+                  key={index}
+                  label={metric.label}
+                  value={metric.value}
+                  color={metric.color}
+                  showProgress={true}
+                  className="hover:scale-105 transition-transform duration-300"
+                />
               ))}
             </div>
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="workflows" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3">
+        <Tabs defaultValue="workflows" className="space-y-6 animate-fade-in-up stagger-4">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3 h-12">
             <TabsTrigger value="workflows" className="flex items-center gap-2">
               <WorkflowIcon className="h-4 w-4" />
               Workflows
@@ -469,7 +489,7 @@ function DashboardPage() {
 
           <TabsContent value="workflows" className="space-y-6">
             {/* Enhanced Workflow Filters */}
-            <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+            <Card variant="glass">
               <CardContent className="p-6">
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                   <div className="flex flex-wrap items-center gap-2">
@@ -518,16 +538,12 @@ function DashboardPage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <input
-                        type="text"
-                        placeholder="Search workflows..."
-                        className="pl-10 pr-4 py-2 border rounded-md text-sm w-64 bg-background/50 border-border/50 focus:border-primary/50"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
+                    <SearchInput
+                      placeholder="Search workflows..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-64"
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -543,7 +559,7 @@ function DashboardPage() {
             {/* Enhanced Workflows Grid/List */}
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
               {filteredWorkflows.map((workflow) => (
-                <Card key={workflow.id} className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-card via-card to-card/50 border-border/50">
+                <Card key={workflow.id} variant="premium" hover="scale" className="group">
                   <CardHeader className="pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -638,7 +654,7 @@ function DashboardPage() {
             </div>
             
             {filteredWorkflows.length === 0 && (
-              <Card className="text-center py-16 bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+              <Card variant="glass" className="text-center py-16">
                 <CardContent>
                   <div className="p-4 bg-primary/10 rounded-full inline-block mb-6">
                     <WorkflowIcon className="h-12 w-12 text-primary" />
@@ -647,7 +663,7 @@ function DashboardPage() {
                   <p className="text-muted-foreground mb-6 text-lg">
                     {searchQuery ? 'Try adjusting your search criteria' : 'Create your first workflow to get started'}
                   </p>
-                  <Button asChild size="lg" className="bg-gradient-to-r from-primary to-purple-600">
+                  <Button variant="gradient" size="lg" asChild>
                     <Link href="/workflow">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Workflow
@@ -659,13 +675,13 @@ function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">
-            <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+            <Card variant="premium">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Activity className="h-6 w-6" />
                   Recent Workflow Runs
                 </CardTitle>
-                <CardDescription className="text-base">
+                <CardDescription size="lg">
                   Latest execution results from your AI-powered workflows
                 </CardDescription>
               </CardHeader>
@@ -702,13 +718,13 @@ function DashboardPage() {
 
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+              <Card variant="premium">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <BarChart3 className="h-6 w-6" />
                     Performance Metrics
                   </CardTitle>
-                  <CardDescription className="text-base">
+                  <CardDescription size="lg">
                     Workflow execution statistics and insights
                   </CardDescription>
                 </CardHeader>
@@ -738,13 +754,13 @@ function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-r from-card via-card to-card/50 border-border/50">
+              <Card variant="premium">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <PieChart className="h-6 w-6" />
                     Resource Usage
                   </CardTitle>
-                  <CardDescription className="text-base">
+                  <CardDescription size="lg">
                     Current plan utilization and limits
                   </CardDescription>
                 </CardHeader>
@@ -785,7 +801,7 @@ function DashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
+    </DashboardLayout>
   );
 }
 
