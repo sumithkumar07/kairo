@@ -27,6 +27,7 @@ import { AIWorkflowAssistantPanel } from '@/components/ai-workflow-assistant-pan
 import { NodeConfigPanel } from '@/components/node-config-panel';
 import { NodeLibrary } from '@/components/node-library';
 import { EnhancedWorkflowCanvas } from '@/components/enhanced-workflow-canvas';
+import { CARESFrameworkIntegration } from '@/components/cares-framework-integration';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
