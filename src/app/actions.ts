@@ -53,9 +53,8 @@ import {
 import type { Workflow, WorkflowRunRecord, ManagedCredential, SavedWorkflowMetadata, AgentConfig, ExampleWorkflow, DisplayUserApiKey, McpCommandRecord } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
-import * as WorkflowStorage from '@/services/workflow-storage-service';
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import * as WorkflowStorage from '@/services/database-service';
+import { getCurrentUser } from '@/lib/auth';
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
 
