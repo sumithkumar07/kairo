@@ -53,6 +53,10 @@ const WorkflowNodeItemComponent = ({
   connections,
   readOnly = false,
   executionData,
+  aiDecision,
+  onShowReasoning,
+  onRequestHumanReview,
+  showCARESIndicators = true,
 }: WorkflowNodeItemProps) => {
   
   const IconComponent = nodeType?.icon || GripVertical;
