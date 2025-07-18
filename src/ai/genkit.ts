@@ -27,5 +27,16 @@ export const ai = {
       temperature: options.temperature || 0.7,
       max_tokens: options.max_tokens || 1000
     });
+  },
+
+  // Tool definition helper (placeholder for compatibility)
+  defineTool(config: any, handler: any) {
+    return {
+      name: config.name,
+      description: config.description,
+      inputSchema: config.inputSchema,
+      outputSchema: config.outputSchema,
+      handler: handler
+    };
   }
 };
