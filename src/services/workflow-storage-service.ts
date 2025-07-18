@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A server-side service for storing and retrieving user workflows and run history from PostgreSQL database.
@@ -55,7 +54,6 @@ export async function getCommunityWorkflows(): Promise<ExampleWorkflow[]> {
     // For this prototype, we'll just return the imported JSON data.
     return communityWorkflowsData as ExampleWorkflow[];
 }
-
 
 export async function getIsUserWorkflow(name: string, userId: string): Promise<boolean> {
   try {
@@ -145,65 +143,55 @@ export async function deleteWorkflowByName(name: string, userId: string): Promis
 }
 
 export async function findWorkflowByWebhookPath(pathSuffix: string): Promise<{ workflow: Workflow; userId: string; } | null> {
-  // This RPC needs to be secure as it searches across all users' workflows.
-  // The 'SECURITY DEFINER' in the function definition and RLS on the table help.
-  const supabase = await getSupabaseClient();
-  const { data, error } = await supabase
-      .rpc('find_workflow_by_webhook_path', { path_suffix_to_find: pathSuffix })
-      .single();
-
-  if (error) {
-      if (error.code !== 'PGRST116') { // Don't log "No rows found" as an error
-        console.error('[Storage Service] Error in RPC find_workflow_by_webhook_path:', error);
-      }
+  try {
+    const result = await db.query(
+      'SELECT * FROM find_workflow_by_webhook_path($1)',
+      [pathSuffix]
+    );
+    
+    if (result.length === 0) {
       return null;
+    }
+    
+    const data = result[0];
+    return { workflow: data.workflow_data_result, userId: data.user_id_result };
+  } catch (error) {
+    console.error('[Storage Service] Error in find_workflow_by_webhook_path:', error);
+    return null;
   }
-
-  return data ? { workflow: data.workflow_data_result, userId: data.user_id_result } : null;
 }
 
 export async function getAllScheduledWorkflows(): Promise<{ user_id: string; name: string; workflow_data: Workflow; }[]> {
-  const supabase = await getSupabaseClient();
-  
-  const { data, error } = await supabase
-    .from('workflows')
-    .select('user_id, name, workflow_data');
+  try {
+    const result = await db.query(
+      'SELECT user_id, name, workflow_data FROM workflows'
+    );
     
-  if (error) {
+    const scheduledWorkflows = result.filter(wf => 
+      wf.workflow_data && 
+      Array.isArray(wf.workflow_data.nodes) && 
+      wf.workflow_data.nodes.some((node: any) => node.type === 'schedule')
+    );
+
+    return scheduledWorkflows;
+  } catch (error) {
     console.error('[Storage Service] Error fetching all workflows for scheduler:', error);
     throw new Error('Could not fetch workflows for scheduling.');
   }
-
-  const scheduledWorkflows = data.filter(wf => 
-    wf.workflow_data && 
-    Array.isArray(wf.workflow_data.nodes) && 
-    wf.workflow_data.nodes.some((node: any) => node.type === 'schedule')
-  );
-
-  return scheduledWorkflows as { user_id: string; name: string; workflow_data: Workflow; }[];
 }
-
 
 // ========================
 // Run History Management
 // ========================
 
 export async function getRunHistory(userId: string): Promise<WorkflowRunRecord[]> {
-  const supabase = await getSupabaseClient();
-  
-  const { data, error } = await supabase
-    .from('run_history')
-    .select('*')
-    .eq('user_id', userId)
-    .order('timestamp', { ascending: false })
-    .limit(MAX_RUN_HISTORY);
+  try {
+    const result = await db.query(
+      'SELECT * FROM run_history WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2',
+      [userId, MAX_RUN_HISTORY]
+    );
     
-  if (error) {
-    console.error(`[Storage Service] Error fetching run history:`, error);
-    return [];
-  }
-  
-  return data.map(r => ({
+    return result.map(r => ({
       id: r.id,
       workflowName: r.workflow_name,
       timestamp: r.timestamp,
@@ -211,167 +199,156 @@ export async function getRunHistory(userId: string): Promise<WorkflowRunRecord[]
       executionResult: r.execution_result,
       initialData: r.initial_data,
       workflowSnapshot: r.workflow_snapshot
-  }));
+    }));
+  } catch (error) {
+    console.error(`[Storage Service] Error fetching run history:`, error);
+    return [];
+  }
 }
 
 export async function getRunRecordById(id: string, userId: string): Promise<WorkflowRunRecord | null> {
-  const supabase = await getSupabaseClient();
-
-  const { data, error } = await supabase
-    .from('run_history')
-    .select('*')
-    .eq('id', id)
-    .eq('user_id', userId)
-    .single();
-
-  if (error || !data) {
-    if (error && error.code !== 'PGRST116') {
-      console.error(`[Storage Service] Error fetching run record by ID ${id}:`, error);
+  try {
+    const result = await db.query(
+      'SELECT * FROM run_history WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    
+    if (result.length === 0) {
+      return null;
     }
+    
+    const data = result[0];
+    return {
+      id: data.id,
+      workflowName: data.workflow_name,
+      timestamp: data.timestamp,
+      status: data.status as 'Success' | 'Failed',
+      executionResult: data.execution_result,
+      initialData: data.initial_data,
+      workflowSnapshot: data.workflow_snapshot
+    };
+  } catch (error) {
+    console.error(`[Storage Service] Error fetching run record by ID ${id}:`, error);
     return null;
   }
-  
-  return {
-    id: data.id,
-    workflowName: data.workflow_name,
-    timestamp: data.timestamp,
-    status: data.status as 'Success' | 'Failed',
-    executionResult: data.execution_result,
-    initialData: data.initial_data,
-    workflowSnapshot: data.workflow_snapshot
-  };
 }
 
 export async function saveRunRecord(record: WorkflowRunRecord, userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-
-    const { error } = await supabase.from('run_history').insert({
-        id: record.id,
-        user_id: userId,
-        workflow_name: record.workflowName,
-        timestamp: record.timestamp,
-        status: record.status,
-        execution_result: record.executionResult as any,
-        initial_data: record.initialData as any,
-        workflow_snapshot: record.workflowSnapshot as any
-    });
-
-    if (error) {
-        console.error(`[Storage Service] Error saving run record:`, error);
-        throw new Error('Could not save run record.');
-    }
+  try {
+    await db.query(
+      `INSERT INTO run_history (id, user_id, workflow_name, timestamp, status, execution_result, initial_data, workflow_snapshot)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        record.id,
+        userId,
+        record.workflowName,
+        record.timestamp,
+        record.status,
+        JSON.stringify(record.executionResult),
+        JSON.stringify(record.initialData),
+        JSON.stringify(record.workflowSnapshot)
+      ]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error saving run record:`, error);
+    throw new Error('Could not save run record.');
+  }
 }
 
 export async function clearRunHistory(userId: string): Promise<void> {
-  const supabase = await getSupabaseClient();
-  
-  const { error } = await supabase
-    .from('run_history')
-    .delete()
-    .eq('user_id', userId);
-
-  if (error) {
+  try {
+    await db.query(
+      'DELETE FROM run_history WHERE user_id = $1',
+      [userId]
+    );
+  } catch (error) {
     console.error(`[Storage Service] Error clearing run history:`, error);
     throw new Error('Could not clear run history.');
   }
 }
 
 export async function getMonthlyRunCount(userId: string): Promise<number> {
-    const supabase = await getSupabaseClient();
+  try {
     const yearMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-
-    const { data, error } = await supabase
-        .from('workflow_runs_monthly')
-        .select('run_count')
-        .eq('user_id', userId)
-        .eq('year_month', yearMonth)
-        .single();
-        
-    if (error) {
-        if (error.code === 'PGRST116') return 0; // No record found for this month, which is fine.
-        console.error('[Storage Service] Error getting monthly run count:', error);
-        return 0; // Fail safe
-    }
-
-    return data.run_count;
+    const result = await db.query(
+      'SELECT run_count FROM workflow_runs_monthly WHERE user_id = $1 AND year_month = $2',
+      [userId, yearMonth]
+    );
+    
+    return result.length > 0 ? result[0].run_count : 0;
+  } catch (error) {
+    console.error('[Storage Service] Error getting monthly run count:', error);
+    return 0;
+  }
 }
 
 export async function incrementMonthlyRunCount(userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    const { error } = await supabase.rpc('increment_run_count', { p_user_id: userId });
-
-    if (error) {
-        console.error('[Storage Service] Error incrementing run count:', error);
-    }
+  try {
+    await db.query('SELECT increment_run_count($1)', [userId]);
+  } catch (error) {
+    console.error('[Storage Service] Error incrementing run count:', error);
+  }
 }
 
 export async function getMonthlyGenerationCount(userId: string): Promise<number> {
-    const supabase = await getSupabaseClient();
+  try {
     const yearMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-
-    const { data, error } = await supabase
-        .from('ai_generations_monthly')
-        .select('generation_count')
-        .eq('user_id', userId)
-        .eq('year_month', yearMonth)
-        .single();
-        
-    if (error) {
-        if (error.code === 'PGRST116') return 0; // No record found for this month, which is fine.
-        console.error('[Storage Service] Error getting monthly generation count:', error);
-        return 0; // Fail safe
-    }
-
-    return data.generation_count;
+    const result = await db.query(
+      'SELECT generation_count FROM ai_generations_monthly WHERE user_id = $1 AND year_month = $2',
+      [userId, yearMonth]
+    );
+    
+    return result.length > 0 ? result[0].generation_count : 0;
+  } catch (error) {
+    console.error('[Storage Service] Error getting monthly generation count:', error);
+    return 0;
+  }
 }
 
 export async function incrementMonthlyGenerationCount(userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    const { error } = await supabase.rpc('increment_generation_count', { p_user_id: userId });
-
-    if (error) {
-        console.error('[Storage Service] Error incrementing generation count:', error);
-    }
+  try {
+    await db.query('SELECT increment_generation_count($1)', [userId]);
+  } catch (error) {
+    console.error('[Storage Service] Error incrementing generation count:', error);
+  }
 }
-
-
 
 // ========================
 // MCP Command History
 // ========================
 
-export async function getMcpHistory(): Promise<McpCommandRecord[]> {
-  const supabase = await getSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return [];
-
-  const { data, error } = await supabase
-    .from('mcp_command_history')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('timestamp', { ascending: false })
-    .limit(MAX_MCP_HISTORY);
+export async function getMcpHistory(userId: string): Promise<McpCommandRecord[]> {
+  try {
+    const result = await db.query(
+      'SELECT * FROM mcp_command_history WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2',
+      [userId, MAX_MCP_HISTORY]
+    );
     
-  if (error) {
+    return result as McpCommandRecord[];
+  } catch (error) {
     console.error(`[Storage Service] Error fetching MCP history:`, error);
     return [];
   }
-
-  return data as McpCommandRecord[];
 }
 
 export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id' | 'user_id'>, userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    
-    const { error } = await supabase.from('mcp_command_history').insert({
-        ...record,
-        id: crypto.randomUUID(),
-        user_id: userId,
-    });
-    if (error) {
-        console.error(`[Storage Service] Error saving MCP command:`, error);
-        throw new Error('Could not save MCP command record.');
-    }
+  try {
+    await db.query(
+      `INSERT INTO mcp_command_history (id, user_id, timestamp, command, response, status)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        crypto.randomUUID(),
+        userId,
+        record.timestamp,
+        record.command,
+        record.response,
+        record.status
+      ]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error saving MCP command:`, error);
+    throw new Error('Could not save MCP command record.');
+  }
 }
 
 // ========================
@@ -379,156 +356,134 @@ export async function saveMcpCommand(record: Omit<McpCommandRecord, 'id' | 'user
 // ========================
 
 export async function getAgentConfig(userId: string): Promise<AgentConfig> {
-    const supabase = await getSupabaseClient();
-    const defaultConfig: AgentConfig = { enabledTools: ['listSavedWorkflows', 'getWorkflowDefinition', 'runWorkflow'] };
+  const defaultConfig: AgentConfig = { enabledTools: ['listSavedWorkflows', 'getWorkflowDefinition', 'runWorkflow'] };
 
-    const { data, error } = await supabase
-        .from('agent_config')
-        .select('enabled_tools')
-        .eq('user_id', userId)
-        .single();
+  try {
+    const result = await db.query(
+      'SELECT enabled_tools FROM agent_config WHERE user_id = $1',
+      [userId]
+    );
     
-    if (error || !data) {
-        if (error && error.code !== 'PGRST116') {
-             console.warn('[Storage Service] Could not read agent config, falling back to default.', error);
-        }
-        return defaultConfig;
+    if (result.length === 0) {
+      return defaultConfig;
     }
     
-    return { enabledTools: data.enabled_tools };
+    return { enabledTools: result[0].enabled_tools };
+  } catch (error) {
+    console.warn('[Storage Service] Could not read agent config, falling back to default.', error);
+    return defaultConfig;
+  }
 }
 
 export async function saveAgentConfig(config: AgentConfig, userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    
-    const { error } = await supabase
-        .from('agent_config')
-        .upsert({
-            user_id: userId,
-            enabled_tools: config.enabledTools,
-            updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-
-    if (error) {
-        console.error(`[Storage Service] Error saving agent config:`, error);
-        throw new Error(`Could not save agent config: ${error.message}`);
-    }
+  try {
+    await db.query(
+      `INSERT INTO agent_config (user_id, enabled_tools, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET enabled_tools = $2, updated_at = NOW()`,
+      [userId, JSON.stringify(config.enabledTools)]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error saving agent config:`, error);
+    throw new Error(`Could not save agent config: ${error}`);
+  }
 }
 
 export async function getUserProfile(userId: string): Promise<{ subscription_tier: SubscriptionTier, trial_end_date: string | null } | null> {
-    const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
-        .from('user_profiles')
-        .select('subscription_tier, trial_end_date')
-        .eq('id', userId)
-        .single();
-        
-    if (error) {
-        if (error.code !== 'PGRST116') {
-            console.error(`[Storage Service] Error getting user profile for ${userId}:`, error);
-        }
-        return null;
+  try {
+    const result = await db.query(
+      'SELECT subscription_tier, trial_end_date FROM user_profiles WHERE id = $1',
+      [userId]
+    );
+    
+    if (result.length === 0) {
+      return null;
     }
     
-    return data as { subscription_tier: SubscriptionTier, trial_end_date: string | null };
+    return result[0] as { subscription_tier: SubscriptionTier, trial_end_date: string | null };
+  } catch (error) {
+    console.error(`[Storage Service] Error getting user profile for ${userId}:`, error);
+    return null;
+  }
 }
 
 export async function updateUserProfileTier(userId: string, newTier: 'Gold' | 'Diamond'): Promise<void> {
-    const supabase = await getSupabaseClient();
-    const { error } = await supabase
-        .from('user_profiles')
-        .update({ subscription_tier: newTier, trial_end_date: null })
-        .eq('id', userId);
-
-    if (error) {
-        console.error(`[Storage Service] Error updating user profile tier for ${userId}:`, error);
-        throw new Error('Could not update user profile.');
-    }
+  try {
+    await db.query(
+      'UPDATE user_profiles SET subscription_tier = $1, trial_end_date = NULL WHERE id = $2',
+      [newTier, userId]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error updating user profile tier for ${userId}:`, error);
+    throw new Error('Could not update user profile.');
+  }
 }
-
 
 // ========================
 // Credential Management
 // ========================
 
 export async function getCredentialsForUser(userId: string): Promise<Omit<ManagedCredential, 'value'>[]> {
-    const supabase = await getSupabaseClient();
-
-    const { data, error } = await supabase
-        .from('credentials')
-        .select('id, name, service, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error('[Storage Service] Error fetching credentials:', error);
-        throw new Error('Could not fetch credentials.');
-    }
-    return data;
+  try {
+    const result = await db.query(
+      'SELECT id, name, service, created_at FROM credentials WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    
+    return result;
+  } catch (error) {
+    console.error('[Storage Service] Error fetching credentials:', error);
+    throw new Error('Could not fetch credentials.');
+  }
 }
 
 export async function getCredentialValueByNameForUser(name: string, userId: string): Promise<string | null> {
-    const supabase = await getSupabaseClient();
+  try {
+    const result = await db.query(
+      'SELECT value FROM credentials WHERE user_id = $1 AND name = $2',
+      [userId, name]
+    );
     
-    const { data, error } = await supabase
-        .from('credentials')
-        .select('value')
-        .eq('user_id', userId)
-        .eq('name', name)
-        .single();
-    
-    if (error || !data) {
-        if (error && error.code !== 'PGRST116') {
-            console.error(`[Storage Service] Error fetching value for credential '${name}':`, error);
-        }
-        return null;
+    if (result.length === 0) {
+      return null;
     }
     
-    try {
-      return await decrypt(data.value);
-    } catch (e: any) {
-      console.error(`[Storage Service] Failed to decrypt credential '${name}' for user '${userId}'. Error: ${e.message}`);
-      return null; // Return null on decryption failure to prevent exposing encrypted data.
-    }
+    return await decrypt(result[0].value);
+  } catch (error) {
+    console.error(`[Storage Service] Error fetching value for credential '${name}':`, error);
+    return null;
+  }
 }
 
 export async function saveCredential(credential: Omit<ManagedCredential, 'id'>, userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    
+  try {
     const encryptedValue = await encrypt(credential.value);
-
-    const { error } = await supabase.from('credentials').upsert(
-        { 
-            user_id: userId,
-            name: credential.name,
-            value: encryptedValue, // Store the encrypted value
-            service: credential.service,
-            created_at: credential.created_at
-        },
-        { onConflict: 'user_id, name' }
-    );
     
-    if (error) {
-        console.error(`[Storage Service] Error saving credential '${credential.name}':`, error);
-        throw new Error('Could not save credential. A credential with this name may already exist.');
-    }
+    await db.query(
+      `INSERT INTO credentials (user_id, name, value, service, created_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, name)
+       DO UPDATE SET value = $3, service = $4, created_at = $5`,
+      [userId, credential.name, encryptedValue, credential.service, credential.created_at]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error saving credential '${credential.name}':`, error);
+    throw new Error('Could not save credential. A credential with this name may already exist.');
+  }
 }
 
 export async function deleteCredential(id: string, userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    
-    const { error } = await supabase
-        .from('credentials')
-        .delete()
-        .eq('user_id', userId)
-        .eq('id', id);
-        
-    if (error) {
-        console.error(`[Storage Service] Error deleting credential ID '${id}':`, error);
-        throw new Error('Could not delete credential.');
-    }
+  try {
+    await db.query(
+      'DELETE FROM credentials WHERE user_id = $1 AND id = $2',
+      [userId, id]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error deleting credential ID '${id}':`, error);
+    throw new Error('Could not delete credential.');
+  }
 }
-
 
 // ========================
 // API Key Management
@@ -539,75 +494,76 @@ function hashApiKey(apiKey: string): string {
 }
 
 export async function generateApiKey(userId: string): Promise<{ apiKey: string; id: string; prefix: string; }> {
-    const supabase = await getSupabaseClient();
+  try {
     const prefix = 'kairo_sk_';
     const secretPart = crypto.randomBytes(24).toString('hex');
     const apiKey = `${prefix}${secretPart}`;
     const keyHash = hashApiKey(apiKey);
 
-    const { data, error } = await supabase.from('user_api_keys').insert({
-        user_id: userId,
-        key_hash: keyHash,
-        prefix: prefix,
-    }).select('id').single();
+    const result = await db.query(
+      'INSERT INTO user_api_keys (user_id, key_hash, prefix) VALUES ($1, $2, $3) RETURNING id',
+      [userId, keyHash, prefix]
+    );
     
-    if (error || !data) {
-        console.error('[Storage Service] Error saving new API key hash:', error);
-        throw new Error('Could not generate API key.');
+    if (result.length === 0) {
+      throw new Error('Could not generate API key.');
     }
 
-    // Return the full, unhashed key to the user ONCE.
-    return { apiKey, id: data.id, prefix };
+    return { apiKey, id: result[0].id, prefix };
+  } catch (error) {
+    console.error('[Storage Service] Error saving new API key hash:', error);
+    throw new Error('Could not generate API key.');
+  }
 }
 
 export async function listApiKeysForUser(userId: string): Promise<DisplayUserApiKey[]> {
-    const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
-        .from('user_api_keys')
-        .select('id, prefix, created_at, last_used_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error('[Storage Service] Error listing API keys:', error);
-        throw new Error('Could not list API keys.');
-    }
-    return data;
+  try {
+    const result = await db.query(
+      'SELECT id, prefix, created_at, last_used_at FROM user_api_keys WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    
+    return result;
+  } catch (error) {
+    console.error('[Storage Service] Error listing API keys:', error);
+    throw new Error('Could not list API keys.');
+  }
 }
 
 export async function revokeApiKey(keyId: string, userId: string): Promise<void> {
-    const supabase = await getSupabaseClient();
-    const { error } = await supabase
-        .from('user_api_keys')
-        .delete()
-        .eq('id', keyId)
-        .eq('user_id', userId);
-
-    if (error) {
-        console.error(`[Storage Service] Error revoking API key ID '${keyId}':`, error);
-        throw new Error('Could not revoke API key.');
-    }
+  try {
+    await db.query(
+      'DELETE FROM user_api_keys WHERE id = $1 AND user_id = $2',
+      [keyId, userId]
+    );
+  } catch (error) {
+    console.error(`[Storage Service] Error revoking API key ID '${keyId}':`, error);
+    throw new Error('Could not revoke API key.');
+  }
 }
 
-
 export async function findUserByApiKey(apiKey: string): Promise<string | null> {
-    if (!apiKey.startsWith('kairo_sk_')) {
-        return null;
-    }
-    const supabase = await getSupabaseClient();
+  if (!apiKey.startsWith('kairo_sk_')) {
+    return null;
+  }
+  
+  try {
     const keyHash = hashApiKey(apiKey);
+    const result = await db.query('SELECT find_user_by_api_key($1)', [keyHash]);
     
-    const { data, error } = await supabase.rpc('find_user_by_api_key', { p_key_hash: keyHash });
-
-    if (error || !data) {
-        if (error && error.code !== 'PGRST116') {
-             console.error('[Storage Service] Error looking up user by API key:', error);
-        }
-        return null;
+    if (result.length === 0 || !result[0].find_user_by_api_key) {
+      return null;
     }
     
-    // Also update the last_used_at timestamp, fire-and-forget
-    supabase.from('user_api_keys').update({ last_used_at: new Date().toISOString() }).eq('key_hash', keyHash).then();
+    // Update the last_used_at timestamp
+    await db.query(
+      'UPDATE user_api_keys SET last_used_at = NOW() WHERE key_hash = $1',
+      [keyHash]
+    );
 
-    return data;
+    return result[0].find_user_by_api_key;
+  } catch (error) {
+    console.error('[Storage Service] Error looking up user by API key:', error);
+    return null;
+  }
 }
