@@ -1,24 +1,19 @@
 
 'use server';
 /**
- * @fileOverview A server-side service for storing and retrieving user workflows and run history from a Supabase database.
+ * @fileOverview A server-side service for storing and retrieving user workflows and run history from PostgreSQL database.
  */
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { Workflow, ExampleWorkflow, WorkflowRunRecord, McpCommandRecord, AgentConfig, SavedWorkflowMetadata, ManagedCredential, SubscriptionTier, UserApiKey, DisplayUserApiKey } from '@/types/workflow';
 import { EXAMPLE_WORKFLOWS } from '@/config/example-workflows';
 import { encrypt, decrypt } from './encryption-service';
 import crypto from 'crypto';
 import communityWorkflowsData from '@/data/community_workflows.json';
+import { db } from '@/lib/database';
 
 
 const MAX_RUN_HISTORY = 100; // Max number of run records to keep
 const MAX_MCP_HISTORY = 50; // Max number of MCP command records to keep
-
-async function getSupabaseClient() {
-    const cookieStore = cookies();
-    return createServerActionClient({ cookies: () => cookieStore });
-}
 
 // ========================
 // Workflow Management
