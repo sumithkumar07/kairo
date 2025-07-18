@@ -58,34 +58,29 @@ export async function getCommunityWorkflows(): Promise<ExampleWorkflow[]> {
 
 
 export async function getIsUserWorkflow(name: string, userId: string): Promise<boolean> {
-  const supabase = await getSupabaseClient();
-  const { count, error } = await supabase
-    .from('workflows')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('name', name);
-  
-  if (error) {
-      console.error('[Storage Service] Error checking user workflow existence:', error);
-      return false;
+  try {
+    const result = await db.query(
+      'SELECT COUNT(*) as count FROM workflows WHERE user_id = $1 AND name = $2',
+      [userId, name]
+    );
+    return parseInt(result[0].count) > 0;
+  } catch (error) {
+    console.error('[Storage Service] Error checking user workflow existence:', error);
+    return false;
   }
-  
-  return (count ?? 0) > 0;
 }
 
-
 export async function getWorkflowCountForUser(userId: string): Promise<number> {
-    const supabase = await getSupabaseClient();
-    const { count, error } = await supabase
-        .from('workflows')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
-
-    if (error) {
-        console.error('[Storage Service] Error counting workflows:', error);
-        return 0; // Fail safe
-    }
-    return count ?? 0;
+  try {
+    const result = await db.query(
+      'SELECT COUNT(*) as count FROM workflows WHERE user_id = $1',
+      [userId]
+    );
+    return parseInt(result[0].count);
+  } catch (error) {
+    console.error('[Storage Service] Error counting workflows:', error);
+    return 0;
+  }
 }
 
 export async function getWorkflowByName(name: string, userId?: string | null): Promise<Workflow | null> {
@@ -95,29 +90,27 @@ export async function getWorkflowByName(name: string, userId?: string | null): P
   }
   
   const communityWorkflow = communityWorkflowsData.find(wf => wf.name === name);
-    if (communityWorkflow) {
-        return communityWorkflow.workflow;
+  if (communityWorkflow) {
+    return communityWorkflow.workflow;
   }
-
 
   if (!userId) return null; // Can't fetch user workflows if not logged in
 
-  const supabase = await getSupabaseClient();
-  const { data, error } = await supabase
-    .from('workflows')
-    .select('workflow_data')
-    .eq('name', name)
-    .eq('user_id', userId)
-    .single();
-
-  if (error || !data) {
-    if (error && error.code !== 'PGRST116') { // Ignore 'No rows found' error for this check
-        console.error(`[Storage Service] Error getting workflow '${name}':`, error);
+  try {
+    const result = await db.query(
+      'SELECT workflow_data FROM workflows WHERE name = $1 AND user_id = $2',
+      [name, userId]
+    );
+    
+    if (result.length === 0) {
+      return null;
     }
+    
+    return result[0].workflow_data as Workflow;
+  } catch (error) {
+    console.error(`[Storage Service] Error getting workflow '${name}':`, error);
     return null;
   }
-
-  return data.workflow_data as Workflow;
 }
 
 export async function saveWorkflow(name: string, workflow: Workflow, userId: string): Promise<void> {
@@ -125,34 +118,29 @@ export async function saveWorkflow(name: string, workflow: Workflow, userId: str
     throw new Error('Workflow name cannot be empty.');
   }
 
-  const supabase = await getSupabaseClient();
-  const { error } = await supabase
-    .from('workflows')
-    .upsert({
-      user_id: userId,
-      name: name,
-      workflow_data: workflow as any, // Supabase expects JSONB, so `any` is okay here
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id, name' });
-
-  if (error) {
+  try {
+    await db.query(
+      `INSERT INTO workflows (user_id, name, workflow_data, updated_at) 
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, name) 
+       DO UPDATE SET workflow_data = $3, updated_at = NOW()`,
+      [userId, name, JSON.stringify(workflow)]
+    );
+  } catch (error) {
     console.error(`[Storage Service] Error saving workflow '${name}':`, error);
-    throw new Error(`Could not save workflow: ${error.message}`);
+    throw new Error(`Could not save workflow: ${error}`);
   }
 }
 
 export async function deleteWorkflowByName(name: string, userId: string): Promise<void> {
-  const supabase = await getSupabaseClient();
-  
-  const { error } = await supabase
-    .from('workflows')
-    .delete()
-    .eq('user_id', userId)
-    .eq('name', name);
-    
-  if (error) {
+  try {
+    await db.query(
+      'DELETE FROM workflows WHERE user_id = $1 AND name = $2',
+      [userId, name]
+    );
+  } catch (error) {
     console.error(`[Storage Service] Error deleting workflow '${name}':`, error);
-    throw new Error(`Could not delete workflow: ${error.message}`);
+    throw new Error(`Could not delete workflow: ${error}`);
   }
 }
 
