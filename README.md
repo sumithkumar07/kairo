@@ -24,17 +24,18 @@ Kairo is a comprehensive AI-powered workflow automation platform that implements
 
 ### AI-First Architecture
 - **Mistral AI Integration**: Advanced reasoning capabilities for complex workflows
-- **Google AI (Genkit)**: Workflow generation and intelligent assistance
 - **Context-aware Assistant**: Smart suggestions and error diagnosis
 - **Natural Language Processing**: Generate workflows from plain English descriptions
+- **Intelligent Automation**: AI-powered workflow generation and optimization
 
 ## Technology Stack
 
 *   **Framework**: Next.js 15 (App Router)
 *   **Language**: TypeScript
 *   **Styling**: Tailwind CSS with Radix UI components
-*   **AI**: Mistral AI + Google AI (Genkit)
-*   **Database & Auth**: Supabase with Row Level Security
+*   **AI**: Mistral AI (Latest Models)
+*   **Database**: PostgreSQL with direct connection
+*   **Authentication**: JWT-based authentication with PostgreSQL storage
 *   **Deployment**: Vercel, Firebase App Hosting, Netlify
 
 ## 🚀 Quick Start
@@ -42,8 +43,8 @@ Kairo is a comprehensive AI-powered workflow automation platform that implements
 ### Prerequisites
 - Node.js 18+ 
 - npm or yarn
-- Supabase account for database and authentication
-- Google Cloud account for AI services
+- PostgreSQL database (Render, AWS RDS, or local)
+- Mistral AI API key
 
 ### Installation
 
@@ -58,23 +59,27 @@ npm install
 Create a `.env.local` file in the root directory with the following variables:
 
 ```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL="your_supabase_project_url"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="your_supabase_anon_key"
+# Mistral AI Configuration
+MISTRAL_API_KEY="your_mistral_api_key"
 
-# Google AI Configuration
-GOOGLE_API_KEY="your_google_ai_api_key"
+# Database Configuration (PostgreSQL)
+DATABASE_URL="postgresql://username:password@host:port/database_name"
+DB_CONNECTION_STRING="postgresql://username:password@host:port/database_name"
 
 # Security Keys
-ENCRYPTION_SECRET_KEY="your_32_character_encryption_secret"
-SCHEDULER_SECRET_KEY="your_scheduler_secret_key"
+ENCRYPTION_SECRET_KEY="your_32_character_encryption_secret_key_here_12345"
+SCHEDULER_SECRET_KEY="your_scheduler_secret_key_here_abcdef123456"
+JWT_SECRET="your_jwt_secret_key_here_for_authentication_tokens"
 
-# Database (Optional - for direct DB access)
-DB_CONNECTION_STRING="your_postgresql_connection_string"
+# Next.js Configuration
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
 3. **Set up the database**
-Run the SQL script provided in the original README to create the necessary tables in your Supabase project.
+Initialize the database schema:
+```bash
+npm run db:init
+```
 
 4. **Start the development server**
 ```bash
