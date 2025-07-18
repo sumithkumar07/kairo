@@ -1,51 +1,68 @@
-
 'use server';
 /**
- * @fileOverview An AI flow to generate an image from a text prompt.
- *
- * - generateImage - Generates an image from a text prompt.
- * - GenerateImageInput - The input type for the function.
- * - GenerateImageOutput - The return type for the function.
+ * @fileOverview An AI flow to generate image descriptions using Mistral AI.
+ * Note: This is a placeholder implementation since Mistral AI doesn't generate images directly.
  */
 
-import { ai } from '@/ai/genkit';
+import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
 import { z } from 'zod';
 
+// Input and Output Schemas
 const GenerateImageInputSchema = z.object({
-  prompt: z.string().describe('A descriptive prompt for the image to be generated.'),
+  prompt: z.string().describe('The prompt describing the image to generate'),
+  style: z.string().optional().describe('The artistic style for the image'),
+  size: z.string().optional().default('1024x1024').describe('The size of the image'),
 });
 export type GenerateImageInput = z.infer<typeof GenerateImageInputSchema>;
 
 const GenerateImageOutputSchema = z.object({
-  imageDataUri: z.string().describe("The generated image as a data URI. Expected format: 'data:image/png;base64,<encoded_data>'."),
+  imageDescription: z.string().describe('A detailed description of the image that would be generated'),
+  imageUrl: z.string().describe('Placeholder URL for the generated image'),
+  metadata: z.object({
+    prompt: z.string(),
+    style: z.string().optional(),
+    size: z.string(),
+  }).describe('Metadata about the image generation request'),
 });
 export type GenerateImageOutput = z.infer<typeof GenerateImageOutputSchema>;
 
+// Exported wrapper function
 export async function generateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
-  return generateImageFlow(input);
-}
+  const systemPrompt = `You are an expert image generation consultant. Since you cannot generate actual images, provide:
+1. A detailed description of what the image would look like
+2. Technical specifications
+3. Artistic considerations
+4. Composition details
 
-const generateImageFlow = ai.defineFlow(
-  {
-    name: 'generateImageFlow',
-    inputSchema: GenerateImageInputSchema,
-    outputSchema: GenerateImageOutputSchema,
-  },
-  async ({ prompt }) => {
-    const { media } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
-      prompt: prompt,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+Be very specific and detailed in your description.`;
 
-    if (!media?.url) {
-      throw new Error('Image generation failed to return media.');
+  const messages: MistralChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { 
+      role: 'user', 
+      content: `Describe an image that would be generated from this prompt:
+      
+Prompt: "${input.prompt}"
+Style: ${input.style || 'realistic'}
+Size: ${input.size || '1024x1024'}
+
+Please provide a detailed description of what this image would look like, including composition, colors, lighting, and artistic style.` 
     }
+  ];
 
-    return {
-      imageDataUri: media.url,
-    };
-  }
-);
+  const response = await chatWithMistral(messages, {
+    model: 'mistral-small-latest',
+    temperature: 0.7,
+    max_tokens: 1000
+  });
+
+  return {
+    imageDescription: response.content,
+    imageUrl: `https://placehold.co/${input.size || '1024x1024'}/3B82F6/FFFFFF?text=AI+Generated+Image`,
+    metadata: {
+      prompt: input.prompt,
+      style: input.style,
+      size: input.size || '1024x1024'
+    }
+  };
+}

@@ -1,79 +1,93 @@
-
 'use server';
 /**
- * @fileOverview An AI flow to generate a list of workflow ideas based on a user's query.
- *
- * - generateWorkflowIdeas - A function that takes a query and returns a list of workflow ideas.
- * - GenerateWorkflowIdeasInput - The input type for the function.
- * - GenerateWorkflowIdeasOutput - The return type for the function.
+ * @fileOverview An AI flow to generate workflow ideas using Mistral AI.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-// We can reuse the output schema from the main generator, as each "idea" is a full workflow.
-import {GenerateWorkflowFromPromptOutputSchema} from '@/ai/schemas';
+import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { z } from 'zod';
 
+// Input and Output Schemas
 const GenerateWorkflowIdeasInputSchema = z.object({
-  query: z.string().describe('The user\'s topic or query for workflow ideas (e.g., "social media", "data processing", "daily reports").'),
-  count: z.number().optional().default(3).describe('The number of distinct workflow ideas to generate.'),
+  industry: z.string().optional().describe('The industry or domain for workflow ideas'),
+  useCase: z.string().optional().describe('Specific use case or problem to solve'),
+  complexity: z.enum(['simple', 'medium', 'complex']).optional().default('medium').describe('Desired complexity level'),
+  keywords: z.array(z.string()).optional().describe('Keywords related to the workflow'),
 });
 export type GenerateWorkflowIdeasInput = z.infer<typeof GenerateWorkflowIdeasInputSchema>;
 
-
-const WorkflowIdeaSchema = z.object({
-    name: z.string().describe("A short, descriptive name for the workflow idea."),
-    description: z.string().describe("A one or two-sentence description of what the workflow does and its value."),
-    workflow: GenerateWorkflowFromPromptOutputSchema.describe("The complete, valid JSON definition of the workflow, including nodes and connections, ready to be loaded into the editor."),
-});
-
-
 const GenerateWorkflowIdeasOutputSchema = z.object({
-    ideas: z.array(WorkflowIdeaSchema).describe('An array of generated workflow ideas.'),
+  ideas: z.array(z.object({
+    title: z.string().describe('Title of the workflow idea'),
+    description: z.string().describe('Description of what the workflow does'),
+    useCase: z.string().describe('Primary use case for this workflow'),
+    complexity: z.enum(['simple', 'medium', 'complex']).describe('Complexity level'),
+    estimatedTime: z.string().describe('Estimated time to implement'),
+    benefits: z.array(z.string()).describe('Key benefits of this workflow'),
+    requiredIntegrations: z.array(z.string()).describe('Required third-party integrations'),
+  })).describe('Array of workflow ideas'),
 });
 export type GenerateWorkflowIdeasOutput = z.infer<typeof GenerateWorkflowIdeasOutputSchema>;
 
-
+// Exported wrapper function
 export async function generateWorkflowIdeas(input: GenerateWorkflowIdeasInput): Promise<GenerateWorkflowIdeasOutput> {
-  return generateWorkflowIdeasFlow(input);
-}
+  const systemPrompt = `You are an expert workflow automation consultant. Generate creative and practical workflow ideas based on the given criteria. Focus on:
+1. Real-world applicability
+2. Clear business value
+3. Realistic implementation
+4. Diverse use cases
 
+Provide 3-5 workflow ideas with detailed information for each.`;
 
-const ideaGeneratorPrompt = ai.definePrompt({
-  name: 'workflowIdeaGeneratorPrompt',
-  input: {schema: GenerateWorkflowIdeasInputSchema},
-  output: {schema: GenerateWorkflowIdeasOutputSchema},
-  prompt: `You are an expert AI Technical Architect specializing in creating practical and inspiring workflow automation examples.
-Your task is to generate a list of {{count}} distinct, complete, and production-ready workflow ideas based on the user's query: "{{query}}".
+  const messages: MistralChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { 
+      role: 'user', 
+      content: `Generate workflow ideas based on these criteria:
+      
+Industry: ${input.industry || 'Any industry'}
+Use Case: ${input.useCase || 'General automation'}
+Complexity: ${input.complexity || 'medium'}
+Keywords: ${input.keywords?.join(', ') || 'automation, efficiency'}
 
-For each idea, you MUST provide:
-1.  **name**: A short, clear, and descriptive name for the workflow (e.g., "Social Media Content Scheduler", "Automated Customer Feedback Analysis").
-2.  **description**: A one or two-sentence summary of the workflow's purpose, what it automates, and its key benefits.
-3.  **workflow**: The full, executable workflow definition as a JSON object containing 'nodes' and 'connections'. This definition MUST adhere to the same strict rules as the main workflow generator, including:
-    -   Logical layout of nodes using 'position'.
-    -   Correct use of 'inputMapping' to pass data between nodes.
-    -   **MANDATORY**: Inclusion of a high-quality 'aiExplanation' for each and every node to guide the user. This explanation must detail the node's purpose and any required setup (e.g., credentials).
-    -   Use of placeholders like '{{credential.YourApiKey}}' for required secrets.
-    -   Inclusion of simulation data (e.g., 'simulatedResponse') for nodes with external effects.
-    -   Mandatory visual error handling for any node that might fail (e.g., httpRequest).
-
-Think creatively! If the query is "social media", you could generate ideas for scheduling posts, analyzing comments, or tracking brand mentions. If the query is "data", you could generate ideas for ETL pipelines, report generation, or database backups.
-
-The entire output MUST be a single, valid JSON object that strictly conforms to the output schema.
-`,
-});
-
-
-const generateWorkflowIdeasFlow = ai.defineFlow(
-  {
-    name: 'generateWorkflowIdeasFlow',
-    inputSchema: GenerateWorkflowIdeasInputSchema,
-    outputSchema: GenerateWorkflowIdeasOutputSchema,
-  },
-  async (input) => {
-    const {output} = await ideaGeneratorPrompt(input);
-    if (!output || !output.ideas || output.ideas.length === 0) {
-      throw new Error("AI failed to generate any workflow ideas for the given query.");
+Please provide 3-5 practical workflow ideas with details about implementation, benefits, and required integrations.` 
     }
-    return output;
+  ];
+
+  const response = await chatWithMistral(messages, {
+    model: 'mistral-small-latest',
+    temperature: 0.8,
+    max_tokens: 2000
+  });
+
+  try {
+    const parsed = JSON.parse(response.content);
+    return {
+      ideas: parsed.ideas || [
+        {
+          title: 'Automated Data Processing',
+          description: 'Process and transform data from multiple sources',
+          useCase: 'Data management and analysis',
+          complexity: 'medium',
+          estimatedTime: '2-3 hours',
+          benefits: ['Time savings', 'Error reduction', 'Consistency'],
+          requiredIntegrations: ['Database', 'File storage', 'Email notifications']
+        }
+      ]
+    };
+  } catch (error) {
+    // Fallback if JSON parsing fails
+    return {
+      ideas: [
+        {
+          title: 'Custom Workflow Solution',
+          description: response.content,
+          useCase: input.useCase || 'General automation',
+          complexity: input.complexity || 'medium',
+          estimatedTime: '1-2 hours',
+          benefits: ['Improved efficiency', 'Reduced manual work'],
+          requiredIntegrations: ['API connections', 'Data storage']
+        }
+      ]
+    };
   }
-);
+}

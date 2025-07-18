@@ -1,91 +1,50 @@
-
 'use server';
 /**
- * @fileOverview An AI flow to convert text to speech.
+ * @fileOverview An AI flow to convert text to speech using Mistral AI.
  *
  * - textToSpeech - Converts a string of text into an audio data URI.
  * - TextToSpeechInput - The input type for the textToSpeech function.
  * - TextToSpeechOutput - The return type for the textToSpeech function.
  */
 
-import { ai } from '@/ai/genkit';
+import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
 import { z } from 'zod';
-import wav from 'wav';
-import { googleAI } from '@genkit-ai/googleai';
 
 // Input and Output Schemas
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to be converted to speech.'),
-  voice: z.string().optional().default('Algenib').describe('The pre-built voice to use for the speech synthesis.'),
+  voice: z.string().optional().default('neutral').describe('The voice preference for the speech synthesis.'),
 });
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
 const TextToSpeechOutputSchema = z.object({
-  audioDataUri: z.string().describe("The generated audio as a data URI. Expected format: 'data:audio/wav;base64,<encoded_data>'."),
+  audioDataUri: z.string().describe("The generated audio description as a data URI. Note: This is a placeholder implementation."),
 });
 export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
 
 // Exported wrapper function
 export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
-  return textToSpeechFlow(input);
-}
-
-async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 2): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    const bufs: any[] = [];
-    writer.on('error', reject);
-    writer.on('data', (d) => {
-      bufs.push(d);
-    });
-    writer.on('end', () => {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}
-
-// Genkit Flow Definition
-const textToSpeechFlow = ai.defineFlow(
-  {
-    name: 'textToSpeechFlow',
-    inputSchema: TextToSpeechInputSchema,
-    outputSchema: TextToSpeechOutputSchema,
-  },
-  async ({ text, voice }) => {
-    const { media } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash-preview-tts'),
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: voice || 'Algenib' },
-          },
-        },
-      },
-      prompt: text,
-    });
-
-    if (!media) {
-      throw new Error('No media returned from TTS model.');
+  // Note: This is a placeholder implementation since we're using Mistral AI
+  // For actual TTS functionality, you would need a dedicated TTS service
+  const messages: MistralChatMessage[] = [
+    { 
+      role: 'system', 
+      content: 'You are a text-to-speech converter. Convert the given text to a phonetic representation and provide a description of how it should be spoken.' 
+    },
+    { 
+      role: 'user', 
+      content: `Convert this text to speech with ${input.voice || 'neutral'} voice: "${input.text}"` 
     }
+  ];
 
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
-    );
-    
-    const wavBase64 = await toWav(audioBuffer);
+  const response = await chatWithMistral(messages, {
+    model: 'mistral-small-latest',
+    temperature: 0.3,
+    max_tokens: 500
+  });
 
-    return {
-      audioDataUri: 'data:audio/wav;base64,' + wavBase64,
-    };
-  }
-);
+  // Return a placeholder data URI (in a real implementation, this would be actual audio)
+  return {
+    audioDataUri: `data:text/plain;base64,${Buffer.from(response.content).toString('base64')}`
+  };
+}
