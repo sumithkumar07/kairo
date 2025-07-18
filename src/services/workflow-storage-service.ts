@@ -30,26 +30,24 @@ export async function listAllWorkflows(userId?: string | null): Promise<SavedWor
       return exampleWorkflows;
   }
   
-  const supabase = await getSupabaseClient();
-  const { data: userWorkflows, error } = await supabase
-    .from('workflows')
-    .select('name, updated_at')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false });
+  try {
+    const userWorkflows = await db.query(
+      'SELECT name, updated_at FROM workflows WHERE user_id = $1 ORDER BY updated_at DESC',
+      [userId]
+    );
     
-  if (error) {
+    const savedUserWorkflows: SavedWorkflowMetadata[] = userWorkflows.map(wf => ({
+      name: wf.name,
+      description: `Last saved on ${new Date(wf.updated_at).toLocaleDateString()}`,
+      type: 'user' as const,
+      updated_at: wf.updated_at
+    }));
+
+    return [...exampleWorkflows, ...savedUserWorkflows];
+  } catch (error) {
     console.error('[Storage Service] Error listing workflows:', error);
     throw new Error('Could not list saved workflows.');
   }
-
-  const savedUserWorkflows: SavedWorkflowMetadata[] = userWorkflows.map(wf => ({
-    name: wf.name,
-    description: `Last saved on ${new Date(wf.updated_at).toLocaleDateString()}`,
-    type: 'user' as const,
-    updated_at: wf.updated_at
-  }));
-
-  return [...exampleWorkflows, ...savedUserWorkflows];
 }
 
 export async function getCommunityWorkflows(): Promise<ExampleWorkflow[]> {
