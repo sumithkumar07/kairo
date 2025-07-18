@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Defines Genkit tools for AI-driven workflow management.
+ * @fileOverview Defines workflow management tools for AI-driven automation.
  * These tools allow the AI to list, inspect, and execute workflows by interacting
  * with the central WorkflowStorage service and external APIs.
  */
@@ -11,7 +11,6 @@ import { z } from 'zod';
 import { listAllWorkflows, getWorkflowByName, getCredentialValueByNameForUser } from '@/services/workflow-storage-service';
 import type { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { executeWorkflow } from '@/lib/workflow-engine';
-import { google } from 'googleapis';
 
 // Schema for Workflow Nodes (simplified for tool input)
 const WorkflowNodeInputSchema = z.object({
