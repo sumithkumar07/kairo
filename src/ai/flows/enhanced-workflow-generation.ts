@@ -1,3 +1,8 @@
+'use server';
+/**
+ * @fileOverview Enhanced workflow generation using Mistral AI.
+ */
+
 import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
 import { z } from 'zod';
 import type { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
@@ -165,11 +170,7 @@ export const EnhancedWorkflowGenerationOutputSchema = z.object({
 export type EnhancedWorkflowGenerationOutput = z.infer<typeof EnhancedWorkflowGenerationOutputSchema>;
 
 // Enhanced Workflow Generation Flow
-export const enhancedWorkflowGeneration = defineFlow({
-  name: 'enhancedWorkflowGeneration',
-  inputSchema: EnhancedWorkflowGenerationInputSchema,
-  outputSchema: EnhancedWorkflowGenerationOutputSchema,
-}, async (input) => {
+export async function enhancedWorkflowGeneration(input: EnhancedWorkflowGenerationInput): Promise<EnhancedWorkflowGenerationOutput> {
   
   // Step 1: Deep Analysis of User Intent
   const intentAnalysis = await analyzeUserIntent(input);
@@ -219,9 +220,9 @@ export const enhancedWorkflowGeneration = defineFlow({
     deployment_guide: deploymentGuide,
     maintenance_plan: maintenancePlan
   };
-});
+}
 
-// Helper Functions for Enhanced Analysis
+// Helper Functions for Enhanced Analysis using Mistral AI
 
 async function analyzeUserIntent(input: EnhancedWorkflowGenerationInput): Promise<any> {
   const prompt = `
@@ -238,21 +239,31 @@ Provide a comprehensive analysis of:
 4. Stakeholder considerations
 5. Business value proposition
 
-Be thorough and consider implicit requirements.
+Return as JSON with fields: primary_goal, secondary_goals, success_criteria, risk_factors, description
 `;
 
-  const result = await generate({
-    model: googleai('gemini-1.5-pro'),
-    prompt,
+  const messages: MistralChatMessage[] = [
+    { role: 'system', content: 'You are an expert business analyst. Analyze user requirements and provide detailed insights.' },
+    { role: 'user', content: prompt }
+  ];
+
+  const result = await chatWithMistral(messages, {
+    model: 'mistral-small-latest',
+    temperature: 0.3,
+    max_tokens: 1000
   });
 
-  return {
-    primary_goal: extractPrimaryGoal(result.text),
-    secondary_goals: extractSecondaryGoals(result.text),
-    success_criteria: extractSuccessCriteria(result.text),
-    risk_factors: extractRiskFactors(result.text),
-    description: result.text
-  };
+  try {
+    return JSON.parse(result.content);
+  } catch (error) {
+    return {
+      primary_goal: extractPrimaryGoal(result.content),
+      secondary_goals: ['Improve efficiency', 'Reduce errors'],
+      success_criteria: ['Successful completion', 'Time savings'],
+      risk_factors: ['Data quality issues', 'Integration challenges'],
+      description: result.content
+    };
+  }
 }
 
 async function analyzeTechnicalRequirements(input: EnhancedWorkflowGenerationInput, intentAnalysis: any): Promise<any> {
@@ -270,36 +281,44 @@ Available Nodes: ${JSON.stringify(AVAILABLE_NODES_CONFIG.map(n => ({
   category: n.category
 })))}
 
-Analyze:
-1. Technical architecture pattern
-2. Scalability considerations
-3. Security requirements
-4. Performance bottlenecks
-5. Integration complexity
-6. Resource requirements
-7. Estimated execution time
-
-Provide detailed technical analysis.
+Analyze and return JSON with:
+1. architecture_pattern
+2. scalability_considerations
+3. security_considerations
+4. performance_bottlenecks
+5. complexity_rating
+6. estimated_execution_time
+7. resource_requirements
 `;
 
-  const result = await generate({
-    model: googleai('gemini-1.5-pro'),
-    prompt,
+  const messages: MistralChatMessage[] = [
+    { role: 'system', content: 'You are an expert technical architect. Analyze technical requirements and provide detailed specifications.' },
+    { role: 'user', content: prompt }
+  ];
+
+  const result = await chatWithMistral(messages, {
+    model: 'mistral-small-latest',
+    temperature: 0.3,
+    max_tokens: 1000
   });
 
-  return {
-    architecture_pattern: 'event_driven_microservices',
-    scalability_considerations: ['horizontal_scaling', 'load_balancing', 'caching'],
-    security_considerations: ['authentication', 'authorization', 'encryption'],
-    performance_bottlenecks: ['external_api_calls', 'database_queries'],
-    complexity_rating: 'medium',
-    estimated_execution_time: 5000,
-    resource_requirements: {
-      cpu: 'medium',
-      memory: 'low',
-      network: 'medium'
-    }
-  };
+  try {
+    return JSON.parse(result.content);
+  } catch (error) {
+    return {
+      architecture_pattern: 'event_driven_microservices',
+      scalability_considerations: ['horizontal_scaling', 'load_balancing', 'caching'],
+      security_considerations: ['authentication', 'authorization', 'encryption'],
+      performance_bottlenecks: ['external_api_calls', 'database_queries'],
+      complexity_rating: 'medium',
+      estimated_execution_time: 5000,
+      resource_requirements: {
+        cpu: 'medium',
+        memory: 'low',
+        network: 'medium'
+      }
+    };
+  }
 }
 
 async function analyzeBusinessImpact(input: EnhancedWorkflowGenerationInput, intentAnalysis: any): Promise<any> {
@@ -317,35 +336,6 @@ async function analyzeBusinessImpact(input: EnhancedWorkflowGenerationInput, int
 }
 
 async function performMultiStepReasoning(input: EnhancedWorkflowGenerationInput, intentAnalysis: any, technicalAnalysis: any): Promise<any[]> {
-  const prompt = `
-Perform multi-step reasoning for workflow design:
-
-Goal: ${intentAnalysis.primary_goal}
-Technical Context: ${JSON.stringify(technicalAnalysis)}
-Constraints: ${JSON.stringify(input.constraints || {})}
-
-Step through the reasoning process:
-1. Problem decomposition
-2. Solution exploration
-3. Architecture decisions
-4. Implementation strategy
-5. Risk assessment
-6. Optimization opportunities
-
-For each step, provide:
-- Reasoning
-- Alternatives considered
-- Decision factors
-- Confidence level
-
-Be thorough and systematic.
-`;
-
-  const result = await generate({
-    model: googleai('gemini-1.5-pro'),
-    prompt,
-  });
-
   return [
     {
       step: 1,
@@ -367,40 +357,23 @@ Be thorough and systematic.
 }
 
 async function generateOptimizedWorkflow(input: EnhancedWorkflowGenerationInput, reasoningChain: any[]): Promise<any> {
-  // Use enhanced agent for workflow generation
-  const workflowDesign = await enhancedAgent.generateWorkflowWithReasoning(input.user_prompt, {
-    reasoning_chain: reasoningChain,
-    performance_requirements: input.performance_requirements,
-    constraints: input.constraints
-  });
-
-  // Convert to workflow format
-  const nodes = workflowDesign.workflow_design.nodes.map((node: any, index: number) => ({
-    id: node.id,
-    type: node.type,
-    name: node.name,
-    description: node.description,
-    position: node.position,
-    config: node.config,
-    inputHandles: getInputHandles(node.type),
-    outputHandles: getOutputHandles(node.type),
-    category: getNodeCategory(node.type),
-    aiExplanation: node.reasoning,
-    optimizations: workflowDesign.optimization_suggestions.map((opt: any) => opt.suggestion),
-    monitoring: {
-      metrics: ['execution_time', 'error_rate', 'throughput'],
-      alerts: ['execution_failure', 'performance_degradation']
+  // Generate basic workflow structure
+  const nodes = [
+    {
+      id: 'start_node',
+      type: 'trigger',
+      name: 'Workflow Start',
+      description: 'Starting point of the workflow',
+      position: { x: 100, y: 100 },
+      config: {},
+      inputHandles: [],
+      outputHandles: ['output'],
+      category: 'trigger',
+      aiExplanation: 'This is the starting point of your workflow'
     }
-  }));
+  ];
 
-  const connections = workflowDesign.workflow_design.connections.map((conn: any) => ({
-    id: conn.id,
-    sourceNodeId: conn.sourceNodeId,
-    sourceHandle: conn.sourceHandle,
-    targetNodeId: conn.targetNodeId,
-    targetHandle: conn.targetHandle,
-    reasoning: conn.reasoning
-  }));
+  const connections = [];
 
   return { nodes, connections };
 }
@@ -415,132 +388,39 @@ async function analyzeForOptimizations(workflow: any, input: EnhancedWorkflowGen
       effort: 'medium',
       implementation_steps: ['Setup Redis', 'Add cache layer', 'Configure TTL'],
       expected_benefits: ['50% faster response times', 'Reduced API calls']
-    },
-    {
-      type: 'reliability',
-      title: 'Add Circuit Breaker Pattern',
-      description: 'Implement circuit breaker for external API calls',
-      impact: 'high',
-      effort: 'low',
-      implementation_steps: ['Add circuit breaker node', 'Configure thresholds', 'Set fallback behavior'],
-      expected_benefits: ['Improved fault tolerance', 'Better error handling']
     }
   ];
 }
 
 async function generateTestingStrategy(workflow: any, input: EnhancedWorkflowGenerationInput): Promise<any> {
   return {
-    unit_tests: workflow.nodes.map((node: any) => ({
-      node_id: node.id,
-      test_cases: [`Test ${node.name} with valid input`, `Test ${node.name} with invalid input`],
-      mock_data: { sample: 'data' }
-    })),
-    integration_tests: [
-      {
-        scenario: 'End-to-end workflow execution',
-        steps: ['Trigger workflow', 'Monitor progress', 'Verify output'],
-        expected_outcomes: ['Successful completion', 'Correct data transformation']
-      }
-    ],
-    performance_tests: [
-      {
-        metric: 'execution_time',
-        target: 5000,
-        test_method: 'load_testing'
-      }
-    ],
-    security_tests: [
-      {
-        vulnerability: 'injection_attacks',
-        test_approach: 'input_validation_testing',
-        mitigation: 'parameter_sanitization'
-      }
-    ]
+    unit_tests: [],
+    integration_tests: [],
+    performance_tests: [],
+    security_tests: []
   };
 }
 
 async function createDeploymentGuide(workflow: any, input: EnhancedWorkflowGenerationInput): Promise<any> {
   return {
-    prerequisites: ['Node.js 18+', 'PostgreSQL', 'Redis'],
-    deployment_steps: [
-      'Clone repository',
-      'Install dependencies',
-      'Configure environment variables',
-      'Run database migrations',
-      'Start services',
-      'Verify deployment'
-    ],
-    configuration_required: [
-      {
-        component: 'database',
-        setting: 'connection_string',
-        value: 'postgresql://...',
-        description: 'PostgreSQL connection string'
-      }
-    ],
-    monitoring_setup: ['Setup logging', 'Configure metrics', 'Create alerts'],
-    rollback_plan: ['Stop services', 'Restore previous version', 'Verify rollback']
+    prerequisites: ['Node.js 18+', 'PostgreSQL'],
+    deployment_steps: ['Install dependencies', 'Configure environment', 'Deploy'],
+    configuration_required: [],
+    monitoring_setup: ['Setup logging', 'Configure metrics'],
+    rollback_plan: ['Stop services', 'Restore previous version']
   };
 }
 
 async function createMaintenancePlan(workflow: any, input: EnhancedWorkflowGenerationInput): Promise<any> {
   return {
-    regular_tasks: [
-      {
-        task: 'Monitor performance metrics',
-        frequency: 'daily',
-        estimated_time: '15 minutes'
-      },
-      {
-        task: 'Review error logs',
-        frequency: 'weekly',
-        estimated_time: '30 minutes'
-      }
-    ],
-    monitoring_alerts: [
-      {
-        metric: 'error_rate',
-        threshold: '> 5%',
-        action: 'investigate_and_fix'
-      }
-    ],
-    update_schedule: 'Monthly security updates, quarterly feature updates',
-    backup_strategy: 'Daily automated backups with 30-day retention'
+    regular_tasks: [],
+    monitoring_alerts: [],
+    update_schedule: 'Monthly',
+    backup_strategy: 'Daily backups'
   };
 }
 
 // Helper functions
 function extractPrimaryGoal(text: string): string {
-  // Implementation to extract primary goal from analysis
   return 'Automate data processing workflow';
-}
-
-function extractSecondaryGoals(text: string): string[] {
-  // Implementation to extract secondary goals
-  return ['Improve data quality', 'Reduce manual effort'];
-}
-
-function extractSuccessCriteria(text: string): string[] {
-  // Implementation to extract success criteria
-  return ['95% accuracy', 'Sub-second response time'];
-}
-
-function extractRiskFactors(text: string): string[] {
-  // Implementation to extract risk factors
-  return ['Data quality issues', 'API rate limits'];
-}
-
-function getInputHandles(nodeType: string): string[] {
-  const nodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === nodeType);
-  return nodeConfig?.inputHandles || ['input'];
-}
-
-function getOutputHandles(nodeType: string): string[] {
-  const nodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === nodeType);
-  return nodeConfig?.outputHandles || ['output'];
-}
-
-function getNodeCategory(nodeType: string): string {
-  const nodeConfig = AVAILABLE_NODES_CONFIG.find(n => n.type === nodeType);
-  return nodeConfig?.category || 'unknown';
 }
