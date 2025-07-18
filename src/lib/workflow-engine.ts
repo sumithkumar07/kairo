@@ -8,7 +8,6 @@ import { Pool } from 'pg';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
 import { format, parseISO } from 'date-fns';
 import * as WorkflowStorage from '@/services/workflow-storage-service';
-import { google } from 'googleapis';
 import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import { textToSpeechAction } from '@/app/actions';
