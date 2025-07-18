@@ -632,53 +632,10 @@ async function executeGoogleSheetsAppendRowNode(node: WorkflowNode, config: any,
         return { output: config.simulated_config || { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } };
     }
 
-    const credName = config.credentialName || 'GoogleServiceAccount';
-    const serviceAccountKeyJson = await WorkflowStorage.getCredentialValueByNameForUser(credName, userId);
-    
-    if (!serviceAccountKeyJson) {
-        throw new Error(`Google Service Account credential named '${credName}' not found.`);
-    }
-
-    let serviceAccountKey;
-    try {
-        serviceAccountKey = JSON.parse(serviceAccountKeyJson);
-    } catch (e) {
-        throw new Error(`The '${credName}' credential value is not valid JSON.`);
-    }
-    
-    const auth = new google.auth.GoogleAuth({
-        credentials: {
-            client_email: serviceAccountKey.client_email,
-            private_key: serviceAccountKey.private_key,
-        },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    
-    let valuesToAppend = config.values;
-    if (typeof valuesToAppend === 'string') {
-        try {
-            valuesToAppend = JSON.parse(valuesToAppend);
-        } catch (e) {
-            throw new Error('Values to Append is not valid JSON.');
-        }
-    }
-    
-    if (!Array.isArray(valuesToAppend)) {
-        throw new Error('Values to Append must be an array of arrays.');
-    }
-
-    const response = await sheets.spreadsheets.values.append({
-        spreadsheetId: config.spreadsheetId,
-        range: config.range,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-            values: valuesToAppend,
-        },
-    });
-
-    return { output: response.data };
+    // Google Sheets functionality has been removed as we're using Mistral AI only
+    // This would require a direct HTTP API call to Google Sheets API
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] ERROR: Google Sheets integration requires googleapis package which has been removed.`, type: 'error' });
+    throw new Error('Google Sheets integration is not available in this version. Please use alternative data storage methods.');
 }
 
 async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
