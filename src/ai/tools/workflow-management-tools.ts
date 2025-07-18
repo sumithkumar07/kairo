@@ -205,40 +205,13 @@ export const youtubeGetReportTool = ai.defineTool({
 
 export const googleDriveFindFileTool = ai.defineTool({
     name: 'googleDriveFindFile',
-    description: 'Finds a file or folder in Google Drive by its name.',
+    description: 'Finds a file or folder in Google Drive by its name. (Currently disabled - Google APIs removed)',
     inputSchema: z.object({ 
         name: z.string().describe('The name of the file or folder to find.'),
         userId: z.string().describe("The user's ID, needed to retrieve their service account key."),
     }),
     outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }).optional(),
 }, async ({ name, userId }) => {
-    console.log(`[Agent Tool] Finding Google Drive file: ${name} (user: ${userId})`);
-    const serviceAccountKeyJson = await getCredentialValueByNameForUser('GoogleServiceAccount', userId);
-    if (!serviceAccountKeyJson) throw new Error('GoogleServiceAccount credential not found. Please add your Google Service Account JSON key in the AI Agent Hub.');
-
-    try {
-        const serviceAccountKey = JSON.parse(serviceAccountKeyJson);
-        const auth = new google.auth.GoogleAuth({
-            credentials: {
-                client_email: serviceAccountKey.client_email,
-                private_key: serviceAccountKey.private_key,
-            },
-            scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-        });
-        const drive = google.drive({ version: 'v3', auth });
-        const response = await drive.files.list({
-            q: `name = '${name}' and trashed = false`,
-            fields: 'files(id, name, mimeType)',
-            spaces: 'drive',
-            pageSize: 1,
-        });
-
-        const file = response.data.files?.[0];
-        if (file?.id && file.name && file.mimeType) {
-            return { fileId: file.id, name: file.name, mimeType: file.mimeType };
-        }
-        return undefined;
-    } catch (e: any) {
-        throw new Error(`Google Drive API error: ${e.message}. Ensure the service account has access to the file.`);
-    }
+    console.log(`[Agent Tool] Google Drive integration disabled - Google APIs removed`);
+    throw new Error('Google Drive integration is not available in this version. Please use alternative file storage methods.');
 });
