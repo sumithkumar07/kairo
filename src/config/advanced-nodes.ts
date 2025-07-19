@@ -24,7 +24,6 @@ import {
   FileJson,
   Calculator,
   Hash,
-  Shuffle,
   ArrowUpDown,
   ArrowLeftRight,
   Merge,
