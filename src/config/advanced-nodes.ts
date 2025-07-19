@@ -111,7 +111,7 @@ export const ADVANCED_NODES_CONFIG: AvailableNodeType[] = [
   {
     type: 'dataTransform',
     name: 'Data Transform',
-    icon: Transform,
+    icon: Shuffle,
     description: 'Advanced data transformation with mapping, filtering, aggregation, and custom functions',
     category: 'logic',
     isAdvanced: true,
