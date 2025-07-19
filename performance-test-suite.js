@@ -249,7 +249,7 @@ async function testCAREsFrameworkOptimizations() {
         const positiveWords = ['happy', 'amazing', 'great', 'excellent'];
         const negativeWords = ['terrible', 'hate', 'awful', 'bad'];
         
-        const words = text.toLowerCase().split(/\\s+/);
+        const words = text.toLowerCase().split(/\s+/);
         let score = 0;
         
         words.forEach(word => {
