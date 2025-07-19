@@ -1,0 +1,12 @@
+   ▲ Next.js 15.3.3
+   - Local:        http://localhost:3001
+   - Network:      http://10.64.137.155:3001
+
+ ✓ Starting...
+ ✓ Ready in 2.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 7.4s (1107 modules)
+[DATABASE] Initializing database schema...
+ GET / 200 in 8837ms
+ ✓ Compiled in 1521ms (474 modules)
+[DATABASE] Database schema initialized successfully
