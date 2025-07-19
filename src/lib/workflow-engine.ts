@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { Workflow, ServerLogOutput, WorkflowNode, WorkflowConnection, RetryConfig, OnErrorWebhookConfig, WorkflowExecutionResult } from '@/types/workflow';
@@ -109,368 +108,313 @@ async function resolveValue(
 
       // 3. Check for 'env' placeholder
       if (!dataFound && firstPart === 'env' && pathParts.length >= 2) {
-          const envVarName = pathParts.slice(1).join('.');
+          const envVarName = pathParts.slice(1).join('_').toUpperCase();
           dataAtPath = process.env[envVarName];
           if (dataAtPath !== undefined) {
               dataFound = true;
+              serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Environment variable '${envVarName}' resolved.`, type: 'info' });
           } else {
-              serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Env var '${envVarName}' not found for placeholder '${placeholder}'.`, type: 'info' });
+              serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Environment variable '${envVarName}' not found.`, type: 'info' });
           }
       }
 
-      // 4. Check workflowData (node outputs)
+      // 4. Otherwise, check workflow data
       if (!dataFound && workflowData.hasOwnProperty(firstPart)) {
           dataAtPath = workflowData[firstPart];
-          let wfDataFound = true;
+          let nodeFound = true;
+          // Navigate through the path
           for (let i = 1; i < pathParts.length; i++) {
               const part = pathParts[i];
               if (dataAtPath && typeof dataAtPath === 'object' && dataAtPath !== null && part in dataAtPath) {
                   dataAtPath = dataAtPath[part];
               } else {
-                  wfDataFound = false;
+                  nodeFound = false;
                   break;
               }
           }
-          if (wfDataFound) dataFound = true;
+          if (nodeFound) dataFound = true;
       }
 
       if (dataFound) {
-          if (placeholder === value) { // If the entire value is just one placeholder
-              return dataAtPath;
+          // Convert the data to string for replacement
+          let stringifiedData: string;
+          if (typeof dataAtPath === 'object' && dataAtPath !== null) {
+              stringifiedData = JSON.stringify(dataAtPath);
+          } else {
+              stringifiedData = String(dataAtPath);
           }
-          const replacementValue = (typeof dataAtPath === 'object' && dataAtPath !== null)
-              ? JSON.stringify(dataAtPath)
-              : String(dataAtPath ?? '');
-          resolvedValue = resolvedValue.replace(placeholder, replacementValue);
+          resolvedValue = resolvedValue.replace(placeholder, stringifiedData);
+      } else {
+          // Keep the placeholder unresolved
+          serverLogs.push({ timestamp: new Date().toISOString(), message: `[RESOLVE_VALUE] Unable to resolve placeholder '${placeholder}' in value '${value}'`, type: 'info' });
+      }
+  }
+
+  // Try to convert back to original type if it's a simple type
+  if (typeof value === 'string' && resolvedValue !== value) {
+      // If the original was a pure placeholder (just {{...}}), try to parse
+      if (value.trim().startsWith('{{') && value.trim().endsWith('}}') && matches.length === 1) {
+          try {
+              const parsed = JSON.parse(resolvedValue);
+              return parsed;
+          } catch {
+              // If it can't be parsed as JSON, return as string
+              return resolvedValue;
+          }
       }
   }
 
   return resolvedValue;
 }
 
+// ================================================================= //
+// ==================== CONFIG RESOLUTION ========================= //
+// ================================================================= //
+
 async function resolveNodeConfig(
-  nodeConfig: Record<string, any>,
-  inputMapping: Record<string, any> | undefined,
+  baseConfig: Record<string, any>,
+  inputMapping: Record<string, any> = {},
   workflowData: Record<string, any>,
   serverLogs: ServerLogOutput[],
-  userId: string,
-  additionalContexts?: Record<string, any>
+  userId: string
 ): Promise<Record<string, any>> {
+  // First, resolve all input mappings to create the mapped input context
+  const resolvedInputs: Record<string, any> = {};
+  for (const [key, value] of Object.entries(inputMapping)) {
+    resolvedInputs[key] = await resolveValue(value, workflowData, serverLogs, userId);
+  }
+
+  // Then, resolve the base config using both workflow data and mapped inputs
   const resolvedConfig: Record<string, any> = {};
-
-  // 1. Resolve inputMapping to create a context of local variables.
-  const mappedInputs: Record<string, any> = {};
-  if (inputMapping && typeof inputMapping === 'object') {
-    const dataForMappingResolution = { ...workflowData };
-    for (const key in inputMapping) {
-      mappedInputs[key] = await resolveValue(inputMapping[key], dataForMappingResolution, serverLogs, userId, additionalContexts);
+  for (const [key, value] of Object.entries(baseConfig)) {
+    if (Array.isArray(value)) {
+      resolvedConfig[key] = await Promise.all(
+        value.map(item => resolveValue(item, workflowData, serverLogs, userId, resolvedInputs))
+      );
+    } else {
+      resolvedConfig[key] = await resolveValue(value, workflowData, serverLogs, userId, resolvedInputs);
     }
   }
 
-  // 2. Now, create the final combined context for resolving the main config.
-  // Mapped inputs take precedence.
-  const combinedContexts = { ...additionalContexts, ...mappedInputs };
-  
-  // 3. Resolve the rest of the config using the combined context.
-  const dataForConfigResolution = { ...workflowData };
-  for (const key in nodeConfig) {
-    if (Object.prototype.hasOwnProperty.call(nodeConfig, key)) {
-      const value = nodeConfig[key];
-      // Do not resolve sub-flow definitions, as they have their own scopes and will be resolved during their execution.
-      const specialKeys = ['flowGroupNodes', 'flowGroupConnections', 'iterationNodes', 'iterationConnections', 'loopNodes', 'loopConnections', 'branches', 'inputFieldsSchema', 'retry'];
-      if (specialKeys.includes(key)) {
-        resolvedConfig[key] = value;
-      } else if (key === 'onErrorWebhook' && typeof value === 'object' && value !== null) {
-         // Resolve placeholders inside the webhook config, but not the whole object itself.
-         resolvedConfig[key] = await resolveNodeConfig(value, undefined, dataForConfigResolution, serverLogs, userId, combinedContexts);
-      } else if (Array.isArray(value)) {
-        resolvedConfig[key] = await Promise.all(
-          value.map(item => (typeof item === 'object' && item !== null) 
-              ? resolveNodeConfig(item, undefined, dataForConfigResolution, serverLogs, userId, combinedContexts)
-              : resolveValue(item, dataForConfigResolution, serverLogs, userId, combinedContexts)
-          )
-        );
-      } else if (typeof value === 'object' && value !== null) {
-        resolvedConfig[key] = await resolveNodeConfig(value, undefined, dataForConfigResolution, serverLogs, userId, combinedContexts);
-      } else {
-        resolvedConfig[key] = await resolveValue(value, dataForConfigResolution, serverLogs, userId, combinedContexts);
-      }
-    }
-  }
-  return { ...resolvedConfig, input: mappedInputs }; // Also add the mapped inputs to a dedicated 'input' key for easy access
+  // Add the resolved inputs to the config as a special 'input' property
+  resolvedConfig.input = resolvedInputs;
+
+  return resolvedConfig;
 }
 
-function evaluateCondition(conditionString: string, nodeIdentifier: string, serverLogs: ServerLogOutput[]): boolean {
-  if (typeof conditionString !== 'string' || conditionString.trim() === '') {
-      serverLogs.push({ timestamp: new Date().toISOString(), message: `[CONDITION EVAL] Node ${nodeIdentifier}: Condition is empty or not a string. Evaluating to false.`, type: 'info' });
-      return false;
-  }
-
+function evaluateCondition(condition: string, nodeId: string, serverLogs: ServerLogOutput[]): boolean {
   try {
-      // Very basic evaluation logic. For a production system, use a secure sandbox like `vm2`.
-      const operators = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
-      let operatorFound: string | null = null;
-      let parts: string[] = [];
+    // Simple evaluation for boolean conditions
+    const lowerCondition = condition.toLowerCase();
+    if (lowerCondition === 'true' || lowerCondition === '1') {
+      return true;
+    }
+    if (lowerCondition === 'false' || lowerCondition === '0') {
+      return false;
+    }
 
-      for (const op of operators) {
-          const splitIndex = conditionString.indexOf(op);
-          if (splitIndex !== -1) {
-              operatorFound = op;
-              parts = [conditionString.substring(0, splitIndex).trim(), conditionString.substring(splitIndex + op.length).trim()];
-              break;
-          }
-      }
-
-      // Helper to parse operands, supporting strings, numbers, booleans, null, undefined
-      const parseOperand = (operandStr: string): any => {
-          operandStr = operandStr.trim();
-          if (operandStr.toLowerCase() === 'true') return true;
-          if (operandStr.toLowerCase() === 'false') return false;
-          if (operandStr.toLowerCase() === 'null') return null;
-          if (operandStr.toLowerCase() === 'undefined') return undefined;
-          if ((operandStr.startsWith("'") && operandStr.endsWith("'")) || (operandStr.startsWith('"') && operandStr.endsWith('"'))) {
-            return operandStr.substring(1, operandStr.length - 1);
-          }
-          const num = parseFloat(operandStr);
-          return isNaN(num) ? operandStr : num;
-      };
-
-      if (operatorFound && parts.length === 2) {
-          let val1 = parseOperand(parts[0]);
-          let val2 = parseOperand(parts[1]);
-          // Simple comparisons. Note: For non-number types, this is a basic string comparison.
-          switch(operatorFound) {
-              case '===': return val1 === val2;
-              case '!==': return val1 !== val2;
-              case '==':  return val1 == val2; // Using '==' for loose comparison as intended in many simple template engines
-              case '!=':  return val1 != val2;
-              case '<':   return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 < val2 : String(val1) < String(val2);
-              case '>':   return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 > val2 : String(val1) > val2;
-              case '<=':  return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 <= val2 : String(val1) <= val2;
-              case '>=':  return (typeof val1 === typeof val2 && typeof val1 === 'number') ? val1 >= val2 : String(val1) >= val2;
-          }
-      }
-      // If no operator, treat the whole string as a value and evaluate its truthiness.
-      return !!parseOperand(conditionString);
-  } catch (e: any) {
-      serverLogs.push({ timestamp: new Date().toISOString(), message: `[CONDITION EVAL] Node ${nodeIdentifier}: Error evaluating condition "${conditionString}": ${e.message}`, type: 'error' });
-      return false; // Fail safe
+    // Try to evaluate as a simple expression
+    // For security, we only allow very basic evaluations
+    const result = Boolean(condition);
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[CONDITION] Node ${nodeId}: Condition '${condition}' evaluated to ${result}`, type: 'info' });
+    return result;
+  } catch (error) {
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[CONDITION] Node ${nodeId}: Error evaluating condition '${condition}'. Treating as false.`, type: 'info' });
+    return false;
   }
 }
 
-async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, webhookConfigInput: OnErrorWebhookConfig | string, workflowData: Record<string, any>, serverLogs: ServerLogOutput[], userId: string) {
-    const nodeIdentifier = `'${node.name || 'Unnamed Node'}' (ID: ${node.id})`;
-
-    let webhookConfig: OnErrorWebhookConfig;
-    try {
-        webhookConfig = typeof webhookConfigInput === 'string' ? JSON.parse(webhookConfigInput) : webhookConfigInput;
-        if (!webhookConfig || typeof webhookConfig.url !== 'string' || !webhookConfig.url) {
-            throw new Error('URL is missing or invalid in onErrorWebhook configuration.');
-        }
-    } catch (e: any) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Invalid config. Error: ${e.message}`, type: 'error' });
-        return;
-    }
-
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Sending on-error webhook to ${webhookConfig.url}`, type: 'info' });
-
-    // Define the special context for resolving placeholders in the webhook body/headers
-    const errorContext = {
-        'failed_node_id': node.id,
-        'failed_node_name': node.name || node.id,
-        'error_message': errorMessage,
-        'timestamp': new Date().toISOString(),
-        'workflow_data_snapshot_json': JSON.stringify(workflowData) // This can be large!
-    };
-
-    try {
-        const resolvedHeaders = webhookConfig.headers ? await resolveNodeConfig(webhookConfig.headers, undefined, workflowData, serverLogs, userId, errorContext) : {};
-        // Default content type to JSON if a body is provided
-        if (!resolvedHeaders['Content-Type'] && webhookConfig.bodyTemplate) {
-            resolvedHeaders['Content-Type'] = 'application/json';
-        }
-
-        const resolvedBody = webhookConfig.bodyTemplate ? await resolveNodeConfig(webhookConfig.bodyTemplate, undefined, workflowData, serverLogs, userId, errorContext) : {};
-
-        // Fire-and-forget fetch call
-        fetch(webhookConfig.url, {
-            method: webhookConfig.method || 'POST',
-            headers: resolvedHeaders,
-            body: JSON.stringify(resolvedBody),
-        });
-    } catch (err: any) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Node ${nodeIdentifier}: Exception while sending webhook. Error: ${err.message}`, type: 'error' });
-    }
-}
-
 // ================================================================= //
-// ======================= NODE EXECUTION LOGIC ==================== //
+// ==================== NODE EXECUTION FUNCTIONS ================== //
 // ================================================================= //
-// Note: Each function returns the output object for the node.
 
 async function executeWebhookTriggerNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    const liveTriggerData = (!isSimulationMode && allWorkflowData && allWorkflowData[node.id]) ? allWorkflowData[node.id] : null;
-
-    if (liveTriggerData && liveTriggerData.requestBody !== undefined) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] LIVE TRIGGER. Using data from API route.`, type: 'info' });
-        return {
-            requestBody: liveTriggerData.requestBody,
-            requestHeaders: liveTriggerData.requestHeaders,
-            requestQuery: liveTriggerData.requestQuery,
-            status: 'success'
-        };
-    }
-
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE WEBHOOKTRIGGER] SIMULATION: Using simulated data.`, type: 'info' });
-    let simBody = {};
-    let simHeaders = {};
-    let simQuery = {};
-
-    try {
-        simBody = typeof config.simulatedRequestBody === 'string' ? JSON.parse(config.simulatedRequestBody) : (config.simulatedRequestBody || {});
-        simHeaders = typeof config.simulatedRequestHeaders === 'string' ? JSON.parse(config.simulatedRequestHeaders) : (config.simulatedRequestHeaders || {});
-        simQuery = typeof config.simulatedRequestQuery === 'string' ? JSON.parse(config.simulatedRequestQuery) : (config.simulatedRequestQuery || {});
-    } catch (e: any) {
-        serverLogs.push({timestamp: new Date().toISOString(), message: `Error parsing simulated data for webhook trigger: ${e.message}`, type: 'info'});
-    }
-
-    return { requestBody: simBody, requestHeaders: simHeaders, requestQuery: simQuery, status: 'success' };
+  if (allWorkflowData[node.id] && allWorkflowData[node.id].triggered) {
+    return allWorkflowData[node.id];
+  } else {
+    return { message: "Webhook trigger not activated in this execution.", triggered: false };
+  }
 }
 
 async function executeScheduleNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    const triggerTime = allWorkflowData[node.id]?.triggered_at || new Date().toISOString();
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SCHEDULE] Triggered at ${triggerTime}.`, type: 'info' });
-    return { triggered_at: triggerTime };
+  if (allWorkflowData[node.id] && allWorkflowData[node.id].triggered_at) {
+    return allWorkflowData[node.id];
+  } else {
+    return { message: "Schedule trigger not activated in this execution.", triggered: false };
+  }
 }
 
-
 async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE HTTPREQUEST] SIMULATION: Would make ${config.method || 'GET'} request to ${config.url}`, type: 'info' });
-        const simStatusCode = config.simulatedStatusCode || 200;
-        if (simStatusCode < 200 || simStatusCode >= 300) {
-            const simError = new Error(`Simulated HTTP error with status ${simStatusCode}`);
-            (simError as any).statusCode = simStatusCode;
-            throw simError;
-        }
-        let simResponseData = {};
-        try { simResponseData = typeof config.simulatedResponse === 'string' ? JSON.parse(config.simulatedResponse) : config.simulatedResponse; } catch (e) { simResponseData = config.simulatedResponse; }
-        return { response: simResponseData, status_code: simStatusCode };
-    }
+  if (isSimulationMode) {
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE HTTP] SIMULATION: Would make ${config.method} request to ${config.url}`, type: 'info' });
+    return { response: config.simulatedResponse || { status: 200, data: "Simulated response" } };
+  }
 
-    if (!config.url) throw new Error(`URL is not configured or resolved.`);
-    const fetchOptions: RequestInit = { method: config.method || 'GET', headers: config.headers };
-    if (config.body && (config.method === 'POST' || config.method === 'PUT' || config.method === 'PATCH')) {
-        fetchOptions.body = typeof config.body === 'string' ? config.body : JSON.stringify(config.body);
-        if (!config.headers['Content-Type'] && typeof config.body !== 'string') (fetchOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+  if (!config.url) throw new Error("URL is required for HTTP request.");
+
+  const method = config.method || 'GET';
+  const headers = config.headers || {};
+  let body = config.body;
+
+  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    if (typeof body === 'object') {
+      body = JSON.stringify(body);
+      headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     }
-    const response = await fetch(config.url, fetchOptions);
-    const responseText = await response.text();
-    if (!response.ok) {
-        const httpError = new Error(`HTTP request failed with status ${response.status}: ${responseText}`);
-        (httpError as any).statusCode = response.status;
-        throw httpError;
+  } else {
+    body = undefined;
+  }
+
+  const response = await fetch(config.url, { method, headers, body });
+  const responseData = await response.text();
+
+  let parsedData;
+  try {
+    parsedData = JSON.parse(responseData);
+  } catch {
+    parsedData = responseData;
+  }
+
+  return {
+    response: {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      data: parsedData
     }
-    let parsedHttpResponse: any;
-    try { parsedHttpResponse = JSON.parse(responseText); } catch (e) { parsedHttpResponse = responseText; }
-    return { response: parsedHttpResponse, status_code: response.status };
+  };
 }
 
 async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AITASK] SIMULATION: Would send prompt to model ${config.modelProvider}/${config.model}.`, type: 'info' });
-        return { output: config.simulatedOutput || "Simulated AI output." };
-    }
+  if (isSimulationMode) {
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AI] SIMULATION: Would process AI task with Mistral`, type: 'info' });
+    return { output: config.simulatedOutput || "Simulated AI response" };
+  }
 
-    const provider = config.modelProvider || 'googleai';
-    const modelName = config.model;
+  if (!config.prompt) {
+    throw new Error("Prompt is required for AI task.");
+  }
 
-    if (!modelName) {
-        throw new Error("AI Model ID is not configured in the AI Task node.");
-    }
-    if (!config.prompt) {
-        throw new Error(`AI Prompt is not configured or resolved.`);
-    }
-
-    if (provider === 'googleai' && !process.env.GOOGLE_API_KEY) {
-        throw new Error("GOOGLE_API_KEY environment variable is not set. It's required for Google AI Tasks in Live Mode.");
-    }
+  // Use Mistral AI instead of Google Gemini
+  const model = 'mistral-small-latest';
+  
+  try {
+    const result = await ai.generate(config.prompt, { 
+      model: model,
+      temperature: config.temperature || 0.7,
+      max_tokens: config.max_tokens || 1000
+    });
     
-    const modelIdentifier = `${provider}/${modelName}`;
-    const model = ai.model(modelIdentifier);
-    if (!model) {
-        throw new Error(`Model '${modelIdentifier}' not found or its provider is not configured. Check your genkit.ts and environment variables.`);
-    }
-
-    const genkitResponse = await ai.generate({ prompt: String(config.prompt), model });
-    return { output: genkitResponse.text };
+    return { output: result.content || result };
+  } catch (error: any) {
+    throw new Error(`Mistral AI task failed: ${error.message}`);
+  }
 }
 
 async function executeGenerateImageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GENERATEIMAGE] SIMULATION: Would generate image for prompt: "${config.prompt}".`, type: 'info' });
-        return { imageDataUri: config.simulated_config?.imageDataUri };
-    }
+  if (isSimulationMode) {
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GENERATEIMAGE] SIMULATION: Would generate image with prompt: ${config.prompt}`, type: 'info' });
+    return { output: config.simulatedOutput || { imageUrl: "https://via.placeholder.com/512x512?text=Generated+Image" } };
+  }
 
-    if (!config.prompt) {
-        throw new Error('Prompt is not configured or resolved for Generate Image node.');
-    }
+  if (!config.prompt) {
+    throw new Error("Prompt is required for image generation.");
+  }
 
+  try {
     const result = await generateImage({ prompt: config.prompt });
-    return result;
+    return { output: result };
+  } catch (error: any) {
+    throw new Error(`Image generation failed: ${error.message}`);
+  }
 }
 
+async function executeParseJsonNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+  const jsonString = config.jsonString;
+  if (!jsonString || typeof jsonString !== 'string') {
+    throw new Error("Valid JSON string is required.");
+  }
 
-async function executeParseJsonNode(node: WorkflowNode, config: any, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    let dataToParse: any;
-    if (typeof config.jsonString === 'string') {
-        if (config.jsonString.trim() === '') dataToParse = {};
-        else try { dataToParse = JSON.parse(config.jsonString); } catch (e: any) { throw new Error(`Invalid JSON input string: ${e.message}`); }
-    } else if (typeof config.jsonString === 'object' && config.jsonString !== null) {
-        dataToParse = config.jsonString;
+  try {
+    const parsed = JSON.parse(jsonString);
+    return { output: parsed };
+  } catch (error) {
+    throw new Error(`Invalid JSON: ${(error as Error).message}`);
+  }
+}
+
+async function handleOnErrorWebhook(node: WorkflowNode, errorMessage: string, webhookConfig: OnErrorWebhookConfig, workflowData: Record<string, any>, serverLogs: ServerLogOutput[], userId: string): Promise<void> {
+  try {
+    const payload = {
+      error: errorMessage,
+      nodeId: node.id,
+      nodeName: node.name || 'Unnamed Node',
+      timestamp: new Date().toISOString(),
+      workflowData: webhookConfig.includeWorkflowData ? workflowData : undefined
+    };
+
+    const webhookUrl = await resolveValue(webhookConfig.url, workflowData, serverLogs, userId);
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Successfully sent error notification for node '${node.name}'`, type: 'info' });
     } else {
-        throw new Error(`JSON input must be a non-null string or an object. Received type: ${typeof config.jsonString}`);
+      serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Failed to send error notification: ${response.statusText}`, type: 'error' });
     }
-
-    let extractedValue = dataToParse;
-    if (config.path && config.path.trim() !== '' && config.path.trim() !== '$') {
-        const pathParts = config.path.replace(/^\$\.?/, '').split('.');
-        for (const part of pathParts) {
-            if (part === '') continue;
-            if (extractedValue && typeof extractedValue === 'object' && part in extractedValue) {
-                extractedValue = extractedValue[part];
-            } else {
-                throw new Error(`Path "${config.path}" not found in JSON object.`);
-            }
-        }
-    }
-    return { output: extractedValue };
+  } catch (webhookError: any) {
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[ON_ERROR_WEBHOOK] Error sending webhook: ${webhookError.message}`, type: 'error' });
+  }
 }
 
 async function executeSendEmailNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE SENDEMAIL] SIMULATION: Would send email to ${config.to}.`, type: 'info' });
-        return { messageId: config.simulatedMessageId || 'simulated-email-id-default' };
-    }
-    if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_FROM) {
-        throw new Error("Missing EMAIL_* environment variables. All are required for sending emails in Live Mode.");
-    }
-    if (!config.to || !config.subject || !config.body) throw new Error(`'to', 'subject', and 'body' are required.`);
+  if (isSimulationMode) {
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE EMAIL] SIMULATION: Would send email to ${config.to} with subject "${config.subject}"`, type: 'info' });
+    return { output: config.simulated_config || { messageId: 'simulated-message-id', accepted: [config.to] } };
+  }
 
-    const transporter = nodemailer.createTransport({ host: process.env.EMAIL_HOST, port: parseInt(process.env.EMAIL_PORT!, 10), secure: process.env.EMAIL_SECURE === 'true', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }});
-    const info = await transporter.sendMail({ from: process.env.EMAIL_FROM, to: config.to, subject: config.subject, html: config.body });
-    return { messageId: info.messageId };
+  // Required email configuration
+  const { host, port, secure, user, pass, to, subject, body } = config;
+  
+  if (!host || !port || !user || !pass) {
+    throw new Error("SMTP configuration (host, port, user, pass) is required.");
+  }
+  if (!to || !subject) {
+    throw new Error("Email recipient ('to') and subject are required.");
+  }
+
+  // Create transporter
+  const transporter = nodemailer.createTransporter({
+    host,
+    port: Number(port),
+    secure: Boolean(secure),
+    auth: { user, pass }
+  });
+
+  // Send email
+  const result = await transporter.sendMail({
+    from: user,
+    to,
+    subject,
+    text: body || '',
+    html: config.htmlBody
+  });
+
+  return { output: result };
 }
 
 async function executeDbQueryNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DATABASEQUERY] SIMULATION: Would execute query.`, type: 'info' });
-        return { results: config.simulatedResults || [], rowCount: config.simulatedRowCount || (config.simulatedResults?.length || 0) };
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE DB] SIMULATION: Would execute query: ${config.queryText}`, type: 'info' });
+        return { results: config.simulated_config?.results || [], rowCount: 0 };
     }
 
-    const resolvedConnectionString = await resolveValue("{{credential.DatabaseConnectionString}}", {}, serverLogs, userId) || process.env.DB_CONNECTION_STRING;
-    if (!resolvedConnectionString) {
-       throw new Error("Database connection string not found. Set it in the Credential Manager as 'DatabaseConnectionString' or as a DB_CONNECTION_STRING environment variable.");
+    if (!process.env.DB_CONNECTION_STRING) {
+        throw new Error("DB_CONNECTION_STRING environment variable is not set. This node requires database configuration.");
     }
 
     const pool = getDbPool();
@@ -625,18 +569,6 @@ async function executeTextToSpeechNode(node: WorkflowNode, config: any, isSimula
 
 
 // === NEW INTEGRATION NODE EXECUTION FUNCTIONS ===
-
-async function executeGoogleSheetsAppendRowNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
-    if (isSimulationMode) {
-        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] SIMULATION: Would append row to ${config.spreadsheetId}.`, type: 'info' });
-        return { output: config.simulated_config || { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } };
-    }
-
-    // Google Sheets functionality has been removed as we're using Mistral AI only
-    // This would require a direct HTTP API call to Google Sheets API
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] ERROR: Google Sheets integration requires googleapis package which has been removed.`, type: 'error' });
-    throw new Error('Google Sheets integration is not available in this version. Please use alternative data storage methods.');
-}
 
 async function executeSlackPostMessageNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
     if (isSimulationMode) {
@@ -873,6 +805,18 @@ async function executeHubSpotCreateContactNode(node: WorkflowNode, config: any, 
     return { output: responseData };
 }
 
+async function executeGoogleSheetsAppendRowNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
+    if (isSimulationMode) {
+        serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] SIMULATION: Would append row to ${config.spreadsheetId}.`, type: 'info' });
+        return { output: config.simulated_config || { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } };
+    }
+
+    // Google Sheets functionality has been removed as we're using Mistral AI only
+    // This would require a direct HTTP API call to Google Sheets API
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] ERROR: Google Sheets integration requires googleapis package which has been removed.`, type: 'error' });
+    throw new Error('Google Sheets integration is not available in this version. Please use alternative data storage methods.');
+}
+
 
 // Simulated Live Mode for complex auth integrations
 async function executeSimulatedLiveNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string, serviceName: string): Promise<any> {
@@ -903,17 +847,18 @@ async function executeYoutubeFetchTrendingNode(node: WorkflowNode, config: any, 
         throw new Error("YouTube API Key not found. Please set it in the node's config, likely using a credential placeholder like {{credential.YouTubeApiKey}}.");
     }
 
-    const youtube = google.youtube({ version: 'v3', auth: apiKey });
-
+    // Direct API call since Google APIs are removed
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=${config.region || 'US'}&maxResults=${config.maxResults || 5}&key=${apiKey}`;
+    
     try {
-        const response = await youtube.videos.list({
-            part: ['snippet', 'contentDetails', 'statistics'],
-            chart: 'mostPopular',
-            regionCode: config.region || 'US',
-            maxResults: config.maxResults || 5,
-        });
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(`YouTube API error: ${data.error?.message || `HTTP error ${response.status}`}`);
+        }
 
-        const videos = response.data.items?.map(item => ({
+        const videos = data.items?.map((item: any) => ({
             id: item.id,
             title: item.snippet?.title,
             description: item.snippet?.description,
@@ -929,8 +874,7 @@ async function executeYoutubeFetchTrendingNode(node: WorkflowNode, config: any, 
         return { output: { videos: videos } };
     } catch (e: any) {
         console.error(`[NODE YOUTUBE] YouTube API Error: ${e.message}`);
-        const googleError = e.errors?.map((err: any) => err.message).join(', ') || e.message;
-        throw new Error(`YouTube API error: ${googleError}`);
+        throw new Error(`YouTube API error: ${e.message}`);
     }
 }
 

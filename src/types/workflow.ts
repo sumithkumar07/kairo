@@ -1,208 +1,132 @@
-
-import type { LucideIcon } from 'lucide-react';
-import type { Tool as GenkitTool } from 'genkit';
 import type { SubscriptionTier } from './subscription';
-import type { DiagnoseWorkflowErrorOutput } from '@/ai/flows/diagnose-workflow-error-flow';
+import type { z } from 'zod';
 
+export type RetryConfig = {
+  attempts: number;
+  delayMs: number;
+  backoffFactor?: number;
+};
 
-export interface RetryConfig {
-  attempts: number; 
-  delayMs?: number; 
-  backoffFactor?: number; 
-  retryOnStatusCodes?: number[]; 
-  retryOnErrorKeywords?: string[]; 
-}
-
-export interface OnErrorWebhookConfig {
+export type OnErrorWebhookConfig = {
   url: string;
-  method?: 'POST' | 'PUT';
-  headers?: Record<string, string>;
-  bodyTemplate?: Record<string, any>; 
-}
+  includeWorkflowData?: boolean;
+};
 
-export interface ManualInputFieldSchema {
-  id: string;
-  label: string;
-  type: 'text' | 'textarea' | 'number' | 'boolean' | 'select';
-  options?: string[]; 
-  defaultValue?: any;
-  placeholder?: string;
-  required?: boolean;
-}
-
-
-export interface WorkflowNode {
+export type WorkflowNode = {
   id: string;
   type: string;
-  name: string;
+  name?: string;
   description?: string;
   position: { x: number; y: number };
+  config?: Record<string, any>;
   inputMapping?: Record<string, any>;
-  config: Record<string, any> & { 
-    retry?: RetryConfig;
-    onErrorWebhook?: OnErrorWebhookConfig; 
-  }; 
-  inputHandles?: string[];
   outputHandles?: string[];
-  aiExplanation?: string; 
-  category: AvailableNodeType['category'];
-  lastExecutionStatus?: 'success' | 'error' | 'skipped' | 'pending' | 'running' | 'partial_success';
-}
+};
 
-export interface WorkflowConnection {
+export type WorkflowConnection = {
   id: string;
   sourceNodeId: string;
-  sourceHandle?: string;
+  sourceHandle: string;
   targetNodeId: string;
-  targetHandle?: string;
-}
+  targetHandle: string;
+};
 
-export interface Workflow {
+export type Workflow = {
   nodes: WorkflowNode[];
   connections: WorkflowConnection[];
-  // Add metadata for canvas state
-  canvasOffset?: { x: number; y: number };
-  zoomLevel?: number;
-  isSimulationMode?: boolean;
-  name?: string; // Optional name from AI generation
-  description?: string; // Optional description from AI generation
-}
+};
 
-export interface ExampleWorkflow {
+export interface Tool {
   name: string;
   description: string;
-  workflow: Workflow;
+  icon: string;
+  category: string;
 }
 
-export interface SavedWorkflowMetadata {
-  name: string;
-  type: 'example' | 'user' | 'community';
-  description?: string;
-  updated_at?: string;
-}
-
-export interface ConfigFieldSchema {
-  label: string;
-  type: 'string' | 'number' | 'textarea' | 'select' | 'boolean' | 'json';
-  options?: Array<{value: string; label: string} | string>;
-  placeholder?: string;
-  defaultValue?: any;
-  helperText?: string;
-  required?: boolean; 
-  relevantForTypes?: string[]; // For dataTransform node conditional fields
-  allowEmptyJson?: boolean; // For JSON type, if an empty object/array is acceptable when required
-}
-
-export interface BranchConfig {
+export interface EnhancedTool extends Tool {
   id: string;
-  name?: string; 
-  nodes: WorkflowNode[];
-  connections: WorkflowConnection[];
-  inputMapping?: Record<string, string>; 
-  outputSource?: string; 
+  version: string;
+  author: string;
+  rating: number;
+  downloads: number;
+  lastUpdated: string;
+  pricing: 'free' | 'paid' | 'freemium';
+  documentation: string;
+  examples: ToolExample[];
+  dependencies: string[];
 }
 
-
-export interface AvailableNodeType {
-  type: string;
-  name: string;
-  icon: LucideIcon;
-  description?: string;
-  category: 'trigger' | 'action' | 'logic' | 'ai' | 'io' | 'group' | 'iteration' | 'control' | 'interaction' | 'integrations' | 'unknown';
-  defaultConfig: Record<string, any>;
-  configSchema?: Record<string, ConfigFieldSchema>;
-  inputHandles?: string[]; 
-  outputHandles?: string[];
-  isAdvanced?: boolean; // Added for Pro tier feature gating
+export interface ToolExample {
+  title: string;
+  description: string;
+  configuration: Record<string, any>;
 }
 
-export interface ServerLogOutput {
-  timestamp: string; // ISO string
+export type ServerLogOutput = {
+  timestamp: string;
   message: string;
-  type: 'info' | 'error' | 'success';
-}
+  type: 'info' | 'error' | 'warning';
+};
 
-export interface WorkflowExecutionResult {
+export type WorkflowExecutionResult = {
   serverLogs: ServerLogOutput[];
-  finalWorkflowData: Record<string, any>; // Contains node outputs and their lastExecutionStatus
-}
+  finalWorkflowData: Record<string, any>;
+};
 
 export interface WorkflowRunRecord {
   id: string;
   workflowName: string;
-  timestamp: string; // ISO string
+  timestamp: string;
   status: 'Success' | 'Failed';
   executionResult: WorkflowExecutionResult;
-  initialData?: Record<string, any>; // The initial data that triggered the workflow (e.g. from webhook)
-  workflowSnapshot: Workflow; // A snapshot of the workflow at the time of execution
+  initialData?: Record<string, any>;
+  workflowSnapshot?: Workflow;
 }
 
+export interface SavedWorkflowMetadata {
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  is_community?: boolean;
+  author?: string;
+  rating?: number;
+}
 
-export interface ChatMessage {
+export interface ExampleWorkflow extends SavedWorkflowMetadata {
+  workflow: Workflow;
+}
+
+export interface ManagedCredential {
   id: string;
-  sender: 'user' | 'ai';
-  message: string;
-  timestamp: string;
+  name: string;
+  service?: string;
+  value: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface AgentConfig {
+  enabledTools: string[];
+  customInstructions?: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface DisplayUserApiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at?: string;
+  is_revoked: boolean;
 }
 
 export interface McpCommandRecord {
   id: string;
   user_id: string;
-  timestamp: string; // ISO string
   command: string;
   response: string;
   status: 'Success' | 'Failed';
-}
-
-export type LogEntry = {
   timestamp: string;
-  message: string;
-  type: 'info' | 'error' | 'success';
-  data?: any;
-};
-
-export type Tool = {
-    name: string;
-    description: string;
-    icon: LucideIcon;
-    service: string;
-    genkitTool: GenkitTool<any, any>;
-};
-
-export type AgentConfig = {
-  enabledTools: string[]; // Array of tool names
-};
-
-export interface ManagedCredential {
-  id: string;
-  name: string;
-  value: string; // This would be encrypted in a real production system
-  service?: string;
-  created_at: string;
-  user_id: string;
-}
-
-export interface UserApiKey {
-    id: string; // A UUID for the key record
-    user_id: string; // Foreign key to auth.users
-    key_hash: string; // A SHA-256 hash of the API key
-    prefix: string; // The non-secret prefix of the key (e.g., "kairo_sk_")
-    created_at: string;
-    last_used_at?: string | null;
-}
-
-export interface DisplayUserApiKey extends Omit<UserApiKey, 'key_hash' | 'user_id'> {}
-
-export type { DiagnoseWorkflowErrorOutput };
-
-export type SuggestNextNodeOutput = {
-  suggestedNode: string;
-  reason: string;
-  sourceNodeToConnect?: string;
-};
-
-export interface RequiredCredentialInfo {
-  name: string;
-  users: string[]; // List of nodes or AI skills that use this credential
-  services: string[]; // List of services associated with this credential
 }
