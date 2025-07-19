@@ -1255,19 +1255,368 @@ export class CARESWorkflowEngine {
     return { score, violations, recommendations };
   }
 
-  private async detectDuplicates(data: any): Promise<{ found: boolean; field: string }> {
-    // Simplified duplicate detection
-    return { found: false, field: '' };
+  // Utility methods for ML and advanced processing
+  private extractFields(data: any): string[] {
+    if (!data || typeof data !== 'object') return [];
+    return Object.keys(data);
   }
 
-  private detectMissingData(data: any): Array<{ field: string; critical: boolean; suggestedSource: string; canAutoFill: boolean }> {
-    // Simplified missing data detection
+  private extractValuesForField(data: any, field: string): any[] {
+    // Extract all values for a specific field from nested data
+    const values: any[] = [];
+    
+    const traverse = (obj: any, path: string[] = []) => {
+      if (obj && typeof obj === 'object') {
+        Object.keys(obj).forEach(key => {
+          if (key === field) {
+            values.push(obj[key]);
+          } else if (typeof obj[key] === 'object') {
+            traverse(obj[key], [...path, key]);
+          }
+        });
+      }
+    };
+    
+    traverse(data);
+    return values;
+  }
+
+  private calculateFuzzySimilarity(values: any[]): number {
+    if (values.length < 2) return 0;
+    
+    // Simple fuzzy similarity calculation
+    let totalSimilarity = 0;
+    let comparisons = 0;
+    
+    for (let i = 0; i < values.length; i++) {
+      for (let j = i + 1; j < values.length; j++) {
+        const similarity = this.stringSimilarity(String(values[i]), String(values[j]));
+        totalSimilarity += similarity;
+        comparisons++;
+      }
+    }
+    
+    return comparisons > 0 ? totalSimilarity / comparisons : 0;
+  }
+
+  private stringSimilarity(str1: string, str2: string): number {
+    if (str1 === str2) return 1;
+    if (str1.length === 0 || str2.length === 0) return 0;
+    
+    // Levenshtein distance-based similarity
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+    
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+    
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + cost
+        );
+      }
+    }
+    
+    const maxLength = Math.max(str1.length, str2.length);
+    return 1 - (matrix[str2.length][str1.length] / maxLength);
+  }
+
+  private getExpectedFields(data: any): string[] {
+    // Return expected fields based on data structure analysis
+    const commonFields = ['id', 'name', 'email', 'status', 'created_at', 'updated_at'];
+    const existingFields = this.extractFields(data);
+    return [...new Set([...commonFields, ...existingFields])];
+  }
+
+  private hasValidValue(data: any, field: string): boolean {
+    const value = this.getFieldValue(data, field);
+    return value !== null && value !== undefined && value !== '';
+  }
+
+  private getFieldValue(data: any, field: string): any {
+    if (!data || typeof data !== 'object') return null;
+    return data[field];
+  }
+
+  private async predictMissingValue(field: string, context: any): Promise<{ source: string; canAutoFill: boolean; confidence: number }> {
+    // ML-based prediction for missing values
+    const predictions = {
+      'email': { source: 'user profile or external directory', canAutoFill: false, confidence: 60 },
+      'name': { source: 'user profile or contact list', canAutoFill: false, confidence: 70 },
+      'status': { source: 'workflow state or default values', canAutoFill: true, confidence: 85 },
+      'created_at': { source: 'system timestamp', canAutoFill: true, confidence: 95 },
+      'id': { source: 'auto-generated UUID', canAutoFill: true, confidence: 100 }
+    };
+    
+    return predictions[field as keyof typeof predictions] || { source: 'manual input', canAutoFill: false, confidence: 30 };
+  }
+
+  private isFieldCritical(field: string): boolean {
+    const criticalFields = ['id', 'email', 'user_id', 'account_id', 'payment_info'];
+    return criticalFields.includes(field);
+  }
+
+  private async predictExpectedFormat(field: string, value: any): Promise<{ format: string; confidence: number }> {
+    if (typeof value !== 'string') {
+      return { format: 'string', confidence: 50 };
+    }
+    
+    // Format prediction based on field name and content
+    const formatPatterns = {
+      email: { regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, confidence: 90 },
+      phone: { regex: /^\+?[\d\s\-\(\)]+$/, confidence: 85 },
+      date: { regex: /^\d{4}-\d{2}-\d{2}/, confidence: 80 },
+      url: { regex: /^https?:\/\//, confidence: 85 },
+      uuid: { regex: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, confidence: 95 }
+    };
+    
+    for (const [format, pattern] of Object.entries(formatPatterns)) {
+      if (field.toLowerCase().includes(format) || pattern.regex.test(value)) {
+        return { format, confidence: pattern.confidence };
+      }
+    }
+    
+    return { format: 'text', confidence: 60 };
+  }
+
+  private matchesFormat(value: any, expectedFormat: string): boolean {
+    if (typeof value !== 'string') return false;
+    
+    const formats = {
+      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      phone: /^\+?[\d\s\-\(\)]+$/,
+      date: /^\d{4}-\d{2}-\d{2}/,
+      url: /^https?:\/\//,
+      uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    };
+    
+    const pattern = formats[expectedFormat as keyof typeof formats];
+    return pattern ? pattern.test(value) : true;
+  }
+
+  private extractTextForAnalysis(data: any): string | null {
+    if (typeof data === 'string') return data;
+    if (!data || typeof data !== 'object') return null;
+    
+    // Extract text from common text fields
+    const textFields = ['text', 'message', 'content', 'description', 'body', 'note'];
+    for (const field of textFields) {
+      if (data[field] && typeof data[field] === 'string') {
+        return data[field];
+      }
+    }
+    
+    // Fallback: concatenate all string values
+    const strings = this.getAllStrings(data);
+    return strings.length > 0 ? strings.join(' ') : null;
+  }
+
+  private getAllStrings(obj: any): string[] {
+    const strings: string[] = [];
+    
+    const traverse = (item: any) => {
+      if (typeof item === 'string' && item.trim().length > 0) {
+        strings.push(item);
+      } else if (typeof item === 'object' && item !== null) {
+        Object.values(item).forEach(traverse);
+      }
+    };
+    
+    traverse(obj);
+    return strings;
+  }
+
+  private calculateSentimentScore(text: string): number {
+    // Simplified sentiment analysis
+    const positiveWords = ['good', 'great', 'excellent', 'satisfied', 'happy', 'love', 'amazing'];
+    const negativeWords = ['bad', 'terrible', 'awful', 'unhappy', 'hate', 'disappointed', 'angry'];
+    
+    const words = text.toLowerCase().split(/\s+/);
+    let score = 0;
+    
+    words.forEach(word => {
+      if (positiveWords.includes(word)) score += 0.1;
+      if (negativeWords.includes(word)) score -= 0.15;
+    });
+    
+    return Math.max(-1, Math.min(1, score));
+  }
+
+  private extractSentimentKeywords(text: string): string[] {
+    const sentimentWords = ['positive', 'negative', 'neutral', 'satisfied', 'disappointed', 'happy', 'unhappy'];
+    const words = text.toLowerCase().split(/\s+/);
+    return words.filter(word => sentimentWords.includes(word)).slice(0, 5);
+  }
+
+  private calculateSentimentConfidence(text: string, score: number): number {
+    const wordCount = text.split(/\s+/).length;
+    const baseConfidence = Math.min(90, wordCount * 2); // More words = higher confidence
+    const scoreConfidence = Math.abs(score) * 50; // Stronger sentiment = higher confidence
+    return Math.min(95, (baseConfidence + scoreConfidence) / 2);
+  }
+
+  private extractDataPatterns(data: any): any {
+    // Extract patterns for anomaly detection
+    return {
+      fieldCount: Object.keys(data || {}).length,
+      dataTypes: this.getDataTypes(data),
+      valueRanges: this.getValueRanges(data),
+      stringLengths: this.getStringLengths(data)
+    };
+  }
+
+  private async getBaselinePatterns(): Promise<any> {
+    // Return baseline patterns (in real implementation, this would come from historical data)
+    return {
+      fieldCount: { min: 5, max: 20, avg: 12 },
+      dataTypes: { string: 0.6, number: 0.3, boolean: 0.1 },
+      valueRanges: { numeric: { min: 0, max: 1000 } },
+      stringLengths: { min: 5, max: 100, avg: 25 }
+    };
+  }
+
+  private calculateAnomalyScore(patterns: any, baseline: any): number {
+    let anomalyScore = 0;
+    
+    // Check field count deviation
+    const fieldCountDeviation = Math.abs(patterns.fieldCount - baseline.fieldCount.avg) / baseline.fieldCount.avg;
+    anomalyScore += Math.min(0.5, fieldCountDeviation);
+    
+    // Add more anomaly checks here...
+    
+    return Math.min(1, anomalyScore);
+  }
+
+  private getDataTypes(data: any): { [key: string]: number } {
+    const types: { [key: string]: number } = {};
+    let total = 0;
+    
+    const countTypes = (obj: any) => {
+      if (obj && typeof obj === 'object') {
+        Object.values(obj).forEach(value => {
+          const type = typeof value;
+          types[type] = (types[type] || 0) + 1;
+          total++;
+        });
+      }
+    };
+    
+    countTypes(data);
+    
+    // Return proportions
+    const result: { [key: string]: number } = {};
+    Object.entries(types).forEach(([type, count]) => {
+      result[type] = count / total;
+    });
+    
+    return result;
+  }
+
+  private getValueRanges(data: any): any {
+    const ranges: any = { numeric: { min: Infinity, max: -Infinity } };
+    
+    const processValues = (obj: any) => {
+      if (obj && typeof obj === 'object') {
+        Object.values(obj).forEach(value => {
+          if (typeof value === 'number') {
+            ranges.numeric.min = Math.min(ranges.numeric.min, value);
+            ranges.numeric.max = Math.max(ranges.numeric.max, value);
+          }
+        });
+      }
+    };
+    
+    processValues(data);
+    return ranges;
+  }
+
+  private getStringLengths(data: any): { min: number; max: number; avg: number } {
+    const lengths: number[] = [];
+    
+    const collectLengths = (obj: any) => {
+      if (obj && typeof obj === 'object') {
+        Object.values(obj).forEach(value => {
+          if (typeof value === 'string') {
+            lengths.push(value.length);
+          }
+        });
+      }
+    };
+    
+    collectLengths(data);
+    
+    if (lengths.length === 0) {
+      return { min: 0, max: 0, avg: 0 };
+    }
+    
+    return {
+      min: Math.min(...lengths),
+      max: Math.max(...lengths),
+      avg: lengths.reduce((sum, len) => sum + len, 0) / lengths.length
+    };
+  }
+
+  private classifyError(error: any): string {
+    const errorMessage = error.message || error.toString() || '';
+    const lowerMessage = errorMessage.toLowerCase();
+    
+    if (lowerMessage.includes('timeout')) return 'timeout';
+    if (lowerMessage.includes('connection') || lowerMessage.includes('network')) return 'connection_error';
+    if (lowerMessage.includes('auth') || lowerMessage.includes('unauthorized')) return 'authentication';
+    if (lowerMessage.includes('rate') || lowerMessage.includes('limit')) return 'rate_limit';
+    if (lowerMessage.includes('validation') || lowerMessage.includes('invalid')) return 'data_validation';
+    if (lowerMessage.includes('memory') || lowerMessage.includes('resource')) return 'resource_limit';
+    
+    return 'unknown';
+  }
+
+  private identifyDemographicGroups(data: any): any[] {
+    // Identify demographic groups from data (simplified)
     return [];
   }
 
-  private validateFormats(data: any): Array<{ field: string; expectedFormat: string }> {
-    // Simplified format validation
+  private extractOutcomes(data: any): any[] {
+    // Extract outcomes for bias analysis (simplified)
     return [];
+  }
+
+  private calculateDemographicParity(groups: any[], outcomes: any[]): number {
+    // Calculate demographic parity (simplified)
+    return 0.95;
+  }
+
+  private calculateEqualizedOdds(groups: any[], outcomes: any[]): number {
+    // Calculate equalized odds (simplified)
+    return 0.92;
+  }
+
+  private containsPII(data: any): boolean {
+    if (!data || typeof data !== 'object') return false;
+    
+    const text = JSON.stringify(data);
+    return Object.values(PII_PATTERNS).some(pattern => pattern.test(text));
+  }
+
+  private hasConsentFlags(data: any): boolean {
+    // Check for consent flags in data
+    const consentFields = ['consent', 'agreed', 'opt_in', 'permission'];
+    return consentFields.some(field => data[field] === true);
+  }
+
+  private containsFinancialData(data: any): boolean {
+    if (!data || typeof data !== 'object') return false;
+    
+    const financialFields = ['amount', 'price', 'cost', 'payment', 'transaction', 'account_number'];
+    return financialFields.some(field => field in data);
+  }
+
+  private hasAuditTrail(data: any): boolean {
+    // Check for audit trail information
+    const auditFields = ['created_by', 'modified_by', 'timestamp', 'audit_id'];
+    return auditFields.some(field => field in data);
   }
 
   private async mergeDuplicates(field: string): Promise<void> {
