@@ -156,6 +156,12 @@ export function requireAuth(handler: (user: User) => Promise<Response>) {
 }
 
 // User profile utilities
+export async function getCurrentUser(): Promise<User | null> {
+  // This is a server-side function that would typically be used in API routes
+  // For now, we'll return null since we need request context
+  return null;
+}
+
 export async function getUserProfile(userId: string): Promise<{ subscription_tier: string; trial_end_date: string | null } | null> {
   const profiles = await db.query(
     'SELECT subscription_tier, trial_end_date FROM user_profiles WHERE id = $1',
