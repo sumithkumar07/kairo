@@ -18,7 +18,7 @@ export interface Session {
 
 // Enhanced session management with database storage
 export async function createSession(user: User, userAgent?: string, ipAddress?: string): Promise<string> {
-  const token = generateSessionToken();
+  const sessionToken = generateSessionToken();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
@@ -27,18 +27,23 @@ export async function createSession(user: User, userAgent?: string, ipAddress?: 
     { 
       userId: user.id, 
       email: user.email,
-      sessionToken: token,
+      sessionToken: sessionToken,
       exp: Math.floor(expiresAt.getTime() / 1000)
     },
     JWT_SECRET
   );
 
   // Store session in database
-  await db.query(
-    `INSERT INTO user_sessions (user_id, token_hash, expires_at, user_agent, ip_address) 
-     VALUES ($1, $2, $3, $4, $5)`,
-    [user.id, token, expiresAt, userAgent, ipAddress]
-  );
+  try {
+    await db.query(
+      `INSERT INTO user_sessions (user_id, token_hash, expires_at, user_agent, ip_address) 
+       VALUES ($1, $2, $3, $4, $5)`,
+      [user.id, sessionToken, expiresAt, userAgent, ipAddress]
+    );
+  } catch (error) {
+    console.error('[AUTH] Error creating session:', error);
+    // Return JWT token even if session storage fails
+  }
   
   return jwtToken;
 }
