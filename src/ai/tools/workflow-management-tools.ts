@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Defines workflow management tools for AI-driven automation.
@@ -134,10 +133,10 @@ export const runWorkflowTool = ai.defineTool(
 );
 
 
-// Activated tools with real API calls
+// YouTube tools using direct API calls (no Google SDK)
 export const youtubeFindVideoTool = ai.defineTool({
     name: 'youtubeFindVideo',
-    description: 'Finds a YouTube video based on a search query. Can be used to find "latest video" or a specific title.',
+    description: 'Finds a YouTube video based on a search query using direct API calls.',
     inputSchema: z.object({ 
         query: z.string().describe('The search query, e.g., "Kairo Launch Trailer" or "latest video from Kairo channel".'),
         userId: z.string().describe("The user's ID, needed to retrieve their API key."),
@@ -148,15 +147,16 @@ export const youtubeFindVideoTool = ai.defineTool({
     const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
     if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
 
-    const youtube = google.youtube({ version: 'v3', auth: apiKey });
     try {
-        const response = await youtube.search.list({
-            part: ['snippet'],
-            q: query,
-            type: ['video'],
-            maxResults: 1,
-        });
-        const video = response.data.items?.[0];
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${apiKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(`YouTube API error: ${data.error?.message || `HTTP error ${response.status}`}`);
+        }
+        
+        const video = data.items?.[0];
         if (video?.id?.videoId && video.snippet?.title && video.snippet.channelTitle) {
             return {
                 videoId: video.id.videoId,
@@ -183,13 +183,16 @@ export const youtubeGetReportTool = ai.defineTool({
     const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
     if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
 
-    const youtube = google.youtube({ version: 'v3', auth: apiKey });
     try {
-        const response = await youtube.videos.list({
-            part: ['statistics'],
-            id: [videoId],
-        });
-        const stats = response.data.items?.[0]?.statistics;
+        const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(`YouTube API error: ${data.error?.message || `HTTP error ${response.status}`}`);
+        }
+        
+        const stats = data.items?.[0]?.statistics;
         if (stats) {
             return {
                 views: parseInt(stats.viewCount || '0', 10),

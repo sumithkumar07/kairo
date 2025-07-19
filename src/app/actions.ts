@@ -1,52 +1,51 @@
-
 'use server';
 
 import {
-  generateWorkflowFromPrompt as genkitGenerateWorkflowFromPrompt,
+  generateWorkflowFromPrompt,
   type GenerateWorkflowFromPromptInput,
   type GenerateWorkflowFromPromptOutput
 } from '@/ai/flows/generate-workflow-from-prompt';
 import {
-  enhanceUserPrompt as genkitEnhanceUserPrompt,
+  enhanceUserPrompt,
   type EnhanceUserPromptInput,
 } from '@/ai/flows/enhance-user-prompt-flow';
 import {
-  suggestNextNode as genkitSuggestNextNode,
+  suggestNextNode,
   type SuggestNextNodeInput,
   type SuggestNextNodeOutput
 } from '@/ai/flows/suggest-next-node';
 import {
-  explainWorkflow as genkitExplainWorkflow,
+  explainWorkflow,
   type ExplainWorkflowInput,
   type ExplainWorkflowOutput,
 } from '@/ai/flows/explain-workflow-flow';
 import {
-  assistantChat as genkitAssistantChat,
+  assistantChat as flowAssistantChat,
   type AssistantChatInput,
   type AssistantChatOutput,
 } from '@/ai/flows/assistant-chat-flow';
 import {
-  generateTestDataForNode as genkitGenerateTestData,
+  generateTestDataForNode as flowGenerateTestData,
   type GenerateTestDataInput,
   type GenerateTestDataOutput
 } from '@/ai/flows/generate-test-data-flow';
 import {
-  diagnoseWorkflowError as genkitDiagnoseWorkflowError,
+  diagnoseWorkflowError as flowDiagnoseWorkflowError,
   type DiagnoseWorkflowErrorInput,
   type DiagnoseWorkflowErrorOutput,
 } from '@/ai/flows/diagnose-workflow-error-flow';
 import {
-  generateWorkflowIdeas as genkitGenerateWorkflowIdeas,
+  generateWorkflowIdeas,
   type GenerateWorkflowIdeasInput,
   type GenerateWorkflowIdeasOutput,
 } from '@/ai/flows/generate-workflow-ideas';
 import {
-  textToSpeech as genkitTextToSpeech,
+  textToSpeech,
   type TextToSpeechInput,
   type TextToSpeechOutput,
 } from '@/ai/flows/text-to-speech-flow';
 import {
-  generateImage as genkitGenerateImage
+  generateImage
 } from '@/ai/flows/generate-image-flow';
 
 
@@ -226,7 +225,7 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, u
         }
     }
 
-    const result = await genkitGenerateWorkflowFromPrompt(input);
+    const result = await generateWorkflowFromPrompt(input);
     await WorkflowStorage.incrementMonthlyGenerationCount(userId);
     return result;
   } catch (e: any) {
@@ -237,11 +236,11 @@ export async function generateWorkflow(input: GenerateWorkflowFromPromptInput, u
 
 export async function suggestNextWorkflowNode(clientInput: { workflowContext: string; leafNodes?: { id: string, name: string, type: string, description?: string }[] }): Promise<SuggestNextNodeOutput> {
   try {
-    const inputForGenkit: SuggestNextNodeInput = { 
+    const inputForFlow: SuggestNextNodeInput = { 
       ...clientInput, 
       availableNodeTypes: AVAILABLE_NODES_CONFIG.map(n => ({ type: n.type, name: n.name, description: n.description || '', category: n.category })) 
     };
-    return await genkitSuggestNextNode(inputForGenkit);
+    return await suggestNextNode(inputForFlow);
   } catch (e: any) {
     console.error(`[suggestNextWorkflowNode] Error: ${e.message}`);
     throw new Error(`Failed to suggest next node: ${e.message}`);
@@ -254,7 +253,7 @@ export async function getWorkflowExplanation(workflowData: ExplainWorkflowInput)
     if (!features.canExplainWorkflow) {
       throw new Error('AI Workflow Explanation is a premium feature. Please upgrade your plan.');
     }
-    const result = await genkitExplainWorkflow(workflowData);
+    const result = await explainWorkflow(workflowData);
     if (!result || !result.explanation) throw new Error("AI failed to provide an explanation.");
     return result.explanation;
   } catch (e: any) {
@@ -269,7 +268,7 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
             input.userId = userId;
         }
 
-        const result = await genkitAssistantChat(input);
+        const result = await flowAssistantChat(input);
         if (!result) throw new Error("AI assistant returned an empty response.");
         return result;
     } catch (e: any) {
@@ -290,7 +289,7 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
             }
         }
 
-        const enhancementResult = await genkitEnhanceUserPrompt({ originalPrompt: input.originalPrompt });
+        const enhancementResult = await enhanceUserPrompt({ originalPrompt: input.originalPrompt });
         const promptForGeneration = enhancementResult?.enhancedPrompt || input.originalPrompt;
 
         const result = await generateWorkflow({ prompt: promptForGeneration }, userId);
@@ -308,7 +307,7 @@ export async function generateTestDataForNode(input: GenerateTestDataInput): Pro
     if (!features.aiTestDataGeneration) {
       throw new Error('AI Test Data Generation is a premium feature. Please upgrade your plan.');
     }
-    return await genkitGenerateTestData(input);
+    return await flowGenerateTestData(input);
   } catch (e: any) {
     console.error(`[generateTestDataForNode] Error: ${e.message}`);
     throw new Error(`Failed to generate test data: ${e.message}`);
@@ -322,7 +321,7 @@ export async function diagnoseWorkflowError(input: DiagnoseWorkflowErrorInput): 
     if (!features.aiErrorDiagnosis) {
       throw new Error('AI Error Diagnosis is a premium feature. Please upgrade your plan.');
     }
-    return await genkitDiagnoseWorkflowError(input);
+    return await flowDiagnoseWorkflowError(input);
   } catch (e: any) {
     console.error(`[diagnoseWorkflowError] Error: ${e.message}`);
     throw new Error(`Failed to diagnose workflow error: ${e.message}`);
@@ -349,7 +348,7 @@ export async function generateWorkflowIdeasAction(input: GenerateWorkflowIdeasIn
                 throw new Error(`You have reached your monthly limit of ${features.aiWorkflowGenerationsPerMonth} AI workflow generations for the ${tier} plan. Please upgrade to generate more.`);
             }
         }
-        const result = await genkitGenerateWorkflowIdeas(input);
+        const result = await generateWorkflowIdeas(input);
         await WorkflowStorage.incrementMonthlyGenerationCount(userId);
         return result;
     } catch (e: any) {
@@ -408,7 +407,7 @@ export async function textToSpeechAction(input: TextToSpeechInput): Promise<Text
         const userId = await getUserIdOrThrow();
         // In a real app, you might check for premium features here.
         // For now, we'll allow it for all users.
-        return await genkitTextToSpeech(input);
+        return await textToSpeech(input);
     } catch (e: any) {
         console.error(`[textToSpeechAction] Error: ${e.message}`);
         throw new Error(`Failed to convert text to speech: ${e.message}`);
@@ -422,7 +421,7 @@ export async function generateImageAction(prompt: string) {
         if (!features.accessToAdvancedNodes) { // Gating image generation as an "advanced" feature
             throw new Error('AI Image Generation is a premium feature. Please upgrade your plan.');
         }
-        return await genkitGenerateImage({ prompt });
+        return await generateImage({ prompt });
     } catch (e: any) {
         console.error(`[generateImageAction] Error: ${e.message}`);
         throw new Error(`Failed to generate image: ${e.message}`);
