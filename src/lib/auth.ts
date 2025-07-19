@@ -97,6 +97,25 @@ export async function getCurrentUserFromRequest(request: NextRequest): Promise<U
   return await verifySession(token);
 }
 
+// Server-side getCurrentUser function for server actions
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    // In server actions, we need to get the cookie from headers
+    const { cookies } = await import('next/headers');
+    const cookieStore = cookies();
+    const token = cookieStore.get('session-token')?.value;
+    
+    if (!token) {
+      return null;
+    }
+    
+    return await verifySession(token);
+  } catch (error) {
+    console.error('[AUTH] Error getting current user:', error);
+    return null;
+  }
+}
+
 export async function invalidateSession(token: string): Promise<void> {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
