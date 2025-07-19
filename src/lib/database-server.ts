@@ -1,8 +1,17 @@
 import { Pool, PoolClient } from 'pg';
 import bcrypt from 'bcryptjs';
+import * as dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
 
 // Database connection configuration
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://kairo_db_user:KiMxEtyNTN0ngQr6weLgRU4fgPw5sQvw@dpg-d1rrl36r433s73amt4g0-a.oregon-postgres.render.com/kairo_db';
+const DATABASE_URL = process.env.DATABASE_URL || process.env.DB_CONNECTION_STRING;
+
+if (!DATABASE_URL) {
+  console.error('[DATABASE] No DATABASE_URL or DB_CONNECTION_STRING found in environment variables');
+  console.log('[DATABASE] Available env vars:', Object.keys(process.env).filter(key => key.includes('DATA')));
+}
 
 let pool: Pool | null = null;
 
