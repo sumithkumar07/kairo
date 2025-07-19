@@ -61,6 +61,25 @@ export interface CARESExecutionResult extends WorkflowExecutionResult {
   }>;
 }
 
+// Performance optimization interfaces
+interface CircuitBreaker {
+  state: 'closed' | 'open' | 'half-open';
+  failures: number;
+  lastFailure: number;
+  successCount: number;
+  resetTimeout: number;
+}
+
+// Advanced PII redaction patterns
+const PII_PATTERNS = {
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  phone: /(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/g,
+  ssn: /\b\d{3}-?\d{2}-?\d{4}\b/g,
+  creditCard: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
+  ipAddress: /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g,
+  // Add more patterns as needed
+};
+
 export class CARESWorkflowEngine {
   private config: CARESExecutionConfig;
   private auditTrail: Array<any> = [];
