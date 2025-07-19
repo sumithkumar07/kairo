@@ -14,7 +14,7 @@ import {
   Undo2, 
   Redo2,
   Copy,
-  Paste,
+  Clipboard,
   Trash2,
   Select,
   Hand,
