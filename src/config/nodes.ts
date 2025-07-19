@@ -1632,3 +1632,14 @@ export const getDataTransformIcon = (category: AvailableNodeType['category']) =>
         default: return Milestone;
     }
 };
+
+// Function to get node type configuration
+export function getNodeTypeConfig(nodeType: string): AvailableNodeType | undefined {
+  const allNodes = [...AVAILABLE_NODES_CONFIG, ...ADVANCED_NODES_CONFIG];
+  return allNodes.find(node => node.type === nodeType);
+}
+
+// Function to get all nodes including advanced ones
+export function getAllNodesConfig(): AvailableNodeType[] {
+  return [...AVAILABLE_NODES_CONFIG, ...ADVANCED_NODES_CONFIG];
+}
