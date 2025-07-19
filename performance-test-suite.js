@@ -283,10 +283,10 @@ async function testAdvancedSecurityFeatures() {
     };
     
     const piiPatterns = {
-      email: /\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g,
-      phone: /(?:\\+?1[-\\.\\s]?)?\\(?[0-9]{3}\\)?[-\\.\\s]?[0-9]{3}[-\\.\\s]?[0-9]{4}/g,
-      ssn: /\\b\\d{3}-?\\d{2}-?\\d{4}\\b/g,
-      creditCard: /\\b(?:\\d{4}[-\\s]?){3}\\d{4}\\b/g
+      email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+      phone: /(\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/g,
+      ssn: /\b\d{3}-?\d{2}-?\d{4}\b/g,
+      creditCard: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g
     };
     
     const { duration } = await measurePerformance('pii_redaction', async () => {
