@@ -91,3 +91,6 @@ Please generate realistic test data that matches these requirements.`
     };
   }
 }
+
+// Alias for generateTestData for backward compatibility
+export const generateTestDataForNode = generateTestData;
