@@ -768,7 +768,7 @@ export function EnhancedWorkflowCanvas({
                   onClick={handlePasteNodes}
                   disabled={copiedNodes.length === 0}
                 >
-                  <Paste className="h-4 w-4" />
+                  <Clipboard className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Paste (Ctrl+V)</TooltipContent>
