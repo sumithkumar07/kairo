@@ -11,7 +11,7 @@ from datetime import datetime
 import time
 
 class KairoAPITester:
-    def __init__(self, base_url="http://localhost:3000"):
+    def __init__(self, base_url="http://localhost:3001"):
         self.base_url = base_url
         self.session = requests.Session()
         self.session.headers.update({'Content-Type': 'application/json'})
