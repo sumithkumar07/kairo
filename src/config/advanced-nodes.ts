@@ -31,7 +31,7 @@ import {
   Split,
   Group,
   Ungroup,
-  Transform,
+  Shuffle,
   Wand2
 } from 'lucide-react';
 
