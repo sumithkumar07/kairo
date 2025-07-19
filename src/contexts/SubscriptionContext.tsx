@@ -1,228 +1,147 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
-import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
-import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { getCurrentUser, signIn, signUp, signOut, setCookie, clearCookie } from '@/lib/auth-client';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from '@/components/auth/auth-provider';
 
-interface User {
-  email: string;
-  uid: string;
+export interface SubscriptionLimits {
+  workflows: number;
+  monthlyRuns: number;
+  monthlyGenerations: number;
+  storageGB: number;
+  collaborators: number;
+  apiAccess: boolean;
+  priority: 'low' | 'normal' | 'high';
 }
 
-interface SubscriptionContextType {
-  currentTier: SubscriptionTier;
-  features: SubscriptionFeatures;
-  isLoggedIn: boolean;
-  user: User | null;
+export interface SubscriptionContextType {
+  subscriptionTier: string;
   trialEndDate: Date | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  isTrialActive: boolean;
+  limits: SubscriptionLimits;
+  usage: {
+    monthlyRuns: number;
+    monthlyGenerations: number;
+  };
   hasProFeatures: boolean;
-  daysRemainingInTrial: number | null;
-  isAuthLoading: boolean;
-  isSupabaseConfigured: boolean;
+  isGoldOrHigher: boolean;
+  isDiamondOrTrial: boolean;
+  isLoggedIn: boolean;
+  user: any;
+  loading: boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
+const SUBSCRIPTION_LIMITS: Record<string, SubscriptionLimits> = {
+  Free: {
+    workflows: 3,
+    monthlyRuns: 100,
+    monthlyGenerations: 10,
+    storageGB: 1,
+    collaborators: 0,
+    apiAccess: false,
+    priority: 'low'
+  },
+  Gold: {
+    workflows: 20,
+    monthlyRuns: 2000,
+    monthlyGenerations: 100,
+    storageGB: 10,
+    collaborators: 3,
+    apiAccess: true,
+    priority: 'normal'
+  },
+  Diamond: {
+    workflows: -1, // unlimited
+    monthlyRuns: 10000,
+    monthlyGenerations: 500,
+    storageGB: 100,
+    collaborators: 10,
+    apiAccess: true,
+    priority: 'high'
+  },
+  Trial: {
+    workflows: -1, // unlimited during trial
+    monthlyRuns: 1000,
+    monthlyGenerations: 50,
+    storageGB: 10,
+    collaborators: 5,
+    apiAccess: true,
+    priority: 'high'
+  }
+};
+
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [currentTier, setCurrentTier] = useState<SubscriptionTier>('Free');
-  const [features, setFeatures] = useState<SubscriptionFeatures>(FREE_TIER_FEATURES);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('Free');
   const [trialEndDate, setTrialEndDate] = useState<Date | null>(null);
-  const [hasProFeatures, setHasProFeatures] = useState(false);
-  const [daysRemainingInTrial, setDaysRemainingInTrial] = useState<number | null>(null);
+  const [usage, setUsage] = useState({
+    monthlyRuns: 0,
+    monthlyGenerations: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const isLoggedIn = !!user;
-  const isSupabaseConfigured = true; // Always true now with PostgreSQL
-
-  const getUserProfile = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/user/profile/${userId}`);
-      if (!response.ok) {
-        return null;
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
-    }
-  };
-
-  const updateUserStateFromUser = useCallback(async (currentUser: any) => {
-    if (currentUser?.email) {
-      setUser({ email: currentUser.email, uid: currentUser.id });
-      
-      try {
-        const profile = await getUserProfile(currentUser.id);
-        
-        let tier: SubscriptionTier = 'Free';
-        let features: SubscriptionFeatures = FREE_TIER_FEATURES;
-        let pro = false;
-        let trialEnd: Date | null = null;
-        let daysLeft: number | null = null;
-        
-        if (profile) {
-          trialEnd = profile.trial_end_date ? new Date(profile.trial_end_date) : null;
-
-          if (profile.subscription_tier === 'Diamond') {
-            tier = 'Diamond';
-            features = DIAMOND_TIER_FEATURES;
-            pro = true;
-          } else if (profile.subscription_tier === 'Gold') {
-            tier = 'Gold';
-            features = GOLD_TIER_FEATURES;
-            pro = true;
-          } else if (trialEnd && trialEnd > new Date()) {
-            tier = 'Gold Trial';
-            features = GOLD_TIER_FEATURES;
-            pro = true;
-            const diffTime = trialEnd.getTime() - new Date().getTime();
-            daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-          } else {
-            daysLeft = 0;
-          }
-        }
-        
-        setCurrentTier(tier);
-        setFeatures(features);
-        setHasProFeatures(pro);
-        setTrialEndDate(trialEnd);
-        setDaysRemainingInTrial(daysLeft);
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        // Set defaults on error
-        setCurrentTier('Free');
-        setFeatures(FREE_TIER_FEATURES);
-        setHasProFeatures(false);
-        setTrialEndDate(null);
-        setDaysRemainingInTrial(null);
-      }
-    } else {
-      setUser(null);
-      setCurrentTier('Free');
-      setFeatures(FREE_TIER_FEATURES);
-      setHasProFeatures(false);
-      setTrialEndDate(null);
-      setDaysRemainingInTrial(null);
-    }
-  }, []);
-
-  const signup = useCallback(async (email: string, password: string) => {
-    try {
-      const { user, token } = await signUp(email, password);
-      
-      // Set cookie
-      setCookie('session-token', token, 1);
-      
-      await updateUserStateFromUser(user);
-      toast({ 
-        title: 'Signup Successful!', 
-        description: 'Your 15-day Gold trial has started. Welcome to Kairo!' 
-      });
-      
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast({ 
-        title: 'Signup Failed', 
-        description: error.message || 'Failed to create account', 
-        variant: 'destructive' 
-      });
-    }
-  }, [toast, router, updateUserStateFromUser]);
-
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      const { user, token } = await signIn(email, password);
-      
-      // Set cookie
-      setCookie('session-token', token, 1);
-      
-      await updateUserStateFromUser(user);
-      toast({ 
-        title: 'Login Successful!', 
-        description: 'Welcome back!' 
-      });
-      
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast({ 
-        title: 'Login Failed', 
-        description: error.message || 'Invalid credentials', 
-        variant: 'destructive' 
-      });
-    }
-  }, [toast, router, updateUserStateFromUser]);
-
-  const logout = useCallback(async () => {
-    try {
-      await signOut();
-      
-      // Clear cookie
-      clearCookie('session-token');
-      
-      setUser(null);
-      setCurrentTier('Free');
-      setFeatures(FREE_TIER_FEATURES);
-      setHasProFeatures(false);
-      setTrialEndDate(null);
-      setDaysRemainingInTrial(null);
-      
-      router.push('/');
-      toast({ 
-        title: 'Logged Out', 
-        description: 'You have been successfully logged out.' 
-      });
-    } catch (error: any) {
-      toast({ 
-        title: 'Logout Failed', 
-        description: error.message || 'Failed to logout', 
-        variant: 'destructive' 
-      });
-    }
-  }, [toast, router]);
-
-  // Check authentication on mount
+  // Fetch subscription data
   useEffect(() => {
-    const checkAuth = async () => {
+    const fetchSubscriptionData = async () => {
+      if (!isAuthenticated || !user?.id || authLoading) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        setIsAuthLoading(true);
-        const currentUser = await getCurrentUser();
-        await updateUserStateFromUser(currentUser);
+        setLoading(true);
+        
+        // Fetch user profile
+        const profileResponse = await fetch('/api/user/profile');
+        if (profileResponse.ok) {
+          const profile = await profileResponse.json();
+          setSubscriptionTier(profile.subscription_tier || 'Free');
+          setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
+          setUsage({
+            monthlyRuns: profile.monthly_workflow_runs || 0,
+            monthlyGenerations: profile.monthly_ai_generations || 0
+          });
+        }
       } catch (error) {
-        console.error('Error checking auth:', error);
-        setUser(null);
+        console.error('Error fetching subscription data:', error);
+        // Set defaults on error
+        setSubscriptionTier('Free');
+        setTrialEndDate(null);
+        setUsage({ monthlyRuns: 0, monthlyGenerations: 0 });
       } finally {
-        setIsAuthLoading(false);
+        setLoading(false);
       }
     };
 
-    checkAuth();
-  }, [updateUserStateFromUser]);
+    fetchSubscriptionData();
+  }, [isAuthenticated, user?.id, authLoading]);
+
+  // Calculate derived values
+  const isTrialActive = trialEndDate ? new Date() < trialEndDate : false;
+  const effectiveTier = isTrialActive ? 'Trial' : subscriptionTier;
+  const limits = SUBSCRIPTION_LIMITS[effectiveTier] || SUBSCRIPTION_LIMITS.Free;
+  
+  const hasProFeatures = ['Gold', 'Diamond', 'Trial'].includes(effectiveTier);
+  const isGoldOrHigher = ['Gold', 'Diamond', 'Trial'].includes(effectiveTier);
+  const isDiamondOrTrial = ['Diamond', 'Trial'].includes(effectiveTier);
+
+  const value: SubscriptionContextType = {
+    subscriptionTier: effectiveTier,
+    trialEndDate,
+    isTrialActive,
+    limits,
+    usage,
+    hasProFeatures,
+    isGoldOrHigher,
+    isDiamondOrTrial,
+    isLoggedIn: isAuthenticated,
+    user,
+    loading: loading || authLoading
+  };
 
   return (
-    <SubscriptionContext.Provider value={{ 
-      currentTier, 
-      features, 
-      isLoggedIn, 
-      user, 
-      trialEndDate, 
-      login, 
-      signup, 
-      logout, 
-      hasProFeatures,
-      daysRemainingInTrial,
-      isAuthLoading,
-      isSupabaseConfigured,
-    }}>
+    <SubscriptionContext.Provider value={value}>
       {children}
     </SubscriptionContext.Provider>
   );
