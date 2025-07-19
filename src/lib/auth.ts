@@ -154,6 +154,7 @@ export async function signUp(email: string, password: string, userAgent?: string
   
   // Create user in transaction
   const result = await db.transaction(async (client) => {
+    // Create user
     const users = await client.query(
       'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at',
       [email.toLowerCase(), passwordHash]
@@ -161,13 +162,14 @@ export async function signUp(email: string, password: string, userAgent?: string
     
     const user = users.rows[0];
     
-    // Create session
-    const token = await createSession(user, userAgent, ipAddress);
-    
-    return { user, token };
+    // Create session (not in transaction to avoid foreign key issues)
+    return user;
   });
   
-  return result;
+  // Create session after user is committed
+  const token = await createSession(result, userAgent, ipAddress);
+  
+  return { user: result, token };
 }
 
 export async function signIn(email: string, password: string, userAgent?: string, ipAddress?: string): Promise<{ user: User; token: string }> {
