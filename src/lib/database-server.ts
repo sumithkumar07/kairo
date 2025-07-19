@@ -18,11 +18,15 @@ let pool: Pool | null = null;
 // Create a connection pool with optimized settings
 function getPool(): Pool {
   if (!pool) {
+    if (!DATABASE_URL) {
+      throw new Error('DATABASE_URL is required');
+    }
+
     pool = new Pool({
       connectionString: DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? {
+      ssl: {
         rejectUnauthorized: false
-      } : false,
+      },
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
       connectionTimeoutMillis: 5000, // Connection timeout
