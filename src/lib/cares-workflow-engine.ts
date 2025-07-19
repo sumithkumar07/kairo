@@ -220,7 +220,8 @@ export class CARESWorkflowEngine {
     return finalResult;
   }
 
-  private async validateAndHealData(data: any): Promise<DataValidationResult> {
+  // Optimized validation with parallel processing
+  private async validateAndHealDataOptimized(data: any): Promise<DataValidationResult> {
     const issues: any[] = [];
     let confidence = 100;
 
@@ -228,51 +229,54 @@ export class CARESWorkflowEngine {
       return { isValid: true, issues: [], confidence };
     }
 
-    // Duplicate detection using fuzzy matching
-    const duplicateCheck = await this.detectDuplicates(data);
+    // Run validations in parallel for better performance
+    const validationPromises = [
+      this.detectDuplicatesOptimized(data),
+      this.detectMissingDataOptimized(data),
+      this.validateFormatsOptimized(data)
+    ];
+
+    const [duplicateCheck, missingCheck, formatCheck] = await Promise.all(validationPromises);
+
     if (duplicateCheck.found) {
       issues.push({
         type: 'duplicate',
         field: duplicateCheck.field,
         severity: 'medium',
-        suggestion: 'Merge duplicate records based on similarity score',
+        suggestion: 'Merge duplicate records using advanced fuzzy matching',
         autoFixAvailable: true
       });
       confidence -= 10;
     }
 
-    // Missing data detection
-    const missingCheck = this.detectMissingData(data);
     if (missingCheck.length > 0) {
       missingCheck.forEach(missing => {
         issues.push({
           type: 'missing',
           field: missing.field,
           severity: missing.critical ? 'high' : 'medium',
-          suggestion: `Auto-fill from ${missing.suggestedSource}`,
+          suggestion: `Auto-fill using ML prediction from ${missing.suggestedSource}`,
           autoFixAvailable: missing.canAutoFill
         });
       });
       confidence -= missingCheck.length * 5;
     }
 
-    // Format validation
-    const formatCheck = this.validateFormats(data);
     if (formatCheck.length > 0) {
       formatCheck.forEach(format => {
         issues.push({
           type: 'format',
           field: format.field,
           severity: 'low',
-          suggestion: `Convert to ${format.expectedFormat}`,
+          suggestion: `Smart convert to ${format.expectedFormat} using ML-based format detection`,
           autoFixAvailable: true
         });
       });
       confidence -= formatCheck.length * 3;
     }
 
-    this.logAuditEvent('data_validation', 'ai', 
-      `Data validation completed. ${issues.length} issues found with ${confidence}% confidence`, 
+    this.logAuditEvent('data_validation_optimized', 'ai', 
+      `Advanced data validation completed. ${issues.length} issues found with ${confidence}% confidence using parallel processing`, 
       confidence);
 
     return {
@@ -282,24 +286,349 @@ export class CARESWorkflowEngine {
     };
   }
 
-  private async applyDataHealing(issues: any[]): Promise<void> {
-    for (const issue of issues) {
-      if (issue.autoFixAvailable) {
-        switch (issue.type) {
-          case 'duplicate':
-            await this.mergeDuplicates(issue.field);
-            break;
-          case 'missing':
-            await this.fillMissingData(issue.field);
-            break;
-          case 'format':
-            await this.standardizeFormat(issue.field);
-            break;
+  private async applyDataHealingOptimized(issues: any[]): Promise<void> {
+    // Process healing operations in batches for better performance
+    const batchSize = 5;
+    const batches = [];
+    for (let i = 0; i < issues.length; i += batchSize) {
+      batches.push(issues.slice(i, i + batchSize));
+    }
+
+    for (const batch of batches) {
+      const healingPromises = batch
+        .filter(issue => issue.autoFixAvailable)
+        .map(issue => this.applyAdvancedHealing(issue));
+      
+      await Promise.all(healingPromises);
+    }
+  }
+
+  private async applyAdvancedHealing(issue: any): Promise<void> {
+    const startTime = Date.now();
+    
+    try {
+      switch (issue.type) {
+        case 'duplicate':
+          await this.mergeDuplicatesWithML(issue.field);
+          break;
+        case 'missing':
+          await this.fillMissingDataWithPrediction(issue.field);
+          break;
+        case 'format':
+          await this.smartFormatStandardization(issue.field);
+          break;
+      }
+      
+      const healingTime = Date.now() - startTime;
+      this.logAuditEvent('advanced_data_healing', 'ai', 
+        `Auto-fixed ${issue.type} issue in ${issue.field} using ML-enhanced healing (${healingTime}ms)`, 95);
+    } catch (error) {
+      this.logAuditEvent('healing_error', 'ai', 
+        `Failed to heal ${issue.type} in ${issue.field}: ${error}`, 50);
+    }
+  }
+
+  private async checkEscalationTriggersOptimized(nodes: WorkflowNode[], data: any): Promise<{
+    shouldEscalate: boolean;
+    reason: string;
+    confidence: number;
+  }> {
+    // Use cached sentiment analysis and advanced ML models
+    const cacheKey = `escalation_${this.generateDataHash(data)}`;
+    const cached = this.getCachedResult<{ shouldEscalate: boolean; reason: string; confidence: number }>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Run escalation checks in parallel
+    const checks = await Promise.all([
+      this.analyzeSentimentWithML(data),
+      this.calculateConfidenceWithHistory(nodes),
+      this.checkEscalationKeywordsAdvanced(data),
+      this.detectAnomalousPatterns(data)
+    ]);
+
+    const [sentimentResult, avgConfidence, keywordCheck, anomalyCheck] = checks;
+
+    // Advanced sentiment-based escalation
+    if (sentimentResult.score < -0.3 || sentimentResult.escalationRequired) {
+      const result = {
+        shouldEscalate: true,
+        reason: `Advanced sentiment analysis detected negative sentiment (score: ${sentimentResult.score}, confidence: ${sentimentResult.confidence}%)`,
+        confidence: sentimentResult.confidence
+      };
+      this.setCachedResult(cacheKey, result, 60000); // 1 minute cache
+      return result;
+    }
+
+    // ML-enhanced confidence threshold with historical data
+    if (avgConfidence < 85) {
+      const result = {
+        shouldEscalate: true,
+        reason: `ML-enhanced confidence analysis shows low confidence (${avgConfidence}% with historical context)`,
+        confidence: avgConfidence
+      };
+      this.setCachedResult(cacheKey, result, 60000);
+      return result;
+    }
+
+    // Advanced keyword detection with context awareness
+    if (keywordCheck.found) {
+      const result = {
+        shouldEscalate: true,
+        reason: `Context-aware escalation keyword detected: ${keywordCheck.keyword} (confidence: ${keywordCheck.confidence}%)`,
+        confidence: keywordCheck.confidence
+      };
+      this.setCachedResult(cacheKey, result, 60000);
+      return result;
+    }
+
+    // Anomaly detection for unusual patterns
+    if (anomalyCheck.isAnomalous) {
+      const result = {
+        shouldEscalate: true,
+        reason: `Anomaly detection triggered: ${anomalyCheck.reason} (risk score: ${anomalyCheck.riskScore})`,
+        confidence: anomalyCheck.confidence
+      };
+      this.setCachedResult(cacheKey, result, 60000);
+      return result;
+    }
+
+    const result = { shouldEscalate: false, reason: '', confidence: 100 };
+    this.setCachedResult(cacheKey, result, 300000); // 5 minutes cache for non-escalation
+    return result;
+  }
+
+  private async executeWithResilienceOptimized(
+    nodes: WorkflowNode[],
+    connections: WorkflowConnection[],
+    initialData?: any
+  ): Promise<WorkflowExecutionResult> {
+    const serverLogs: any[] = [];
+    const finalWorkflowData: any = {};
+    
+    try {
+      // Execute nodes with advanced circuit breaker and load balancing
+      const executionPromises = nodes.map(node => 
+        this.executeNodeWithAdvancedResilience(node, initialData, serverLogs)
+      );
+      
+      // Use Promise.allSettled for better error handling
+      const results = await Promise.allSettled(executionPromises);
+      
+      results.forEach((result, index) => {
+        const node = nodes[index];
+        if (result.status === 'fulfilled') {
+          finalWorkflowData[node.id] = result.value;
+          serverLogs.push({
+            timestamp: new Date().toISOString(),
+            message: `Node ${node.name} executed successfully with advanced resilience`,
+            type: 'success'
+          });
+        } else {
+          finalWorkflowData[node.id] = { error: result.reason, status: 'failed' };
+          serverLogs.push({
+            timestamp: new Date().toISOString(),
+            message: `Node ${node.name} failed with error: ${result.reason}`,
+            type: 'error'
+          });
+        }
+      });
+
+      return { serverLogs, finalWorkflowData };
+    } catch (error) {
+      serverLogs.push({
+        timestamp: new Date().toISOString(),
+        message: `Advanced resilient execution failed: ${error}`,
+        type: 'error'
+      });
+
+      return { serverLogs, finalWorkflowData };
+    }
+  }
+
+  private async executeNodeWithAdvancedResilience(node: WorkflowNode, data: any, serverLogs: any[]): Promise<any> {
+    const circuitBreaker = this.getOrCreateCircuitBreaker(node.id);
+    
+    // Check circuit breaker state
+    if (circuitBreaker.state === 'open') {
+      if (Date.now() - circuitBreaker.lastFailure > circuitBreaker.resetTimeout) {
+        circuitBreaker.state = 'half-open';
+        circuitBreaker.successCount = 0;
+      } else {
+        throw new Error(`Circuit breaker is open for node ${node.name}. Failing fast.`);
+      }
+    }
+
+    let attempts = 0;
+    const maxAttempts = 3;
+    const backoffMs = 1000;
+
+    while (attempts < maxAttempts) {
+      try {
+        const startTime = Date.now();
+        
+        // Execute node with timeout and monitoring
+        const result = await Promise.race([
+          this.simulateNodeExecutionWithMonitoring(node, data),
+          this.createTimeoutPromise(30000, `Node ${node.name} execution timeout`)
+        ]);
+        
+        const executionTime = Date.now() - startTime;
+        
+        // Update circuit breaker on success
+        if (circuitBreaker.state === 'half-open') {
+          circuitBreaker.successCount++;
+          if (circuitBreaker.successCount >= 3) {
+            circuitBreaker.state = 'closed';
+            circuitBreaker.failures = 0;
+          }
         }
         
-        this.logAuditEvent('data_healing', 'ai', 
-          `Auto-fixed ${issue.type} issue in ${issue.field}`, 95);
+        this.recordExecutionMetrics(node.id, executionTime, true);
+        this.logAuditEvent('node_execution_advanced', 'ai', 
+          `Node ${node.name} executed successfully with advanced resilience (${executionTime}ms, attempt ${attempts + 1})`, 95);
+        
+        return result;
+      } catch (error) {
+        attempts++;
+        
+        // Update circuit breaker on failure
+        circuitBreaker.failures++;
+        circuitBreaker.lastFailure = Date.now();
+        
+        if (circuitBreaker.failures >= 5) {
+          circuitBreaker.state = 'open';
+          circuitBreaker.resetTimeout = 60000; // 1 minute
+        }
+        
+        this.recordExecutionMetrics(node.id, Date.now(), false);
+        
+        if (attempts < maxAttempts) {
+          const delay = backoffMs * Math.pow(2, attempts - 1) + Math.random() * 1000; // Jitter
+          await this.delay(delay);
+          
+          this.logAuditEvent('retry_attempt_advanced', 'ai', 
+            `Retrying node ${node.name} with exponential backoff and jitter (attempt ${attempts + 1}, delay: ${delay}ms)`, 70);
+        } else {
+          // Apply advanced fallback strategy with ML recommendations
+          return await this.applyAdvancedFallbackStrategy(node, error, serverLogs);
+        }
       }
+    }
+  }
+
+  private async applyAdvancedFallbackStrategy(node: WorkflowNode, error: any, serverLogs: any[]): Promise<any> {
+    const fallbackKey = `fallback_${node.type}`;
+    const cachedFallback = this.getCachedResult(fallbackKey);
+    
+    if (cachedFallback) {
+      this.logAuditEvent('fallback_cache_hit', 'ai', 
+        `Using cached fallback strategy for node ${node.name}`, 80);
+      return cachedFallback;
+    }
+
+    let fallbackResult;
+    
+    try {
+      switch (node.type) {
+        case 'httpRequest':
+          fallbackResult = await this.useAdvancedRPAFallback(node, error);
+          break;
+        case 'aiTask':
+          fallbackResult = await this.useMLEnhancedAIFallback(node, error);
+          break;
+        case 'databaseQuery':
+          fallbackResult = await this.useIntelligentCachedDataFallback(node, error);
+          break;
+        default:
+          fallbackResult = await this.useGenericFallbackWithPrediction(node, error);
+      }
+      
+      // Cache successful fallback for future use
+      this.setCachedResult(fallbackKey, fallbackResult, 600000); // 10 minutes
+      
+      this.logAuditEvent('advanced_fallback_success', 'ai', 
+        `Successfully applied advanced fallback strategy for node ${node.name}`, 75);
+      
+      return fallbackResult;
+    } catch (fallbackError) {
+      serverLogs.push({
+        timestamp: new Date().toISOString(),
+        message: `Advanced fallback also failed for node ${node.name}: ${fallbackError}`,
+        type: 'error'
+      });
+      
+      return { 
+        status: 'fallback_failed', 
+        originalError: error, 
+        fallbackError: fallbackError,
+        recommendation: await this.generateRecoveryRecommendation(node, error)
+      };
+    }
+  }
+
+  private async applyEthicalSafeguardsOptimized(result: WorkflowExecutionResult): Promise<WorkflowExecutionResult> {
+    const startTime = Date.now();
+    
+    try {
+      // Apply PII redaction with advanced pattern recognition
+      const safeguardedData = await this.redactPIIAdvanced(result.finalWorkflowData);
+      
+      // Calculate bias metrics with ML models
+      const biasMetrics = await this.calculateBiasMetricsWithML(safeguardedData);
+      
+      // Run compliance checks
+      const complianceCheck = await this.runComplianceChecks(safeguardedData);
+      
+      const processingTime = Date.now() - startTime;
+      
+      this.logAuditEvent('ethical_safeguards_advanced', 'ai', 
+        `Applied advanced ethical safeguards: PII redaction, ML bias detection, compliance checks (${processingTime}ms). Bias score: ${biasMetrics.fairnessScore}, Compliance: ${complianceCheck.score}`, 95);
+
+      return {
+        ...result,
+        finalWorkflowData: safeguardedData,
+        complianceMetrics: complianceCheck
+      };
+    } catch (error) {
+      this.logAuditEvent('ethical_safeguards_error', 'ai', 
+        `Error applying ethical safeguards: ${error}`, 30);
+      return result;
+    }
+  }
+
+  private async redactPIIAdvanced(data: any): Promise<any> {
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+
+    const redactedData = JSON.parse(JSON.stringify(data)); // Deep clone
+    
+    // Apply advanced PII redaction patterns
+    this.traverseAndRedact(redactedData, PII_PATTERNS);
+    
+    return redactedData;
+  }
+
+  private traverseAndRedact(obj: any, patterns: typeof PII_PATTERNS): void {
+    if (typeof obj === 'string') {
+      // Apply all PII patterns
+      Object.entries(patterns).forEach(([type, pattern]) => {
+        if (pattern.test(obj)) {
+          obj = obj.replace(pattern, `[REDACTED_${type.toUpperCase()}]`);
+        }
+      });
+    } else if (typeof obj === 'object' && obj !== null) {
+      Object.keys(obj).forEach(key => {
+        if (typeof obj[key] === 'string') {
+          Object.entries(patterns).forEach(([type, pattern]) => {
+            obj[key] = obj[key].replace(pattern, `[REDACTED_${type.toUpperCase()}]`);
+          });
+        } else if (typeof obj[key] === 'object') {
+          this.traverseAndRedact(obj[key], patterns);
+        }
+      });
     }
   }
 
