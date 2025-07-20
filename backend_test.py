@@ -297,6 +297,17 @@ class KairoAPITester:
         )
         return success
 
+    def test_nonexistent_user_profile(self):
+        """Test getting profile for non-existent user"""
+        fake_user_id = "00000000-0000-0000-0000-000000000000"
+        success, response = self.run_test(
+            "Non-existent User Profile",
+            "GET",
+            f"api/user/profile/{fake_user_id}",
+            404  # Expecting 404 for non-existent user
+        )
+        return success
+
     def run_all_tests(self):
         """Run all API tests"""
         self.log("🚀 Starting Kairo API Test Suite", "START")
