@@ -297,6 +297,27 @@ class KairoAPITester:
         )
         return success
 
+    def test_scheduler_authorized(self):
+        """Test scheduler endpoint with proper authentication"""
+        # Get the scheduler secret key from environment
+        scheduler_secret = "scheduler_secret_key_2024_secure_random_key_for_cron_jobs"
+        
+        success, response = self.run_test(
+            "Scheduler Authorized Access",
+            "POST",
+            "api/scheduler/run",
+            200,
+            data={},
+            headers={"Authorization": f"Bearer {scheduler_secret}"}
+        )
+        
+        if success and 'message' in response:
+            self.log(f"   Scheduler message: {response['message']}")
+            self.log(f"   Workflows checked: {response.get('workflowsChecked', 0)}")
+            self.log(f"   Workflows triggered: {response.get('workflowsTriggered', 0)}")
+            return True
+        return False
+
     def test_nonexistent_user_profile(self):
         """Test getting profile for non-existent user"""
         fake_user_id = "00000000-0000-0000-0000-000000000000"
