@@ -4,6 +4,7 @@ import { ALL_INTEGRATIONS } from './integrations';
 import MISTRAL_AI_INTEGRATIONS from './mistral';
 import { ADVANCED_NODES_CONFIG } from './advanced-nodes';
 import { ENHANCED_AI_NODES } from './enhanced-ai-nodes';
+import { HIGH_PRIORITY_INTEGRATIONS } from './high-priority-integrations';
 
 export const NODE_WIDTH = 200; 
 export const NODE_HEIGHT = 100; 
