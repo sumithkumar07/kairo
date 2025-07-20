@@ -33,12 +33,12 @@ export async function chatWithMistral(
   try {
     console.log('[MISTRAL] Making chat request with', messages.length, 'messages');
     
-    const response = await mistralClient.chat({
+    const response = await mistralClient.chat.complete({
       model: options.model || 'mistral-small-latest',
       messages: messages,
       temperature: options.temperature || 0.7,
-      max_tokens: options.max_tokens || 1000,
-      top_p: options.top_p || 1.0,
+      maxTokens: options.max_tokens || 1000,
+      topP: options.top_p || 1.0,
     });
 
     const choice = response.choices?.[0];
@@ -51,9 +51,9 @@ export async function chatWithMistral(
     return {
       content: choice.message.content || '',
       usage: response.usage ? {
-        prompt_tokens: response.usage.prompt_tokens,
-        completion_tokens: response.usage.completion_tokens,
-        total_tokens: response.usage.total_tokens,
+        prompt_tokens: response.usage.promptTokens,
+        completion_tokens: response.usage.completionTokens,
+        total_tokens: response.usage.totalTokens,
       } : undefined
     };
   } catch (error) {
