@@ -109,6 +109,13 @@ const quickActions = [
     shortcut: "N"
   },
   {
+    title: "Connect App",
+    href: "/integrations",
+    icon: Plus,
+    color: "bg-indigo-500",
+    shortcut: "C"
+  },
+  {
     title: "AI Generate",
     href: "/workflow?ai=true",
     icon: Sparkles,
