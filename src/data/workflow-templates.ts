@@ -215,7 +215,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     difficulty: 'advanced',
     estimatedTime: '30 minutes',
     tags: ['ETL', 'data pipeline', 'validation', 'transformation'],
-    integrations: ['PostgreSQL', 'MongoDB', 'AWS S3', 'Snowflake', 'Airflow'],
+    integrations: ['PostgreSQL', 'AWS S3', 'Snowflake', 'Airflow'],
     features: ['Data validation', 'Auto-cleansing', 'Error recovery', 'Performance monitoring'],
     workflow: {
       nodes: [
