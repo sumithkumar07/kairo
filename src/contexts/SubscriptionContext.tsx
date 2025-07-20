@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
+import { signIn, signUp } from '@/lib/auth-client';
 
 export interface SubscriptionLimits {
   workflows: number;
