@@ -25,7 +25,9 @@ import {
   HelpCircle,
   Bell,
   Menu,
-  X
+  X,
+  Zap,
+  Plus
 } from "lucide-react"
 
 interface NavigationItem {
