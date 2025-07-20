@@ -309,11 +309,16 @@ class KairoAPITester:
             ("User Authentication", self.test_signin),
             ("Get Current User", self.test_get_current_user),
             ("Get User Profile", self.test_get_user_profile),
+            ("User Logout", self.test_logout),
             ("Invalid Credentials", self.test_invalid_credentials),
             ("Duplicate Email Signup", self.test_duplicate_signup),
             ("Missing Required Fields", self.test_missing_fields),
             ("Unauthorized Access", self.test_unauthorized_access),
             ("Non-existent User Profile", self.test_nonexistent_user_profile),
+            ("Mistral AI Workflow Generation", self.test_mistral_api_workflow),
+            ("Mistral AI Chat", self.test_mistral_api_chat),
+            ("Integration Test Missing Params", self.test_integration_test_missing_params),
+            ("Scheduler Unauthorized Access", self.test_scheduler_unauthorized),
         ]
         
         self.log("=" * 60)
