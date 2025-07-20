@@ -1282,13 +1282,6 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     outputHandles: ['metrics', 'error'],
     aiExplanation: 'Collects execution metrics for monitoring and optimization. Tracks performance, resource usage, API calls, and custom metrics. Exports data in various formats for integration with monitoring systems.',
   },
-  // Add Mistral AI integrations
-  ...MISTRAL_AI_INTEGRATIONS,
-  // Add enhanced integrations
-  ...ALL_INTEGRATIONS,
-  // Add advanced nodes
-  ...ADVANCED_NODES_CONFIG,
-  
   // Add all integrations to available nodes
   ...ALL_INTEGRATIONS,
   
