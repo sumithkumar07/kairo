@@ -280,7 +280,7 @@ def main():
     print("=" * 60)
     
     # Test with localhost (development)
-    tester = KairoAPITester("http://localhost:3001")
+    tester = KairoAPITester("http://localhost:3000")
     result = tester.run_all_tests()
     
     return result
