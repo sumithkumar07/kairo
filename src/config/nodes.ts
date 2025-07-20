@@ -1288,6 +1288,15 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   ...ALL_INTEGRATIONS,
   // Add advanced nodes
   ...ADVANCED_NODES_CONFIG,
+  
+  // Add all integrations to available nodes
+  ...ALL_INTEGRATIONS,
+  
+  // Add Mistral AI integrations
+  ...MISTRAL_AI_INTEGRATIONS,
+  
+  // Add advanced nodes
+  ...ADVANCED_NODES_CONFIG,
 ];
 
 export const AI_NODE_TYPE_MAPPING: Record<string, string> = {
