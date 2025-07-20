@@ -212,9 +212,11 @@ metadata:
 
 test_plan:
   current_focus: []
-  stuck_tasks: []
+  stuck_tasks: 
+    - "AI Integration Endpoints"
+    - "Scheduler API"
   test_all: false
-  test_priority: "comprehensive_testing_completed"
+  test_priority: "backend_testing_completed"
 
 agent_communication:
   - agent: "testing"
