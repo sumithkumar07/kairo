@@ -54,6 +54,13 @@ const navigationItems: NavigationItem[] = [
     description: "Build and edit workflows"
   },
   {
+    title: "Integrations",
+    href: "/integrations", 
+    icon: Zap,
+    description: "Connect apps & services",
+    badge: "50+"
+  },
+  {
     title: "AI Agent Hub",
     href: "/agent-hub",
     icon: Bot,
