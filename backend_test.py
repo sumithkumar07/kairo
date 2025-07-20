@@ -113,19 +113,12 @@ class KairoAPITester:
 
     def test_get_current_user(self):
         """Test get current user endpoint"""
-        if not self.token:
-            self.log("❌ No token available for authentication test", "FAIL")
-            return False
-            
-        # Test with cookie (as the app uses cookies)
-        cookies = {'session-token': self.token}
-        
+        # Since we're using HTTP-only cookies, the session should be maintained automatically
         success, response = self.run_test(
             "Get Current User",
             "GET",
             "api/auth/me",
-            200,
-            headers={'Cookie': f'session-token={self.token}'}
+            200
         )
         
         if success and 'email' in response:
