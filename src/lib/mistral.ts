@@ -1,4 +1,4 @@
-import MistralClient from '@mistralai/mistralai';
+import { Mistral } from '@mistralai/mistralai';
 
 // Initialize Mistral client
 const apiKey = process.env.MISTRAL_API_KEY || 'G63uwYlEeS65iN6qD74Njkv7FhULixXa';
