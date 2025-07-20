@@ -197,21 +197,33 @@ class KairoAPITester:
 
     def test_unauthorized_access(self):
         """Test accessing protected endpoints without authentication"""
-        # Remove authorization header temporarily
-        original_headers = self.session.headers.copy()
-        if 'Authorization' in self.session.headers:
-            del self.session.headers['Authorization']
+        # Create a new session without cookies to test unauthorized access
+        temp_session = requests.Session()
+        temp_session.headers.update({'Content-Type': 'application/json'})
         
-        success, response = self.run_test(
-            "Unauthorized Access Test",
-            "GET",
-            "api/auth/me",
-            401  # Expecting 401 for unauthorized access
-        )
+        url = f"{self.base_url}/api/auth/me"
+        self.tests_run += 1
+        self.log(f"Testing Unauthorized Access Test...")
         
-        # Restore headers
-        self.session.headers = original_headers
-        return success
+        try:
+            response = temp_session.get(url)
+            success = response.status_code == 401
+            
+            if success:
+                self.tests_passed += 1
+                self.log(f"✅ Unauthorized Access Test - Status: {response.status_code}", "PASS")
+                return True
+            else:
+                self.log(f"❌ Unauthorized Access Test - Expected 401, got {response.status_code}", "FAIL")
+                try:
+                    error_data = response.json()
+                    self.log(f"   Error: {error_data}", "ERROR")
+                except:
+                    self.log(f"   Response: {response.text}", "ERROR")
+                return False
+        except Exception as e:
+            self.log(f"❌ Unauthorized Access Test - Exception: {str(e)}", "FAIL")
+            return False
 
     def test_nonexistent_user_profile(self):
         """Test getting profile for non-existent user"""
