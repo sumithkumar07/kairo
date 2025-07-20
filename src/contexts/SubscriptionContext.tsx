@@ -80,7 +80,7 @@ const SUBSCRIPTION_LIMITS: Record<string, SubscriptionLimits> = {
 };
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, refreshUser } = useAuth();
   const [subscriptionTier, setSubscriptionTier] = useState<string>('Free');
   const [trialEndDate, setTrialEndDate] = useState<Date | null>(null);
   const [usage, setUsage] = useState({
@@ -88,6 +88,27 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     monthlyGenerations: 0
   });
   const [loading, setLoading] = useState(true);
+
+  // Auth methods
+  const login = async (email: string, password: string) => {
+    try {
+      await signIn(email, password);
+      await refreshUser(); // Refresh the user context after login
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+
+  const signup = async (email: string, password: string) => {
+    try {
+      await signUp(email, password);
+      await refreshUser(); // Refresh the user context after signup
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    }
+  };
 
   // Fetch subscription data
   useEffect(() => {
