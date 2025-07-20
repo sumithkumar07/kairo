@@ -289,7 +289,7 @@ export const TOP_50_INTEGRATIONS: AvailableNodeType[] = [
   {
     type: 'mondayCreateItem',
     name: 'Monday.com: Create Item',
-    icon: Plus,
+    icon: UserPlus, // Temporarily using UserPlus instead of Plus
     description: 'Create items in Monday.com boards with custom field values',
     category: 'integrations',
     isAdvanced: true,
