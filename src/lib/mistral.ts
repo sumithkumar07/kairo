@@ -119,7 +119,20 @@ The output MUST be a single, valid JSON object that represents the workflow with
 
   try {
     console.log('[MISTRAL] Raw response content:', response.content);
-    return JSON.parse(response.content);
+    
+    // Clean up the response content - remove markdown code blocks if present
+    let cleanContent = response.content.trim();
+    
+    // Remove markdown code blocks
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    console.log('[MISTRAL] Cleaned content for parsing:', cleanContent);
+    
+    return JSON.parse(cleanContent);
   } catch (error) {
     console.error('[MISTRAL] Error parsing workflow JSON:', error);
     console.error('[MISTRAL] Raw response that failed to parse:', response.content);
