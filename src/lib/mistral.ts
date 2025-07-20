@@ -118,9 +118,11 @@ The output MUST be a single, valid JSON object that represents the workflow with
   });
 
   try {
+    console.log('[MISTRAL] Raw response content:', response.content);
     return JSON.parse(response.content);
   } catch (error) {
     console.error('[MISTRAL] Error parsing workflow JSON:', error);
+    console.error('[MISTRAL] Raw response that failed to parse:', response.content);
     throw new Error('Failed to parse workflow JSON from Mistral response');
   }
 }
