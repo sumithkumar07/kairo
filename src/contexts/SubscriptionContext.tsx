@@ -154,6 +154,11 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const hasProFeatures = ['Gold', 'Diamond', 'Trial'].includes(effectiveTier);
   const isGoldOrHigher = ['Gold', 'Diamond', 'Trial'].includes(effectiveTier);
   const isDiamondOrTrial = ['Diamond', 'Trial'].includes(effectiveTier);
+  
+  // Calculate days remaining in trial
+  const daysRemainingInTrial = trialEndDate && isTrialActive 
+    ? Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
   const value: SubscriptionContextType = {
     subscriptionTier: effectiveTier,
@@ -166,7 +171,14 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     isDiamondOrTrial,
     isLoggedIn: isAuthenticated,
     user,
-    loading: loading || authLoading
+    loading: loading || authLoading,
+    // Auth methods
+    login,
+    signup,
+    isAuthLoading: authLoading,
+    // Additional properties for compatibility
+    currentTier: effectiveTier,
+    daysRemainingInTrial
   };
 
   return (
