@@ -16,7 +16,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, Compass } from 'lucide-react';
+import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, Compass, FileTemplate } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
