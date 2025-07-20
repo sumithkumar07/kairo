@@ -123,14 +123,22 @@ The output MUST be a single, valid JSON object that represents the workflow with
     // Clean up the response content - remove markdown code blocks if present
     let cleanContent = response.content.trim();
     
-    // Remove markdown code blocks
-    if (cleanContent.startsWith('```json')) {
-      cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleanContent.startsWith('```')) {
-      cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    // Find JSON content within the response
+    let jsonStart = cleanContent.indexOf('{');
+    let jsonEnd = cleanContent.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
+    } else {
+      // Fallback: try to remove markdown code blocks
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
     }
     
-    console.log('[MISTRAL] Cleaned content for parsing:', cleanContent);
+    console.log('[MISTRAL] Cleaned content for parsing:', cleanContent.substring(0, 200) + '...');
     
     return JSON.parse(cleanContent);
   } catch (error) {
