@@ -29,6 +29,13 @@ export interface SubscriptionContextType {
   isLoggedIn: boolean;
   user: any;
   loading: boolean;
+  // Auth methods
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
+  isAuthLoading: boolean;
+  // Additional properties for compatibility
+  currentTier: string;
+  daysRemainingInTrial: number | null;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
