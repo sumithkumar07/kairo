@@ -1639,11 +1639,11 @@ export const getDataTransformIcon = (category: AvailableNodeType['category']) =>
 
 // Function to get node type configuration
 export function getNodeTypeConfig(nodeType: string): AvailableNodeType | undefined {
-  const allNodes = [...AVAILABLE_NODES_CONFIG, ...ADVANCED_NODES_CONFIG, ...ENHANCED_AI_NODES];
+  const allNodes = [...AVAILABLE_NODES_CONFIG, ...ADVANCED_NODES_CONFIG, ...ENHANCED_AI_NODES, ...HIGH_PRIORITY_INTEGRATIONS];
   return allNodes.find(node => node.type === nodeType);
 }
 
-// Function to get all nodes including advanced and enhanced AI ones
+// Function to get all nodes including advanced, enhanced AI, and high-priority integration nodes
 export function getAllNodesConfig(): AvailableNodeType[] {
-  return [...AVAILABLE_NODES_CONFIG, ...ADVANCED_NODES_CONFIG, ...ENHANCED_AI_NODES];
+  return [...AVAILABLE_NODES_CONFIG, ...ADVANCED_NODES_CONFIG, ...ENHANCED_AI_NODES, ...HIGH_PRIORITY_INTEGRATIONS];
 }
