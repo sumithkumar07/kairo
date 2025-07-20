@@ -17,7 +17,8 @@ import {
   Edit, Copy, Scissors, RotateCw, Move, Package, Truck,
   Calculator, PieChart, LineChart, BarChart, Monitor, Cpu,
   HardDrive, Wifi, Bluetooth, MousePointer, Keyboard, Printer,
-  Scan, QrCode, Barcode, Tag, Bookmark, Archive, Inbox, Plus
+  Scan, QrCode, Barcode, Tag, Bookmark, Archive, Inbox, Plus,
+  GitMerge
 } from 'lucide-react';
 
 // Top 50 Most-Requested Integrations
