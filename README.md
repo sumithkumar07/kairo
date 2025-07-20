@@ -11,6 +11,25 @@ Kairo is a comprehensive AI-powered workflow automation platform that combines t
 
 ## 🎯 Key Features
 
+### 🚀 **Integration Acceleration Program** (NEW)
+- **✅ 65+ Enterprise Integrations**: Google Workspace, Microsoft 365, Salesforce, HubSpot, Slack, Shopify, Stripe, and more
+- **✅ One-Click OAuth Authentication**: 15+ OAuth providers with secure credential management
+- **✅ No-Code Connector Builder**: Visual interface for creating custom API integrations
+- **✅ Integration Marketplace**: Browse, connect, and manage all your app integrations
+- **✅ Live Testing & Validation**: Test integrations before deployment
+- **✅ Auto Token Refresh**: Automatic OAuth token management and refresh
+
+### 🔗 **Major Integrations by Category**
+- **CRM & Sales (8)**: Salesforce, HubSpot, Pipedrive + 5 more
+- **Productivity (10)**: Google Workspace, Microsoft 365, Notion, Asana, Trello + 5 more  
+- **Communication (8)**: Slack, Microsoft Teams, Discord, WhatsApp Business + 4 more
+- **E-commerce (8)**: Shopify, WooCommerce, Stripe, PayPal + 4 more
+- **Social Media (6)**: Facebook, Instagram, LinkedIn, YouTube, TikTok + 1 more
+- **Analytics (6)**: Google Analytics, Mixpanel, Amplitude + 3 more
+- **Development (7)**: GitHub, Jira, Confluence, Docker Hub + 3 more
+- **Cloud Storage (5)**: Google Drive, OneDrive, Dropbox, AWS S3 + 1 more
+- **AI & Automation (10)**: OpenAI, Anthropic Claude, Zapier, Make + 6 more
+
 ### CARES Framework Implementation
 - **✅ Comprehensive Explainability**: AI decision tracking with confidence indicators, reasoning explanations, and risk assessment
 - **✅ Human-AI Collaboration**: Real-time review requests, escalation triggers, and collaborative workflows
