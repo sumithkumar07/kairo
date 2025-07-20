@@ -12,7 +12,7 @@ export default function ContactPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <MarketingHeader />
-      <main className="flex flex-col flex-1 items-center justify-center p-4 bg-muted/40 dot-grid-background">
+      <main className="flex flex-col flex-1 items-center justify-center p-4 bg-gray-50/50">
         <Card className="w-full max-w-lg shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out hover:scale-[1.01] bg-card">
           <CardHeader className="text-center border-b pb-6">
             <div className="p-4 bg-primary/10 rounded-full inline-block mb-4 mx-auto">
