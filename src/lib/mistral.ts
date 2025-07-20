@@ -5,7 +5,7 @@ const apiKey = process.env.MISTRAL_API_KEY || 'G63uwYlEeS65iN6qD74Njkv7FhULixXa'
 
 console.log('[MISTRAL] Initializing Mistral client with API key:', apiKey.substring(0, 8) + '...');
 
-export const mistralClient = new MistralClient(apiKey);
+export const mistralClient = new Mistral({ apiKey });
 
 export interface MistralChatMessage {
   role: 'system' | 'user' | 'assistant';
