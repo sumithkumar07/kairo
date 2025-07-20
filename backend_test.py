@@ -103,10 +103,11 @@ class KairoAPITester:
             }
         )
         
-        if success and 'user' in response and 'token' in response:
-            self.token = response['token']
+        if success and 'user' in response:
+            # For Next.js API, token is set as HTTP-only cookie, not in response
             self.user_id = response['user']['id']
-            self.session.headers.update({'Authorization': f'Bearer {self.token}'})
+            self.log(f"   User ID: {self.user_id}")
+            self.log(f"   User Email: {response['user']['email']}")
             return True
         return False
 
