@@ -351,6 +351,7 @@ class KairoAPITester:
             ("Mistral AI Chat", self.test_mistral_api_chat),
             ("Integration Test Missing Params", self.test_integration_test_missing_params),
             ("Scheduler Unauthorized Access", self.test_scheduler_unauthorized),
+            ("Scheduler Authorized Access", self.test_scheduler_authorized),
         ]
         
         self.log("=" * 60)
