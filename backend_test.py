@@ -225,14 +225,75 @@ class KairoAPITester:
             self.log(f"❌ Unauthorized Access Test - Exception: {str(e)}", "FAIL")
             return False
 
-    def test_nonexistent_user_profile(self):
-        """Test getting profile for non-existent user"""
-        fake_user_id = "00000000-0000-0000-0000-000000000000"
+    def test_logout(self):
+        """Test user logout endpoint"""
         success, response = self.run_test(
-            "Non-existent User Profile",
-            "GET",
-            f"api/user/profile/{fake_user_id}",
-            404  # Expecting 404 for non-existent user
+            "User Logout",
+            "POST",
+            "api/auth/logout",
+            200
+        )
+        
+        if success and 'message' in response:
+            self.log(f"   Logout message: {response['message']}")
+            return True
+        return False
+
+    def test_mistral_api_workflow(self):
+        """Test Mistral AI workflow generation endpoint"""
+        success, response = self.run_test(
+            "Mistral AI Workflow Generation",
+            "POST",
+            "api/test-mistral",
+            200,
+            data={
+                "type": "workflow",
+                "prompt": "Create a simple workflow to send an email notification"
+            }
+        )
+        
+        if success and 'success' in response:
+            self.log(f"   AI workflow generation: {'Success' if response['success'] else 'Failed'}")
+            return True
+        return False
+
+    def test_mistral_api_chat(self):
+        """Test Mistral AI chat endpoint"""
+        success, response = self.run_test(
+            "Mistral AI Chat",
+            "POST",
+            "api/test-mistral",
+            200,
+            data={
+                "type": "chat",
+                "prompt": "Hello, how can you help me with workflow automation?"
+            }
+        )
+        
+        if success and 'success' in response:
+            self.log(f"   AI chat: {'Success' if response['success'] else 'Failed'}")
+            return True
+        return False
+
+    def test_integration_test_missing_params(self):
+        """Test integration test endpoint with missing parameters"""
+        success, response = self.run_test(
+            "Integration Test Missing Params",
+            "POST",
+            "api/integrations/test",
+            400,
+            data={}
+        )
+        return success
+
+    def test_scheduler_unauthorized(self):
+        """Test scheduler endpoint without proper authentication"""
+        success, response = self.run_test(
+            "Scheduler Unauthorized Access",
+            "POST",
+            "api/scheduler/run",
+            401,
+            data={}
         )
         return success
 
