@@ -111,4 +111,4 @@ Suggest the next node to add to this workflow.`;
 }
 
 // These are legacy Genkit definitions that are no longer used
-// The actual function implementation is above using Mistral AI directly
+// The actual function implementation is above using Puter.js directly
