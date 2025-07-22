@@ -314,7 +314,7 @@ Provide a structured decision with detailed reasoning in JSON format.
 
     try {
       const result = await ai.generate(decisionPrompt, {
-        model: 'mistral-small-latest',
+        model: 'meta-llama/llama-4-maverick',
         temperature: 0.7,
         max_tokens: 1500
       });
