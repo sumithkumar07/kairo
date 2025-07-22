@@ -269,7 +269,7 @@ Return a structured JSON response with the analysis.
 
     try {
       const result = await ai.generate(enhancedPrompt, {
-        model: 'mistral-small-latest',
+        model: 'meta-llama/llama-4-maverick',
         temperature: 0.7,
         max_tokens: 2000
       });
