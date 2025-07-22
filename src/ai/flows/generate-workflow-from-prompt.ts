@@ -9,7 +9,7 @@
  * - GenerateWorkflowFromPromptOutput - The return type for the generateWorkflowFromPrompt function, which represents the workflow definition.
  */
 
-import { generateWorkflowFromPrompt as mistralGenerateWorkflow } from '@/lib/mistral';
+import { generateWorkflowFromPrompt as puterGenerateWorkflow } from '@/lib/puter';
 import { z } from 'zod';
 import { GenerateWorkflowFromPromptOutputSchema } from '@/ai/schemas';
 
