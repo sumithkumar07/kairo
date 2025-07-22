@@ -259,7 +259,7 @@ const quickActions = [
   },
   {
     title: 'AI Generator',
-    description: 'Generate workflow with Mistral AI',
+    description: 'Generate workflow with Puter.js AI',
     icon: Brain,
     href: '/workflow?ai=true',
     color: 'bg-gradient-to-r from-purple-500 to-purple-600',
