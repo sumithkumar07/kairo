@@ -130,7 +130,7 @@ class AgentLearningSystem {
   }
 }
 
-// Tool Definition Helper for Mistral compatibility
+// Tool Definition Helper for Puter.js compatibility
 function defineTool(config: any, handler: any) {
   return {
     name: config.name,
