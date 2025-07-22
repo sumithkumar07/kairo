@@ -266,18 +266,25 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   }
 ];
 
-export const TEMPLATE_CATEGORIES = [
-  { id: 'all', name: 'All Templates', count: WORKFLOW_TEMPLATES.length },
-  { id: 'marketing', name: 'Marketing Automation', count: WORKFLOW_TEMPLATES.filter(t => t.category === 'marketing').length },
-  { id: 'sales', name: 'Sales Operations', count: WORKFLOW_TEMPLATES.filter(t => t.category === 'sales').length },
-  { id: 'support', name: 'Customer Support', count: WORKFLOW_TEMPLATES.filter(t => t.category === 'support').length },
-  { id: 'ecommerce', name: 'E-commerce', count: WORKFLOW_TEMPLATES.filter(t => t.category === 'ecommerce').length },
-  { id: 'data', name: 'Data Processing', count: WORKFLOW_TEMPLATES.filter(t => t.category === 'data').length },
-  { id: 'productivity', name: 'Productivity', count: WORKFLOW_TEMPLATES.filter(t => t.category === 'productivity').length }
+// Combine basic and advanced templates
+export const ALL_WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  ...WORKFLOW_TEMPLATES,
+  ...ADVANCED_WORKFLOW_TEMPLATES
 ];
 
-export const POPULAR_TEMPLATES = WORKFLOW_TEMPLATES
-  .sort((a, b) => b.downloadCount - a.downloadCount)
+export const TEMPLATE_CATEGORIES = [
+  { id: 'all', name: 'All Templates', count: ALL_WORKFLOW_TEMPLATES.length },
+  { id: 'marketing', name: 'Marketing & Sales', count: ALL_WORKFLOW_TEMPLATES.filter(t => ['marketing', 'sales'].includes(t.category)).length },
+  { id: 'support', name: 'Customer Support', count: ALL_WORKFLOW_TEMPLATES.filter(t => t.category === 'support').length },
+  { id: 'ecommerce', name: 'E-commerce', count: ALL_WORKFLOW_TEMPLATES.filter(t => t.category === 'ecommerce').length },
+  { id: 'data', name: 'Data & Analytics', count: ALL_WORKFLOW_TEMPLATES.filter(t => ['data', 'analytics'].includes(t.category)).length },
+  { id: 'productivity', name: 'Productivity', count: ALL_WORKFLOW_TEMPLATES.filter(t => t.category === 'productivity').length },
+  { id: 'operations', name: 'Operations & HR', count: ALL_WORKFLOW_TEMPLATES.filter(t => ['hr', 'finance', 'operations'].includes(t.category)).length },
+  { id: 'advanced', name: 'Advanced Templates', count: ADVANCED_WORKFLOW_TEMPLATES.length }
+];
+
+export const POPULAR_TEMPLATES = ALL_WORKFLOW_TEMPLATES
+  .sort((a, b) => (b.downloadCount || 0) - (a.downloadCount || 0))
   .slice(0, 6);
 
 export const FEATURED_TEMPLATES = WORKFLOW_TEMPLATES
