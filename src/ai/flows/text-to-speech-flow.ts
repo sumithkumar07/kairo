@@ -24,9 +24,9 @@ export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
 
 // Exported wrapper function
 export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
-  // Note: This is a placeholder implementation since we're using Mistral AI
+  // Note: This is a placeholder implementation since we're using Puter.js
   // For actual TTS functionality, you would need a dedicated TTS service
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { 
       role: 'system', 
       content: 'You are a text-to-speech converter. Convert the given text to a phonetic representation and provide a description of how it should be spoken.' 
@@ -37,8 +37,8 @@ export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpee
     }
   ];
 
-  const response = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const response = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.3,
     max_tokens: 500
   });
