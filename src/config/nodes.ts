@@ -1287,8 +1287,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   // Add all integrations to available nodes
   ...ALL_INTEGRATIONS,
   
-  // Add Mistral AI integrations
-  ...MISTRAL_AI_INTEGRATIONS,
+  // Add Puter.js AI integrations
+  ...PUTER_AI_INTEGRATIONS,
   
   // Add advanced nodes
   ...ADVANCED_NODES_CONFIG,
