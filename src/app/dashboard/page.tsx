@@ -193,7 +193,7 @@ const workflows = [
     runs: 634,
     category: 'Marketing',
     nodes: 14,
-    integrations: ['WordPress', 'Buffer', 'Mistral AI', 'Unsplash'],
+    integrations: ['WordPress', 'Buffer', 'Puter.js AI', 'Unsplash'],
     created: '2024-02-10',
     isStarred: true,
     performance: 'excellent'
