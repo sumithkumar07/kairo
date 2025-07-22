@@ -80,7 +80,7 @@ async function initPuterClient() {
                 "isWorkflowGenerationRequest": false
               });
             } else {
-              mockResponse = `This is a response from Puter.js meta-llama/llama-4-maverick with unlimited usage. I understand your request about: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"
+              const responseText = `Hello! I'm powered by Puter.js with meta-llama/llama-4-maverick providing unlimited AI capabilities. I understand your request about: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"
 
 The Puter.js integration provides:
 - Unlimited AI processing with meta-llama/llama-4-maverick
@@ -89,6 +89,11 @@ The Puter.js integration provides:
 - Advanced reasoning and workflow generation
 
 How can I help you further with your automation needs?`;
+
+              mockResponse = JSON.stringify({
+                "aiResponse": responseText,
+                "isWorkflowGenerationRequest": false
+              });
             }
             
             return {
