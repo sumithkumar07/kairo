@@ -38,7 +38,7 @@ export async function generateTestData(input: GenerateTestDataInput): Promise<Ge
 
 Return the data in the requested format with proper metadata.`;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { 
       role: 'user', 
@@ -54,8 +54,8 @@ Please generate realistic test data that matches these requirements.`
     }
   ];
 
-  const response = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const response = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.6,
     max_tokens: 2000
   });
