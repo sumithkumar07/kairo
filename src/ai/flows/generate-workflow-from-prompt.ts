@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview AI-powered workflow generator from a plain-text prompt using Mistral AI.
+ * @fileOverview AI-powered workflow generator from a plain-text prompt using Puter.js meta-llama/llama-4-maverick.
  *
  * - generateWorkflowFromPrompt - A function that takes a plain-text workflow description and returns a JSON representation of the workflow.
  * - GenerateWorkflowFromPromptInput - The input type for the generateWorkflowFromPrompt function.
