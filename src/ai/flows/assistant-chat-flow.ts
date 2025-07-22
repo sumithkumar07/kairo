@@ -58,7 +58,7 @@ export type AssistantChatOutput = z.infer<typeof AssistantChatOutputSchema>;
  */
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
   try {
-    console.log('[ASSISTANT CHAT] Processing user message with Mistral AI...');
+    console.log('[ASSISTANT CHAT] Processing user message with Puter.js meta-llama/llama-4-maverick...');
     
     // Prepare workflow context if available
     let workflowContext = input.workflowContext || '';
@@ -67,7 +67,7 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
       workflowContext += `\nCurrent workflow has ${input.currentWorkflowNodes.length} nodes: ${input.currentWorkflowNodes.map(n => `${n.name || n.id} (${n.type})`).join(', ')}`;
     }
     
-    const result = await mistralAssistantChat(
+    const result = await puterAssistantChat(
       input.userMessage,
       input.chatHistory || [],
       workflowContext
