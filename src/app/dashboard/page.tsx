@@ -118,7 +118,7 @@ const workflows = [
     runs: 1247,
     category: 'Marketing',
     nodes: 12,
-    integrations: ['Mailchimp', 'Salesforce', 'Slack', 'Mistral AI'],
+    integrations: ['Mailchimp', 'Salesforce', 'Slack', 'Puter.js AI'],
     created: '2024-01-15',
     isStarred: true,
     performance: 'excellent'
