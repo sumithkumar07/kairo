@@ -102,7 +102,8 @@ import {
   Server,
   HardDrive,
   MemoryStick,
-  Cpu as CpuIcon
+  Cpu as CpuIcon,
+  Crown
 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { GodTierStatusIndicator } from '@/components/god-tier-status-indicator';
