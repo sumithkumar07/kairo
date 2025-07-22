@@ -1,23 +1,27 @@
+// Import advanced templates
+import { ADVANCED_WORKFLOW_TEMPLATES } from './advanced-templates';
+
 export interface WorkflowTemplate {
   id: string;
   name: string;
   description: string;
-  category: 'marketing' | 'sales' | 'support' | 'data' | 'ecommerce' | 'productivity';
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: 'marketing' | 'sales' | 'support' | 'data' | 'ecommerce' | 'productivity' | 'hr' | 'finance' | 'operations' | 'compliance' | 'analytics' | 'monitoring';
+  difficulty: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   estimatedTime: string;
   tags: string[];
   integrations: string[];
   features: string[];
+  useCases?: string[];
   workflow: {
     nodes: any[];
     connections: any[];
   };
   thumbnail?: string;
-  downloadCount: number;
-  rating: number;
-  author: string;
-  lastUpdated: string;
-  isPremium: boolean;
+  downloadCount?: number;
+  rating?: number;
+  author?: string;
+  lastUpdated?: string;
+  isPremium?: boolean;
 }
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
