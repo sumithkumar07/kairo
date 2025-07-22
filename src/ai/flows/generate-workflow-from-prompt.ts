@@ -31,7 +31,7 @@ export async function generateWorkflowFromPrompt(input: GenerateWorkflowFromProm
     
     // Validate the result structure
     if (!result || typeof result !== 'object') {
-      throw new Error('Invalid workflow structure returned from Mistral');
+      throw new Error('Invalid workflow structure returned from Puter.js');
     }
     
     // Ensure required fields exist
