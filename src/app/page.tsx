@@ -80,7 +80,7 @@ const features = [
   {
     icon: BrainCircuit,
     title: 'AI-Powered Workflow Generation',
-    description: 'Describe your automation needs in natural language. Our advanced AI, powered by cutting-edge Mistral models, will generate complete, production-ready workflows instantly.',
+    description: 'Describe your automation needs in natural language. Our advanced AI, powered by Puter.js meta-llama/llama-4-maverick, will generate complete, production-ready workflows instantly with unlimited usage.',
     badge: 'AI Enhanced',
     color: 'from-purple-500 to-pink-500'
   },
