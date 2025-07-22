@@ -265,8 +265,8 @@ DATABASE_URL="postgresql://prod_user:secure_password@prod-db:5432/kairo_prod"
 JWT_SECRET="your_production_jwt_secret_64_characters_or_more_for_security"
 ENCRYPTION_SECRET_KEY="your_production_encryption_key_32_chars"
 
-# AI Configuration
-MISTRAL_API_KEY="your_production_mistral_api_key"
+# AI Configuration (No API keys needed)
+# Puter.js provides unlimited AI with meta-llama/llama-4-maverick
 
 # Performance
 NODE_ENV="production"
