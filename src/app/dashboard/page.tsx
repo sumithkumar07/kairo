@@ -133,7 +133,7 @@ const workflows = [
     runs: 892,
     category: 'Finance',
     nodes: 8,
-    integrations: ['QuickBooks', 'AWS S3', 'Stripe', 'Mistral AI'],
+    integrations: ['QuickBooks', 'AWS S3', 'Stripe', 'Puter.js AI'],
     created: '2024-01-20',
     isStarred: false,
     performance: 'good'
