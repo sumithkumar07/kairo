@@ -419,7 +419,7 @@ Be helpful, concise, and actionable.
     }
   }
 
-  // Advanced Error Diagnosis and Recovery using Mistral
+  // Advanced Error Diagnosis and Recovery using Puter.js
   async diagnoseAndRecover(error: any, workflow: Workflow, context: any): Promise<any> {
     const diagnosisPrompt = `
 Analyze this error and provide a comprehensive recovery strategy:
