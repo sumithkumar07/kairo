@@ -116,7 +116,7 @@ export function EnhancedAppLayout({
                 
                 <div className="flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
-                  <span>Mistral AI</span>
+                  <span>Puter.js AI</span>
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 </div>
               </div>
