@@ -32,6 +32,9 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning={true}> 
+      <head>
+        <script src="https://js.puter.com/v2/" defer></script>
+      </head>
       <body className={cn("font-sans antialiased", inter.variable, "bg-background text-foreground")} suppressHydrationWarning={true}>
         <ThemeProvider
           attribute="class"
