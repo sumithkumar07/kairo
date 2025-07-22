@@ -94,7 +94,7 @@ function AIOnboardingPanel({ onGenerate, isLoading }: { onGenerate: (prompt: str
             </Badge>
           </CardTitle>
           <CardDescription className="text-lg max-w-2xl mx-auto">
-            Tell our advanced AI what you want to automate. It will build the complete workflow for you using Mistral AI's reasoning capabilities.
+            Tell our advanced AI what you want to automate. It will build the complete workflow for you using Puter.js meta-llama/llama-4-maverick's reasoning capabilities.
           </CardDescription>
         </CardHeader>
         
