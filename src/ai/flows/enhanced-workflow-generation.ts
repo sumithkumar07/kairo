@@ -291,13 +291,13 @@ Analyze and return JSON with:
 7. resource_requirements
 `;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: 'You are an expert technical architect. Analyze technical requirements and provide detailed specifications.' },
     { role: 'user', content: prompt }
   ];
 
-  const result = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const result = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.3,
     max_tokens: 1000
   });
