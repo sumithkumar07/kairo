@@ -234,7 +234,7 @@ export default function HomePage() {
               <div className="animate-fade-in-up">
                 <Badge variant="secondary" className="mb-6 px-4 py-2 text-sm font-medium">
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Powered by Advanced Mistral AI
+                  Powered by Advanced Puter.js AI
                 </Badge>
               </div>
               
