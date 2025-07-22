@@ -1,9 +1,9 @@
 'use server';
 /**
- * @fileOverview An AI flow to explain workflows using Mistral AI.
+ * @fileOverview An AI flow to explain workflows using Puter.js meta-llama/llama-4-maverick.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 
 // Input and Output Schemas
@@ -33,7 +33,7 @@ export async function explainWorkflow(input: ExplainWorkflowInput): Promise<Expl
 
 Tailor your explanation to the specified audience level.`;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { 
       role: 'user', 
@@ -47,8 +47,8 @@ Provide a clear explanation, key points, and recommendations for improvement.`
     }
   ];
 
-  const response = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const response = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.4,
     max_tokens: 1500
   });

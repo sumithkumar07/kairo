@@ -1,9 +1,9 @@
 'use server';
 /**
- * @fileOverview An AI flow to enhance user prompts using Mistral AI.
+ * @fileOverview An AI flow to enhance user prompts using Puter.js meta-llama/llama-4-maverick.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 
 // Input and Output Schemas
@@ -30,7 +30,7 @@ export async function enhanceUserPrompt(input: EnhanceUserPromptInput): Promise<
 
 Provide the enhanced prompt and list the improvements you made.`;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { 
       role: 'user', 
@@ -46,8 +46,8 @@ Please provide:
     }
   ];
 
-  const response = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const response = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.5,
     max_tokens: 1000
   });
