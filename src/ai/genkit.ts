@@ -1,29 +1,22 @@
 
-import { mistralClient, chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 
-// CRITICAL CHECK for MISTRAL_API_KEY availability
-console.log(
-  '[MISTRAL AI] MISTRAL_API_KEY check. Available: ',
-  process.env.MISTRAL_API_KEY ? `Yes (starts with: ${process.env.MISTRAL_API_KEY.substring(0, 8)}...)` : 'Using fallback key'
-);
+// CRITICAL CHECK for Puter.js availability (no API keys required)
+console.log('[PUTER AI] Using Puter.js meta-llama/llama-4-maverick with unlimited usage');
 
-if (!process.env.MISTRAL_API_KEY) {
-  console.log("[MISTRAL AI] Using fallback API key for Mistral integration");
-}
-
-// Export Mistral client and utilities for use throughout the app
+// Export Puter.js AI utilities for use throughout the app
 export const ai = {
-  chat: chatWithMistral,
-  client: mistralClient,
+  chat: chatWithPuter,
+  client: null, // Puter.js doesn't need a separate client
   
   // Helper method to generate content
   async generate(prompt: string, options: { model?: string; temperature?: number; max_tokens?: number } = {}) {
-    const messages: MistralChatMessage[] = [
+    const messages: PuterChatMessage[] = [
       { role: 'user', content: prompt }
     ];
     
-    return await chatWithMistral(messages, {
-      model: options.model || 'mistral-small-latest',
+    return await chatWithPuter(messages, {
+      model: options.model || 'meta-llama/llama-4-maverick',
       temperature: options.temperature || 0.7,
       max_tokens: options.max_tokens || 1000
     });
