@@ -473,7 +473,7 @@ Be thorough and actionable.
   }
 
   private async generateCustomCode(input: any): Promise<any> {
-    // Implement custom code generation using Mistral
+    // Implement custom code generation using Puter.js
     const codePrompt = `Generate ${input.language} code for: ${input.requirement}
     Framework: ${input.framework || 'None'}
     Constraints: ${input.constraints?.join(', ') || 'None'}
