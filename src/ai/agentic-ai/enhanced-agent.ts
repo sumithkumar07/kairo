@@ -293,7 +293,7 @@ Return a structured JSON response with the analysis.
     }
   }
 
-  // Autonomous Decision Making using Mistral
+  // Autonomous Decision Making using Puter.js
   async makeDecision(situation: string, options: string[], context?: any): Promise<any> {
     const decisionPrompt = `
 As an advanced agentic AI, analyze this situation and make an informed decision:
