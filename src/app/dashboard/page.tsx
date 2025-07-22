@@ -389,6 +389,12 @@ function DashboardPage() {
                     New Workflow
                   </Link>
                 </Button>
+                <Button variant="outline" size="lg" className="border-orange-500 text-orange-500" asChild>
+                  <Link href="/god-tier">
+                    <Crown className="h-4 w-4 mr-2" />
+                    God-Tier Powers
+                  </Link>
+                </Button>
               </div>
             </div>
           </div>
