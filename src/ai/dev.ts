@@ -14,4 +14,4 @@ import '@/ai/flows/generate-workflow-ideas.ts';
 import '@/ai/flows/text-to-speech-flow.ts';
 import '@/ai/flows/generate-image-flow.ts';
 
-console.log('[AI DEV] Mistral AI flows loaded successfully');
+console.log('[AI DEV] Puter.js AI flows loaded successfully');
