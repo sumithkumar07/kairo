@@ -120,7 +120,7 @@ Kairo is the world's most advanced AI-powered workflow automation platform, comb
 - **Undo/Redo History** - 30-step history with branching support
 
 ### **🤖 AI-First Architecture**
-- **Mistral AI Integration** - Advanced reasoning with latest Mistral models
+- **Puter.js Integration** - Unlimited usage with meta-llama/llama-4-maverick model
 - **Natural Language Processing** - Generate workflows from plain English
 - **Context-Aware Assistant** - Smart suggestions based on workflow context
 - **Intelligent Error Diagnosis** - AI-powered error analysis and resolution
