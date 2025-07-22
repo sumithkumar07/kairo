@@ -242,13 +242,13 @@ Provide a comprehensive analysis of:
 Return as JSON with fields: primary_goal, secondary_goals, success_criteria, risk_factors, description
 `;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: 'You are an expert business analyst. Analyze user requirements and provide detailed insights.' },
     { role: 'user', content: prompt }
   ];
 
-  const result = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const result = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.3,
     max_tokens: 1000
   });
