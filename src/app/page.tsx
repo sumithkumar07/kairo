@@ -191,7 +191,7 @@ const testimonials = [
     name: 'Michael Chen',
     role: 'CTO',
     company: 'StartupXYZ',
-    content: 'The most intuitive automation platform we\'ve ever used. The Mistral AI integration understands complex business requirements and delivers production-ready workflows instantly.',
+    content: 'The most intuitive automation platform we\'ve ever used. The Puter.js AI integration with meta-llama/llama-4-maverick understands complex business requirements and delivers production-ready workflows instantly with unlimited usage.',
     rating: 5,
     avatar: 'MC'
   },
