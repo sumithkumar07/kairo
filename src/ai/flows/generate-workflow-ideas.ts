@@ -1,9 +1,9 @@
 'use server';
 /**
- * @fileOverview An AI flow to generate workflow ideas using Mistral AI.
+ * @fileOverview An AI flow to generate workflow ideas using Puter.js meta-llama/llama-4-maverick.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 
 // Input and Output Schemas
