@@ -68,13 +68,13 @@ Available Node Types: ${input.availableNodeTypes.map(n => `${n.type}: ${n.name} 
 
 Suggest the next node to add to this workflow.`;
 
-    const messages: MistralChatMessage[] = [
+    const messages: PuterChatMessage[] = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
     ];
 
-    const response = await chatWithMistral(messages, {
-      model: 'mistral-small-latest',
+    const response = await chatWithPuter(messages, {
+      model: 'meta-llama/llama-4-maverick',
       temperature: 0.7,
       max_tokens: 500
     });
