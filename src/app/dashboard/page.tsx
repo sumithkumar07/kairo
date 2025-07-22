@@ -111,7 +111,7 @@ const workflows = [
   {
     id: '1',
     name: 'Customer Onboarding Flow',
-    description: 'Automated welcome email sequence and CRM sync with Mistral AI personalization',
+    description: 'Automated welcome email sequence and CRM sync with Puter.js AI personalization',
     status: 'active',
     lastRun: '2 hours ago',
     success: 98.5,
