@@ -246,39 +246,39 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs a task using Mistral AI for text generation, analysis, and processing.',
+    description: 'Performs AI tasks using Puter.js meta-llama/llama-4-maverick with unlimited usage and no API keys required.',
     category: 'ai',
     defaultConfig: { 
-        modelProvider: 'mistral',
-        model: 'mistral-small-latest',
+        modelProvider: 'puter',
+        model: 'meta-llama/llama-4-maverick',
         prompt: '',
-        simulatedOutput: 'This is a simulated AI response.' 
+        simulatedOutput: 'This is a simulated AI response from meta-llama/llama-4-maverick via Puter.js.' 
     },
     configSchema: {
       modelProvider: {
         label: 'Model Provider',
         type: 'select',
-        options: ['mistral'],
-        defaultValue: 'mistral',
+        options: ['puter'],
+        defaultValue: 'puter',
         required: true,
-        helperText: 'Select the AI provider for the model.'
+        helperText: 'Select the AI provider - Puter.js provides unlimited usage.'
       },
       model: { 
         label: 'Model ID', 
         type: 'select',
-        options: ['mistral-small-latest', 'mistral-large-latest', 'mistral-medium-latest', 'codestral-latest'],
-        defaultValue: 'mistral-small-latest', 
+        options: ['meta-llama/llama-4-maverick', 'meta-llama/llama-3.3-70b', 'meta-llama/llama-3.2-90b', 'meta-llama/llama-3.1-405b'],
+        defaultValue: 'meta-llama/llama-4-maverick', 
         required: true,
-        helperText: 'The specific Mistral model to use.'
+        helperText: 'The Meta Llama model to use via Puter.js. Llama-4-Maverick recommended for best performance.'
       },
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}', required: true },
-      simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response.', helperText: 'Text output from the AI model when in simulation mode.' },
+      simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response from Puter.js.', helperText: 'Text output from the AI model when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
-    aiExplanation: "Performs a generative AI task using Mistral AI models. To use this node in Live Mode, ensure the `MISTRAL_API_KEY` environment variable is set on your server. The model will generate text based on your prompt using the selected Mistral model.",
+    aiExplanation: "Performs generative AI tasks using Puter.js meta-llama/llama-4-maverick with unlimited usage. No API keys required - Puter.js provides direct browser-based AI capabilities. The model will generate text based on your prompt using the selected Meta Llama model.",
   },
   {
     type: 'generateImage',
