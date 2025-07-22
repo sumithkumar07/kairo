@@ -287,16 +287,16 @@ async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulat
 
 async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
   if (isSimulationMode) {
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AI] SIMULATION: Would process AI task with Mistral`, type: 'info' });
-    return { output: config.simulatedOutput || "Simulated AI response" };
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AI] SIMULATION: Would process AI task with Puter.js meta-llama/llama-4-maverick`, type: 'info' });
+    return { output: config.simulatedOutput || "Simulated AI response from Puter.js meta-llama/llama-4-maverick" };
   }
 
   if (!config.prompt) {
     throw new Error("Prompt is required for AI task.");
   }
 
-  // Use Mistral AI instead of Google Gemini
-  const model = 'mistral-small-latest';
+  // Use Puter.js meta-llama/llama-4-maverick instead of Mistral AI
+  const model = 'meta-llama/llama-4-maverick';
   
   try {
     const result = await ai.generate(config.prompt, { 
@@ -307,7 +307,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     
     return { output: result.content || result };
   } catch (error: any) {
-    throw new Error(`Mistral AI task failed: ${error.message}`);
+    throw new Error(`Puter.js AI task failed: ${error.message}`);
   }
 }
 
