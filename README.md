@@ -437,8 +437,8 @@ npm run test:performance
 ```typescript
 // src/config/ai-settings.ts
 export const AI_CONFIG = {
-  mistral: {
-    model: 'mistral-large-latest',
+  puter: {
+    model: 'meta-llama/llama-4-maverick',
     maxTokens: 4000,
     temperature: 0.7,
     topP: 0.9
