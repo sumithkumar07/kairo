@@ -834,5 +834,14 @@ export const INTEGRATION_CATEGORIES = {
   'Communication': COMMUNICATION_INTEGRATIONS,
   'Analytics': ANALYTICS_INTEGRATIONS,
   'Storage': STORAGE_INTEGRATIONS,
-  'Social Media': SOCIAL_MEDIA_INTEGRATIONS
+  'Social Media': SOCIAL_MEDIA_INTEGRATIONS,
+  'Top 50 Most Used': TOP_50_INTEGRATIONS,
+  'High Priority': HIGH_PRIORITY_INTEGRATIONS,
+  'Enterprise & Business': EXPANDED_INTEGRATIONS.filter(i => i.type.includes('microsoft') || i.type.includes('salesforce')),
+  'Marketing & Social': EXPANDED_INTEGRATIONS.filter(i => i.type.includes('buffer') || i.type.includes('social')),
+  'Development & DevOps': EXPANDED_INTEGRATIONS.filter(i => i.type.includes('gitlab') || i.type.includes('devops')),
+  'Financial & Accounting': EXPANDED_INTEGRATIONS.filter(i => i.type.includes('quickbooks') || i.type.includes('financial'))
 };
+
+// Total integration count for marketing
+export const TOTAL_INTEGRATION_COUNT = ALL_INTEGRATIONS.length;
