@@ -407,7 +407,7 @@ Be helpful, concise, and actionable.
 
     try {
       const result = await ai.generate(helpPrompt, {
-        model: 'mistral-small-latest',
+        model: 'meta-llama/llama-4-maverick',
         temperature: 0.6,
         max_tokens: 1000
       });
