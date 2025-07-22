@@ -294,7 +294,7 @@ async function registerIoTDevice(deviceData: any) {
     device_key: generateDeviceKey(),
     encryption_method: 'AES-256',
     auth_token_expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-    security_level: determineSecurity Level(deviceData.device_category)
+    security_level: determineSecurityLevel(deviceData.device_category)
   };
 
   const insertQuery = `
