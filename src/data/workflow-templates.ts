@@ -96,7 +96,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
           type: 'sentimentAnalysis',
           name: 'Analyze Sentiment',
           position: { x: 300, y: 100 },
-          config: { model: 'mistral-large' }
+          config: { model: 'meta-llama/llama-4-maverick' }
         },
         {
           id: 'condition_1',
