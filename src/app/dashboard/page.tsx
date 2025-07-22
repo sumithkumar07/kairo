@@ -178,7 +178,7 @@ const workflows = [
     runs: 1876,
     category: 'Sales',
     nodes: 22,
-    integrations: ['HubSpot', 'Twilio', 'Mistral AI', 'Calendly'],
+    integrations: ['HubSpot', 'Twilio', 'Puter.js AI', 'Calendly'],
     created: '2024-02-05',
     isStarred: false,
     performance: 'good'
