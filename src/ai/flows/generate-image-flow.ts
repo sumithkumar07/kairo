@@ -1,10 +1,10 @@
 'use server';
 /**
- * @fileOverview An AI flow to generate image descriptions using Mistral AI.
- * Note: This is a placeholder implementation since Mistral AI doesn't generate images directly.
+ * @fileOverview An AI flow to generate image descriptions using Puter.js meta-llama/llama-4-maverick.
+ * Note: This is a placeholder implementation for image descriptions.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 
 // Input and Output Schemas
