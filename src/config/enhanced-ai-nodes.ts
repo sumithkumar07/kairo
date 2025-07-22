@@ -323,7 +323,7 @@ export const ENHANCED_LOGIC_NODES: AvailableNodeType[] = [
     category: 'logic',
     defaultConfig: {
       evaluationMethod: 'ai-reasoning',
-      model: 'mistral-large',
+      model: 'meta-llama/llama-4-maverick',
       confidenceThreshold: 0.8,
       fallbackCondition: 'default',
       explainDecision: true,
