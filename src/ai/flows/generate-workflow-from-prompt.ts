@@ -25,9 +25,9 @@ export type GenerateWorkflowFromPromptInput = z.infer<typeof GenerateWorkflowFro
 // Exported function to generate a workflow from a prompt.
 export async function generateWorkflowFromPrompt(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {
   try {
-    console.log('[WORKFLOW GENERATION] Starting workflow generation with Mistral AI...');
+    console.log('[WORKFLOW GENERATION] Starting workflow generation with Puter.js meta-llama/llama-4-maverick...');
     
-    const result = await mistralGenerateWorkflow(input.prompt);
+    const result = await puterGenerateWorkflow(input.prompt);
     
     // Validate the result structure
     if (!result || typeof result !== 'object') {
