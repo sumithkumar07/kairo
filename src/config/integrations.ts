@@ -805,8 +805,12 @@ export const SOCIAL_MEDIA_INTEGRATIONS: AvailableNodeType[] = [
 
 // Import top 50 integrations
 import { TOP_50_INTEGRATIONS } from './top-50-integrations';
+// Import high priority integrations
+import { HIGH_PRIORITY_INTEGRATIONS } from './high-priority-integrations';
+// Import expanded integrations
+import { EXPANDED_INTEGRATIONS } from './expanded-integrations';
 
-// Combine all integrations
+// Combine all integrations (100+ total)
 export const ALL_INTEGRATIONS: AvailableNodeType[] = [
   ...CRM_INTEGRATIONS,
   ...MARKETING_INTEGRATIONS,
@@ -816,7 +820,9 @@ export const ALL_INTEGRATIONS: AvailableNodeType[] = [
   ...ANALYTICS_INTEGRATIONS,
   ...STORAGE_INTEGRATIONS,
   ...SOCIAL_MEDIA_INTEGRATIONS,
-  ...TOP_50_INTEGRATIONS
+  ...TOP_50_INTEGRATIONS,
+  ...HIGH_PRIORITY_INTEGRATIONS,
+  ...EXPANDED_INTEGRATIONS
 ];
 
 // Integration categories for organization
