@@ -440,7 +440,7 @@ Be thorough and actionable.
 
     try {
       const diagnosis = await ai.generate(diagnosisPrompt, {
-        model: 'mistral-small-latest',
+        model: 'meta-llama/llama-4-maverick',
         temperature: 0.5,
         max_tokens: 1500
       });
