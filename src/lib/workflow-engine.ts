@@ -811,7 +811,7 @@ async function executeGoogleSheetsAppendRowNode(node: WorkflowNode, config: any,
         return { output: config.simulated_config || { updatedRange: 'Sheet1!A1:B1', updatedRows: 1 } };
     }
 
-    // Google Sheets functionality has been removed as we're using Mistral AI only
+    // Google Sheets functionality has been removed as we're using Puter.js AI only
     // This would require a direct HTTP API call to Google Sheets API
     serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE GOOGLESHEETS] ERROR: Google Sheets integration requires googleapis package which has been removed.`, type: 'error' });
     throw new Error('Google Sheets integration is not available in this version. Please use alternative data storage methods.');
