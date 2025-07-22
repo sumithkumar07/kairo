@@ -132,7 +132,7 @@ Kairo is the world's most advanced AI-powered workflow automation platform, comb
 
 ### **Technology Stack**
 - **Frontend**: Next.js 15 (App Router) + TypeScript + Tailwind CSS + Radix UI
-- **AI Engine**: Mistral AI (Latest Models) + Google AI (Genkit)
+- **AI Engine**: Puter.js (meta-llama/llama-4-maverick) + Unlimited Usage
 - **Database**: PostgreSQL with optimized connection pooling and query caching
 - **Authentication**: JWT-based with Row Level Security
 - **Deployment**: Multi-platform (Vercel, Firebase, Netlify)
