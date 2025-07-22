@@ -2,7 +2,7 @@
 import { config } from 'dotenv';
 config();
 
-// AI flows using Mistral instead of Genkit
+// AI flows using Puter.js meta-llama/llama-4-maverick
 import '@/ai/flows/suggest-next-node.ts';
 import '@/ai/flows/generate-workflow-from-prompt.ts';
 import '@/ai/flows/enhance-user-prompt-flow.ts'; 
