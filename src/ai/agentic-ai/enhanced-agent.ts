@@ -239,7 +239,7 @@ export class EnhancedAgenticAI {
     this.availableTools.set('predictiveOptimization', predictiveOptimizer);
   }
 
-  // Enhanced Workflow Generation with Multi-Step Reasoning using Mistral
+  // Enhanced Workflow Generation with Multi-Step Reasoning using Puter.js
   async generateWorkflowWithReasoning(prompt: string, context?: any): Promise<any> {
     const enhancedPrompt = `
 You are an advanced agentic AI system specializing in workflow automation. Your task is to:
