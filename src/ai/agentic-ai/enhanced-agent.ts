@@ -387,7 +387,7 @@ Provide a structured decision with detailed reasoning in JSON format.
     return { optimizations: optimizations || [], autoApplied: autoOptimizations };
   }
 
-  // Contextual Help and Guidance using Mistral
+  // Contextual Help and Guidance using Puter.js
   async provideContextualHelp(userQuery: string, currentState: any): Promise<string> {
     const helpPrompt = `
 As an advanced AI assistant, provide contextual help for this query:
