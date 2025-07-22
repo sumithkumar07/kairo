@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Workflow, LogIn, Menu, User, LogOut, Compass } from 'lucide-react';
+import { Workflow, LogIn, Menu, User, LogOut, Compass, Crown } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
