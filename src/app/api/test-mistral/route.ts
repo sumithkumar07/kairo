@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const { type, prompt } = await request.json();
     
-    console.log(`[TEST API] Testing ${type} with prompt:`, prompt);
+    console.log(`[TEST API] Testing ${type} with prompt using Puter.js meta-llama/llama-4-maverick:`, prompt);
     
     if (type === 'workflow') {
       const result = await generateWorkflowFromPrompt({ prompt });
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }
   } catch (error: any) {
-    console.error('[TEST API] Error:', error);
+    console.error('[TEST API] Puter.js Error:', error);
     return NextResponse.json({ 
       error: error.message,
       success: false 
