@@ -9,7 +9,7 @@
  * - SuggestNextNodeOutput - The return type for the suggestNextNode function.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 
 const AvailableNodeTypeSchema = z.object({
