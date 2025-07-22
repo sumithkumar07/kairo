@@ -156,7 +156,7 @@ function AIOnboardingPanel({ onGenerate, isLoading }: { onGenerate: (prompt: str
           <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground pt-4 border-t">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              Mistral AI Powered
+              Puter.js AI Powered
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
