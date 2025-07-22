@@ -75,7 +75,10 @@ async function initPuterClient() {
   ]
 }`;
             } else if (prompt.toLowerCase().includes('chat') || prompt.toLowerCase().includes('conversation')) {
-              mockResponse = `{"aiResponse": "Hello! I'm powered by Puter.js with meta-llama/llama-4-maverick, providing unlimited AI capabilities. I can help you with workflow automation, answer questions, and generate content. What would you like to explore today?", "isWorkflowGenerationRequest": false}`;
+              mockResponse = JSON.stringify({
+                "aiResponse": "Hello! I'm powered by Puter.js with meta-llama/llama-4-maverick, providing unlimited AI capabilities. I can help you with workflow automation, answer questions, and generate content. What would you like to explore today?",
+                "isWorkflowGenerationRequest": false
+              });
             } else {
               mockResponse = `This is a response from Puter.js meta-llama/llama-4-maverick with unlimited usage. I understand your request about: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"
 
