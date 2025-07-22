@@ -601,7 +601,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### **Third-party Libraries**
 - **Next.js 15** - MIT License
-- **Mistral AI SDK** - Apache 2.0 License  
+- **Puter.js** - MIT License (provides unlimited AI capabilities)
 - **Radix UI** - MIT License
 - **Tailwind CSS** - MIT License
 - **PostgreSQL** - PostgreSQL License
