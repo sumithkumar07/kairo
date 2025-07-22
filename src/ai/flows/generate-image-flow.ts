@@ -36,7 +36,7 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
 
 Be very specific and detailed in your description.`;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { 
       role: 'user', 
@@ -50,8 +50,8 @@ Please provide a detailed description of what this image would look like, includ
     }
   ];
 
-  const response = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const response = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.7,
     max_tokens: 1000
   });
