@@ -54,7 +54,7 @@ const AssistantChatOutputSchema = z.object({
 export type AssistantChatOutput = z.infer<typeof AssistantChatOutputSchema>;
 
 /**
- * Main exported function to handle assistant chat using Mistral AI.
+ * Main exported function to handle assistant chat using Puter.js meta-llama/llama-4-maverick.
  */
 export async function assistantChat(input: AssistantChatInput): Promise<AssistantChatOutput> {
   try {
