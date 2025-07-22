@@ -163,7 +163,7 @@ const workflows = [
     runs: 2341,
     category: 'Support',
     nodes: 18,
-    integrations: ['Zendesk', 'Slack', 'Mistral AI', 'Intercom'],
+    integrations: ['Zendesk', 'Slack', 'Puter.js AI', 'Intercom'],
     created: '2024-02-01',
     isStarred: true,
     performance: 'excellent'
