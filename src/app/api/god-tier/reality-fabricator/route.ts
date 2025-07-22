@@ -526,7 +526,7 @@ function generateDeviceKey(): string {
   return `dk_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 }
 
-function determineSecurity Level(deviceCategory: string): string {
+function determineSecurityLevel(deviceCategory: string): string {
   const highSecurityCategories = ['industrial', 'medical', 'security', 'financial'];
   return highSecurityCategories.includes(deviceCategory) ? 'high' : 'standard';
 }
