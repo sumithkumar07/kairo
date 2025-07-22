@@ -161,7 +161,7 @@ Kairo is the world's most advanced AI-powered workflow automation platform, comb
 - Node.js 18+ (LTS recommended)
 - npm or yarn package manager
 - PostgreSQL database (local, AWS RDS, or Render)
-- Mistral AI API key (optional for AI features)
+- No API keys required (uses Puter.js for unlimited AI capabilities)
 
 ### **1. Installation**
 ```bash
