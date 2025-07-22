@@ -1,13 +1,13 @@
 'use server';
 /**
- * @fileOverview An AI flow to convert text to speech using Mistral AI.
+ * @fileOverview An AI flow to convert text to speech using Puter.js meta-llama/llama-4-maverick.
  *
  * - textToSpeech - Converts a string of text into an audio data URI.
  * - TextToSpeechInput - The input type for the textToSpeech function.
  * - TextToSpeechOutput - The return type for the textToSpeech function.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 
 // Input and Output Schemas
