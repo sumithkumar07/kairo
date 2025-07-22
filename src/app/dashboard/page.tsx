@@ -148,7 +148,7 @@ const workflows = [
     runs: 456,
     category: 'Analytics',
     nodes: 15,
-    integrations: ['Twitter', 'Google Analytics', 'Notion', 'Mistral AI'],
+    integrations: ['Twitter', 'Google Analytics', 'Notion', 'Puter.js AI'],
     created: '2024-01-25',
     isStarred: false,
     performance: 'good'
