@@ -42,7 +42,7 @@ export type SuggestNextNodeOutput = z.infer<typeof SuggestNextNodeOutputSchema>;
 
 export async function suggestNextNode(input: SuggestNextNodeInput): Promise<SuggestNextNodeOutput> {
   try {
-    console.log('[SUGGEST NODE] Generating next node suggestion with Mistral AI...');
+    console.log('[SUGGEST NODE] Generating next node suggestion with Puter.js meta-llama/llama-4-maverick...');
     
     const systemPrompt = `You are a workflow automation expert. Your task is to suggest the next logical node to add to a workflow based on the current structure and available node types.
 
