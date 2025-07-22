@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview An AI flow to handle conversational chat with the Kairo assistant using Mistral AI.
+ * @fileOverview An AI flow to handle conversational chat with the Kairo assistant using Puter.js meta-llama/llama-4-maverick.
  * It can manage and run workflows, identify if a user's message is a request to generate a workflow,
  * or analyze the current workflow for issues, providing suggestions or asking for clarification.
  */
