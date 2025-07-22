@@ -38,7 +38,7 @@ export async function generateWorkflowIdeas(input: GenerateWorkflowIdeasInput): 
 
 Provide 3-5 workflow ideas with detailed information for each.`;
 
-  const messages: MistralChatMessage[] = [
+  const messages: PuterChatMessage[] = [
     { role: 'system', content: systemPrompt },
     { 
       role: 'user', 
@@ -53,8 +53,8 @@ Please provide 3-5 practical workflow ideas with details about implementation, b
     }
   ];
 
-  const response = await chatWithMistral(messages, {
-    model: 'mistral-small-latest',
+  const response = await chatWithPuter(messages, {
+    model: 'meta-llama/llama-4-maverick',
     temperature: 0.8,
     max_tokens: 2000
   });
