@@ -364,7 +364,7 @@ function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4" />
-                    <span>Mistral AI ready</span>
+                    <span>Puter.js AI ready</span>
                   </div>
                 </div>
               </div>
