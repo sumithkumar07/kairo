@@ -1,9 +1,9 @@
 'use server';
 /**
- * @fileOverview Enhanced workflow generation using Mistral AI.
+ * @fileOverview Enhanced workflow generation using Puter.js meta-llama/llama-4-maverick.
  */
 
-import { chatWithMistral, MistralChatMessage } from '@/lib/mistral';
+import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
 import type { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
