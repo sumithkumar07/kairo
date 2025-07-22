@@ -222,7 +222,7 @@ export async function enhancedWorkflowGeneration(input: EnhancedWorkflowGenerati
   };
 }
 
-// Helper Functions for Enhanced Analysis using Mistral AI
+// Helper Functions for Enhanced Analysis using Puter.js meta-llama/llama-4-maverick
 
 async function analyzeUserIntent(input: EnhancedWorkflowGenerationInput): Promise<any> {
   const prompt = `
