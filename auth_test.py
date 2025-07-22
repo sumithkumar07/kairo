@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Any, List, Tuple
 
 # Configuration
-BASE_URL = "http://localhost:3001"
+BASE_URL = "http://localhost:3000"
 TIMEOUT = 30
 
 class AuthAPITester:
