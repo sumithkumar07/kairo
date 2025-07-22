@@ -27,6 +27,16 @@ export function MarketingHeader() {
           Kairo
         </Link>
         <nav className="hidden md:flex items-center gap-2">
+          {isLoggedIn && (
+            <Button variant="ghost" asChild className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-200/30">
+              <Link href="/trinity" className="flex items-center gap-2">
+                <Crown className="h-4 w-4 text-purple-600" />
+                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">
+                  Trinity Powers
+                </span>
+              </Link>
+            </Button>
+          )}
           <Button variant="ghost" asChild>
             <Link href="/subscriptions">Pricing</Link>
           </Button>
