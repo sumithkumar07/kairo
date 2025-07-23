@@ -380,7 +380,7 @@ function MarketplacePage() {
           <div className="relative p-8 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm">
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="p-4 bg-gradient-to-r from-primary to-purple-600 rounded-xl">
-                <Template className="h-8 w-8 text-white" />
+                <Lightbulb className="h-8 w-8 text-white" />
               </div>
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
