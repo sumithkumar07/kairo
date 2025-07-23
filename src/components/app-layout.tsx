@@ -102,7 +102,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               ) : (
                 <SidebarMenuButton asChild tooltip={{ children: "Login", side: "right" }}>
                   <Link href="/login">
-                    <User />
+                    <User className="h-4 w-4" />
                     <span>Login</span>
                   </Link>
                 </SidebarMenuButton>
