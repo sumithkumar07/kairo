@@ -34,12 +34,12 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/hub', label: 'Workflow Hub', icon: Compass },
+  { href: '/marketplace', label: 'Marketplace', icon: Compass },
   { href: '/workflow', label: 'Editor', icon: Workflow },
-  { href: '/templates', label: 'Templates', icon: FileText },
-  { href: '/run-history', label: 'Run History', icon: History },
-  { href: '/agent-hub', label: 'AI Agent Hub', icon: Cpu },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/ai-studio', label: 'AI Studio', icon: Cpu },
+  { href: '/integrations', label: 'Integrations', icon: FileText },
+  { href: '/god-tier', label: 'God-Tier', icon: Settings },
+  { href: '/account', label: 'Account', icon: User },
 ];
 
 
