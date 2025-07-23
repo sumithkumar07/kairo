@@ -172,7 +172,7 @@ function AIOnboardingPanel({ onGenerate, isLoading }: { onGenerate: (prompt: str
       
       <p className="text-sm text-muted-foreground mt-6 max-w-2xl">
         Don't want to use AI? You can also drag nodes from the library on the left to build manually, 
-        or browse our <Link href="/templates" className="text-primary hover:underline">workflow templates</Link>.
+        or browse our <Link href="/marketplace" className="text-primary hover:underline">workflow marketplace</Link>.
       </p>
     </div>
   );
