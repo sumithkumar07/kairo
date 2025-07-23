@@ -67,7 +67,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 }}
                             >
                                 <Link href={item.href}>
-                                    <item.icon className="h-4 w-4" />
+                                    {React.createElement(item.icon, { className: "h-4 w-4" })}
                                     <span>{item.label}</span>
                                 </Link>
                             </SidebarMenuButton>
