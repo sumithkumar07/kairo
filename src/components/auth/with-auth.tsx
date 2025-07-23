@@ -10,24 +10,26 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
     const { user, isLoading } = useAuth();
     const router = useRouter();
 
-    React.useEffect(() => {
-      if (!isLoading && !user) {
-        router.push('/login');
-      }
-    }, [user, isLoading, router]);
+    // TEMPORARILY DISABLED AUTHENTICATION FOR PAGE ACCESS COMPARISON
+    // React.useEffect(() => {
+    //   if (!isLoading && !user) {
+    //     router.push('/login');
+    //   }
+    // }, [user, isLoading, router]);
 
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      );
-    }
+    // if (isLoading) {
+    //   return (
+    //     <div className="flex items-center justify-center h-screen">
+    //       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+    //     </div>
+    //   );
+    // }
 
-    if (!user) {
-      return null;
-    }
+    // if (!user) {
+    //   return null;
+    // }
 
+    // Always render the component without authentication check
     return <Component {...props} />;
   };
 }
