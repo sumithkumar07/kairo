@@ -88,10 +88,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="end">
-                         <DropdownMenuItem asChild>
-                            <Link href="/profile" className='cursor-pointer'>
+                        <DropdownMenuItem asChild>
+                            <Link href="/account" className='cursor-pointer'>
                                 <User className="mr-2 h-4 w-4" />
-                                <span>Profile</span>
+                                <span>Account</span>
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
