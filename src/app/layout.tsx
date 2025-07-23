@@ -16,8 +16,43 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Kairo',
-  description: 'AI-powered workflow automation and design.',
+  title: 'Kairo AI - Workflow Automation Platform',
+  description: 'Build workflows at the speed of thought with AI-powered automation, quantum computing, and enterprise-grade security.',
+  keywords: 'workflow automation, AI, productivity, integration, no-code, enterprise',
+  authors: [{ name: 'Kairo Team' }],
+  creator: 'Kairo AI',
+  publisher: 'Kairo AI',
+  robots: 'index, follow',
+  manifest: '/manifest.json',
+  themeColor: '#3b82f6',
+  colorScheme: 'light dark',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Kairo AI',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'Kairo AI',
+    title: 'Kairo AI - Workflow Automation Platform',
+    description: 'Build workflows at the speed of thought with AI-powered automation',
+    url: 'https://kairo.ai',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Kairo AI Workflow Automation Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Kairo AI - Workflow Automation Platform',
+    description: 'Build workflows at the speed of thought with AI-powered automation',
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({
