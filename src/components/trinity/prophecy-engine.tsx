@@ -255,7 +255,7 @@ export function ProphecyEngineInterface({ className }: ProphecyEngineProps) {
         <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2">
-              <Crystal className="h-5 w-5 text-purple-500" />
+              <Sparkles className="h-5 w-5 text-purple-500" />
               Quantum Oracle Analytics
             </CardTitle>
           </CardHeader>
