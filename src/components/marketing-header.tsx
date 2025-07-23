@@ -103,7 +103,7 @@ export function MarketingHeader() {
                 )}
                 <DropdownMenuItem asChild><Link href="/dashboard">Dashboard</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/trinity" className="flex items-center gap-2">
+                  <Link href="/ai-studio" className="flex items-center gap-2">
                     <Crown className="h-4 w-4 text-purple-600" />
                     <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">
                       Trinity Powers
