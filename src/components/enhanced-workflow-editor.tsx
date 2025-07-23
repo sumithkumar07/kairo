@@ -15,7 +15,7 @@ import {
   Save, 
   Download, 
   Upload, 
-  Share, 
+  Share2, 
   Settings,
   Zap,
   Brain,
