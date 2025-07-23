@@ -32,14 +32,25 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 
+// Main Navigation - Core App Features
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/marketplace', label: 'Marketplace', icon: Compass },
-  { href: '/workflow', label: 'Editor', icon: Workflow },
+  { href: '/workflow', label: 'Workflow Editor', icon: Workflow },
   { href: '/ai-studio', label: 'AI Studio', icon: Cpu },
-  { href: '/integrations', label: 'Integrations', icon: FileText },
-  { href: '/god-tier', label: 'God-Tier', icon: Settings },
+  { href: '/integrations', label: 'Integrations', icon: LinkIcon },
+  { href: '/god-tier', label: 'God-Tier', icon: Crown },
   { href: '/account', label: 'Account', icon: User },
+];
+
+// Secondary Navigation - Support & System
+const secondaryNavItems = [
+  { href: '/help', label: 'Help Center', icon: HelpCircle },
+  { href: '/api-docs', label: 'API Docs', icon: BookOpen },
+  { href: '/security', label: 'Security', icon: Shield },
+  { href: '/billing', label: 'Billing', icon: CreditCard },
+  { href: '/status', label: 'Status', icon: AlertCircle },
+  { href: '/changelog', label: 'Changelog', icon: FileText },
 ];
 
 
