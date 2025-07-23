@@ -56,7 +56,7 @@ export function MarketingHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem asChild><Link href="/dashboard">Go to Dashboard</Link></DropdownMenuItem>
-                  <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/account">Account</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="cursor-pointer">
