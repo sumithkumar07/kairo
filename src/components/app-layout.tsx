@@ -187,6 +187,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 <DropdownMenuItem key={`mobile-${item.href}`} asChild><Link href={item.href}>{item.label}</Link></DropdownMenuItem>
                             ))}
                             <DropdownMenuSeparator />
+                            {secondaryNavItems.slice(0, 3).map(item => (
+                                <DropdownMenuItem key={`mobile-secondary-${item.href}`} asChild><Link href={item.href}>{item.label}</Link></DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
                             {isLoggedIn ? (
                               <>
                                 <DropdownMenuItem asChild><Link href="/account">Account</Link></DropdownMenuItem>
