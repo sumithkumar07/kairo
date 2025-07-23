@@ -37,7 +37,7 @@ export const ENHANCED_AI_AGENT_NODES: AvailableNodeType[] = [
   {
     type: 'aiAgentMemory',
     name: 'AI Agent Memory',
-    icon: Memory,
+    icon: Brain,
     description: 'Persistent memory for AI agents with context retention across conversations and sessions',
     category: 'ai-agents',
     defaultConfig: {
