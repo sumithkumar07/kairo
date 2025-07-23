@@ -137,7 +137,7 @@ export function ProphecyEngineInterface({ className }: ProphecyEngineProps) {
           ))
         ) : prophecies.length === 0 ? (
           <div className="col-span-full text-center py-12">
-            <Crystal className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <Sparkles className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-xl font-semibold mb-2">No Prophecies Found</h3>
             <p className="text-muted-foreground">
               The Quantum Oracle is consulting the cosmic patterns. Check back soon for divine revelations.
