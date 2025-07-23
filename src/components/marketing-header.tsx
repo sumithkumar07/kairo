@@ -32,13 +32,13 @@ export function MarketingHeader() {
               <Link href="/ai-studio" className="flex items-center gap-2">
                 <Crown className="h-4 w-4 text-purple-600" />
                 <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">
-                  Trinity Powers
+                  AI Studio
                 </span>
               </Link>
             </Button>
           )}
           <Button variant="ghost" asChild>
-            <Link href="/subscriptions">Pricing</Link>
+            <Link href="/pricing">Pricing</Link>
           </Button>
            <Button variant="ghost" asChild>
             <Link href="/contact">Contact</Link>
