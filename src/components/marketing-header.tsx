@@ -110,7 +110,7 @@ export function MarketingHeader() {
                     </span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/hub">Workflow Hub</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/marketplace">Marketplace</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/workflow">Editor</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/run-history">Run History</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/agent-hub">Agent Hub</Link></DropdownMenuItem>
