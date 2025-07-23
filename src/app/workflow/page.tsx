@@ -398,7 +398,7 @@ function WorkflowPage() {
                 {workflowStats.nodes} nodes
               </div>
               <div className="flex items-center gap-1">
-                <Share className="h-3 w-3" />
+                <Share2 className="h-3 w-3" />
                 {workflowStats.connections} connections
               </div>
               <div className="flex items-center gap-1">
