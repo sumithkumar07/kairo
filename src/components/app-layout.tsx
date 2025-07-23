@@ -87,6 +87,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         </SidebarMenuItem>
                     ))}
                 </SidebarMenu>
+
+                {/* Secondary Navigation Section */}
+                <div className="mt-8">
+                    <div className="px-3 py-2">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Support & System
+                        </h4>
+                    </div>
+                    <SidebarMenu>
+                        {secondaryNavItems.map((item) => (
+                            <SidebarMenuItem key={item.href}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname === item.href}
+                                    tooltip={{
+                                        children: item.label,
+                                        side: 'right',
+                                    }}
+                                    className="text-sm"
+                                >
+                                    <Link href={item.href}>
+                                        {React.createElement(item.icon, { className: "h-4 w-4" })}
+                                        <span>{item.label}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </div>
             </SidebarContent>
             <SidebarFooter>
               {isLoggedIn && user ? (
