@@ -113,7 +113,7 @@ export function MarketingHeader() {
                 <DropdownMenuItem asChild><Link href="/marketplace">Marketplace</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/workflow">Editor</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/run-history">Run History</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/agent-hub">Agent Hub</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/ai-studio">AI Studio</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild><Link href="/subscriptions">Pricing</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/contact">Contact</Link></DropdownMenuItem>
