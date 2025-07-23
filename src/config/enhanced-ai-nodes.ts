@@ -2,7 +2,7 @@ import {
   Bot, 
   BrainCircuit, 
   Database, 
-  Memory, 
+  Brain, 
   Search, 
   FileText, 
   MessageSquare, 
