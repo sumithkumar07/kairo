@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Brain, 
   TrendingUp, 
-  Crystal,
+  Sparkles,
   Zap,
   Eye,
   Calendar,
