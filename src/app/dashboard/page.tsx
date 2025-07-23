@@ -1,15 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, StatsCard, FeatureCard, MetricCard } from '@/components/ui/enhanced-card';
-import { Button } from '@/components/ui/enhanced-button';
-import { SearchInput } from '@/components/ui/enhanced-input';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DashboardLayout } from '@/components/layout/enhanced-app-layout';
+import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import Link from 'next/link';
+import { EnhancedDashboard } from '@/components/enhanced-dashboard';
+
+function DashboardPage() {
+  return (
+    <AppLayout>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <EnhancedDashboard />
+      </div>
+    </AppLayout>
+  );
+}
+
+export default withAuth(DashboardPage);
 import {
   Workflow,
   Plus,
