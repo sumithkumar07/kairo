@@ -121,7 +121,6 @@ export function MarketingHeader() {
                 {isLoggedIn ? (
                   <>
                     <DropdownMenuItem asChild><Link href="/account">Account</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/account">Account</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="cursor-pointer">
                       <LogOut className="mr-2 h-4 w-4" />
