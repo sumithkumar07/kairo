@@ -30,7 +30,8 @@ import {
   Workflow,
   Template,
   Crown,
-  Rocket
+  Rocket,
+  Lightbulb
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
