@@ -70,7 +70,7 @@ export function ProphecyEngineInterface({ className }: ProphecyEngineProps) {
   };
 
   const getConfidenceLevel = (score: number) => {
-    if (score >= 0.9) return { label: 'Divine Certainty', color: 'text-purple-600', icon: Crystal };
+    if (score >= 0.9) return { label: 'Divine Certainty', color: 'text-purple-600', icon: Sparkles };
     if (score >= 0.8) return { label: 'High Confidence', color: 'text-blue-600', icon: TrendingUp };
     if (score >= 0.7) return { label: 'Probable', color: 'text-green-600', icon: Target };
     return { label: 'Uncertain', color: 'text-yellow-600', icon: AlertTriangle };
