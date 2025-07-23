@@ -814,7 +814,7 @@ export function EnhancedWorkflowEditor({
         </Button>
         
         <Button variant="outline" size="sm">
-          <Share className="h-4 w-4 mr-2" />
+          <Share2 className="h-4 w-4 mr-2" />
           Share
         </Button>
         
