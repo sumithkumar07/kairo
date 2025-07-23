@@ -120,7 +120,7 @@ export function MarketingHeader() {
                 <DropdownMenuSeparator />
                 {isLoggedIn ? (
                   <>
-                    <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/account">Account</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="cursor-pointer">
