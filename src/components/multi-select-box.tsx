@@ -46,7 +46,7 @@ import {
   RefreshCw,
   Download,
   Upload,
-  Share,
+  Share2,
   Edit,
   Info,
   MoreHorizontal,
