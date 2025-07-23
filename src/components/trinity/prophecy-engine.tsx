@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Sparkles,
   Target,
   Rocket
 } from 'lucide-react';
