@@ -8,7 +8,7 @@ import { runWorkflowFromEditor, suggestNextWorkflowNode, getWorkflowExplanation,
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, X, Bot, SaveAll, File, FolderOpen, Save, Zap, Users, BrainCircuit, Search, Star, Workflow as WorkflowIcon, Wand2, Settings, Eye, EyeOff, Play, Pause, RotateCcw, Maximize2, Minimize2, Grid, Layers, Filter, ArrowLeft, Home, HelpCircle, Sparkles } from 'lucide-react';
+import { Loader2, Trash2, X, Bot, SaveAll, File, FolderOpen, Save, Zap, Users, BrainCircuit, Search, Star, Workflow as WorkflowIcon, Wand2, Settings, Eye, EyeOff, Play, Pause, RotateCcw, Maximize2, Minimize2, Grid, Layers, Filter, ArrowLeft, Home, HelpCircle, Sparkles, Share2 } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
