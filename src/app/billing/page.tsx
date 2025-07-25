@@ -290,7 +290,81 @@ function BillingPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="invoices" className="space-y-6">
+          <TabsContent value="subscription" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Subscription Management</CardTitle>
+                  <CardDescription>Manage your current subscription and billing preferences</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">Current Plan</div>
+                      <Badge variant="default">Active</Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Gold Plan - $9/month
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">Next Billing Date</div>
+                      <div className="text-sm">Feb 15, 2024</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Your subscription will auto-renew
+                    </div>
+                  </div>
+
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">Payment Method</div>
+                      <Button variant="outline" size="sm">
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Update
+                      </Button>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      •••• •••• •••• 4242
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Pause Subscription
+                    </Button>
+                    <Button variant="outline">
+                      Cancel Subscription
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" className="w-full">
+                    <ArrowUpCircle className="h-4 w-4 mr-2" />
+                    Upgrade Plan
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Invoice
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Usage Report
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
             <Card>
               <CardHeader>
                 <CardTitle>Invoice History</CardTitle>
