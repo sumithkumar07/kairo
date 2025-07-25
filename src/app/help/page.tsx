@@ -166,13 +166,16 @@ export default function HelpPage() {
         </div>
       </section>
 
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Help Center</TabsTrigger>
-            <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
-            <TabsTrigger value="quick-start">Quick Start</TabsTrigger>
-            <TabsTrigger value="guides">Guides</TabsTrigger>
-          </TabsList>
+      {/* Main Content */}
+      <section className="py-8 px-4">
+        <div className="container max-w-6xl mx-auto">
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Help Center</TabsTrigger>
+              <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
+              <TabsTrigger value="quick-start">Quick Start</TabsTrigger>
+              <TabsTrigger value="guides">Guides</TabsTrigger>
+            </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
             {/* Popular Articles */}
