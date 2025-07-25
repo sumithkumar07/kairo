@@ -18,7 +18,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, Compass, FileText, Shield, Activity, CreditCard, Calendar, BarChart3, Crown, Link as LinkIcon, HelpCircle, BookOpen, AlertCircle } from 'lucide-react';
+import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, Compass, FileText, Shield, Activity, CreditCard, Calendar, BarChart3, Crown, Link as LinkIcon, HelpCircle, BookOpen, AlertCircle, GraduationCap, Bot, BarChart2 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
   DropdownMenu,
