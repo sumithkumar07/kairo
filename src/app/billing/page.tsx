@@ -366,6 +366,44 @@ function BillingPage() {
           </TabsContent>
 
           <TabsContent value="invoices" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Invoice History</CardTitle>
+                <CardDescription>Download and view your past invoices</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {invoices.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <FileText className="h-8 w-8 text-muted-foreground" />
+                        <div>
+                          <div className="font-medium">Invoice #{invoice.id}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {invoice.period}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="font-medium">{invoice.amount}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(invoice.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <Badge variant={invoice.status === 'paid' ? 'default' : 'destructive'}>
+                          {invoice.status}
+                        </Badge>
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-6">
