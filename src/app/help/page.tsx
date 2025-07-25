@@ -543,6 +543,8 @@ export default function HelpPage() {
             </div>
           </TabsContent>
         </Tabs>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="border-t py-8 px-4">
