@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Search, 
   BookOpen, 
@@ -19,7 +20,13 @@ import {
   Bot,
   Workflow,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Target,
+  Globe,
+  Sparkles,
+  CheckCircle,
+  Mail,
+  Database
 } from 'lucide-react';
 
 const categories = [
