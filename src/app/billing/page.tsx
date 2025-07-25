@@ -140,9 +140,10 @@ function BillingPage() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="usage">Usage</TabsTrigger>
+            <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
             <TabsTrigger value="plans">Change Plan</TabsTrigger>
           </TabsList>
