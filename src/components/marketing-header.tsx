@@ -112,7 +112,7 @@ export function MarketingHeader() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/integrations">Integrations</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/god-tier">God-Tier</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/reports">Reports</Link></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild><Link href="/pricing">Pricing</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/contact">Contact</Link></DropdownMenuItem>
