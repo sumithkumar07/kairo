@@ -157,10 +157,10 @@ export function MarketingHeader() {
           ) : (
             <div className="flex items-center space-x-4">
               <Button variant="ghost" asChild>
-                <Link href="/signin">Sign In</Link>
+                <Link href="/auth?tab=signin">Sign In</Link>
               </Button>
               <Button className="bg-gradient-to-r from-primary to-purple-600 hover:shadow-lg" asChild>
-                <Link href="/signup">
+                <Link href="/auth?tab=signup">
                   Get Started Free
                   <Sparkles className="ml-2 h-4 w-4" />
                 </Link>
