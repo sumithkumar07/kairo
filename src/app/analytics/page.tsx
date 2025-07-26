@@ -418,8 +418,12 @@ function AnalyticsSuperDashboard() {
           </Card>
         </div>
 
-        {/* Consolidated Tabs */}
-        <Tabs defaultValue="overview" className="space-y-8">
+        {/* Consolidated Tabs with URL parameter support */}
+        <Tabs 
+          defaultValue="overview" 
+          className="space-y-8"
+          value={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') || 'overview' : 'overview'}
+        >
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="real-time">Real-time</TabsTrigger>
