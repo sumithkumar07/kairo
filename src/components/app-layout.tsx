@@ -154,19 +154,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-            <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6 sm:hidden">
+            <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/95 backdrop-blur-sm px-4 sm:px-6">
                 <Link
                     href="/"
-                    className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+                    className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base sm:hidden"
                   >
                     <Workflow className="h-4 w-4 transition-all group-hover:scale-110" />
                     <span className="sr-only">Kairo</span>
                 </Link>
                 <div className="flex items-center gap-2">
+                    <RealTimeNotifications />
                     <ThemeToggle />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon">
+                          <Button variant="outline" size="icon" className="sm:hidden">
                             <Menu className="h-5 w-5" />
                             <span className="sr-only">Toggle navigation menu</span>
                           </Button>
