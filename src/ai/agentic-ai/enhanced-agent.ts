@@ -230,7 +230,7 @@ export class EnhancedAgenticAI {
           implementation_effort: z.string()
         }))
       })
-    }, async (input) => {
+    }, async (input: any) => {
       return this.predictPerformanceIssues(input);
     });
 
