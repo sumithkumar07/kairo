@@ -26,22 +26,13 @@ export function InteractiveButton({
   className,
   loading = false,
   glow = false,
+  asChild = false,
   ...props 
-}: InteractiveButtonProps) {
-  return (
-    <Button
-      size={size}
-      variant={variant}
-      className={cn(
-        "relative overflow-hidden group transition-all duration-300",
-        gradient && `bg-gradient-to-r ${gradient} hover:shadow-lg hover:scale-105`,
-        glow && "hover:shadow-xl hover:shadow-primary/25",
-        "hover:scale-105 active:scale-95",
-        className
-      )}
-      disabled={loading}
-      {...props}
-    >
+}: InteractiveButtonProps & { asChild?: boolean }) {
+  const Comp = asChild ? 'span' : 'button';
+  
+  const buttonContent = (
+    <>
       {gradient && (
         <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       )}
@@ -71,6 +62,45 @@ export function InteractiveButton({
           )} />
         )}
       </div>
+    </>
+  );
+
+  if (asChild) {
+    return (
+      <Button
+        asChild
+        size={size}
+        variant={variant}
+        className={cn(
+          "relative overflow-hidden group transition-all duration-300",
+          gradient && `bg-gradient-to-r ${gradient} hover:shadow-lg hover:scale-105`,
+          glow && "hover:shadow-xl hover:shadow-primary/25",
+          "hover:scale-105 active:scale-95",
+          className
+        )}
+        disabled={loading}
+        {...props}
+      >
+        <span>{buttonContent}</span>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      size={size}
+      variant={variant}
+      className={cn(
+        "relative overflow-hidden group transition-all duration-300",
+        gradient && `bg-gradient-to-r ${gradient} hover:shadow-lg hover:scale-105`,
+        glow && "hover:shadow-xl hover:shadow-primary/25",
+        "hover:scale-105 active:scale-95",
+        className
+      )}
+      disabled={loading}
+      {...props}
+    >
+      {buttonContent}
     </Button>
   );
 }
