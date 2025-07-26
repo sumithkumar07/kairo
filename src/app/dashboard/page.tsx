@@ -538,13 +538,13 @@ function DashboardPage() {
     </div>
   );
 
-  // Analytics Tab
+  // Analytics Tab with Enhanced Real-time Charts
   const AnalyticsTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold">Analytics Dashboard</h2>
-          <p className="text-muted-foreground">Detailed insights into your automation performance</p>
+          <p className="text-muted-foreground">Real-time insights into your automation performance</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm">
@@ -558,169 +558,8 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Monthly Executions</p>
-                <p className="text-2xl font-bold">{dashboardStats.monthlyExecutions.toLocaleString()}</p>
-              </div>
-              <LineChart className="h-8 w-8 text-blue-600" />
-            </div>
-            <div className="mt-2">
-              <Progress value={75} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">75% of quota used</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Response Time</p>
-                <p className="text-2xl font-bold">{dashboardStats.avgResponseTime}ms</p>
-              </div>
-              <Gauge className="h-8 w-8 text-green-600" />
-            </div>
-            <div className="mt-2">
-              <p className="text-xs text-green-600 flex items-center gap-1">
-                <TrendingDown className="h-3 w-3" />
-                12% faster than last month
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Error Rate</p>
-                <p className="text-2xl font-bold">{dashboardStats.errorRate}%</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-orange-600" />
-            </div>
-            <div className="mt-2">
-              <p className="text-xs text-green-600 flex items-center gap-1">
-                <TrendingDown className="h-3 w-3" />
-                0.5% improvement
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Workflows</p>
-                <p className="text-2xl font-bold">{dashboardStats.activeWorkflows}</p>
-              </div>
-              <Activity className="h-8 w-8 text-purple-600" />
-            </div>
-            <div className="mt-2">
-              <p className="text-xs text-muted-foreground">
-                {dashboardStats.totalWorkflows - dashboardStats.activeWorkflows} paused
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Execution Trends
-            </CardTitle>
-            <CardDescription>Workflow executions over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 flex items-center justify-center bg-muted/30 rounded-lg">
-              <div className="text-center text-muted-foreground">
-                <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Execution trend chart would appear here</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Workflow Categories
-            </CardTitle>
-            <CardDescription>Distribution by category</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80 flex items-center justify-center bg-muted/30 rounded-lg">
-              <div className="text-center text-muted-foreground">
-                <PieChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Category distribution chart would appear here</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Analytics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Performance Breakdown
-          </CardTitle>
-          <CardDescription>Detailed performance metrics by workflow</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {topWorkflows.map((workflow) => (
-              <div key={workflow.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Workflow className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">{workflow.name}</h4>
-                    <p className="text-sm text-muted-foreground">{workflow.category}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-4 gap-8 text-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Executions</p>
-                    <p className="font-semibold">{workflow.executions.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Success Rate</p>
-                    <p className="font-semibold">{workflow.successRate}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Avg Duration</p>
-                    <p className="font-semibold">{workflow.avgDuration}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge variant={workflow.status === 'running' ? 'default' : 'secondary'}>
-                      {workflow.status}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <Button variant="ghost" size="sm">
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Enhanced Real-time Charts Component */}
+      <RealTimeCharts />
     </div>
   );
 
