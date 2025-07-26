@@ -273,6 +273,22 @@ function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
 
+  // AI Assistant handlers
+  const handleWorkflowGenerate = (description: string) => {
+    console.log('Generating workflow:', description);
+    setActiveTab('templates'); // Navigate to templates tab
+  };
+
+  const handleGodTierActivate = (feature: string) => {
+    console.log('Activating god-tier feature:', feature);
+    setActiveTab('ai'); // Navigate to AI tab
+  };
+
+  const handleIntegrationSetup = (service: string) => {
+    console.log('Setting up integration:', service);
+    setActiveTab('integrations'); // Navigate to integrations tab
+  };
+
   // Overview Tab
   const OverviewTab = () => (
     <div className="space-y-6">
