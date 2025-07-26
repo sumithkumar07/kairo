@@ -527,7 +527,7 @@ function AIStudioPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto">
             <TabsTrigger value="terminal" className="flex items-center gap-2">
               <Terminal className="h-4 w-4" />
               AI Terminal
@@ -535,6 +535,10 @@ function AIStudioPage() {
             <TabsTrigger value="divine-powers" className="flex items-center gap-2">
               <Crown className="h-4 w-4" />
               Divine Powers
+            </TabsTrigger>
+            <TabsTrigger value="enhanced-features" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              Enhanced Features
             </TabsTrigger>
             <TabsTrigger value="skills" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
