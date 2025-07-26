@@ -331,7 +331,7 @@ function HelpPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Trending className="h-5 w-5" />
+            <TrendingUp className="h-5 w-5" />
             Popular Articles
           </CardTitle>
           <CardDescription>Most viewed help articles this week</CardDescription>
