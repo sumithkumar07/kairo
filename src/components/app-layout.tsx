@@ -20,6 +20,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, Compass, FileText, Shield, Activity, CreditCard, Calendar, BarChart3, Crown, Link as LinkIcon, HelpCircle, BookOpen, AlertCircle, GraduationCap, Bot, BarChart2 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { GlobalSearch, KeyboardShortcuts, ContextualHelp } from '@/components/enhanced-navigation';
+import { EnhancedThemeToggle } from '@/components/enhanced-user-experience';
 import {
   DropdownMenu,
   DropdownMenuContent,
