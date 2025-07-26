@@ -73,8 +73,7 @@ import {
   SkipForward,
   Rewind,
   FastForward,
-  Puzzle,
-  Template
+  Puzzle
 } from 'lucide-react';
 
 // Mock data for dashboard
