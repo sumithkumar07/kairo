@@ -7,8 +7,9 @@ import { OAuthService } from '@/lib/oauth';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { provider: string } }
+  context: { params: Promise<{ provider: string }> }
 ) {
+  const params = await context.params;
   try {
     const { provider } = params;
     const { searchParams } = new URL(request.url);
