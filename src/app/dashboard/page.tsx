@@ -585,12 +585,18 @@ function DashboardPage() {
   // Monitoring Tab with Enhanced Real-time Monitoring
   const MonitoringTab = () => <EnhancedMonitoring />;
 
+  // Integration Marketplace Tab
+  const IntegrationsTab = () => <IntegrationMarketplace />;
+
+  // Template Library Tab  
+  const TemplatesTab = () => <TemplateLibrary />;
+
   return (
     <EnhancedAppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex items-center justify-between">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
+            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>
@@ -606,6 +612,14 @@ function DashboardPage() {
               <TabsTrigger value="monitoring" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
                 <span className="hidden sm:inline">Monitoring</span>
+              </TabsTrigger>
+              <TabsTrigger value="integrations" className="flex items-center gap-2">
+                <Puzzle className="h-4 w-4" />
+                <span className="hidden sm:inline">Integrations</span>
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Templates</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -625,8 +639,23 @@ function DashboardPage() {
           <TabsContent value="monitoring" className="space-y-6">
             <MonitoringTab />
           </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-6">
+            <IntegrationsTab />
+          </TabsContent>
+
+          <TabsContent value="templates" className="space-y-6">
+            <TemplatesTab />
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* AI Floating Assistant */}
+      <AIFloatingAssistant
+        onWorkflowGenerate={handleWorkflowGenerate}
+        onGodTierActivate={handleGodTierActivate}
+        onIntegrationSetup={handleIntegrationSetup}
+      />
     </EnhancedAppLayout>
   );
 }
