@@ -631,6 +631,11 @@ function AIStudioPage() {
             <TrinityDashboard />
           </TabsContent>
 
+          {/* Enhanced AI Features Tab */}
+          <TabsContent value="enhanced-features" className="space-y-6 mt-6">
+            <EnhancedAIStudio />
+          </TabsContent>
+
           {/* Agent Skills Tab */}
           <TabsContent value="skills" className="space-y-6 mt-6">
             <Card>
