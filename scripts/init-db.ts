@@ -1,5 +1,5 @@
-import { initializeDatabase } from '@/lib/database-server';
-import { initializeGodTierFeatures } from '@/lib/god-tier-database-schema';
+import { initializeDatabase } from '../src/lib/database-server';
+import { initializeGodTierFeatures } from '../src/lib/god-tier-database-schema';
 
 async function main() {
   try {
