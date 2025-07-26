@@ -184,7 +184,7 @@ export const youtubeGetReportTool = ai.defineTool({
         userId: z.string().describe("The user's ID, needed to retrieve their API key."),
     }),
     outputSchema: z.object({ views: z.number(), likes: z.number(), comments: z.number() }).optional(),
-}, async ({ videoId, userId }) => {
+}, async ({ videoId, userId }: { videoId: string; userId: string }) => {
     console.log(`[Agent Tool] Getting report for YouTube video: ${videoId} (user: ${userId})`);
     const apiKey = await getCredentialValueByNameForUser('YouTubeApiKey', userId);
     if (!apiKey) throw new Error('YouTubeApiKey credential not found. Please add it in the AI Agent Hub.');
