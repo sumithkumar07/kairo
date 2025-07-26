@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AppLayout } from '@/components/app-layout';
+import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { AdvancedPerformanceMonitor } from '@/components/advanced-performance-monitor';
+import { TrendAnalysis } from '@/components/ui/trend-analysis';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { 
   BarChart3, 
@@ -72,124 +72,40 @@ import {
   Terminal,
   Code,
   Timer,
-  Network
+  Network,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 
-// Analytics Super Dashboard - Consolidated from /reports, /analytics, /monitoring
-// This combines all analytics, reporting, and monitoring functionality in one unified interface
-
-// Sample data (consolidated from all three previous pages)
-const overviewMetrics = {
-  totalWorkflows: { value: 247, change: 12.5, trend: 'up' },
-  totalExecutions: { value: 89247, change: 8.3, trend: 'up' },
-  successRate: { value: 94.2, change: -1.2, trend: 'down' },
-  avgExecutionTime: { value: 2.8, change: -15.7, trend: 'up' },
-  activeUsers: { value: 156, change: 23.1, trend: 'up' },
-  costSavings: { value: 45289, change: 18.9, trend: 'up' }
-};
-
-const systemStatus = {
-  overall: 'healthy',
-  uptime: '99.98%',
-  lastIncident: '12 days ago',
-  activeAlerts: 3,
-  services: [
-    { name: 'API Gateway', status: 'healthy', uptime: '99.99%', responseTime: '45ms' },
-    { name: 'Workflow Engine', status: 'healthy', uptime: '99.97%', responseTime: '120ms' },
-    { name: 'Database Cluster', status: 'warning', uptime: '99.95%', responseTime: '200ms' },
-    { name: 'Integration Hub', status: 'healthy', uptime: '99.98%', responseTime: '85ms' },
-    { name: 'AI Processing', status: 'healthy', uptime: '99.96%', responseTime: '300ms' },
-    { name: 'Notification Service', status: 'maintenance', uptime: '99.94%', responseTime: '60ms' }
-  ]
-};
-
-const liveMetrics = {
-  cpu: { current: 42, average: 38, peak: 78 },
-  memory: { current: 68, average: 65, peak: 89 },
-  disk: { current: 23, average: 25, peak: 45 },
-  network: { in: '45.2 MB/s', out: '32.1 MB/s' },
-  requests: { current: 1247, average: 1156, errors: 12 },
-  latency: { p50: '124ms', p95: '450ms', p99: '800ms' }
-};
-
-const workflowMetrics = [
-  {
-    id: 1,
-    name: 'Lead Nurturing Automation',
-    category: 'Marketing',
-    executions: 12847,
-    successRate: 96.8,
-    avgTime: 3.2,
-    lastRun: '2 minutes ago',
-    status: 'active',
-    trend: 'up'
-  },
-  {
-    id: 2,
-    name: 'Customer Onboarding',
-    category: 'Sales',
-    executions: 8934,
-    successRate: 94.1,
-    avgTime: 5.7,
-    lastRun: '5 minutes ago',
-    status: 'active',
-    trend: 'up'
-  },
-  {
-    id: 3,
-    name: 'Invoice Processing',
-    category: 'Finance',
-    executions: 15623,
-    successRate: 98.3,
-    avgTime: 1.4,
-    lastRun: '8 minutes ago',
-    status: 'active',
-    trend: 'stable'
-  }
-];
-
-const integrationMetrics = [
-  { name: 'Salesforce', requests: 23847, success: 98.2, avgLatency: 245, status: 'healthy' },
-  { name: 'Slack', requests: 15634, success: 99.1, avgLatency: 120, status: 'healthy' },
-  { name: 'Google Sheets', requests: 12456, success: 96.8, avgLatency: 180, status: 'healthy' },
-  { name: 'Shopify', requests: 8923, success: 94.7, avgLatency: 320, status: 'warning' }
-];
-
-const alerts = [
-  { 
-    id: 1, 
-    level: 'critical', 
-    title: 'High Error Rate', 
-    description: 'Payment processing workflow showing 5% error rate', 
-    time: '2 minutes ago',
-    service: 'Payment Gateway',
-    status: 'active'
-  },
-  { 
-    id: 2, 
-    level: 'warning', 
-    title: 'Database Connection Pool', 
-    description: 'Connection pool utilization above 80%', 
-    time: '15 minutes ago',
-    service: 'Database',
-    status: 'active'
-  }
-];
-
-const recentLogs = [
-  { timestamp: '2025-01-24 10:15:32', level: 'ERROR', service: 'Payment Gateway', message: 'Connection timeout to payment processor' },
-  { timestamp: '2025-01-24 10:14:15', level: 'WARN', service: 'Database', message: 'Slow query detected: SELECT * FROM workflows (2.3s)' },
-  { timestamp: '2025-01-24 10:13:45', level: 'INFO', service: 'Workflow Engine', message: 'Workflow "Lead Nurturing" completed successfully' }
-];
-
-function AnalyticsSuperDashboard() {
+function AnalyticsEnhancedDashboard() {
   const [timeRange, setTimeRange] = useState('7d');
   const [selectedMetric, setSelectedMetric] = useState('all');
-  const [alertFilter, setAlertFilter] = useState('all');
-  const [logFilter, setLogFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  // Enhanced metrics with professional data
+  const overviewMetrics = {
+    totalWorkflows: { value: 247, change: 12.5, trend: 'up' as const },
+    totalExecutions: { value: 89247, change: 8.3, trend: 'up' as const },
+    successRate: { value: 94.2, change: -1.2, trend: 'down' as const },
+    avgExecutionTime: { value: 2.8, change: -15.7, trend: 'up' as const },
+    activeUsers: { value: 156, change: 23.1, trend: 'up' as const },
+    costSavings: { value: 45289, change: 18.9, trend: 'up' as const }
+  };
+
+  const systemStatus = {
+    overall: 'healthy',
+    uptime: '99.98%',
+    lastIncident: '12 days ago',
+    activeAlerts: 3,
+    services: [
+      { name: 'API Gateway', status: 'healthy', uptime: '99.99%', responseTime: '45ms' },
+      { name: 'Workflow Engine', status: 'healthy', uptime: '99.97%', responseTime: '120ms' },
+      { name: 'Database Cluster', status: 'warning', uptime: '99.95%', responseTime: '200ms' },
+      { name: 'Integration Hub', status: 'healthy', uptime: '99.98%', responseTime: '85ms' },
+      { name: 'AI Processing', status: 'healthy', uptime: '99.96%', responseTime: '300ms' }
+    ]
+  };
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -201,12 +117,10 @@ function AnalyticsSuperDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': 
       case 'healthy': return 'text-green-500 bg-green-500/10';
       case 'warning': return 'text-yellow-500 bg-yellow-500/10';
       case 'error': 
       case 'critical': return 'text-red-500 bg-red-500/10';
-      case 'maintenance': return 'text-blue-500 bg-blue-500/10';
       default: return 'text-gray-500 bg-gray-500/10';
     }
   };
@@ -223,27 +137,17 @@ function AnalyticsSuperDashboard() {
     return num.toString();
   };
 
-  const getAlertIcon = (level: string) => {
-    switch (level) {
-      case 'critical': return <AlertCircle className="h-4 w-4" />;
-      case 'error': return <XCircle className="h-4 w-4" />;
-      case 'warning': return <AlertTriangle className="h-4 w-4" />;
-      case 'info': return <Info className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
-    }
-  };
-
   return (
-    <AppLayout>
+    <EnhancedAppLayout>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Enhanced Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold text-foreground mb-2">
-              Analytics <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Super Dashboard</span>
+              Analytics <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Intelligence Hub</span>
             </h1>
             <p className="text-muted-foreground">
-              Unified analytics, monitoring, and reporting - all your insights in one place
+              AI-powered insights, trend analysis, and predictive intelligence
             </p>
           </div>
           
@@ -254,9 +158,9 @@ function AnalyticsSuperDashboard() {
                 onCheckedChange={setAutoRefresh} 
                 id="auto-refresh"
               />
-              <label htmlFor="auto-refresh" className="text-sm text-muted-foreground">
+              <Label htmlFor="auto-refresh" className="text-sm text-muted-foreground">
                 Auto-refresh
-              </label>
+              </Label>
             </div>
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-32">
@@ -284,13 +188,32 @@ function AnalyticsSuperDashboard() {
           </div>
         </div>
 
-        {/* Last Updated */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Clock className="h-4 w-4" />
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </div>
+        {/* AI Insights Banner */}
+        <Card className="mb-8 p-6 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 border-border/50">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-600 rounded-xl">
+              <Brain className="h-8 w-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold mb-2">AI-Powered Intelligence Active</h3>
+              <p className="text-muted-foreground">
+                Our AI is continuously analyzing your workflows, detecting anomalies, and generating predictive insights to optimize your automation performance.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge className="bg-gradient-to-r from-green-500 to-emerald-500">
+                <Sparkles className="h-3 w-3 mr-1" />
+                23 Insights Generated
+              </Badge>
+              <Button variant="outline">
+                View All Insights
+                <ArrowUp className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        </Card>
 
-        {/* Overview Metrics */}
+        {/* Enhanced Overview Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
           <Card className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
@@ -419,51 +342,56 @@ function AnalyticsSuperDashboard() {
           </Card>
         </div>
 
-        {/* Consolidated Tabs with URL parameter support */}
-        <Tabs 
-          defaultValue="overview" 
-          className="space-y-8"
-          value={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') || 'overview' : 'overview'}
-        >
+        {/* Enhanced Tabs with AI Intelligence */}
+        <Tabs defaultValue="intelligence" className="space-y-8">
           <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="intelligence" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              AI Intelligence
+            </TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="real-time">Real-time</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="insights">Insights</TabsTrigger>
-            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab - Key metrics & KPIs */}
+          {/* AI Intelligence Tab - NEW ENHANCED FEATURE */}
+          <TabsContent value="intelligence" className="space-y-6">
+            <TrendAnalysis />
+          </TabsContent>
+
+          {/* Other existing tabs with enhanced content */}
           <TabsContent value="overview" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Workflow Performance</CardTitle>
-                  <CardDescription>Top performing workflows and their metrics</CardDescription>
+                  <CardTitle>System Health Overview</CardTitle>
+                  <CardDescription>Real-time status of all system components</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {workflowMetrics.map((workflow) => (
-                      <div key={workflow.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
+                    {systemStatus.services.map((service, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
                         <div className="flex items-center gap-4">
-                          <div className={`w-3 h-3 rounded-full ${getStatusColor(workflow.status)}`} />
+                          <div className={`p-2 rounded-full ${getStatusColor(service.status)}`}>
+                            {service.status === 'healthy' ? <CheckCircle className="h-4 w-4" /> :
+                             service.status === 'warning' ? <AlertTriangle className="h-4 w-4" /> :
+                             <XCircle className="h-4 w-4" />}
+                          </div>
                           <div>
-                            <div className="font-semibold">{workflow.name}</div>
-                            <div className="text-sm text-muted-foreground">{workflow.category}</div>
+                            <h4 className="font-semibold">{service.name}</h4>
+                            <p className="text-sm text-muted-foreground capitalize">{service.status}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-8 text-sm">
+                        <div className="flex items-center gap-6 text-sm">
                           <div className="text-center">
-                            <div className="font-semibold">{formatNumber(workflow.executions)}</div>
-                            <div className="text-muted-foreground">Executions</div>
+                            <div className="font-semibold">{service.uptime}</div>
+                            <div className="text-muted-foreground">Uptime</div>
                           </div>
                           <div className="text-center">
-                            <div className="font-semibold">{workflow.successRate}%</div>
-                            <div className="text-muted-foreground">Success</div>
-                          </div>
-                          <div className="text-center">
-                            {getTrendIcon(workflow.trend, 0)}
+                            <div className="font-semibold">{service.responseTime}</div>
+                            <div className="text-muted-foreground">Response</div>
                           </div>
                         </div>
                       </div>
@@ -474,276 +402,91 @@ function AnalyticsSuperDashboard() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Integration Health</CardTitle>
-                  <CardDescription>Monitor the health of your integrations</CardDescription>
+                  <CardTitle>Quick Insights</CardTitle>
+                  <CardDescription>AI-generated insights from your data</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {integrationMetrics.map((integration) => (
-                      <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${getStatusColor(integration.status)}`} />
-                          <span className="font-medium">{integration.name}</span>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="text-center">
-                            <div className="font-semibold">{integration.success}%</div>
-                            <div className="text-muted-foreground">Success</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold">{integration.avgLatency}ms</div>
-                            <div className="text-muted-foreground">Latency</div>
-                          </div>
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                      <div className="flex items-start gap-3">
+                        <TrendingUp className="h-5 w-5 text-green-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-green-900 dark:text-green-100">Performance Improvement</h4>
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            Workflow success rate increased by 23% over the last 30 days
+                          </p>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-start gap-3">
+                        <Target className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-blue-900 dark:text-blue-100">Optimization Opportunity</h4>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            3 workflows can be optimized to reduce execution time by 40%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* Real-time Tab - Live monitoring & alerts */}
+          {/* Additional tabs would go here with similar enhancements */}
           <TabsContent value="real-time" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* CPU Usage */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
-                    <Cpu className="h-4 w-4 text-blue-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Current</span>
-                      <span className="font-bold">{liveMetrics.cpu.current}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${liveMetrics.cpu.current}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Avg: {liveMetrics.cpu.average}%</span>
-                      <span>Peak: {liveMetrics.cpu.peak}%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Memory Usage */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
-                    <MemoryStick className="h-4 w-4 text-green-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Current</span>
-                      <span className="font-bold">{liveMetrics.memory.current}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${liveMetrics.memory.current}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Avg: {liveMetrics.memory.average}%</span>
-                      <span>Peak: {liveMetrics.memory.peak}%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Network I/O */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">Network I/O</CardTitle>
-                    <Wifi className="h-4 w-4 text-orange-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Inbound</span>
-                      <span className="font-bold">{liveMetrics.network.in}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Outbound</span>
-                      <span className="font-bold">{liveMetrics.network.out}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Active Alerts */}
             <Card>
               <CardHeader>
-                <CardTitle>Active Alerts</CardTitle>
-                <CardDescription>Recent alerts and system notifications</CardDescription>
+                <CardTitle>Real-time Monitoring</CardTitle>
+                <CardDescription>Live system metrics and activity</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {alerts.map((alert) => (
-                    <div key={alert.id} className="flex items-start gap-4 p-4 rounded-lg border bg-card/50">
-                      <div className={`p-2 rounded-full ${getStatusColor(alert.level)}`}>
-                        {getAlertIcon(alert.level)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">{alert.title}</h4>
-                          <Badge 
-                            variant={alert.status === 'active' ? 'destructive' : 'outline'}
-                            className="text-xs"
-                          >
-                            {alert.status}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {alert.level}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{alert.description}</p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {alert.time}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Server className="h-3 w-3" />
-                            {alert.service}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="h-64 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <Activity className="h-12 w-12 mx-auto mb-2" />
+                    <p>Real-time monitoring dashboard would be rendered here</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Performance Tab - System health & resources */}
           <TabsContent value="performance" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Service Status</CardTitle>
-                <CardDescription>Real-time status of all system components</CardDescription>
+                <CardTitle>Performance Analytics</CardTitle>
+                <CardDescription>Detailed performance metrics and trends</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {systemStatus.services.map((service, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${getStatusColor(service.status)}`}>
-                          {service.status === 'healthy' ? <CheckCircle className="h-4 w-4" /> :
-                           service.status === 'warning' ? <AlertTriangle className="h-4 w-4" /> :
-                           service.status === 'maintenance' ? <Settings className="h-4 w-4" /> :
-                           <XCircle className="h-4 w-4" />}
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">{service.name}</h4>
-                          <p className="text-sm text-muted-foreground capitalize">{service.status}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6 text-sm">
-                        <div className="text-center">
-                          <div className="font-semibold">{service.uptime}</div>
-                          <div className="text-muted-foreground">Uptime</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{service.responseTime}</div>
-                          <div className="text-muted-foreground">Response</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="h-64 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-2" />
+                    <p>Performance analytics would be rendered here</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Insights Tab - Advanced analytics & trends */}
           <TabsContent value="insights" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Trends</CardTitle>
-                  <CardDescription>Workflow performance over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-2" />
-                      <p>Performance chart visualization would go here</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Usage Analytics</CardTitle>
-                  <CardDescription>User activity and engagement metrics</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <PieChart className="h-12 w-12 mx-auto mb-2" />
-                      <p>Usage analytics chart would go here</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Monitoring Tab - System logs and monitoring with Advanced Performance Monitor */}
-          <TabsContent value="monitoring" className="space-y-6">
-            <AdvancedPerformanceMonitor />
-            
             <Card>
               <CardHeader>
-                <CardTitle>System Logs</CardTitle>
-                <CardDescription>Recent system events and activities</CardDescription>
+                <CardTitle>Advanced Insights</CardTitle>
+                <CardDescription>Deep dive into your automation patterns</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {recentLogs.map((log, index) => (
-                    <div key={index} className="font-mono text-xs p-3 rounded-lg border bg-card/30 hover:bg-card/50 transition-colors">
-                      <div className="flex items-start gap-4">
-                        <span className="text-muted-foreground shrink-0">
-                          {log.timestamp}
-                        </span>
-                        <Badge 
-                          variant={log.level === 'ERROR' ? 'destructive' : 
-                                 log.level === 'WARN' ? 'secondary' : 'outline'}
-                          className="text-xs shrink-0"
-                        >
-                          {log.level}
-                        </Badge>
-                        <span className="text-primary font-medium shrink-0">
-                          [{log.service}]
-                        </span>
-                        <span className="text-foreground">
-                          {log.message}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="h-64 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <Brain className="h-12 w-12 mx-auto mb-2" />
+                    <p>Advanced insights dashboard would be rendered here</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Reports Tab - Generate and export reports */}
           <TabsContent value="reports" className="space-y-6">
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card>
@@ -788,8 +531,8 @@ function AnalyticsSuperDashboard() {
           </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
+    </EnhancedAppLayout>
   );
 }
 
-export default withAuth(AnalyticsSuperDashboard);
+export default withAuth(AnalyticsEnhancedDashboard);

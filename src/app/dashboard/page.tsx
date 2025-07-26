@@ -1,16 +1,16 @@
 'use client';
 
-import { AppLayout } from '@/components/app-layout';
+import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { EnhancedDashboard } from '@/components/enhanced-dashboard';
+import { EnhancedDashboardV2 } from '@/components/enhanced-dashboard-v2';
 
 function DashboardPage() {
   return (
-    <AppLayout>
+    <EnhancedAppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <EnhancedDashboard />
+        <EnhancedDashboardV2 />
       </div>
-    </AppLayout>
+    </EnhancedAppLayout>
   );
 }
 
