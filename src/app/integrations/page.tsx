@@ -365,7 +365,11 @@ function IntegrationManagementCenter() {
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs 
+          value={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') || activeTab : activeTab}
+          onValueChange={setActiveTab} 
+          className="space-y-8"
+        >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
             <TabsTrigger value="my-integrations">My Integrations</TabsTrigger>
