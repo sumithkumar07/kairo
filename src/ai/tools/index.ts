@@ -27,9 +27,9 @@ const createTool = (
 });
 
 // Create and register tools from workflow-management-tools.ts
-const kairoIcon = AVAILABLE_NODES_CONFIG.find(n => n.type === 'workflowNode')?.icon!;
-const youtubeIcon = AVAILABLE_NODES_CONFIG.find(n => n.type === 'youtubeFetchTrending')?.icon!;
-const gdriveIcon = FileIcon; 
+const kairoIcon = 'workflow';
+const youtubeIcon = 'youtube';
+const gdriveIcon = 'file'; 
 
 ALL_AVAILABLE_TOOLS_MAP.set(listSavedWorkflowsTool.name, createTool(listSavedWorkflowsTool, kairoIcon, 'Kairo'));
 ALL_AVAILABLE_TOOLS_MAP.set(getWorkflowDefinitionTool.name, createTool(getWorkflowDefinitionTool, kairoIcon, 'Kairo'));
