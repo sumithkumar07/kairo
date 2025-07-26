@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signUp, logUserAction } from '@/lib/auth';
+import { validateRequest, schemas, APIResponse } from '@/lib/validation';
+import { withSecurity, rateLimiters } from '@/lib/security';
 
-export async function POST(request: NextRequest) {
+async function handleSignup(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
-    
-    if (!email || !password) {
-      return NextResponse.json(
-        { message: 'Email and password are required' },
-        { status: 400 }
-      );
+    // Validate request data
+    const validation = await validateRequest(schemas.signup)(request);
+    if (validation.error) {
+      return APIResponse.validation([validation.error]);
     }
 
-    // Get client info
+    const { email, password, name, company } = validation.data;
+
+    // Get client info for security logging
     const userAgent = request.headers.get('user-agent');
     const forwardedFor = request.headers.get('x-forwarded-for');
     const ipAddress = forwardedFor ? forwardedFor.split(',')[0] : 
@@ -27,15 +28,22 @@ export async function POST(request: NextRequest) {
       'signup',
       'user',
       result.user.id,
-      { method: 'email_password' },
+      { 
+        method: 'email_password',
+        name: name || undefined,
+        company: company || undefined
+      },
       ipAddress,
       userAgent || undefined
     );
 
     // Create response with cookie
     const response = NextResponse.json({
-      user: result.user,
-      message: 'Account created successfully'
+      success: true,
+      data: {
+        user: result.user,
+        message: 'Account created successfully'
+      }
     });
 
     // Set secure HTTP-only cookie
@@ -51,9 +59,16 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[AUTH] Signup error:', error);
     
-    return NextResponse.json(
-      { message: error.message || 'Signup failed' },
-      { status: 400 }
+    return APIResponse.error(
+      error.message || 'Signup failed',
+      'SIGNUP_FAILED',
+      400,
+      { originalError: process.env.NODE_ENV === 'development' ? error.stack : undefined }
     );
   }
 }
+
+export const POST = withSecurity(handleSignup, {
+  rateLimiter: rateLimiters.auth,
+  allowedMethods: ['POST']
+});
