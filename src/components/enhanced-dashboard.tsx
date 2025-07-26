@@ -1,422 +1,322 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SearchFilterBar } from '@/components/ui/search-filter-bar';
+import { StatusIndicator, HealthIndicator } from '@/components/ui/status-indicator';
+import { TrendIndicator } from '@/components/ui/trend-indicator';
+import { MetricCard, EnhancedCard } from '@/components/ui/enhanced-card';
+import { InteractiveButton } from '@/components/ui/interactive-button';
 import { 
-  Workflow, 
   Play, 
-  CheckCircle2, 
-  AlertCircle, 
-  TrendingUp, 
+  Workflow, 
+  Users, 
+  Globe, 
   Clock,
-  Zap,
-  Star,
-  BookOpen,
+  DollarSign,
   Award,
-  Users,
-  BarChart3,
+  CheckCircle2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
   Activity,
-  Bell,
-  Settings,
-  Plus,
-  ArrowRight,
+  Filter,
+  Search,
+  RefreshCw,
   Eye,
-  Coffee,
+  AlertTriangle,
+  Info,
   Sparkles,
   Target,
-  Crown,
   Brain,
-  Rocket,
-  Shield,
-  Globe,
-  Database,
-  MessageSquare,
-  Mail,
-  CreditCard,
-  Smartphone,
-  Calendar,
-  FileText,
-  Gauge,
+  Zap,
+  Monitor,
   Cpu,
   HardDrive,
   Wifi,
+  Database,
   Network,
-  Monitor,
-  Lock,
-  Key,
-  Code,
-  GitBranch,
-  Layers,
-  RefreshCw,
-  DollarSign,
-  TrendingDown,
-  Minus,
-  AlertTriangle,
-  Info,
-  Search,
-  Filter,
-  MoreHorizontal,
-  Maximize2,
-  Download,
-  Upload,
-  Share2,
-  ChevronRight,
-  ChevronDown,
-  Grid,
-  List,
-  Edit,
-  Trash2,
-  Archive,
-  Bookmark,
-  Tag,
-  Move,
-  Copy,
-  Link,
-  ExternalLink,
-  Pause,
-  Square,
-  FastForward,
-  Rewind,
-  Volume2,
-  VolumeX,
-  Image,
-  Video,
-  Music,
-  Folder,
-  FolderOpen,
-  Save,
-  Download as DownloadIcon,
-  Upload as UploadIcon
+  Gauge,
+  BookOpen,
+  BarChart3,
+  Plus,
+  ArrowRight,
+  Code2,
+  Palette,
+  MessageSquare,
+  Settings
 } from 'lucide-react';
-import { format } from 'date-fns';
-
-// Enhanced Dashboard with comprehensive command center functionality
-// Integrates data from all consolidated pages: Analytics, Account, Learning, Integrations
 
 interface DashboardStats {
   totalWorkflows: number;
   totalExecutions: number;
   successRate: number;
   avgExecutionTime: number;
-  monthlyGrowth: number;
-  costs: number;
-  unreadNotifications: number;
-  certificationsEarned: number;
   activeIntegrations: number;
   teamMembers: number;
+  costs: string;
+  certificationsEarned: number;
+  monthlyGrowth: number;
   systemHealth: 'excellent' | 'good' | 'warning' | 'critical';
-  cpuUsage: number;
-  memoryUsage: number;
-  diskUsage: number;
-  networkLatency: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: 'workflow_run' | 'workflow_saved' | 'ai_command' | 'certification_earned' | 'integration_connected' | 'team_joined' | 'alert_generated';
-  title: string;
-  status: 'success' | 'failed' | 'running' | 'pending';
-  timestamp: string;
-  metadata: any;
-  category?: string;
-  user?: string;
 }
 
 interface QuickAction {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ElementType;
   href: string;
-  color: string;
   category: string;
+  color: string;
+  popular?: boolean;
 }
 
-interface DashboardWidget {
+interface Activity {
   id: string;
+  type: string;
   title: string;
-  type: 'metric' | 'chart' | 'list' | 'progress' | 'status';
-  size: 'small' | 'medium' | 'large';
-  enabled: boolean;
-  position: { x: number; y: number };
-  data: any;
+  status: 'success' | 'failed' | 'running' | 'pending';
+  timestamp: string;
+  metadata?: any;
+  category: string;
+  user?: string;
 }
 
-const quickActions: QuickAction[] = [
-  // Workflow Actions
-  {
-    id: 'create-workflow',
-    title: 'Create Workflow',
-    description: 'Build a new automation',
-    icon: Plus,
-    href: '/workflow',
-    color: 'from-blue-500 to-cyan-500',
-    category: 'workflows'
-  },
-  {
-    id: 'ai-studio',
-    title: 'AI Studio',
-    description: 'Generate with AI',
-    icon: Brain,
-    href: '/ai-studio',
-    color: 'from-purple-500 to-pink-500',
-    category: 'ai'
-  },
-  {
-    id: 'workflow-templates',
-    title: 'Browse Templates',
-    description: 'Pre-built workflows',
-    icon: FileText,
-    href: '/workflow?tab=templates',
-    color: 'from-indigo-500 to-purple-500',
-    category: 'workflows'
-  },
-  // Integration Actions
-  {
-    id: 'browse-integrations',
-    title: 'Browse Integrations',
-    description: 'Connect your apps',
-    icon: Zap,
-    href: '/integrations',
-    color: 'from-green-500 to-emerald-500',
-    category: 'integrations'
-  },
-  {
-    id: 'marketplace',
-    title: 'App Marketplace',
-    description: 'Discover new apps',
-    icon: Globe,
-    href: '/integrations?tab=marketplace',
-    color: 'from-orange-500 to-red-500',
-    category: 'integrations'
-  },
-  // Analytics Actions
-  {
-    id: 'view-analytics',
-    title: 'View Analytics',
-    description: 'Monitor performance',
-    icon: BarChart3,
-    href: '/analytics',
-    color: 'from-teal-500 to-blue-500',
-    category: 'analytics'
-  },
-  {
-    id: 'real-time-monitoring',
-    title: 'Live Monitoring',
-    description: 'Real-time insights',
-    icon: Activity,
-    href: '/analytics?tab=real-time',
-    color: 'from-red-500 to-pink-500',
-    category: 'analytics'
-  },
-  // Learning Actions
-  {
-    id: 'learning-center',
-    title: 'Learning Center',
-    description: 'Expand your skills',
-    icon: BookOpen,
-    href: '/learn',
-    color: 'from-yellow-500 to-orange-500',
-    category: 'learning'
-  },
-  {
-    id: 'certifications',
-    title: 'Get Certified',
-    description: 'Earn certificates',
-    icon: Award,
-    href: '/learn?tab=courses',
-    color: 'from-emerald-500 to-teal-500',
-    category: 'learning'
-  },
-  // Account Actions
-  {
-    id: 'team-management',
-    title: 'Manage Team',
-    description: 'Invite & organize',
-    icon: Users,
-    href: '/account?tab=team',
-    color: 'from-violet-500 to-purple-500',
-    category: 'account'
-  },
-  {
-    id: 'account-settings',
-    title: 'Account Settings',
-    description: 'Profile & preferences',
-    icon: Settings,
-    href: '/account',
-    color: 'from-gray-500 to-slate-500',
-    category: 'account'
-  },
-  {
-    id: 'security-settings',
-    title: 'Security Center',
-    description: 'Keys & permissions',
-    icon: Shield,
-    href: '/account?tab=security',
-    color: 'from-red-500 to-rose-500',
-    category: 'account'
-  }
-];
+interface SystemMetrics {
+  cpu: { current: number; average: number; peak: number };
+  memory: { current: number; average: number; peak: number };
+  disk: { current: number; average: number; peak: number };
+  network: { latency: string; throughput: string };
+  database: { connections: number; maxConnections: number; responseTime: string };
+}
 
-const learningPaths = [
-  {
-    id: 'beginner',
-    title: 'Automation Fundamentals',
-    progress: 78,
-    totalModules: 12,
-    icon: BookOpen,
-    color: 'text-green-500',
-    nextModule: 'Error Handling Basics',
-    estimatedTime: '2h left'
-  },
-  {
-    id: 'intermediate',
-    title: 'Advanced Workflow Design',
-    progress: 65,
-    totalModules: 18,
-    icon: Rocket,
-    color: 'text-blue-500',
-    nextModule: 'Complex Conditional Logic',
-    estimatedTime: '5h left'
-  },
-  {
-    id: 'ai-powered',
-    title: 'AI-Powered Automation',
-    progress: 30,
-    totalModules: 15,
-    icon: Brain,
-    color: 'text-purple-500',
-    nextModule: 'Natural Language Processing',
-    estimatedTime: '8h left'
-  },
-  {
-    id: 'enterprise',
-    title: 'Enterprise Security & Compliance',
-    progress: 12,
-    totalModules: 20,
-    icon: Shield,
-    color: 'text-red-500',
-    nextModule: 'SOC 2 Requirements',
-    estimatedTime: '15h left'
-  }
-];
-
-const systemMetrics = {
-  cpu: { current: 42, average: 38, peak: 78, status: 'healthy' },
-  memory: { current: 68, average: 65, peak: 89, status: 'healthy' },
-  disk: { current: 23, average: 25, peak: 45, status: 'healthy' },
-  network: { latency: '45ms', throughput: '125 Mbps', status: 'healthy' },
-  database: { connections: 15, maxConnections: 100, responseTime: '12ms', status: 'healthy' },
-  services: { active: 8, total: 8, status: 'healthy' }
-};
-
-const integrationHealth = [
-  { name: 'Salesforce', status: 'healthy', latency: '120ms', requests: 1247, success: 99.2 },
-  { name: 'Slack', status: 'healthy', latency: '85ms', requests: 856, success: 99.8 },
-  { name: 'Google Sheets', status: 'warning', latency: '200ms', requests: 634, success: 96.5 },
-  { name: 'Shopify', status: 'healthy', latency: '150ms', requests: 423, success: 98.7 }
-];
-
-const topWorkflows = [
-  { id: '1', name: 'Lead Nurturing Campaign', executions: 12847, successRate: 96.8, avgTime: 3.2, status: 'running' },
-  { id: '2', name: 'Customer Onboarding', executions: 8934, successRate: 94.1, avgTime: 5.7, status: 'running' },
-  { id: '3', name: 'Invoice Processing', executions: 6521, successRate: 98.3, avgTime: 1.4, status: 'paused' },
-  { id: '4', name: 'Social Media Automation', executions: 4392, successRate: 92.7, avgTime: 2.1, status: 'running' }
-];
-
-const alerts = [
-  { id: '1', type: 'warning', title: 'High Memory Usage', message: 'Memory usage above 80%', time: '5m ago', category: 'system' },
-  { id: '2', type: 'info', title: 'New Integration Available', message: 'Microsoft Teams integration is now available', time: '1h ago', category: 'integration' },
-  { id: '3', type: 'success', title: 'Certification Earned', message: 'Team member completed AI Fundamentals', time: '2h ago', category: 'learning' }
-];
+interface Alert {
+  id: string;
+  type: 'warning' | 'info' | 'success';
+  title: string;
+  time: string;
+}
 
 export function EnhancedDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalWorkflows: 0,
-    totalExecutions: 0,
-    successRate: 0,
-    avgExecutionTime: 0,
-    monthlyGrowth: 0,
-    costs: 0,
-    unreadNotifications: 0,
-    certificationsEarned: 0,
-    activeIntegrations: 0,
-    teamMembers: 0,
-    systemHealth: 'excellent',
-    cpuUsage: 0,
-    memoryUsage: 0,
-    diskUsage: 0,
-    networkLatency: 0
-  });
-
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedActionCategory, setSelectedActionCategory] = useState('all');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(30);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const [stats, setStats] = useState<DashboardStats>({
+    totalWorkflows: 247,
+    totalExecutions: 89247,
+    successRate: 94.2,
+    avgExecutionTime: 2.8,
+    activeIntegrations: 12,
+    teamMembers: 8,
+    costs: '156.78',
+    certificationsEarned: 4,
+    monthlyGrowth: 12.5,
+    systemHealth: 'excellent' as const
+  });
+
+  const [systemMetrics] = useState<SystemMetrics>({
+    cpu: { current: 45, average: 38, peak: 72 },
+    memory: { current: 67, average: 58, peak: 89 },
+    disk: { current: 23, average: 28, peak: 45 },
+    network: { latency: '23ms', throughput: '1.2 GB/s' },
+    database: { connections: 15, maxConnections: 100, responseTime: '12ms' }
+  });
+
+  const [alerts] = useState<Alert[]>([
+    { id: '1', type: 'warning', title: 'High Memory Usage', time: '5m ago' },
+    { id: '2', type: 'info', title: 'New Integration Available', time: '1h ago' },
+    { id: '3', type: 'success', title: 'Certification Earned', time: '2h ago' }
+  ]);
+
+  const quickActions: QuickAction[] = [
+    {
+      id: 'create-workflow',
+      title: 'Create Workflow',
+      description: 'Build a new automation',
+      icon: Plus,
+      href: '/workflow',
+      category: 'workflows',
+      color: 'from-blue-500 to-cyan-500',
+      popular: true
+    },
+    {
+      id: 'ai-studio',
+      title: 'AI Studio',
+      description: 'Generate with AI',
+      icon: Brain,
+      href: '/ai-studio',
+      category: 'ai',
+      color: 'from-purple-500 to-pink-500',
+      popular: true
+    },
+    {
+      id: 'browse-templates',
+      title: 'Browse Templates',
+      description: 'Pre-built workflows',
+      icon: Code2,
+      href: '/templates',
+      category: 'workflows',
+      color: 'from-green-500 to-emerald-500'
+    },
+    {
+      id: 'browse-integrations',
+      title: 'Browse Integrations',
+      description: 'Connect your apps',
+      icon: Globe,
+      href: '/integrations',
+      category: 'integrations',
+      color: 'from-orange-500 to-red-500',
+      popular: true
+    },
+    {
+      id: 'view-analytics',
+      title: 'View Analytics',
+      description: 'Performance insights',
+      icon: BarChart3,
+      href: '/analytics',
+      category: 'analytics',
+      color: 'from-indigo-500 to-purple-500'
+    },
+    {
+      id: 'manage-team',
+      title: 'Manage Team',
+      description: 'Team collaboration',
+      icon: Users,
+      href: '/account?tab=team',
+      category: 'account',
+      color: 'from-teal-500 to-blue-500'
+    },
+    {
+      id: 'learning-paths',
+      title: 'Learning Paths',
+      description: 'Expand your skills',
+      icon: BookOpen,
+      href: '/learn',
+      category: 'learning',
+      color: 'from-pink-500 to-rose-500'
+    },
+    {
+      id: 'api-reference',
+      title: 'API Reference',
+      description: 'Developer resources',
+      icon: Code2,
+      href: '/learn?tab=api',
+      category: 'learning',
+      color: 'from-yellow-500 to-orange-500'
+    }
+  ];
+
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
+
+  const topWorkflows = [
+    {
+      id: '1',
+      name: 'Lead Nurturing Automation',
+      status: 'running',
+      executions: 12800,
+      successRate: 96.8,
+      avgTime: 2.3
+    },
+    {
+      id: '2', 
+      name: 'Customer Onboarding',
+      status: 'running',
+      executions: 8900,
+      successRate: 94.1,
+      avgTime: 1.8
+    },
+    {
+      id: '3',
+      name: 'Invoice Processing',
+      status: 'paused',
+      executions: 5400,
+      successRate: 97.2,
+      avgTime: 3.1
+    }
+  ];
+
+  const integrationHealth = [
+    { name: 'Salesforce', status: 'healthy', requests: '1.2k', success: 98.2, latency: '245ms' },
+    { name: 'Slack', status: 'healthy', requests: '890', success: 99.1, latency: '120ms' },
+    { name: 'Shopify', status: 'warning', requests: '654', success: 94.8, latency: '380ms' }
+  ];
+
+  const learningPaths = [
+    {
+      id: '1',
+      title: 'Automation Fundamentals',
+      progress: 65,
+      totalModules: 12,
+      nextModule: 'Advanced Triggers',
+      estimatedTime: '2 hours left',
+      color: 'text-green-500',
+      icon: BookOpen
+    },
+    {
+      id: '2',
+      title: 'AI-Powered Workflows',
+      progress: 30,
+      totalModules: 8,
+      nextModule: 'Natural Language Processing',
+      estimatedTime: '4 hours left',
+      color: 'text-purple-500',
+      icon: Brain
+    }
+  ];
 
   useEffect(() => {
     loadDashboardData();
+    
     if (autoRefresh) {
-      const interval = setInterval(loadDashboardData, refreshInterval * 1000);
+      const interval = setInterval(() => {
+        loadDashboardData();
+      }, 30000);
+      
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, refreshInterval]);
+  }, [autoRefresh]);
 
   const loadDashboardData = async () => {
     try {
-      // Simulate comprehensive API calls from all consolidated pages
-      setStats({
-        totalWorkflows: 247,
-        totalExecutions: 89247,
-        successRate: 94.2,
-        avgExecutionTime: 2.8,
-        monthlyGrowth: 12.8,
-        costs: 156.78,
-        unreadNotifications: 7,
-        certificationsEarned: 4,
-        activeIntegrations: 12,
-        teamMembers: 8,
-        systemHealth: 'excellent',
-        cpuUsage: 42,
-        memoryUsage: 68,
-        diskUsage: 23,
-        networkLatency: 45
-      });
-
+      setIsLoading(true);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Update recent activity
       setRecentActivity([
         {
           id: '1',
           type: 'workflow_run',
-          title: 'Lead Nurturing Campaign completed successfully',
+          title: 'Lead Nurturing Campaign executed successfully',
           status: 'success',
           timestamp: new Date().toISOString(),
-          metadata: { duration: '3.2s', executions: 147 },
+          metadata: { executionTime: '2.3s', recordsProcessed: 156 },
           category: 'workflows',
-          user: 'System'
+          user: 'Sarah Johnson'
         },
         {
           id: '2',
           type: 'integration_connected',
-          title: 'Microsoft Teams integration connected',
+          title: 'Shopify integration connected',
           status: 'success',
           timestamp: new Date(Date.now() - 300000).toISOString(),
-          metadata: { integration: 'Microsoft Teams' },
+          metadata: { integration: 'Shopify', version: 'v2.1' },
           category: 'integrations',
-          user: 'Sarah Johnson'
+          user: 'Michael Chen'
         },
         {
           id: '3',
@@ -447,16 +347,6 @@ export function EnhancedDashboard() {
           metadata: { member: 'Alex Thompson', role: 'Editor' },
           category: 'team',
           user: 'Sarah Johnson'
-        },
-        {
-          id: '6',
-          type: 'alert_generated',
-          title: 'High memory usage detected',
-          status: 'failed',
-          timestamp: new Date(Date.now() - 2700000).toISOString(),
-          metadata: { usage: '87%', threshold: '80%' },
-          category: 'system',
-          user: 'System Monitor'
         }
       ]);
 
@@ -479,32 +369,6 @@ export function EnhancedDashboard() {
       case 'alert_generated': return <AlertTriangle className="h-4 w-4" />;
       default: return <Activity className="h-4 w-4" />;
     }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'text-green-500 bg-green-500/10';
-      case 'failed': return 'text-red-500 bg-red-500/10';
-      case 'running': return 'text-blue-500 bg-blue-500/10';
-      case 'pending': return 'text-yellow-500 bg-yellow-500/10';
-      default: return 'text-gray-500 bg-gray-500/10';
-    }
-  };
-
-  const getHealthStatus = (health: string) => {
-    switch (health) {
-      case 'excellent': return { color: 'text-green-500', bg: 'bg-green-500/10', label: 'Excellent' };
-      case 'good': return { color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Good' };
-      case 'warning': return { color: 'text-yellow-500', bg: 'bg-yellow-500/10', label: 'Warning' };
-      case 'critical': return { color: 'text-red-500', bg: 'bg-red-500/10', label: 'Critical' };
-      default: return { color: 'text-gray-500', bg: 'bg-gray-500/10', label: 'Unknown' };
-    }
-  };
-
-  const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (trend < 0) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return <Minus className="h-4 w-4 text-gray-500" />;
   };
 
   const filteredActions = quickActions.filter(action => {
@@ -535,240 +399,138 @@ export function EnhancedDashboard() {
     );
   }
 
-  const healthStatus = getHealthStatus(stats.systemHealth);
-
   return (
     <div className="space-y-8">
       {/* Enhanced Header with Live Status */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-r from-primary/5 via-purple-500/5 to-cyan-500/5 p-8">
-        <div className="relative z-10">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Sparkles className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold">Command Center</h1>
-                <p className="text-muted-foreground text-lg">Complete overview of your automation ecosystem</p>
-              </div>
+      <EnhancedCard className="p-8 bg-gradient-to-r from-primary/5 via-purple-500/5 to-cyan-500/5 border-border/50">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <Sparkles className="h-8 w-8 text-primary" />
             </div>
-            
-            <div className="flex items-center gap-4 mt-4 md:mt-0">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${healthStatus.bg}`}>
-                <div className={`w-2 h-2 rounded-full ${healthStatus.color.replace('text-', 'bg-')} animate-pulse`}></div>
-                <span className={`text-sm font-medium ${healthStatus.color}`}>
-                  System {healthStatus.label}
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>Updated {format(lastUpdated, 'HH:mm:ss')}</span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Switch 
-                  checked={autoRefresh} 
-                  onCheckedChange={setAutoRefresh}
-                  id="auto-refresh" 
-                />
-                <Label htmlFor="auto-refresh" className="text-sm">Auto-refresh</Label>
-              </div>
-              
-              <Button variant="outline" size="sm" onClick={loadDashboardData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
+            <div>
+              <h1 className="text-4xl font-bold">Command Center</h1>
+              <p className="text-muted-foreground text-lg">Complete overview of your automation ecosystem</p>
             </div>
           </div>
-
-          {/* Quick Alerts */}
-          {alerts.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {alerts.slice(0, 3).map((alert) => (
-                <Badge key={alert.id} variant="outline" className="flex items-center gap-2">
-                  {alert.type === 'warning' && <AlertTriangle className="h-3 w-3 text-yellow-500" />}
-                  {alert.type === 'info' && <Info className="h-3 w-3 text-blue-500" />}
-                  {alert.type === 'success' && <CheckCircle2 className="h-3 w-3 text-green-500" />}
-                  <span className="text-xs">{alert.title}</span>
-                  <span className="text-xs text-muted-foreground">• {alert.time}</span>
-                </Badge>
-              ))}
-              {alerts.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{alerts.length - 3} more alerts
-                </Badge>
-              )}
+          
+          <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <HealthIndicator health={stats.systemHealth} size="md" />
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span>Updated {format(lastUpdated, 'HH:mm:ss')}</span>
             </div>
-          )}
+            
+            <div className="flex items-center gap-2">
+              <Switch 
+                checked={autoRefresh} 
+                onCheckedChange={setAutoRefresh}
+                id="auto-refresh" 
+              />
+              <Label htmlFor="auto-refresh" className="text-sm">Auto-refresh</Label>
+            </div>
+            
+            <InteractiveButton 
+              variant="outline" 
+              size="sm" 
+              onClick={loadDashboardData}
+              icon={RefreshCw}
+            >
+              Refresh
+            </InteractiveButton>
+          </div>
         </div>
-      </div>
+
+        {/* Quick Alerts */}
+        {alerts.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {alerts.slice(0, 3).map((alert) => (
+              <StatusIndicator 
+                key={alert.id}
+                status={alert.type === 'warning' ? 'warning' : alert.type === 'info' ? 'pending' : 'success'}
+                label={`${alert.title} • ${alert.time}`}
+                size="sm"
+              />
+            ))}
+            {alerts.length > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{alerts.length - 3} more alerts
+              </Badge>
+            )}
+          </div>
+        )}
+      </EnhancedCard>
 
       {/* Enhanced Key Metrics - Now with 8 cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Workflows</p>
-                <p className="text-3xl font-bold">{stats.totalWorkflows}</p>
-              </div>
-              <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
-                <Workflow className="h-6 w-6 text-blue-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(stats.monthlyGrowth)}
-              <span className={stats.monthlyGrowth > 0 ? 'text-green-500' : 'text-red-500'}>
-                {stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}%
-              </span>
-              <span className="text-muted-foreground ml-1">this month</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Total Workflows"
+          value={stats.totalWorkflows}
+          icon={Workflow}
+          color="text-blue-500"
+          trend={{ value: stats.monthlyGrowth, label: 'this month' }}
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Executions</p>
-                <p className="text-3xl font-bold">{stats.totalExecutions.toLocaleString()}</p>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-xl group-hover:bg-green-500/20 transition-colors">
-                <Play className="h-6 w-6 text-green-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(8.3)}
-              <span className="text-green-500">+8.3%</span>
-              <span className="text-muted-foreground ml-1">this month</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Total Executions"
+          value={stats.totalExecutions.toLocaleString()}
+          icon={Play}
+          color="text-green-500"
+          trend={{ value: 8.3, label: 'this month' }}
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Success Rate</p>
-                <p className="text-3xl font-bold">{stats.successRate}%</p>
-              </div>
-              <div className="p-3 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-colors">
-                <CheckCircle2 className="h-6 w-6 text-purple-500" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <Progress value={stats.successRate} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Success Rate"
+          value={`${stats.successRate}%`}
+          icon={CheckCircle2}
+          color="text-purple-500"
+          subtitle="Last 30 days"
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Execution Time</p>
-                <p className="text-3xl font-bold">{stats.avgExecutionTime}s</p>
-              </div>
-              <div className="p-3 bg-orange-500/10 rounded-xl group-hover:bg-orange-500/20 transition-colors">
-                <Clock className="h-6 w-6 text-orange-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(15.7)}
-              <span className="text-green-500">15.7% faster</span>
-              <span className="text-muted-foreground ml-1">than last month</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Avg Execution Time"
+          value={`${stats.avgExecutionTime}s`}
+          icon={Clock}
+          color="text-orange-500"
+          trend={{ value: 15.7, label: 'faster than last month' }}
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Integrations</p>
-                <p className="text-3xl font-bold">{stats.activeIntegrations}</p>
-              </div>
-              <div className="p-3 bg-indigo-500/10 rounded-xl group-hover:bg-indigo-500/20 transition-colors">
-                <Globe className="h-6 w-6 text-indigo-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(4.2)}
-              <span className="text-green-500">+4.2%</span>
-              <span className="text-muted-foreground ml-1">this month</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Active Integrations"
+          value={stats.activeIntegrations}
+          icon={Globe}
+          color="text-indigo-500"
+          trend={{ value: 4.2, label: 'this month' }}
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-teal-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Team Members</p>
-                <p className="text-3xl font-bold">{stats.teamMembers}</p>
-              </div>
-              <div className="p-3 bg-teal-500/10 rounded-xl group-hover:bg-teal-500/20 transition-colors">
-                <Users className="h-6 w-6 text-teal-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(25.0)}
-              <span className="text-green-500">+25.0%</span>
-              <span className="text-muted-foreground ml-1">team growth</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Team Members"
+          value={stats.teamMembers}
+          icon={Users}
+          color="text-teal-500"
+          trend={{ value: 25.0, label: 'team growth' }}
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly Costs</p>
-                <p className="text-3xl font-bold">${stats.costs}</p>
-              </div>
-              <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:bg-yellow-500/20 transition-colors">
-                <DollarSign className="h-6 w-6 text-yellow-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(-8.4)}
-              <span className="text-green-500">-8.4%</span>
-              <span className="text-muted-foreground ml-1">cost reduction</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Monthly Costs"
+          value={`$${stats.costs}`}
+          icon={DollarSign}
+          color="text-yellow-500"
+          trend={{ value: -8.4, label: 'cost reduction' }}
+        />
 
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-rose-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-          <CardContent className="p-6 relative">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Certifications</p>
-                <p className="text-3xl font-bold">{stats.certificationsEarned}</p>
-              </div>
-              <div className="p-3 bg-rose-500/10 rounded-xl group-hover:bg-rose-500/20 transition-colors">
-                <Award className="h-6 w-6 text-rose-500" />
-              </div>
-            </div>
-            <div className="flex items-center text-sm">
-              {getTrendIcon(100.0)}
-              <span className="text-green-500">+100%</span>
-              <span className="text-muted-foreground ml-1">this quarter</span>
-            </div>
-          </CardContent>
-        </Card>
+        <MetricCard
+          title="Certifications"
+          value={stats.certificationsEarned}
+          icon={Award}
+          color="text-rose-500"
+          trend={{ value: 100.0, label: 'this quarter' }}
+        />
       </div>
 
       {/* Enhanced Quick Actions with Search and Filtering */}
-      <Card>
+      <EnhancedCard>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between">
             <div>
@@ -778,39 +540,34 @@ export function EnhancedDashboard() {
               </CardTitle>
               <CardDescription>Jump into common tasks across all platforms</CardDescription>
             </div>
-            <div className="flex items-center gap-2 mt-4 md:mt-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search actions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-48"
-                />
-              </div>
-              <Select value={selectedActionCategory} onValueChange={setSelectedActionCategory}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="workflows">Workflows</SelectItem>
-                  <SelectItem value="integrations">Integrations</SelectItem>
-                  <SelectItem value="analytics">Analytics</SelectItem>
-                  <SelectItem value="learning">Learning</SelectItem>
-                  <SelectItem value="account">Account</SelectItem>
-                  <SelectItem value="ai">AI & Automation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-6">
+            <SearchFilterBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              selectedFilter={selectedActionCategory}
+              onFilterChange={setSelectedActionCategory}
+              filterOptions={[
+                { value: 'all', label: 'All Categories' },
+                { value: 'workflows', label: 'Workflows', count: 3 },
+                { value: 'integrations', label: 'Integrations', count: 1 },
+                { value: 'analytics', label: 'Analytics', count: 1 },
+                { value: 'learning', label: 'Learning', count: 2 },
+                { value: 'account', label: 'Account', count: 1 },
+                { value: 'ai', label: 'AI & Automation', count: 1 }
+              ]}
+              placeholder="Search actions..."
+              showViewToggle={false}
+            />
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredActions.map((action) => {
               const ActionIcon = action.icon;
               return (
-                <Button
+                <InteractiveButton
                   key={action.id}
                   variant="outline"
                   className="h-auto p-4 justify-start text-left group hover:shadow-lg transition-all duration-300"
@@ -821,18 +578,26 @@ export function EnhancedDashboard() {
                       <div className={`p-2 rounded-lg bg-gradient-to-r ${action.color} group-hover:scale-110 transition-transform duration-300`}>
                         <ActionIcon className="h-5 w-5 text-white" />
                       </div>
-                      <div>
-                        <p className="font-medium">{action.title}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{action.title}</p>
+                          {action.popular && (
+                            <Badge variant="secondary" className="text-xs">
+                              Popular
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">{action.description}</p>
                       </div>
+                      <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
                     </div>
                   </a>
-                </Button>
+                </InteractiveButton>
               );
             })}
           </div>
         </CardContent>
-      </Card>
+      </EnhancedCard>
 
       {/* Main Content Tabs - Enhanced with more comprehensive data */}
       <Tabs defaultValue="activity" className="space-y-6">
@@ -845,7 +610,7 @@ export function EnhancedDashboard() {
         </TabsList>
 
         <TabsContent value="activity" className="space-y-6">
-          <Card>
+          <EnhancedCard>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -866,7 +631,6 @@ export function EnhancedDashboard() {
                       <SelectItem value="integrations">Integrations</SelectItem>
                       <SelectItem value="learning">Learning</SelectItem>
                       <SelectItem value="team">Team</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
                       <SelectItem value="ai">AI</SelectItem>
                     </SelectContent>
                   </Select>
@@ -882,26 +646,23 @@ export function EnhancedDashboard() {
                 <div className="space-y-4">
                   {filteredActivity.map((activity) => (
                     <div key={activity.id} className="flex items-start gap-4 p-4 rounded-lg border bg-card/50 hover:bg-card/70 transition-colors">
-                      <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
-                        {getActivityIcon(activity.type)}
-                      </div>
+                      <StatusIndicator
+                        status={activity.status}
+                        showIcon={true}
+                        size="sm"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-medium truncate">{activity.title}</p>
-                          <Badge variant="outline" className={`${getStatusColor(activity.status)} text-xs`}>
-                            {activity.status}
+                          <Badge variant="secondary" className="text-xs">
+                            {activity.category}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
                           {format(new Date(activity.timestamp), 'PPp')}
                         </p>
                         {activity.user && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs">
-                              {activity.category}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">by {activity.user}</span>
-                          </div>
+                          <p className="text-xs text-muted-foreground">by {activity.user}</p>
                         )}
                       </div>
                     </div>
@@ -909,11 +670,11 @@ export function EnhancedDashboard() {
                 </div>
               </ScrollArea>
             </CardContent>
-          </Card>
+          </EnhancedCard>
         </TabsContent>
 
         <TabsContent value="workflows" className="space-y-6">
-          <Card>
+          <EnhancedCard>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Workflow className="h-5 w-5" />
@@ -926,14 +687,16 @@ export function EnhancedDashboard() {
                 {topWorkflows.map((workflow) => (
                   <div key={workflow.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50 hover:bg-card/70 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full ${
-                        workflow.status === 'running' ? 'bg-green-500 animate-pulse' : 
-                        workflow.status === 'paused' ? 'bg-yellow-500' : 'bg-gray-500'
-                      }`} />
+                      <StatusIndicator
+                        status={workflow.status === 'running' ? 'active' : 'warning'}
+                        showIcon={false}
+                        size="sm"
+                        animated={workflow.status === 'running'}
+                      />
                       <div>
                         <h4 className="font-semibold">{workflow.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Status: <span className="capitalize">{workflow.status}</span>
+                        <p className="text-sm text-muted-foreground capitalize">
+                          Status: {workflow.status}
                         </p>
                       </div>
                     </div>
@@ -959,12 +722,12 @@ export function EnhancedDashboard() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </EnhancedCard>
         </TabsContent>
 
         <TabsContent value="system" className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
-            <Card>
+            <EnhancedCard>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Monitor className="h-5 w-5" />
@@ -980,8 +743,8 @@ export function EnhancedDashboard() {
                     </span>
                     <span className="font-medium">{systemMetrics.cpu.current}%</span>
                   </div>
-                  <Progress value={systemMetrics.cpu.current} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <Progress value={systemMetrics.cpu.current} className="h-2 mb-1" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Avg: {systemMetrics.cpu.average}%</span>
                     <span>Peak: {systemMetrics.cpu.peak}%</span>
                   </div>
@@ -995,8 +758,8 @@ export function EnhancedDashboard() {
                     </span>
                     <span className="font-medium">{systemMetrics.memory.current}%</span>
                   </div>
-                  <Progress value={systemMetrics.memory.current} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <Progress value={systemMetrics.memory.current} className="h-2 mb-1" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Avg: {systemMetrics.memory.average}%</span>
                     <span>Peak: {systemMetrics.memory.peak}%</span>
                   </div>
@@ -1010,16 +773,16 @@ export function EnhancedDashboard() {
                     </span>
                     <span className="font-medium">{systemMetrics.disk.current}%</span>
                   </div>
-                  <Progress value={systemMetrics.disk.current} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <Progress value={systemMetrics.disk.current} className="h-2 mb-1" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Avg: {systemMetrics.disk.average}%</span>
                     <span>Peak: {systemMetrics.disk.peak}%</span>
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </EnhancedCard>
 
-            <Card>
+            <EnhancedCard>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Network className="h-5 w-5" />
@@ -1049,7 +812,9 @@ export function EnhancedDashboard() {
                       <Database className="h-4 w-4 text-purple-500" />
                       <span className="text-sm">DB Connections</span>
                     </div>
-                    <span className="font-medium">{systemMetrics.database.connections}/{systemMetrics.database.maxConnections}</span>
+                    <span className="font-medium">
+                      {systemMetrics.database.connections}/{systemMetrics.database.maxConnections}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between p-3 rounded-lg border bg-card/50">
@@ -1061,12 +826,12 @@ export function EnhancedDashboard() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </EnhancedCard>
           </div>
         </TabsContent>
 
         <TabsContent value="integrations" className="space-y-6">
-          <Card>
+          <EnhancedCard>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -1079,10 +844,11 @@ export function EnhancedDashboard() {
                 {integrationHealth.map((integration) => (
                   <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
                     <div className="flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full ${
-                        integration.status === 'healthy' ? 'bg-green-500' : 
-                        integration.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-                      }`} />
+                      <StatusIndicator
+                        status={integration.status === 'healthy' ? 'success' : 'warning'}
+                        showIcon={false}
+                        size="sm"
+                      />
                       <div>
                         <h4 className="font-semibold">{integration.name}</h4>
                         <p className="text-sm text-muted-foreground capitalize">
@@ -1103,23 +869,21 @@ export function EnhancedDashboard() {
                         <div className="font-semibold">{integration.latency}</div>
                         <div className="text-muted-foreground">Latency</div>
                       </div>
-                      <Badge variant="outline" className={`${
-                        integration.status === 'healthy' ? 'text-green-600 border-green-200' :
-                        integration.status === 'warning' ? 'text-yellow-600 border-yellow-200' :
-                        'text-red-600 border-red-200'
-                      }`}>
-                        {integration.status}
-                      </Badge>
+                      <StatusIndicator
+                        status={integration.status === 'healthy' ? 'success' : 'warning'}
+                        label={integration.status}
+                        size="sm"
+                      />
                     </div>
                   </div>
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </EnhancedCard>
         </TabsContent>
 
         <TabsContent value="learning" className="space-y-6">
-          <Card>
+          <EnhancedCard>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
@@ -1156,7 +920,7 @@ export function EnhancedDashboard() {
                             <p className="text-sm text-muted-foreground">
                               <strong>Next:</strong> {path.nextModule}
                             </p>
-                            <Button size="sm" className="group-hover:shadow-md transition-shadow">
+                            <InteractiveButton size="sm" className="group-hover:shadow-md transition-shadow">
                               {path.progress > 0 ? (
                                 <>
                                   <Play className="h-4 w-4 mr-2" />
@@ -1164,11 +928,11 @@ export function EnhancedDashboard() {
                                 </>
                               ) : (
                                 <>
-                                  <Rocket className="h-4 w-4 mr-2" />
+                                  <Sparkles className="h-4 w-4 mr-2" />
                                   Start Learning
                                 </>
                               )}
-                            </Button>
+                            </InteractiveButton>
                           </div>
                         </div>
                       </div>
@@ -1177,7 +941,7 @@ export function EnhancedDashboard() {
                 })}
               </div>
             </CardContent>
-          </Card>
+          </EnhancedCard>
         </TabsContent>
       </Tabs>
     </div>
