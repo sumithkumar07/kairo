@@ -49,7 +49,7 @@ export const listSavedWorkflowsTool = ai.defineTool(
         type: z.enum(['example', 'user']),
     })),
   },
-  async ({ userId }) => {
+  async ({ userId }: { userId: string }) => {
     console.log(`[Agent Tool] Listing all workflows for user ${userId} from storage...`);
     return await listAllWorkflows(userId);
   }
