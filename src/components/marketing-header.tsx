@@ -236,12 +236,12 @@ export function MarketingHeader() {
               ) : (
                 <div className="space-y-3">
                   <Button variant="ghost" className="w-full" asChild>
-                    <Link href="/signin" onClick={() => setIsOpen(false)}>
+                    <Link href="/auth?tab=signin" onClick={() => setIsOpen(false)}>
                       Sign In
                     </Link>
                   </Button>
                   <Button className="w-full bg-gradient-to-r from-primary to-purple-600" asChild>
-                    <Link href="/signup" onClick={() => setIsOpen(false)}>
+                    <Link href="/auth?tab=signup" onClick={() => setIsOpen(false)}>
                       Get Started Free
                       <Sparkles className="ml-2 h-4 w-4" />
                     </Link>
