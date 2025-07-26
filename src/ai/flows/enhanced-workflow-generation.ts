@@ -373,7 +373,7 @@ async function generateOptimizedWorkflow(input: EnhancedWorkflowGenerationInput,
     }
   ];
 
-  const connections = [];
+  const connections: any[] = [];
 
   return { nodes, connections };
 }
