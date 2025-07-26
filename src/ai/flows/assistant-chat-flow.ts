@@ -93,7 +93,7 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
       } else if (msg.includes('quota') || msg.includes('rate limit')) {
         userErrorMessage = "The AI service is currently busy. Please try again in a few moments.";
       } else {
-        userErrorMessage = `I encountered an error: ${String(error.message).substring(0, 100)}. Please try again.`;
+        userErrorMessage = `I encountered an error: ${String((error as Error)?.message || error).substring(0, 100)}. Please try again.`;
       }
     }
     
