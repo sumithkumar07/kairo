@@ -199,7 +199,7 @@ export class EnhancedAgenticAI {
         test_cases: z.array(z.string()),
         dependencies: z.array(z.string())
       })
-    }, async (input) => {
+    }, async (input: any) => {
       return this.generateCustomCode(input);
     });
 
