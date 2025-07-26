@@ -11,8 +11,8 @@ function AcademyRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to learn with courses tab
-    router.replace('/learn?tab=courses');
+    // Redirect to learn with academy tab
+    router.replace('/learn?tab=academy');
   }, [router]);
 
   return (
@@ -23,12 +23,12 @@ function AcademyRedirect() {
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
             <h2 className="text-xl font-semibold mb-2">Redirecting to Learning Center</h2>
             <p className="text-muted-foreground mb-4">
-              Academy has been consolidated into the Learning & Knowledge Center
+              Academy has been consolidated into the Learning Center
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <span>/academy</span>
               <ArrowRight className="h-4 w-4" />
-              <span>/learn?tab=courses</span>
+              <span>/learn?tab=academy</span>
             </div>
           </CardContent>
         </Card>

@@ -11,7 +11,7 @@ function TeamRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to account with team tab
+    // Redirect to account with team tab (since account management includes team)
     router.replace('/account?tab=team');
   }, [router]);
 
@@ -21,9 +21,9 @@ function TeamRedirect() {
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold mb-2">Redirecting to Account</h2>
+            <h2 className="text-xl font-semibold mb-2">Redirecting to Account Management</h2>
             <p className="text-muted-foreground mb-4">
-              Team management has been consolidated into the Account Management Hub
+              Team Management has been consolidated into the Account Management Hub
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <span>/team</span>

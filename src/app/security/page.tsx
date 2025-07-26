@@ -2,21 +2,39 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AppLayout } from '@/components/app-layout';
+import { withAuth } from '@/components/auth/with-auth';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, ArrowRight } from 'lucide-react';
 
-export default function SecurityRedirect() {
+function SecurityRedirect() {
   const router = useRouter();
-  
+
   useEffect(() => {
-    // Redirect to the new consolidated account page with security tab
-    router.replace('/account?tab=security');
+    // Redirect to settings with security tab
+    router.replace('/settings?tab=security');
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Redirecting to Account...</h1>
-        <p className="text-muted-foreground">Security settings have been consolidated into the Account Management Hub.</p>
+    <AppLayout>
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-semibold mb-2">Redirecting to Settings</h2>
+            <p className="text-muted-foreground mb-4">
+              Security settings have been consolidated into the Settings Hub
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <span>/security</span>
+              <ArrowRight className="h-4 w-4" />
+              <span>/settings?tab=security</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </AppLayout>
   );
 }
+
+export default withAuth(SecurityRedirect);
