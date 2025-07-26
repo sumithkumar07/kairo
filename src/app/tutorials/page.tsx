@@ -2,24 +2,39 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AppLayout } from '@/components/app-layout';
+import { withAuth } from '@/components/auth/with-auth';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, ArrowRight } from 'lucide-react';
 
-export default function TutorialsRedirect() {
+function TutorialsRedirect() {
   const router = useRouter();
-  
+
   useEffect(() => {
-    // Redirect to the consolidated learning center with tutorials tab
+    // Redirect to learn with tutorials tab
     router.replace('/learn?tab=tutorials');
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Redirecting to Learning Center...</h1>
-        <p className="text-muted-foreground">Tutorials have been consolidated into the Learning & Knowledge Center.</p>
-        <div className="mt-4 text-sm text-muted-foreground">
-          You'll find comprehensive tutorials in the unified learning platform...
-        </div>
+    <AppLayout>
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-semibold mb-2">Redirecting to Learning Center</h2>
+            <p className="text-muted-foreground mb-4">
+              Tutorials have been consolidated into the Learning & Knowledge Center
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <span>/tutorials</span>
+              <ArrowRight className="h-4 w-4" />
+              <span>/learn?tab=tutorials</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </AppLayout>
   );
 }
+
+export default withAuth(TutorialsRedirect);
