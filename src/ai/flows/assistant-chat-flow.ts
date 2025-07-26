@@ -86,8 +86,8 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
     
     let userErrorMessage = "I'm sorry, I encountered an error while processing your message. Please try again.";
     
-    if (error.message) {
-      const msg = String(error.message).toLowerCase();
+    if ((error as Error)?.message) {
+      const msg = String((error as Error).message).toLowerCase();
       if (msg.includes('api key') || msg.includes('unauthorized')) {
         userErrorMessage = "There's an issue with the AI service configuration. Please check the API key settings.";
       } else if (msg.includes('quota') || msg.includes('rate limit')) {
