@@ -705,8 +705,10 @@ function AnalyticsSuperDashboard() {
             </div>
           </TabsContent>
 
-          {/* Monitoring Tab - System logs and monitoring */}
+          {/* Monitoring Tab - System logs and monitoring with Advanced Performance Monitor */}
           <TabsContent value="monitoring" className="space-y-6">
+            <AdvancedPerformanceMonitor />
+            
             <Card>
               <CardHeader>
                 <CardTitle>System Logs</CardTitle>
