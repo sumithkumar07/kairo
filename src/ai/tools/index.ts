@@ -16,13 +16,15 @@ export const ALL_AVAILABLE_TOOLS_MAP = new Map<string, Tool>();
 
 // Helper to create a Tool object from a GenkitTool and metadata.
 const createTool = (
-  genkitTool: Tool['genkitTool'],
-  icon: Tool['icon'],
-  service: Tool['service']
+  genkitTool: any,
+  icon: string,
+  service: string
 ): Tool => ({
   name: genkitTool.name,
   description: genkitTool.description,
   icon,
+  category: service
+});
   service,
   genkitTool,
 });
