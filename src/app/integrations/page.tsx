@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { IntegrationHealthMonitor } from '@/components/ui/integration-health-monitor';
+import { IntegrationHealthMonitor } from '@/components/ui/enhanced-integration-health';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
