@@ -563,13 +563,13 @@ function DashboardPage() {
     </div>
   );
 
-  // AI Intelligence Tab
+  // AI Intelligence Tab with Interactive God-Tier Features
   const AITab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold">AI Intelligence Center</h2>
-          <p className="text-muted-foreground">AI-powered insights and advanced automation features</p>
+          <p className="text-muted-foreground">AI-powered insights and interactive advanced automation features</p>
         </div>
         <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2">
           <Brain className="h-4 w-4 mr-2" />
@@ -577,143 +577,8 @@ function DashboardPage() {
         </Badge>
       </div>
 
-      {/* AI Insights */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            AI Recommendations
-          </CardTitle>
-          <CardDescription>Intelligent suggestions to optimize your workflows</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {aiInsights.map((insight) => (
-              <Card key={insight.id} className="hover:shadow-lg transition-all">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${insight.color} rounded-lg flex items-center justify-center`}>
-                      <insight.icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold">{insight.title}</h3>
-                        <Badge variant={
-                          insight.impact === 'High' ? 'destructive' : 
-                          insight.impact === 'Medium' ? 'default' : 'secondary'
-                        }>
-                          {insight.impact} Impact
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">{insight.description}</p>
-                      <div className="flex gap-2">
-                        <Button size="sm">
-                          Apply Suggestion
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Learn More
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* God-Tier Features */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Crown className="h-5 w-5" />
-            God-Tier Features
-          </CardTitle>
-          <CardDescription>Advanced AI capabilities for enterprise automation</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {godTierFeatures.map((feature) => (
-              <Card key={feature.id} className="border-primary/20 hover:shadow-lg transition-all">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${feature.color} rounded-lg flex items-center justify-center`}>
-                      <feature.icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold">{feature.name}</h3>
-                        <Badge variant={feature.status === 'active' ? 'default' : 'secondary'}>
-                          {feature.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">{feature.description}</p>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Accuracy:</span>
-                          <span className="font-medium">{feature.accuracy}%</span>
-                        </div>
-                        <Progress value={feature.accuracy} className="h-2" />
-                        
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Speed Improvement:</span>
-                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                            {feature.speedup}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2 mt-4">
-                        <Button size="sm" className="flex-1">
-                          <Eye className="h-3 w-3 mr-1" />
-                          View Details
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Settings className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* AI Performance Metrics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            AI Performance Metrics
-          </CardTitle>
-          <CardDescription>Real-time AI system performance and usage statistics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-6 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg">
-              <Bot className="h-12 w-12 mx-auto mb-4 text-purple-600" />
-              <h3 className="text-2xl font-bold mb-2">94.7%</h3>
-              <p className="text-sm text-muted-foreground">AI Prediction Accuracy</p>
-            </div>
-            
-            <div className="text-center p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg">
-              <Zap className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-              <h3 className="text-2xl font-bold mb-2">127ms</h3>
-              <p className="text-sm text-muted-foreground">Average AI Response Time</p>
-            </div>
-            
-            <div className="text-center p-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg">
-              <Target className="h-12 w-12 mx-auto mb-4 text-green-600" />
-              <h3 className="text-2xl font-bold mb-2">12.3K</h3>
-              <p className="text-sm text-muted-foreground">AI-Generated Workflows</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Interactive God-Tier Features Component */}
+      <InteractiveGodTierFeatures />
     </div>
   );
 
