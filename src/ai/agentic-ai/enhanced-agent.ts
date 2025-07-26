@@ -178,7 +178,7 @@ export class EnhancedAgenticAI {
           recommendations: z.array(z.string())
         })
       })
-    }, async (input) => {
+    }, async (input: any) => {
       // Implementation would include deep workflow analysis
       return this.analyzeWorkflowStructure(input.workflow);
     });
