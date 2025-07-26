@@ -442,7 +442,7 @@ export default function ConsolidatedHomepage() {
                 iconPosition="left"
                 className="text-xl px-10 py-6 hover:bg-primary/10 border-2 border-primary/20 hover:border-primary/40 backdrop-blur-sm"
               >
-                <Link href="/workflow">
+                <Link href="/editor">
                   Try Interactive Demo
                 </Link>
               </InteractiveButton>
