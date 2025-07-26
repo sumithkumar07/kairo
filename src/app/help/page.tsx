@@ -59,7 +59,7 @@ import {
   Phone,
   Send,
   Hash,
-  Trending
+  TrendingUp
 } from 'lucide-react';
 
 // Mock data for documentation
