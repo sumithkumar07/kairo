@@ -22,6 +22,7 @@ import { Workflow, History, Cpu, Settings, LogOut, User, Menu, LayoutDashboard, 
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { GlobalSearch, KeyboardShortcuts, ContextualHelp } from '@/components/enhanced-navigation';
 import { EnhancedThemeToggle } from '@/components/enhanced-user-experience';
+import { RealTimeNotifications } from '@/components/real-time-notifications';
 import {
   DropdownMenu,
   DropdownMenuContent,
