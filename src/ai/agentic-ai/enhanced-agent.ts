@@ -330,7 +330,8 @@ Provide a structured decision with detailed reasoning in JSON format.
 
       // Parse the result if it's JSON
       try {
-        return JSON.parse(result.content || result);
+        const contentToProcess = typeof result === 'string' ? result : result.content || '';
+        return JSON.parse(contentToProcess);
       } catch {
         return { primary_goal: situation, execution_plan: [{ step: 1, action: options[0] || 'analyze' }] };
       }
