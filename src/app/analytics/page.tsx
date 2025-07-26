@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
+import { AdvancedPerformanceMonitor } from '@/components/advanced-performance-monitor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
