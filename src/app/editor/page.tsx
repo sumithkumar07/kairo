@@ -74,7 +74,6 @@ import {
   Type,
   Hash,
   ToggleLeft,
-  Slider,
   Calendar as CalendarIcon,
   Clock as ClockIcon,
   MapPin,
