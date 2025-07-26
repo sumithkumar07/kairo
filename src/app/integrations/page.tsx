@@ -1,847 +1,509 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { AppLayout } from '@/components/app-layout';
+import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { Button } from '@/components/ui/button';
+import { IntegrationHealthMonitor } from '@/components/ui/integration-health-monitor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { 
   Globe,
+  Plus,
   Search,
   Filter,
-  Star,
-  Download,
-  Settings,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  Users,
+  Monitor,
   Zap,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  Activity,
   Database,
-  Cloud,
   Mail,
   MessageSquare,
-  ShoppingCart,
+  CreditCard,
   FileText,
   Calendar,
-  Activity,
-  BarChart3,
-  CreditCard,
-  Shield,
-  Key,
-  Plus,
-  Trash2,
-  Edit3,
-  MoreHorizontal,
-  ExternalLink,
-  Copy,
-  Webhook,
   Code,
-  Terminal,
+  Cloud,
   Smartphone,
-  Monitor,
-  Network,
-  Lock,
-  Unlock,
-  AlertTriangle,
-  Info,
-  TrendingUp,
+  BarChart3,
+  Settings,
   Eye,
-  EyeOff,
-  RefreshCw,
-  Play,
-  Pause,
-  Square,
+  Download,
+  Shield,
+  Sparkles,
   ArrowRight,
-  ChevronRight
+  Layers,
+  Network,
+  RefreshCw
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-// Integration Management Center - Unified integration management
-// This combines marketplace, my integrations, templates, and settings
-
-// Sample integration data
-const availableIntegrations = [
+// Mock integration data
+const integrations = [
   {
     id: 'salesforce',
     name: 'Salesforce',
-    description: 'Connect with Salesforce CRM for lead management and customer data sync',
     category: 'CRM',
-    icon: '⚡',
-    rating: 4.9,
-    installs: '25.4k',
-    verified: true,
-    pricing: 'Free',
-    status: 'available',
-    features: ['Lead Management', 'Contact Sync', 'Opportunity Tracking', 'Custom Fields'],
-    useCase: 'Sales automation and CRM integration'
+    status: 'healthy' as const,
+    icon: Database,
+    color: 'from-blue-500 to-cyan-500',
+    connections: 1247,
+    successRate: 98.2,
+    avgLatency: 245,
+    description: 'Customer relationship management platform',
+    isPopular: true
   },
   {
     id: 'slack',
     name: 'Slack',
-    description: 'Send notifications, messages, and alerts to Slack channels and users',
     category: 'Communication',
-    icon: '📱',
-    rating: 4.8,
-    installs: '31.2k',
-    verified: true,
-    pricing: 'Free',
-    status: 'installed',
-    features: ['Channel Messages', 'Direct Messages', 'File Sharing', 'Custom Webhooks'],
-    useCase: 'Team communication and notifications'
+    status: 'healthy' as const,
+    icon: MessageSquare,
+    color: 'from-green-500 to-emerald-500',
+    connections: 890,
+    successRate: 99.1,
+    avgLatency: 120,
+    description: 'Team communication and collaboration',
+    isPopular: true
   },
   {
     id: 'shopify',
     name: 'Shopify',
-    description: 'Manage products, orders, and customer data from your Shopify store',
     category: 'E-commerce',
-    icon: '🛒',
-    rating: 4.7,
-    installs: '18.9k',
-    verified: true,
-    pricing: 'Free',
-    status: 'available',
-    features: ['Order Management', 'Product Sync', 'Inventory Updates', 'Customer Data'],
-    useCase: 'E-commerce automation and order processing'
+    status: 'warning' as const,
+    icon: CreditCard,
+    color: 'from-purple-500 to-pink-500',
+    connections: 654,
+    successRate: 94.8,
+    avgLatency: 380,
+    description: 'E-commerce platform for online stores',
+    isNew: true
+  },
+  {
+    id: 'gmail',
+    name: 'Gmail',
+    category: 'Email',
+    status: 'error' as const,
+    icon: Mail,
+    color: 'from-red-500 to-pink-500',
+    connections: 432,
+    successRate: 89.5,
+    avgLatency: 520,
+    description: 'Email communication platform'
   },
   {
     id: 'google-sheets',
     name: 'Google Sheets',
-    description: 'Read from and write to Google Sheets for data management and reporting',
     category: 'Productivity',
-    icon: '📊',
-    rating: 4.9,
-    installs: '42.1k',
-    verified: true,
-    pricing: 'Free',
-    status: 'installed',
-    features: ['Read Data', 'Write Data', 'Create Sheets', 'Format Cells'],
-    useCase: 'Data management and reporting'
+    status: 'healthy' as const,
+    icon: FileText,
+    color: 'from-yellow-500 to-orange-500',
+    connections: 778,
+    successRate: 96.7,
+    avgLatency: 180,
+    description: 'Spreadsheet and data management',
+    isPopular: true
   },
   {
-    id: 'hubspot',
-    name: 'HubSpot',
-    description: 'Sync contacts, deals, and marketing data with HubSpot CRM',
-    category: 'CRM',
-    icon: '🎯',
-    rating: 4.8,
-    installs: '16.7k',
-    verified: true,
-    pricing: 'Free',
-    status: 'available',
-    features: ['Contact Management', 'Deal Tracking', 'Email Marketing', 'Analytics'],
-    useCase: 'Marketing automation and CRM'
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe',
-    description: 'Process payments, manage subscriptions, and handle billing workflows',
-    category: 'Payments',
-    icon: '💳',
-    rating: 4.9,
-    installs: '12.3k',
-    verified: true,
-    pricing: 'Free',
-    status: 'available',
-    features: ['Payment Processing', 'Subscription Management', 'Invoice Generation', 'Webhook Handling'],
-    useCase: 'Payment processing and billing automation'
+    id: 'twilio',
+    name: 'Twilio',
+    category: 'Communication',
+    status: 'healthy' as const,
+    icon: Smartphone,
+    color: 'from-indigo-500 to-purple-500',
+    connections: 234,
+    successRate: 97.8,
+    avgLatency: 290,
+    description: 'SMS and voice communication API'
   }
 ];
 
-const myIntegrations = availableIntegrations.filter(integration => integration.status === 'installed');
-
-const integrationTemplates = [
-  {
-    id: 'lead-to-slack',
-    name: 'New Lead to Slack Notification',
-    description: 'Automatically notify your sales team in Slack when new leads are added to Salesforce',
-    integrations: ['Salesforce', 'Slack'],
-    category: 'Sales',
-    difficulty: 'Easy',
-    estimatedTime: '5 min',
-    uses: 1247,
-    rating: 4.8
-  },
-  {
-    id: 'order-to-sheets',
-    name: 'Shopify Orders to Google Sheets',
-    description: 'Log new Shopify orders to a Google Sheets spreadsheet for tracking and analysis',
-    integrations: ['Shopify', 'Google Sheets'],
-    category: 'E-commerce',
-    difficulty: 'Easy',
-    estimatedTime: '10 min',
-    uses: 892,
-    rating: 4.7
-  },
-  {
-    id: 'payment-processing',
-    name: 'Automated Payment Processing',
-    description: 'Process Stripe payments and update customer records in HubSpot',
-    integrations: ['Stripe', 'HubSpot'],
-    category: 'Payments',
-    difficulty: 'Medium',
-    estimatedTime: '15 min',
-    uses: 634,
-    rating: 4.9
-  }
+const categories = [
+  { value: 'all', label: 'All Categories', count: integrations.length },
+  { value: 'crm', label: 'CRM', count: 1 },
+  { value: 'communication', label: 'Communication', count: 2 },
+  { value: 'e-commerce', label: 'E-commerce', count: 1 },
+  { value: 'email', label: 'Email', count: 1 },
+  { value: 'productivity', label: 'Productivity', count: 1 }
 ];
 
-const webhookEndpoints = [
-  {
-    id: 'webhook-1',
-    name: 'Salesforce Leads Webhook',
-    url: 'https://api.kairo.com/webhooks/sf-leads-abc123',
-    integration: 'Salesforce',
-    status: 'active',
-    lastTriggered: '2 hours ago',
-    triggers: 1247
-  },
-  {
-    id: 'webhook-2',
-    name: 'Stripe Payments Webhook',
-    url: 'https://api.kairo.com/webhooks/stripe-pay-def456',
-    integration: 'Stripe',
-    status: 'active',
-    lastTriggered: '30 minutes ago',
-    triggers: 856
-  }
-];
-
-const apiKeys = [
-  {
-    id: 'sf-key',
-    integration: 'Salesforce',
-    name: 'Production API Key',
-    key: 'sf_live_••••••••••••••••••••••••••••••••••••••••••••••••8f2a',
-    created: '2024-12-15',
-    lastUsed: '2 hours ago',
-    status: 'active'
-  },
-  {
-    id: 'stripe-key',
-    integration: 'Stripe',
-    name: 'Stripe Secret Key',
-    key: 'sk_live_••••••••••••••••••••••••••••••••••••••••••••••••9c1b',
-    created: '2024-12-20',
-    lastUsed: '30 minutes ago',
-    status: 'active'
-  }
-];
-
-function IntegrationManagementCenter() {
-  const [activeTab, setActiveTab] = useState('marketplace');
+function IntegrationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [showApiKey, setShowApiKey] = useState({});
-
-  const categories = ['All', 'CRM', 'Communication', 'E-commerce', 'Productivity', 'Payments', 'Marketing'];
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': 
-      case 'installed': 
-      case 'healthy': return 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400';
-      case 'warning': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'error': 
-      case 'inactive': return 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400';
-      case 'paused': return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400';
+      case 'healthy': return 'text-green-500 bg-green-500/10 border-green-500/20';
+      case 'warning': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20';
+      case 'error': return 'text-red-500 bg-red-500/10 border-red-500/20';
+      default: return 'text-gray-500 bg-gray-500/10 border-gray-500/20';
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400';
-      case 'Medium': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'Hard': return 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20 dark:text-gray-400';
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'healthy': return CheckCircle;
+      case 'warning': return AlertTriangle;
+      case 'error': return XCircle;
+      default: return Activity;
     }
   };
 
-  const filteredIntegrations = availableIntegrations.filter(integration => {
-    if (categoryFilter !== 'all' && integration.category.toLowerCase() !== categoryFilter.toLowerCase()) return false;
-    if (searchTerm && !integration.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !integration.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return true;
+  const filteredIntegrations = integrations.filter(integration => {
+    const matchesSearch = integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         integration.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || integration.category.toLowerCase() === selectedCategory;
+    const matchesStatus = selectedStatus === 'all' || integration.status === selectedStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const toggleApiKeyVisibility = (keyId: string) => {
-    setShowApiKey(prev => ({ ...prev, [keyId]: !prev[keyId] }));
+  const IntegrationCard = ({ integration }: { integration: typeof integrations[0] }) => {
+    const Icon = integration.icon;
+    const StatusIcon = getStatusIcon(integration.status);
+
+    return (
+      <Card className={cn(
+        "group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative overflow-hidden",
+        getStatusColor(integration.status)
+      )}>
+        {/* Background Gradient */}
+        <div className={cn(
+          "absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-500",
+          integration.color.includes('blue') && "bg-gradient-to-br from-blue-500/30 to-cyan-500/30",
+          integration.color.includes('green') && "bg-gradient-to-br from-green-500/30 to-emerald-500/30",
+          integration.color.includes('purple') && "bg-gradient-to-br from-purple-500/30 to-pink-500/30"
+        )} style={{ transform: 'translate(50%, -50%)' }} />
+
+        <CardHeader className="pb-3 relative">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "p-3 rounded-xl bg-gradient-to-r group-hover:scale-110 transition-transform duration-300",
+                integration.color
+              )}>
+                <Icon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg">{integration.name}</CardTitle>
+                  {integration.isPopular && (
+                    <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-xs">
+                      Popular
+                    </Badge>
+                  )}
+                  {integration.isNew && (
+                    <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-xs">
+                      New
+                    </Badge>
+                  )}
+                </div>
+                <CardDescription>{integration.description}</CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusIcon className={cn("h-5 w-5", 
+                integration.status === 'healthy' ? 'text-green-500' : 
+                integration.status === 'warning' ? 'text-yellow-500' : 'text-red-500'
+              )} />
+              <Badge variant="outline" className="capitalize">
+                {integration.status}
+              </Badge>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="text-center p-3 rounded-lg bg-muted/30">
+              <p className="text-sm font-semibold">{integration.connections.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Connections</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/30">
+              <p className="text-sm font-semibold">{integration.successRate}%</p>
+              <p className="text-xs text-muted-foreground">Success Rate</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/30">
+              <p className="text-sm font-semibold">{integration.avgLatency}ms</p>
+              <p className="text-xs text-muted-foreground">Avg Latency</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Badge variant="secondary" className="text-xs">
+              {integration.category}
+            </Badge>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Eye className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Settings className="h-3 w-3" />
+              </Button>
+              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
-    <AppLayout>
+    <EnhancedAppLayout>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
+        {/* Enhanced Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Integration <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Center</span>
-            </h1>
-            <p className="text-muted-foreground">
-              Complete integration lifecycle management - marketplace, connections, templates, and settings
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-primary to-purple-600 rounded-xl">
+              <Globe className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold">Integration Management Center</h1>
+              <p className="text-muted-foreground text-lg">
+                Advanced health monitoring, connection management, and integration intelligence
+              </p>
+            </div>
           </div>
           
-          <div className="flex items-center gap-4 mt-4 md:mt-0">
-            <Badge variant="outline" className="flex items-center gap-2">
-              <Globe className="h-3 w-3" />
-              {myIntegrations.length} Connected
+          <div className="flex items-center gap-3 mt-4 md:mt-0">
+            <Badge className="bg-gradient-to-r from-green-500 to-emerald-500">
+              <Monitor className="h-3 w-3 mr-1" />
+              Health Monitoring
             </Badge>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export Config
-            </Button>
-            <Button>
+            <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500">
+              <Network className="h-3 w-3 mr-1" />
+              Connection Testing
+            </Badge>
+            <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
+              <Sparkles className="h-3 w-3 mr-1" />
+              AI Analytics
+            </Badge>
+            <Button className="bg-gradient-to-r from-primary to-purple-600">
               <Plus className="h-4 w-4 mr-2" />
               Add Integration
             </Button>
           </div>
         </div>
 
-        {/* Integration Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Globe className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{myIntegrations.length}</div>
-                  <div className="text-sm text-muted-foreground">Active Integrations</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{availableIntegrations.length}</div>
-                  <div className="text-sm text-muted-foreground">Available Apps</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <Webhook className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{webhookEndpoints.length}</div>
-                  <div className="text-sm text-muted-foreground">Webhook Endpoints</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                  <Key className="h-5 w-5 text-yellow-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{apiKeys.length}</div>
-                  <div className="text-sm text-muted-foreground">API Keys</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs 
-          value={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') || activeTab : activeTab}
-          onValueChange={setActiveTab} 
-          className="space-y-8"
-        >
+        {/* Professional Tabs */}
+        <Tabs defaultValue="marketplace" className="space-y-8">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
-            <TabsTrigger value="my-integrations">My Integrations</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="marketplace" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Marketplace
+            </TabsTrigger>
+            <TabsTrigger value="my-integrations" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              My Integrations
+            </TabsTrigger>
+            <TabsTrigger value="health-monitor" className="flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
+              Health Monitor
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Templates
+            </TabsTrigger>
           </TabsList>
 
-          {/* Marketplace Tab - Available integrations */}
+          {/* Marketplace Tab */}
           <TabsContent value="marketplace" className="space-y-6">
-            {/* Search and Filters */}
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search integrations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.slice(1).map((category) => (
-                    <SelectItem key={category} value={category.toLowerCase()}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Advanced Search and Filters */}
+            <Card className="border-border/50">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search integrations by name, category, or features..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 bg-muted/50 border-none focus:bg-background"
+                    />
+                  </div>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-48">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{category.label}</span>
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              {category.count}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="healthy">Healthy</SelectItem>
+                      <SelectItem value="warning">Warning</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-1 border rounded-lg p-1">
+                    <Button variant="default" size="sm" className="h-7 w-7 p-0">
+                      <Layers className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                      <BarChart3 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Integration Grid */}
+            {/* Professional Integration Grid */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredIntegrations.map((integration) => (
-                <Card key={integration.id} className="group hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="text-3xl">{integration.icon}</div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg">{integration.name}</CardTitle>
-                            {integration.verified && (
-                              <CheckCircle className="h-4 w-4 text-blue-500" />
-                            )}
-                          </div>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {integration.category}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-sm">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          {integration.rating}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{integration.installs}</div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="mb-4 line-clamp-2">
-                      {integration.description}
-                    </CardDescription>
-                    
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap gap-1">
-                        {integration.features.slice(0, 2).map((feature, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {feature}
-                          </Badge>
-                        ))}
-                        {integration.features.length > 2 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{integration.features.length - 2} more
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(integration.status)}>
-                            {integration.status === 'installed' ? 'Connected' : 'Available'}
-                          </Badge>
-                          <span className="text-sm font-medium text-green-600">
-                            {integration.pricing}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            View Details
-                          </Button>
-                          <Button size="sm">
-                            {integration.status === 'installed' ? 'Configure' : 'Install'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <IntegrationCard key={integration.id} integration={integration} />
               ))}
             </div>
           </TabsContent>
 
-          {/* My Integrations Tab - Connected services */}
+          {/* My Integrations Tab */}
           <TabsContent value="my-integrations" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Connected Integrations</h2>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Integration
-              </Button>
-            </div>
-
-            {/* Connected Integrations */}
-            <div className="space-y-4">
-              {myIntegrations.map((integration) => (
-                <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="text-3xl">{integration.icon}</div>
-                        <div>
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-semibold text-lg">{integration.name}</h3>
-                            <Badge className={getStatusColor('active')}>
-                              Connected
-                            </Badge>
-                            {integration.verified && (
-                              <CheckCircle className="h-4 w-4 text-blue-500" />
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {integration.useCase}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <div className="text-center">
-                          <div className="text-lg font-semibold">98.2%</div>
-                          <div className="text-xs text-muted-foreground">Success Rate</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-semibold">245ms</div>
-                          <div className="text-xs text-muted-foreground">Avg Latency</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Activity className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="text-red-500">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Integration Health */}
             <Card>
               <CardHeader>
-                <CardTitle>Integration Health</CardTitle>
-                <CardDescription>Monitor the performance of your connected integrations</CardDescription>
+                <CardTitle>Connected Integrations</CardTitle>
+                <CardDescription>
+                  Manage your active integrations and their configurations
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {myIntegrations.map((integration) => (
-                    <div key={integration.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl">{integration.icon}</div>
-                        <div>
-                          <div className="font-medium">{integration.name}</div>
-                          <div className="text-sm text-muted-foreground">Last sync: 2 minutes ago</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="font-semibold">1,247</div>
-                          <div className="text-muted-foreground">Requests</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">99.1%</div>
-                          <div className="text-muted-foreground">Success</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">120ms</div>
-                          <div className="text-muted-foreground">Latency</div>
-                        </div>
-                        <Badge className="text-green-600 bg-green-100">
-                          Healthy
-                        </Badge>
-                      </div>
-                    </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {integrations.filter(i => ['salesforce', 'slack', 'google-sheets'].includes(i.id)).map((integration) => (
+                    <IntegrationCard key={integration.id} integration={integration} />
                   ))}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Templates Tab - Pre-built integration workflows */}
-          <TabsContent value="templates" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Integration Templates</h2>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Template
-              </Button>
-            </div>
-
-            {/* Template Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {integrationTemplates.map((template) => (
-                <Card key={template.id} className="group hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <Badge variant="outline" className="text-xs">
-                        {template.category}
-                      </Badge>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        {template.rating}
-                      </div>
-                    </div>
-                    <CardTitle className="text-lg leading-tight mb-2">
-                      {template.name}
-                    </CardTitle>
-                    <CardDescription>{template.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        {template.integrations.map((integration, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {integration}
-                          </Badge>
-                        ))}
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <Badge variant="outline" className={getDifficultyColor(template.difficulty)}>
-                            {template.difficulty}
-                          </Badge>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {template.estimatedTime}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Users className="h-3 w-3" />
-                          {template.uses}
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          Preview
-                        </Button>
-                        <Button size="sm" className="flex-1">
-                          Use Template
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          {/* Health Monitor Tab - Professional Feature */}
+          <TabsContent value="health-monitor" className="space-y-6">
+            <IntegrationHealthMonitor />
           </TabsContent>
 
-          {/* Settings Tab - API keys & configurations */}
-          <TabsContent value="settings" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* API Keys Section */}
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>API Keys</CardTitle>
-                      <CardDescription>
-                        Manage API keys for your integrations
-                      </CardDescription>
-                    </div>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Key
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {apiKeys.map((apiKey) => (
-                      <div key={apiKey.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-lg">
-                              <Key className="h-4 w-4 text-primary" />
-                            </div>
-                            <div>
-                              <p className="font-semibold">{apiKey.integration}</p>
-                              <p className="text-sm text-muted-foreground">{apiKey.name}</p>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(apiKey.status)}>
-                            {apiKey.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Input 
-                              value={showApiKey[apiKey.id] ? apiKey.key.replace('•', 'x') : apiKey.key}
-                              readOnly 
-                              className="font-mono text-sm"
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => toggleApiKeyVisibility(apiKey.id)}
-                            >
-                              {showApiKey[apiKey.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <span>Last used: {apiKey.lastUsed}</span>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm">
-                                <RefreshCw className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-red-600">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Webhook Endpoints */}
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>Webhook Endpoints</CardTitle>
-                      <CardDescription>
-                        Manage webhook endpoints for real-time data sync
-                      </CardDescription>
-                    </div>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Webhook
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {webhookEndpoints.map((webhook) => (
-                      <div key={webhook.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-purple-500/10 rounded-lg">
-                              <Webhook className="h-4 w-4 text-purple-500" />
-                            </div>
-                            <div>
-                              <p className="font-semibold">{webhook.name}</p>
-                              <p className="text-sm text-muted-foreground">{webhook.integration}</p>
-                            </div>
-                          </div>
-                          <Badge className={getStatusColor(webhook.status)}>
-                            {webhook.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Input 
-                              value={webhook.url}
-                              readOnly 
-                              className="font-mono text-sm"
-                            />
-                            <Button variant="outline" size="sm">
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-4 text-muted-foreground">
-                              <span>Last triggered: {webhook.lastTriggered}</span>
-                              <span>Total triggers: {webhook.triggers}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm">
-                                <Settings className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-red-600">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Integration Settings */}
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Integration Settings</CardTitle>
-                <CardDescription>Global settings for all integrations</CardDescription>
+                <CardTitle>Integration Templates</CardTitle>
+                <CardDescription>
+                  Pre-built workflow templates for each integration
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Auto-retry failed requests</p>
-                    <p className="text-sm text-muted-foreground">Automatically retry failed API requests up to 3 times</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Rate limit protection</p>
-                    <p className="text-sm text-muted-foreground">Automatically pause requests when rate limits are hit</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Debug logging</p>
-                    <p className="text-sm text-muted-foreground">Enable detailed logging for troubleshooting</p>
-                  </div>
-                  <Switch />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Request timeout (seconds)</Label>
-                  <Input type="number" defaultValue="30" className="w-24" />
-                  <p className="text-sm text-muted-foreground">Maximum time to wait for API responses</p>
+              <CardContent>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[
+                    {
+                      title: 'Salesforce Lead Sync',
+                      description: 'Automatically sync leads from forms to Salesforce',
+                      integration: 'Salesforce',
+                      difficulty: 'Beginner',
+                      time: '5 min setup'
+                    },
+                    {
+                      title: 'Slack Notifications',
+                      description: 'Send automated notifications to Slack channels',
+                      integration: 'Slack',
+                      difficulty: 'Beginner',
+                      time: '3 min setup'
+                    },
+                    {
+                      title: 'Shopify Order Processing',
+                      description: 'Process and fulfill Shopify orders automatically',
+                      integration: 'Shopify',
+                      difficulty: 'Intermediate',
+                      time: '10 min setup'
+                    }
+                  ].map((template, index) => (
+                    <Card key={index} className="group cursor-pointer hover:shadow-lg transition-all duration-300">
+                      <CardContent className="p-6">
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="font-semibold text-lg mb-2">{template.title}</h3>
+                            <p className="text-sm text-muted-foreground">{template.description}</p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {template.integration}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {template.difficulty}
+                              </Badge>
+                            </div>
+                            <span className="text-xs text-muted-foreground">{template.time}</span>
+                          </div>
+                          <Button className="w-full group-hover:bg-primary/90">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Use Template
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Feature Showcase Footer */}
+        <Card className="mt-8 border-border/50 bg-gradient-to-r from-muted/50 via-background to-muted/50">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-muted-foreground">Real-time health monitoring</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-muted-foreground">Advanced connection testing</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-muted-foreground">AI-powered analytics</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh All
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Report
+                </Button>
+                <Button size="sm" className="bg-gradient-to-r from-primary to-purple-600">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Run Health Check
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </AppLayout>
+    </EnhancedAppLayout>
   );
 }
 
-export default withAuth(IntegrationManagementCenter);
+export default withAuth(IntegrationsPage);
