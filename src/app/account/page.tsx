@@ -1,882 +1,944 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { AppLayout } from '@/components/app-layout';
+import { useState, useEffect } from 'react';
+import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarContent, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { 
   User,
-  Users, 
-  UserPlus,
-  Mail,
-  Settings,
-  Crown,
+  Users,
+  CreditCard,
   Shield,
-  Eye,
-  EyeOff,
-  Edit3,
-  Trash2,
-  MoreHorizontal,
-  Search,
-  Filter,
-  Download,
-  Send,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Calendar,
-  Activity,
-  Globe,
-  Phone,
-  MapPin,
-  Briefcase,
-  Star,
-  Award,
-  Target,
-  TrendingUp,
-  Database,
-  Code,
-  Palette,
-  MessageSquare,
-  FileText,
-  Zap,
-  ArrowRight,
+  Settings,
+  Bell,
   Key,
   Lock,
-  Unlock,
+  Eye,
+  EyeOff,
+  Mail,
+  Phone,
+  MapPin,
+  Building,
+  Calendar,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
   Plus,
+  Minus,
+  Edit,
+  Trash2,
+  Download,
+  Upload,
   Copy,
-  RotateCcw,
-  Bell,
+  ExternalLink,
+  RefreshCw,
+  Activity,
+  BarChart3,
+  Globe,
   Smartphone,
-  CreditCard,
-  DollarSign
+  Laptop,
+  Monitor,
+  Crown,
+  Star,
+  Award,
+  Zap,
+  FileText,
+  Database,
+  Cloud,
+  Wifi,
+  HardDrive,
+  Cpu,
+  MemoryStick,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Info,
+  AlertCircle,
+  UserPlus,
+  UserMinus,
+  UserCheck,
+  Search,
+  Filter,
+  MoreHorizontal,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
-// Account Management Hub - Consolidated from /profile, /team, /security, /billing
-// This combines all account-related functionality in one unified interface
-
-// Mock data from various pages
-const currentUser = {
+// Mock user data
+const mockUser = {
+  id: 'user_123',
   name: 'Sarah Johnson',
-  email: 'sarah.johnson@company.com',
+  email: 'sarah.johnson@techcorp.com',
   avatar: 'SJ',
-  role: 'Owner',
-  department: 'Executive',
-  location: 'New York, US',
+  role: 'Admin',
+  department: 'Engineering',
+  company: 'TechCorp Inc.',
+  location: 'San Francisco, CA',
   phone: '+1 (555) 123-4567',
-  joinedDate: '2024-01-15',
-  lastActive: '2 minutes ago'
+  timezone: 'Pacific Standard Time',
+  joinDate: '2023-03-15',
+  lastActive: '2024-01-15T14:30:00Z',
+  subscription: 'Gold Plan',
+  trialEnd: '2024-02-15',
+  apiKeysCount: 3,
+  workflowsCreated: 47,
+  totalExecutions: 15420
 };
 
-const currentPlan = {
-  name: 'Gold',
-  price: '$9',
-  period: 'month',
-  status: 'active',
-  nextBilling: '2024-02-15',
-  trialEnds: null
-};
-
-const usage = {
-  workflows: { current: 12, limit: 20 },
-  monthlyRuns: { current: 847, limit: 2000 },
-  aiGenerations: { current: 23, limit: 100 },
-  storage: { current: 2.1, limit: 10 }, // GB
-  teamMembers: { current: 1, limit: 3 }
-};
-
-const teamMembers = [
-  {
-    id: 1,
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@company.com',
-    role: 'Owner',
-    department: 'Executive',
-    avatar: 'SJ',
-    status: 'active',
-    lastActive: '2 minutes ago',
-    joinedDate: '2024-01-15',
-    permissions: ['admin', 'billing', 'workflows', 'integrations', 'analytics'],
-    workflows: 23,
-    executions: 12847
-  },
-  {
-    id: 2,
-    name: 'Michael Chen',
-    email: 'michael.chen@company.com',
-    role: 'Admin',
-    department: 'Engineering',
-    avatar: 'MC',
-    status: 'active',
-    lastActive: '5 minutes ago',
-    joinedDate: '2024-02-03',
-    permissions: ['workflows', 'integrations', 'analytics', 'monitoring'],
-    workflows: 18,
-    executions: 9634
-  },
-  {
-    id: 3,
-    name: 'Emily Rodriguez',
-    email: 'emily.rodriguez@company.com',
-    role: 'Editor',
-    department: 'Marketing',
-    avatar: 'ER',
-    status: 'active',
-    lastActive: '1 hour ago',
-    joinedDate: '2024-02-20',
-    permissions: ['workflows', 'analytics'],
-    workflows: 12,
-    executions: 5476
-  }
+const mockTeamMembers = [
+  { id: '1', name: 'Michael Chen', email: 'michael@techcorp.com', role: 'Developer', status: 'active', avatar: 'MC', lastActive: '2024-01-15T13:45:00Z' },
+  { id: '2', name: 'Emily Rodriguez', email: 'emily@techcorp.com', role: 'Designer', status: 'active', avatar: 'ER', lastActive: '2024-01-15T14:20:00Z' },
+  { id: '3', name: 'David Kim', email: 'david@techcorp.com', role: 'Manager', status: 'inactive', avatar: 'DK', lastActive: '2024-01-14T16:30:00Z' },
+  { id: '4', name: 'Lisa Wang', email: 'lisa@techcorp.com', role: 'Developer', status: 'pending', avatar: 'LW', lastActive: null }
 ];
 
-const securitySettings = {
-  twoFactor: true,
-  sessionTimeout: 30,
-  ipRestrictions: false,
-  auditLogging: true,
-  encryptionAtRest: true,
-  sso: false
+const mockApiKeys = [
+  { id: 'key_1', name: 'Production API', created: '2024-01-10', lastUsed: '2024-01-15T14:30:00Z', permissions: ['read', 'write'], status: 'active' },
+  { id: 'key_2', name: 'Development API', created: '2024-01-05', lastUsed: '2024-01-14T10:15:00Z', permissions: ['read'], status: 'active' },
+  { id: 'key_3', name: 'Analytics API', created: '2023-12-20', lastUsed: '2024-01-13T09:20:00Z', permissions: ['read'], status: 'inactive' }
+];
+
+const mockBillingData = {
+  currentPlan: 'Gold Plan',
+  monthlyPrice: 49,
+  billingCycle: 'monthly',
+  nextBilling: '2024-02-15',
+  paymentMethod: '**** **** **** 4242',
+  usageQuotas: {
+    workflows: { current: 47, limit: 100 },
+    executions: { current: 15420, limit: 50000 },
+    storage: { current: 2.3, limit: 10 },
+    teamMembers: { current: 4, limit: 10 }
+  }
 };
 
-const apiKeys = [
-  {
-    id: '1',
-    name: 'Production API Key',
-    key: 'ka_prod_•••••••••••••••••••••••••••••••••••••••••••••••••••8f2a',
-    created: '2024-12-15',
-    lastUsed: '2 hours ago',
-    permissions: ['read', 'write', 'admin'],
-    active: true
-  },
-  {
-    id: '2',
-    name: 'Development API Key',
-    key: 'ka_dev_••••••••••••••••••••••••••••••••••••••••••••••••••••9c1b',
-    created: '2024-12-20',
-    lastUsed: '1 day ago',
-    permissions: ['read', 'write'],
-    active: true
-  }
+const mockSecurityLogs = [
+  { id: '1', action: 'Login', timestamp: '2024-01-15T14:30:00Z', ip: '192.168.1.100', location: 'San Francisco, CA', device: 'Chrome on macOS' },
+  { id: '2', action: 'API Key Created', timestamp: '2024-01-10T09:15:00Z', ip: '192.168.1.100', location: 'San Francisco, CA', device: 'Chrome on macOS' },
+  { id: '3', action: 'Password Changed', timestamp: '2024-01-08T16:45:00Z', ip: '192.168.1.100', location: 'San Francisco, CA', device: 'Chrome on macOS' },
+  { id: '4', action: 'Failed Login Attempt', timestamp: '2024-01-07T11:20:00Z', ip: '203.0.113.42', location: 'Unknown', device: 'Unknown' }
 ];
 
 function AccountManagementHub() {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [showApiKey, setShowApiKey] = useState({});
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'Owner': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
-      case 'Admin': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
-      case 'Editor': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-      case 'Viewer': return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('tab') || 'profile';
     }
-  };
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'Owner': return Crown;
-      case 'Admin': return Shield;
-      case 'Editor': return Edit3;
-      case 'Viewer': return Eye;
-      default: return User;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-      case 'inactive': return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
-      case 'invited': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
-    }
-  };
-
-  const getUsagePercentage = (current: number, limit: number) => {
-    return Math.min((current / limit) * 100, 100);
-  };
-
-  const toggleApiKeyVisibility = (keyId: string) => {
-    setShowApiKey(prev => ({ ...prev, [keyId]: !prev[keyId] }));
-  };
-
-  const filteredMembers = teamMembers.filter(member => {
-    if (roleFilter !== 'all' && member.role !== roleFilter) return false;
-    if (searchTerm && !member.name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !member.email.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return true;
+    return 'profile';
   });
 
-  return (
-    <AppLayout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Account <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Management</span>
-            </h1>
-            <p className="text-muted-foreground">
-              Manage your profile, team, security settings, and billing all in one place
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4 mt-4 md:mt-0">
-            <Badge variant="outline" className="flex items-center gap-2">
-              <Crown className="h-3 w-3" />
-              {currentPlan.name} Plan
-            </Badge>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export Data
+  const [showApiKey, setShowApiKey] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Profile Tab Component
+  const ProfileTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Profile Settings</h2>
+          <p className="text-muted-foreground">Manage your personal information and preferences</p>
+        </div>
+        <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2">
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Verified Account
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Profile Overview */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+              <Avatar className="h-24 w-24">
+                <AvatarFallback className="text-2xl bg-gradient-to-r from-primary to-purple-600 text-white">
+                  {mockUser.avatar}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <CardTitle className="text-xl">{mockUser.name}</CardTitle>
+            <CardDescription>{mockUser.role} • {mockUser.company}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center space-y-2">
+              <Badge variant="outline" className="text-primary font-medium">
+                {mockUser.subscription}
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                Member since {new Date(mockUser.joinDate).toLocaleDateString()}
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Workflows Created</span>
+                <span className="font-semibold">{mockUser.workflowsCreated}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Total Executions</span>  
+                <span className="font-semibold">{mockUser.totalExecutions.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">API Keys</span>
+                <span className="font-semibold">{mockUser.apiKeysCount}</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            <Button className="w-full">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Profile Picture
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Profile Details */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Personal Information
+            </CardTitle>
+            <CardDescription>Update your personal details and contact information</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input id="fullName" defaultValue={mockUser.name} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input id="email" type="email" defaultValue={mockUser.email} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input id="phone" defaultValue={mockUser.phone} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Timezone</Label>
+                <Input id="timezone" defaultValue={mockUser.timezone} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input id="location" defaultValue={mockUser.location} />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <h4 className="font-semibold">Company Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input id="company" defaultValue={mockUser.company} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input id="department" defaultValue={mockUser.department} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline">Cancel</Button>
+              <Button>Save Changes</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* API Keys Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                API Keys
+              </CardTitle>
+              <CardDescription>Manage your API keys for integrations and external access</CardDescription>
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Generate New Key
             </Button>
           </div>
-        </div>
-
-        {/* Account Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <User className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{currentUser.role}</div>
-                  <div className="text-sm text-muted-foreground">Account Role</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                  <Users className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{teamMembers.length}</div>
-                  <div className="text-sm text-muted-foreground">Team Members</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                  <Key className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{apiKeys.length}</div>
-                  <div className="text-sm text-muted-foreground">API Keys</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-                  <CreditCard className="h-5 w-5 text-yellow-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{currentPlan.price}</div>
-                  <div className="text-sm text-muted-foreground">Monthly Cost</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs 
-          value={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') || activeTab : activeTab}
-          onValueChange={setActiveTab} 
-          className="space-y-8"
-        >
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
-          </TabsList>
-
-          {/* Profile Tab - Personal settings & preferences */}
-          <TabsContent value="profile" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Update your personal details and preferences</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={`/avatars/${currentUser.avatar.toLowerCase()}.png`} />
-                      <AvatarFallback className="bg-gradient-to-r from-primary to-purple-600 text-white text-lg">
-                        {currentUser.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <Button variant="outline" size="sm">
-                        Upload Photo
-                      </Button>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        JPG, PNG or GIF. Max size 2MB.
-                      </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {mockApiKeys.map((apiKey) => (
+              <div key={apiKey.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-muted rounded-lg">
+                    <Key className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">{apiKey.name}</h4>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>Created {apiKey.created}</span>
+                      <span>•</span>
+                      <span>Last used {new Date(apiKey.lastUsed).toLocaleDateString()}</span>
+                      <span>•</span>
+                      <Badge variant={apiKey.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                        {apiKey.status}
+                      </Badge>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" defaultValue="Sarah" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" defaultValue="Johnson" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" defaultValue={currentUser.email} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" defaultValue={currentUser.phone} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input id="location" defaultValue={currentUser.location} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Select defaultValue={currentUser.department}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Executive">Executive</SelectItem>
-                        <SelectItem value="Engineering">Engineering</SelectItem>
-                        <SelectItem value="Marketing">Marketing</SelectItem>
-                        <SelectItem value="Sales">Sales</SelectItem>
-                        <SelectItem value="Operations">Operations</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button className="w-full">
-                    Save Changes
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowApiKey(showApiKey === apiKey.id ? null : apiKey.id)}
+                  >
+                    {showApiKey === apiKey.id ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
-                </CardContent>
-              </Card>
+                  <Button variant="ghost" size="sm">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Settings</CardTitle>
-                  <CardDescription>Configure your account preferences</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Email Notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive workflow notifications via email</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
+  // Team Tab Component
+  const TeamTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Team Management</h2>
+          <p className="text-muted-foreground">Manage team members, roles, and permissions</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2">
+            <Users className="h-4 w-4 mr-2" />
+            {mockTeamMembers.length} / {mockBillingData.usageQuotas.teamMembers.limit} Members
+          </Badge>
+          <Button>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Invite Member
+          </Button>
+        </div>
+      </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Push Notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive notifications in your browser</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Marketing Emails</p>
-                      <p className="text-sm text-muted-foreground">Receive product updates and tips</p>
-                    </div>
-                    <Switch />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Timezone</Label>
-                    <Select defaultValue="America/New_York">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time (UTC-5)</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time (UTC-6)</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time (UTC-8)</SelectItem>
-                        <SelectItem value="Europe/London">London (UTC+0)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select defaultValue="en">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="pt-4 space-y-2">
-                    <Button variant="outline" className="w-full">
-                      Change Password
-                    </Button>
-                    <Button variant="outline" className="w-full text-red-600 hover:text-red-700">
-                      Delete Account
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Team Tab - Organization & member management */}
-          <TabsContent value="team" className="space-y-6">
-            {/* Team Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between">
+      {/* Team Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold">Team Management</h2>
-                <p className="text-muted-foreground">Manage your team members and their permissions</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Members</p>
+                <p className="text-2xl font-bold">{mockTeamMembers.length}</p>
               </div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Invite Team Member</DialogTitle>
-                    <DialogDescription>
-                      Send an invitation to join your team
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="inviteEmail">Email Address</Label>
-                      <Input id="inviteEmail" type="email" placeholder="Enter email address" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="inviteRole">Role</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                          <SelectItem value="Editor">Editor</SelectItem>
-                          <SelectItem value="Viewer">Viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button className="w-full">
-                      Send Invitation
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Users className="h-8 w-8 text-blue-500" />
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Team Filters */}
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Members</p>
+                <p className="text-2xl font-bold">{mockTeamMembers.filter(m => m.status === 'active').length}</p>
+              </div>
+              <UserCheck className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Pending Invites</p>
+                <p className="text-2xl font-bold">{mockTeamMembers.filter(m => m.status === 'pending').length}</p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Available Seats</p>
+                <p className="text-2xl font-bold">{mockBillingData.usageQuotas.teamMembers.limit - mockTeamMembers.length}</p>
+              </div>
+              <Plus className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Team Members List */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Team Members</CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search members..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
+                  className="pl-9 w-64"
                 />
               </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-40">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="Owner">Owner</SelectItem>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Editor">Editor</SelectItem>
-                  <SelectItem value="Viewer">Viewer</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+              </Button>
             </div>
-
-            {/* Team Members List */}
-            <div className="space-y-4">
-              {filteredMembers.map((member) => {
-                const RoleIcon = getRoleIcon(member.role);
-                return (
-                  <Card key={member.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={`/avatars/${member.avatar.toLowerCase()}.png`} />
-                            <AvatarFallback className="bg-gradient-to-r from-primary to-purple-600 text-white">
-                              {member.avatar}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <h3 className="font-semibold text-lg">{member.name}</h3>
-                              <Badge className={`text-xs ${getStatusColor(member.status)}`}>
-                                {member.status}
-                              </Badge>
-                              <div className={`p-1.5 rounded-lg ${getRoleColor(member.role)}`}>
-                                <RoleIcon className="h-4 w-4" />
-                              </div>
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              <div className="flex items-center gap-4">
-                                <span className="flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  {member.email}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Briefcase className="h-3 w-3" />
-                                  {member.department}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <span>Role: <strong>{member.role}</strong></span>
-                                <span>Last active: {member.lastActive}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-6">
-                          <div className="text-center">
-                            <div className="text-lg font-semibold">{member.workflows}</div>
-                            <div className="text-xs text-muted-foreground">Workflows</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-semibold">{member.executions.toLocaleString()}</div>
-                            <div className="text-xs text-muted-foreground">Executions</div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </TabsContent>
-
-          {/* Security Tab - Permissions & access control */}
-          <TabsContent value="security" className="space-y-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Authentication Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Lock className="h-5 w-5" />
-                    Authentication
-                  </CardTitle>
-                  <CardDescription>
-                    Configure authentication and access controls
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Two-Factor Authentication</p>
-                      <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
-                    </div>
-                    <Switch checked={securitySettings.twoFactor} />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Single Sign-On (SSO)</p>
-                      <p className="text-sm text-muted-foreground">SAML/OAuth integration</p>
-                    </div>
-                    <Switch checked={securitySettings.sso} />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="font-medium">Session Timeout</p>
-                    <Input 
-                      type="number" 
-                      value={securitySettings.sessionTimeout} 
-                      className="w-20"
-                      readOnly
-                    />
-                    <p className="text-sm text-muted-foreground">Minutes of inactivity</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Data Protection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    Data Protection
-                  </CardTitle>
-                  <CardDescription>
-                    Configure data security and encryption
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Encryption at Rest</p>
-                      <p className="text-sm text-muted-foreground">AES-256 encryption for stored data</p>
-                    </div>
-                    <Switch checked={securitySettings.encryptionAtRest} />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">IP Restrictions</p>
-                      <p className="text-sm text-muted-foreground">Limit access by IP address</p>
-                    </div>
-                    <Switch checked={securitySettings.ipRestrictions} />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Audit Logging</p>
-                      <p className="text-sm text-muted-foreground">Log all user activities</p>
-                    </div>
-                    <Switch checked={securitySettings.auditLogging} />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* API Keys Section */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>API Keys</CardTitle>
-                    <CardDescription>
-                      Manage API keys for integrations and external access
-                    </CardDescription>
-                  </div>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generate New Key
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {apiKeys.map((apiKey) => (
-                    <div key={apiKey.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 rounded-lg">
-                            <Key className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-semibold">{apiKey.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Created {new Date(apiKey.created).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={apiKey.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                            {apiKey.active ? 'Active' : 'Inactive'}
-                          </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Input 
-                            value={showApiKey[apiKey.id] ? apiKey.key.replace('•', 'x') : apiKey.key}
-                            readOnly 
-                            className="font-mono text-sm"
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => toggleApiKeyVisibility(apiKey.id)}
-                          >
-                            {showApiKey[apiKey.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-4">
-                            <span>Last used: {apiKey.lastUsed}</span>
-                            <div className="flex gap-1">
-                              {apiKey.permissions.map((perm, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {perm}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Billing Tab - Subscription & payment info */}
-          <TabsContent value="billing" className="space-y-6">
-            {/* Current Plan */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Crown className="h-5 w-5 text-yellow-500" />
-                      Current Plan: {currentPlan.name}
-                    </CardTitle>
-                    <CardDescription>
-                      {currentPlan.price}/{currentPlan.period} • Next billing: {new Date(currentPlan.nextBilling).toLocaleDateString()}
-                    </CardDescription>
-                  </div>
-                  <Badge variant={currentPlan.status === 'active' ? 'default' : 'secondary'}>
-                    {currentPlan.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {mockTeamMembers.map((member) => (
+              <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-4">
-                  <Button variant="outline">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Update Payment Method
-                  </Button>
-                  <Button variant="outline">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Manage Subscription
-                  </Button>
-                  <Button>
-                    Upgrade Plan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Usage Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Usage Overview</CardTitle>
-                <CardDescription>Current month usage across all resources</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {Object.entries(usage).map(([key, data]) => {
-                  const percentage = getUsagePercentage(data.current, data.limit);
-                  
-                  return (
-                    <div key={key} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}
-                        </div>
-                        <div className="text-sm">
-                          <span className={percentage >= 90 ? 'text-red-500' : 'text-foreground'}>
-                            {typeof data.current === 'number' && data.current % 1 !== 0 
-                              ? data.current.toFixed(1) 
-                              : data.current.toLocaleString()}
-                          </span>
-                          {' '} / {data.limit.toLocaleString()}
-                          {key === 'storage' ? ' GB' : ''}
-                        </div>
-                      </div>
-                      <Progress value={percentage} />
-                      {percentage >= 90 && (
-                        <div className="flex items-center gap-2 text-sm text-red-600">
-                          <AlertTriangle className="h-4 w-4" />
-                          Approaching limit - consider upgrading your plan
-                        </div>
+                  <Avatar>
+                    <AvatarFallback className="bg-gradient-to-r from-primary to-purple-600 text-white">
+                      {member.avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h4 className="font-semibold">{member.name}</h4>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{member.email}</span>
+                      <span>•</span>
+                      <span>{member.role}</span>
+                      {member.lastActive && (
+                        <>
+                          <span>•</span>
+                          <span>Last active {new Date(member.lastActive).toLocaleDateString()}</span>
+                        </>
                       )}
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Billing History */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Billing History</CardTitle>
-                <CardDescription>Recent invoices and payment history</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4" />
-                    <p>No billing history available</p>
-                    <p className="text-sm">Your first invoice will appear here after billing</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-3">
+                  <Badge 
+                    variant={
+                      member.status === 'active' ? 'default' : 
+                      member.status === 'pending' ? 'secondary' : 'outline'
+                    }
+                    className="capitalize"
+                  >
+                    {member.status}
+                  </Badge>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Organization Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building className="h-5 w-5" />
+            Organization Settings
+          </CardTitle>
+          <CardDescription>Configure organization-wide settings and policies</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Single Sign-On (SSO)</h4>
+              <p className="text-sm text-muted-foreground">Enable SSO for streamlined team access</p>
+            </div>
+            <Switch />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Two-Factor Authentication Required</h4>
+              <p className="text-sm text-muted-foreground">Require 2FA for all team members</p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Domain Restriction</h4>
+              <p className="text-sm text-muted-foreground">Only allow team members with @techcorp.com emails</p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Billing Tab Component
+  const BillingTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Billing & Subscription</h2>
+          <p className="text-muted-foreground">Manage your subscription, billing, and usage</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 px-4 py-2">
+            <Crown className="h-4 w-4 mr-2" />
+            {mockBillingData.currentPlan}
+          </Badge>
+          <Button>
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Upgrade Plan
+          </Button>
+        </div>
+      </div>
+
+      {/* Current Plan Card */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-purple-500/5">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">{mockBillingData.currentPlan}</CardTitle>
+              <CardDescription className="text-base">
+                ${mockBillingData.monthlyPrice}/month • Billed {mockBillingData.billingCycle}
+              </CardDescription>
+            </div>
+            <Crown className="h-12 w-12 text-primary" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{mockBillingData.usageQuotas.workflows.limit}</div>
+              <div className="text-sm text-muted-foreground">Workflows</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{(mockBillingData.usageQuotas.executions.limit / 1000).toFixed(0)}K</div>
+              <div className="text-sm text-muted-foreground">Executions/month</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{mockBillingData.usageQuotas.teamMembers.limit}</div>
+              <div className="text-sm text-muted-foreground">Team Members</div>
+            </div>
+          </div>
+          
+          <div className="mt-6 pt-6 border-t flex items-center justify-between">
+            <div>
+              <p className="font-semibold">Next billing date</p>
+              <p className="text-sm text-muted-foreground">{new Date(mockBillingData.nextBilling).toLocaleDateString()}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold">Payment method</p>
+              <p className="text-sm text-muted-foreground">{mockBillingData.paymentMethod}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Usage & Quotas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Usage & Quotas
+          </CardTitle>
+          <CardDescription>Monitor your current usage against plan limits</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {Object.entries(mockBillingData.usageQuotas).map(([key, data]) => {
+            const percentage = (data.current / data.limit) * 100;
+            return (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="capitalize font-medium">
+                    {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-semibold">
+                      {typeof data.current === 'number' && data.current % 1 !== 0 
+                        ? data.current.toFixed(1) 
+                        : data.current.toLocaleString()}
+                    </span>
+                    {' '} / {data.limit.toLocaleString()}
+                    {key === 'storage' ? ' GB' : ''}
+                  </div>
+                </div>
+                <Progress value={percentage} />
+                {percentage >= 90 && (
+                  <div className="flex items-center gap-2 text-sm text-red-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    Approaching limit - consider upgrading your plan
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Payment Method */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Payment Method
+              </CardTitle>
+              <CardDescription>Manage your payment information</CardDescription>
+            </div>
+            <Button variant="outline">
+              <Edit className="h-4 w-4 mr-2" />
+              Update
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4 p-4 border rounded-lg">
+            <div className="p-3 bg-blue-500/10 rounded-lg">
+              <CreditCard className="h-6 w-6 text-blue-500" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold">Visa ending in 4242</h4>
+              <p className="text-sm text-muted-foreground">Expires 12/2027</p>
+            </div>
+            <Badge variant="outline" className="text-green-600 border-green-600">
+              Active
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Billing History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Billing History</CardTitle>
+          <CardDescription>Recent invoices and payment history</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4" />
+              <p>No billing history available</p>
+              <p className="text-sm">Your first invoice will appear here after billing</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Security Tab Component
+  const SecurityTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">Security & Privacy</h2>
+          <p className="text-muted-foreground">Manage your account security, permissions, and privacy settings</p>
+        </div>
+        <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2">
+          <Shield className="h-4 w-4 mr-2" />
+          Secure Account
+        </Badge>
+      </div>
+
+      {/* Security Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Password Strength</p>
+                <p className="text-2xl font-bold text-green-600">Strong</p>
+              </div>
+              <Lock className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">2FA Status</p>
+                <p className="text-2xl font-bold text-blue-600">Enabled</p>
+              </div>
+              <Smartphone className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Sessions</p>
+                <p className="text-2xl font-bold text-purple-600">3</p>
+              </div>
+              <Monitor className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Security Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Account Security
+          </CardTitle>
+          <CardDescription>Configure your account security preferences</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Two-Factor Authentication</h4>
+              <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-green-600 border-green-600">
+                Enabled
+              </Badge>
+              <Button variant="outline" size="sm">
+                Manage
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Password</h4>
+              <p className="text-sm text-muted-foreground">Last changed on January 8, 2024</p>
+            </div>
+            <Button variant="outline" size="sm">
+              Change Password
+            </Button>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Login Notifications</h4>
+              <p className="text-sm text-muted-foreground">Get notified when someone logs into your account</p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold">Session Timeout</h4>
+              <p className="text-sm text-muted-foreground">Automatically log out after 30 minutes of inactivity</p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Active Sessions */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Monitor className="h-5 w-5" />
+                Active Sessions
+              </CardTitle>
+              <CardDescription>Manage devices and sessions with access to your account</CardDescription>
+            </div>
+            <Button variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/20 border-green-200">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-green-500/10 rounded-lg">
+                  <Laptop className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold">Chrome on macOS</h4>
+                  <div className="text-sm text-muted-foreground">
+                    San Francisco, CA • Current session
+                  </div>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-green-600 border-green-600">
+                Current
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-muted rounded-lg">
+                  <Smartphone className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <h4 className="font-semibold">Mobile App - iOS</h4>
+                  <div className="text-sm text-muted-foreground">
+                    San Francisco, CA • Last active 2 hours ago
+                  </div>
+                </div>
+              </div>
+              <Button variant="outline" size="sm">
+                Revoke
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-muted rounded-lg">
+                  <Monitor className="h-5 w-5 text-muted-foreground" />
+                </div>  
+                <div>
+                  <h4 className="font-semibold">Firefox on Windows</h4>
+                  <div className="text-sm text-muted-foreground">
+                    New York, NY • Last active 1 day ago
+                  </div>
+                </div>
+              </div>
+              <Button variant="outline" size="sm">
+                Revoke
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Security Logs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Security Activity Log
+          </CardTitle>
+          <CardDescription>Recent security events and login activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-80">
+            <div className="space-y-4">
+              {mockSecurityLogs.map((log) => (
+                <div key={log.id} className="flex items-start gap-4 p-3 hover:bg-muted/50 rounded-lg transition-colors">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    log.action.includes('Failed') ? 'bg-red-500/10' : 'bg-green-500/10'
+                  )}>
+                    {log.action.includes('Failed') ? (
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium">{log.action}</h4>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(log.timestamp).toLocaleString()} • {log.ip} • {log.location}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{log.device}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  return (
+    <EnhancedAppLayout>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        {/* Consolidated Account Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <div className="flex items-center justify-between">
+            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Profile</span>
+              </TabsTrigger>
+              <TabsTrigger value="team" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span className="hidden sm:inline">Team</span>
+              </TabsTrigger>
+              <TabsTrigger value="billing" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span className="hidden sm:inline">Billing</span>
+              </TabsTrigger>
+              <TabsTrigger value="security" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                <span className="hidden sm:inline">Security</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-6">
+            <ProfileTab />
+          </TabsContent>
+
+          {/* Team Tab */}
+          <TabsContent value="team" className="space-y-6">
+            <TeamTab />
+          </TabsContent>
+
+          {/* Billing Tab */}
+          <TabsContent value="billing" className="space-y-6">
+            <BillingTab />
+          </TabsContent>
+
+          {/* Security Tab */}
+          <TabsContent value="security" className="space-y-6">
+            <SecurityTab />
           </TabsContent>
         </Tabs>
       </div>
-    </AppLayout>
+    </EnhancedAppLayout>
   );
 }
 
