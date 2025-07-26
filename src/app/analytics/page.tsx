@@ -1,81 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React from 'react';
 import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { TrendAnalysis } from '@/components/ui/trend-analysis';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { 
-  BarChart3, 
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Users,
-  Zap,
-  Clock,
-  DollarSign,
-  Target,
-  Globe,
-  Workflow,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  Calendar,
-  Download,
-  Filter,
-  RefreshCw,
-  Eye,
-  Play,
-  Pause,
-  Square,
-  StopCircle,
-  ArrowUp,
-  ArrowDown,
-  Minus,
-  PieChart,
-  LineChart,
-  MoreHorizontal,
-  Maximize2,
-  Settings,
-  Share,
-  FileText,
-  Mail,
-  MessageSquare,
-  Database,
-  Cloud,
-  Server,
-  Monitor,
-  Smartphone,
-  Cpu,
-  HardDrive,
-  MemoryStick,
-  Gauge,
-  ThermometerSun,
-  Wifi,
-  WifiOff,
-  ShieldCheck,
-  Lock,
-  Bell,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Search,
-  MapPin,
-  Terminal,
-  Code,
-  Timer,
-  Network,
-  Brain,
-  Sparkles
-} from 'lucide-react';
+import { EnhancedAnalyticsDashboard } from '@/components/ui/enhanced-analytics-dashboard';
+
+function AnalyticsEnhancedDashboard() {
+  return (
+    <EnhancedAppLayout>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <EnhancedAnalyticsDashboard />
+      </div>
+    </EnhancedAppLayout>
+  );
+}
+
+export default withAuth(AnalyticsEnhancedDashboard);
 
 function AnalyticsEnhancedDashboard() {
   const [timeRange, setTimeRange] = useState('7d');
