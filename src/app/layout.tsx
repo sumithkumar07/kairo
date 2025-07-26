@@ -8,6 +8,7 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 import { cn } from '@/lib/utils'; 
 import { ThemeProvider } from '@/components/theme-provider';
 import { initializeDatabase } from '@/lib/database';
+import ErrorBoundary from '@/components/error-boundary';
 
 const inter = Inter({ 
   subsets: ['latin'],
