@@ -72,7 +72,9 @@ import {
   StopCircle,
   SkipForward,
   Rewind,
-  FastForward
+  FastForward,
+  Puzzle,
+  Template
 } from 'lucide-react';
 
 // Mock data for dashboard
