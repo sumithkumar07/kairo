@@ -26,34 +26,34 @@ const navigation = {
       name: 'Features',
       href: '#features',
       children: [
-        { name: 'AI Workflow Generation', href: '/ai-studio', icon: Brain },
-        { name: 'Visual Builder', href: '/workflow', icon: Workflow },
+        { name: 'AI Workflow Generation', href: '/dashboard?tab=ai', icon: Brain },
+        { name: 'Visual Builder', href: '/editor?tab=canvas', icon: Workflow },
         { name: 'Integrations', href: '/integrations', icon: Globe },
-        { name: 'Analytics', href: '/analytics', icon: Zap }
+        { name: 'Analytics', href: '/dashboard?tab=analytics', icon: Zap }
       ]
     },
     {
       name: 'Solutions',
       href: '#solutions',
       children: [
-        { name: 'Marketing Automation', href: '/solutions/marketing', icon: Sparkles },
-        { name: 'Sales Operations', href: '/solutions/sales', icon: Users },
-        { name: 'Customer Support', href: '/solutions/support', icon: Phone },
-        { name: 'Data Processing', href: '/solutions/data', icon: Brain }
+        { name: 'Marketing Automation', href: '/#marketing', icon: Sparkles },
+        { name: 'Sales Operations', href: '/#sales', icon: Users },
+        { name: 'Customer Support', href: '/#support', icon: Phone },
+        { name: 'Data Processing', href: '/#data', icon: Brain }
       ]
     },
     {
       name: 'Resources',
-      href: '/learn',
+      href: '/help',
       children: [
-        { name: 'Documentation', href: '/learn?tab=docs', icon: BookOpen },
-        { name: 'API Reference', href: '/learn?tab=api', icon: Workflow },
-        { name: 'Tutorials', href: '/learn?tab=tutorials', icon: Brain },
-        { name: 'Community', href: '/learn?tab=community', icon: Users }
+        { name: 'Documentation', href: '/help?tab=docs', icon: BookOpen },
+        { name: 'API Reference', href: '/help?tab=api', icon: Workflow },
+        { name: 'Tutorials', href: '/help?tab=tutorials', icon: Brain },
+        { name: 'Community', href: '/help?tab=community', icon: Users }
       ]
     },
-    { name: 'Pricing', href: '/pricing' },
-    { name: 'Contact', href: '/contact' }
+    { name: 'Pricing', href: '/#pricing' },
+    { name: 'Contact', href: '/#contact' }
   ]
 };
 
