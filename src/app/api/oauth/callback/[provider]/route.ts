@@ -53,11 +53,11 @@ export async function GET(
       `${process.env.NEXT_PUBLIC_APP_URL}/integrations?success=true&provider=${provider}&credential_id=${credentialId}`
     );
     
-  } catch (error) {
-    console.error(`OAuth callback error for ${params.provider}:`, error);
+  } catch (error: any) {
+    console.error(`OAuth callback error:`, error);
     
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/integrations?error=${encodeURIComponent(error.message)}&provider=${params.provider}`
+      `${process.env.NEXT_PUBLIC_APP_URL}/integrations?error=${encodeURIComponent(error?.message || 'OAuth error')}`
     );
   }
 }
