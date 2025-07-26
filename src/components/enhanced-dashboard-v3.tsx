@@ -12,12 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 
-// Import new enhanced components
-import { StatusIndicator, HealthIndicator, TrendIndicator } from '@/components/ui/enhanced-status-indicators';
-import { ProfessionalMetricCard, MetricsGrid, METRIC_PRESETS } from '@/components/ui/professional-metric-cards';
-import { InteractiveButton, ActionCard, QuickActionGrid, QUICK_ACTIONS } from '@/components/ui/enhanced-interactive-elements';
-import { SearchFilterBar } from '@/components/ui/search-filter-bar';
-
 import { 
   Play, 
   Workflow, 
