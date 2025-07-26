@@ -111,12 +111,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <SubscriptionProvider>
-              {children}
-              <Toaster />
-            </SubscriptionProvider>
-          </AuthProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <SubscriptionProvider>
+                {children}
+                <Toaster />
+              </SubscriptionProvider>
+            </AuthProvider>
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>
