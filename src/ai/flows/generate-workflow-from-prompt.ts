@@ -69,6 +69,6 @@ export async function generateWorkflowFromPrompt(input: GenerateWorkflowFromProm
     
   } catch (error) {
     console.error('[WORKFLOW GENERATION] Error generating workflow:', error);
-    throw new Error(`Failed to generate workflow: ${error.message}`);
+    throw new Error(`Failed to generate workflow: ${(error as Error)?.message || error}`);
   }
 }
