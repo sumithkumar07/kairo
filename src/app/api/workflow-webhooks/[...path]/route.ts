@@ -31,10 +31,11 @@ async function resolveSecurityToken(tokenValue: string | undefined, userId: stri
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const pathSuffix = params.path.join('/');
+    const { path } = await params;
+    const pathSuffix = path.join('/');
     console.log(`[API Webhook] Received POST for pathSuffix: '${pathSuffix}'`);
 
     let requestBody: any = null;
