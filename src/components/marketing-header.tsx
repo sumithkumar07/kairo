@@ -227,7 +227,7 @@ export function MarketingHeader() {
                     </Link>
                   </Button>
                   <Button className="w-full" asChild>
-                    <Link href="/workflow" onClick={() => setIsOpen(false)}>
+                    <Link href="/editor" onClick={() => setIsOpen(false)}>
                       <Workflow className="mr-2 h-4 w-4" />
                       Create Workflow
                     </Link>
