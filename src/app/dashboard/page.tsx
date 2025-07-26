@@ -9,6 +9,12 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
+import { AIFloatingAssistant } from '@/components/ai-chat-assistant';
+import { RealTimeCharts } from '@/components/real-time-charts';
+import { InteractiveGodTierFeatures } from '@/components/interactive-godtier-features';
+import { IntegrationMarketplace } from '@/components/integration-marketplace';
+import { TemplateLibrary } from '@/components/template-library';
+import { EnhancedMonitoring } from '@/components/enhanced-monitoring';
 import {
   Activity,
   BarChart3,
