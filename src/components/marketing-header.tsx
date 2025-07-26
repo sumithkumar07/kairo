@@ -148,7 +148,7 @@ export function MarketingHeader() {
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
               <Button asChild>
-                <Link href="/workflow">
+                <Link href="/editor">
                   <Workflow className="mr-2 h-4 w-4" />
                   Create
                 </Link>
