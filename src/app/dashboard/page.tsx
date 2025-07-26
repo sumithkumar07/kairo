@@ -1,267 +1,459 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
-import { withAuth } from '@/components/auth/with-auth';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  LayoutDashboard, 
-  Brain, 
-  BarChart3, 
-  Activity, 
-  Lightbulb,
-  TrendingUp,
-  Monitor,
-  History,
-  Crown,
-  Sparkles,
-  Zap,
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { EnhancedAppLayout } from '@/components/app-layout';
+import { withAuth } from '@/components/auth/with-auth';
+import {
+  Activity,
+  BarChart3,
   Users,
   Globe,
-  Database,
+  Zap,
+  TrendingUp,
+  TrendingDown,
   Clock,
   CheckCircle,
-  AlertTriangle,
-  XCircle,
-  ArrowUp,
-  ArrowDown,
-  RefreshCw,
-  Download,
-  Filter,
-  Search,
-  Eye,
+  AlertCircle,
   Play,
   Pause,
-  MoreVertical,
   Settings,
-  Target,
-  Rocket,
-  Shield,
-  Cpu,
-  MemoryStick,
-  HardDrive,
-  Wifi,
-  Calendar,
+  Eye,
+  Plus,
+  ArrowRight,
+  Brain,
+  Workflow,
+  Database,
   MessageSquare,
+  Mail,
+  Calendar,
   FileText,
+  Shield,
+  Rocket,
   Star,
   Award,
-  Flame,
-  TrendingDown
+  Target,
+  Sparkles,
+  Bot,
+  Crown,
+  Gauge,
+  RefreshCw,
+  Filter,
+  Download,
+  Share,
+  Bookmark,
+  Edit,
+  Trash2,
+  Copy,
+  ExternalLink,
+  MoreHorizontal,
+  ChevronRight,
+  LineChart,
+  PieChart,
+  DollarSign,
+  Percent,
+  Monitor,
+  AlertTriangle,
+  Info,
+  HelpCircle,
+  History,
+  PlayCircle,
+  StopCircle,
+  SkipForward,
+  Rewind,
+  FastForward
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 
-// Mock data for demonstration
-const mockMetrics = {
-  totalWorkflows: 1247,
-  activeWorkflows: 892,
-  totalExecutions: 45620,
+// Mock data for dashboard
+const dashboardStats = {
+  totalWorkflows: 47,
+  activeWorkflows: 23,
+  totalExecutions: 152340,
   successRate: 98.7,
-  avgExecutionTime: 2.3,
-  monthlyGrowth: 23.5,
-  systemUptime: 99.94,
-  apiCalls: 156789
+  totalIntegrations: 12,
+  monthlyExecutions: 45230,
+  avgResponseTime: 245,
+  errorRate: 1.3
 };
 
-const mockRecentActivity = [
-  { id: 1, type: 'workflow_run', name: 'Email Campaign Automation', status: 'success', time: '2 minutes ago', duration: '1.2s' },
-  { id: 2, type: 'integration_sync', name: 'Salesforce Lead Sync', status: 'success', time: '5 minutes ago', duration: '0.8s' },
-  { id: 3, type: 'ai_generation', name: 'Customer Journey Workflow', status: 'success', time: '8 minutes ago', duration: '3.1s' },
-  { id: 4, type: 'workflow_run', name: 'Inventory Update Process', status: 'failed', time: '12 minutes ago', duration: '2.7s' },
-  { id: 5, type: 'integration_sync', name: 'Slack Notification System', status: 'success', time: '15 minutes ago', duration: '0.5s' }
+const recentActivity = [
+  {
+    id: 1,
+    type: 'workflow_created',
+    title: 'Customer Onboarding Flow',
+    description: 'New workflow created for automated customer onboarding',
+    timestamp: '2 minutes ago',
+    status: 'success',
+    icon: Workflow
+  },
+  {
+    id: 2,
+    type: 'execution_completed',
+    title: 'Lead Notification System',
+    description: 'Workflow executed successfully - 45 leads processed',
+    timestamp: '5 minutes ago',
+    status: 'success',
+    icon: CheckCircle
+  },
+  {
+    id: 3,
+    type: 'integration_connected',
+    title: 'Salesforce Integration',
+    description: 'Successfully connected to Salesforce CRM',
+    timestamp: '12 minutes ago',
+    status: 'success',
+    icon: Globe
+  },
+  {
+    id: 4,
+    type: 'execution_failed',
+    title: 'Email Campaign Automation',
+    description: 'Workflow failed due to API rate limit',
+    timestamp: '18 minutes ago',
+    status: 'error',
+    icon: AlertCircle
+  },
+  {
+    id: 5,
+    type: 'ai_optimization',
+    title: 'AI Workflow Optimization',
+    description: 'AI suggestions applied to improve performance by 15%',
+    timestamp: '25 minutes ago',
+    status: 'success',
+    icon: Brain
+  }
 ];
 
-const mockAIInsights = [
-  { type: 'optimization', title: 'Performance Opportunity', description: 'Your email workflow could run 40% faster with parallel processing', priority: 'high' },
-  { type: 'cost', title: 'Cost Savings', description: 'Switch to batch processing for inventory updates to save $120/month', priority: 'medium' },
-  { type: 'reliability', title: 'Reliability Improvement', description: 'Add retry logic to payment processing workflow', priority: 'high' },
-  { type: 'integration', title: 'New Integration', description: 'Consider adding HubSpot integration for better lead management', priority: 'low' }
+const topWorkflows = [
+  {
+    id: 1,
+    name: 'Lead Qualification & Routing',
+    description: 'Automatically score and route incoming leads',
+    executions: 1250,
+    successRate: 99.2,
+    status: 'running',
+    lastRun: '2 minutes ago',
+    avgDuration: '1.2s',
+    category: 'Marketing'
+  },
+  {
+    id: 2,
+    name: 'Customer Support Automation',
+    description: 'Route tickets and send auto-responses',
+    executions: 890,
+    successRate: 97.8,
+    status: 'running',
+    lastRun: '8 minutes ago',
+    avgDuration: '2.1s',
+    category: 'Support'
+  },
+  {
+    id: 3,
+    name: 'Order Processing Pipeline',
+    description: 'End-to-end e-commerce order handling',
+    executions: 670,
+    successRate: 99.5,
+    status: 'paused',
+    lastRun: '1 hour ago',
+    avgDuration: '5.3s',
+    category: 'E-commerce'
+  },
+  {
+    id: 4,
+    name: 'Social Media Scheduler',
+    description: 'Schedule and publish content across platforms',
+    executions: 430,
+    successRate: 95.6,
+    status: 'running',
+    lastRun: '15 minutes ago',
+    avgDuration: '3.7s',
+    category: 'Marketing'
+  }
 ];
 
-const mockRunHistory = [
-  { id: 'run_001', workflow: 'Email Marketing Campaign', status: 'success', startTime: '2024-01-15 10:30:00', duration: '2.1s', executions: 1250 },
-  { id: 'run_002', workflow: 'Lead Qualification Process', status: 'success', startTime: '2024-01-15 10:25:00', duration: '1.8s', executions: 89 },
-  { id: 'run_003', workflow: 'Inventory Sync', status: 'failed', startTime: '2024-01-15 10:20:00', duration: '5.2s', executions: 450 },
-  { id: 'run_004', workflow: 'Customer Onboarding', status: 'success', startTime: '2024-01-15 10:15:00', duration: '3.4s', executions: 23 },
-  { id: 'run_005', workflow: 'Data Backup Process', status: 'success', startTime: '2024-01-15 10:10:00', duration: '12.8s', executions: 1 }
+const aiInsights = [
+  {
+    id: 1,
+    type: 'optimization',
+    title: 'Workflow Performance Boost',
+    description: 'Adding a condition check before API calls could reduce execution time by 23%',
+    impact: 'High',
+    workflowId: 1,
+    icon: Zap,
+    color: 'from-yellow-500 to-orange-500'
+  },
+  {
+    id: 2,
+    type: 'cost_saving',
+    title: 'API Usage Optimization',
+    description: 'Batch processing could reduce your monthly API costs by $127',
+    impact: 'Medium',
+    workflowId: 2,
+    icon: DollarSign,
+    color: 'from-green-500 to-emerald-500'
+  },
+  {
+    id: 3,
+    type: 'reliability',
+    title: 'Error Prevention Suggestion',
+    description: 'Add error handling for network timeouts to prevent 15% of failures',
+    impact: 'High',
+    workflowId: 3,
+    icon: Shield,
+    color: 'from-blue-500 to-cyan-500'
+  },
+  {
+    id: 4,
+    type: 'scaling',
+    title: 'Auto-scaling Recommendation',
+    description: 'Enable auto-scaling to handle 300% traffic spikes during peak hours',
+    impact: 'Medium',
+    workflowId: 1,
+    icon: TrendingUp,
+    color: 'from-purple-500 to-pink-500'
+  }
 ];
 
-function ConsolidatedDashboard() {
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('tab') || 'overview';
-    }
-    return 'overview';
-  });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+const godTierFeatures = [
+  {
+    id: 1,
+    name: 'Quantum Workflow Processing',
+    description: 'Leverage quantum computing for complex optimization',
+    status: 'active',
+    accuracy: 99.1,
+    speedup: '50x',
+    icon: Zap,
+    color: 'from-blue-500 to-cyan-500'
+  },
+  {
+    id: 2,
+    name: 'AI Prophet Predictions',
+    description: 'Predict workflow outcomes before execution',
+    status: 'active',
+    accuracy: 94.8,
+    speedup: '10x',
+    icon: Brain,
+    color: 'from-purple-500 to-pink-500'
+  },
+  {
+    id: 3,
+    name: 'Reality Fabrication Engine',
+    description: 'Control IoT devices and physical systems',
+    status: 'active',
+    accuracy: 97.3,
+    speedup: '25x',
+    icon: Globe,
+    color: 'from-green-500 to-emerald-500'
+  },
+  {
+    id: 4,
+    name: 'Global Consciousness Network',
+    description: 'Tap into worldwide data streams and insights',
+    status: 'training',
+    accuracy: 91.2,
+    speedup: '100x',
+    icon: Monitor,
+    color: 'from-orange-500 to-red-500'
+  }
+];
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRefreshing(false);
-    toast({ title: 'Dashboard Updated', description: 'All data has been refreshed successfully.' });
-  };
+function DashboardPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed': return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'running': return <Clock className="h-4 w-4 text-blue-500" />;
-      default: return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'border-red-200 bg-red-50 dark:bg-red-950/20';
-      case 'medium': return 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20';
-      case 'low': return 'border-blue-200 bg-blue-50 dark:bg-blue-950/20';
-      default: return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
-    }
-  };
-
-  // Overview Dashboard Component
-  const OverviewDashboard = () => (
+  // Overview Tab
+  const OverviewTab = () => (
     <div className="space-y-6">
-      {/* Enhanced Header */}
+      {/* Welcome Section */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-            Command Center
-          </h2>
-          <p className="text-muted-foreground text-lg">
-            Unified dashboard with real-time insights and AI intelligence
-          </p>
+          <h2 className="text-3xl font-bold">Welcome back! 👋</h2>
+          <p className="text-muted-foreground">Here's what's happening with your automations today</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
+          <select
+            value={selectedTimeRange}
+            onChange={(e) => setSelectedTimeRange(e.target.value)}
+            className="px-3 py-2 border rounded-md text-sm"
+          >
+            <option value="24h">Last 24 hours</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </select>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Workflow
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics Grid */}
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="group hover:shadow-lg transition-all duration-300">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Workflows</p>
-                <p className="text-3xl font-bold">{mockMetrics.totalWorkflows.toLocaleString()}</p>
-                <div className="flex items-center mt-2">
-                  <ArrowUp className="h-4 w-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600 font-medium">+{mockMetrics.monthlyGrowth}%</span>
-                  <span className="text-sm text-muted-foreground ml-1">this month</span>
-                </div>
+                <p className="text-2xl font-bold">{dashboardStats.totalWorkflows}</p>
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <TrendingUp className="h-3 w-3" />
+                  +12% from last month
+                </p>
               </div>
-              <div className="p-3 bg-blue-500/10 rounded-full">
-                <LayoutDashboard className="h-6 w-6 text-blue-500" />
+              <div className="p-3 bg-blue-500/10 rounded-lg">
+                <Workflow className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="group hover:shadow-lg transition-all duration-300">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Workflows</p>
-                <p className="text-3xl font-bold">{mockMetrics.activeWorkflows.toLocaleString()}</p>
-                <div className="flex items-center mt-2">
-                  <Activity className="h-4 w-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600 font-medium">Running</span>
-                </div>
+                <p className="text-sm font-medium text-muted-foreground">Executions</p>
+                <p className="text-2xl font-bold">{dashboardStats.totalExecutions.toLocaleString()}</p>
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <TrendingUp className="h-3 w-3" />
+                  +18% from last month
+                </p>
               </div>
-              <div className="p-3 bg-green-500/10 rounded-full">
-                <Zap className="h-6 w-6 text-green-500" />
+              <div className="p-3 bg-green-500/10 rounded-lg">
+                <Activity className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="group hover:shadow-lg transition-all duration-300">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-                <p className="text-3xl font-bold">{mockMetrics.successRate}%</p>
-                <div className="flex items-center mt-2">
-                  <ArrowUp className="h-4 w-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600 font-medium">+0.3%</span>
-                  <span className="text-sm text-muted-foreground ml-1">vs last week</span>
-                </div>
+                <p className="text-2xl font-bold">{dashboardStats.successRate}%</p>
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <TrendingUp className="h-3 w-3" />
+                  +2.3% from last month
+                </p>
               </div>
-              <div className="p-3 bg-emerald-500/10 rounded-full">
-                <Target className="h-6 w-6 text-emerald-500" />
+              <div className="p-3 bg-purple-500/10 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="group hover:shadow-lg transition-all duration-300">
+        <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Execution Time</p>
-                <p className="text-3xl font-bold">{mockMetrics.avgExecutionTime}s</p>
-                <div className="flex items-center mt-2">
-                  <ArrowDown className="h-4 w-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600 font-medium">-15%</span>
-                  <span className="text-sm text-muted-foreground ml-1">faster</span>
-                </div>
+                <p className="text-sm font-medium text-muted-foreground">Integrations</p>
+                <p className="text-2xl font-bold">{dashboardStats.totalIntegrations}</p>
+                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                  <TrendingUp className="h-3 w-3" />
+                  +3 new this month
+                </p>
               </div>
-              <div className="p-3 bg-purple-500/10 rounded-full">
-                <Clock className="h-6 w-6 text-purple-500" />
+              <div className="p-3 bg-orange-500/10 rounded-lg">
+                <Globe className="h-6 w-6 text-orange-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Activity and AI Insights */}
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Quick Actions
+          </CardTitle>
+          <CardDescription>Get started with common tasks</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                title: 'Build with AI',
+                description: 'Create workflows using natural language',
+                icon: Brain,
+                color: 'from-purple-500 to-pink-500',
+                action: 'Create'
+              },
+              {
+                title: 'Connect Service',
+                description: 'Add a new integration to your toolkit',
+                icon: Globe,
+                color: 'from-blue-500 to-cyan-500',
+                action: 'Browse'
+              },
+              {
+                title: 'Use Template',
+                description: 'Start with a pre-built workflow',
+                icon: FileText,
+                color: 'from-green-500 to-emerald-500',
+                action: 'Explore'
+              },
+              {
+                title: 'View Analytics',
+                description: 'Analyze your automation performance',
+                icon: BarChart3,
+                color: 'from-orange-500 to-red-500',
+                action: 'Analyze'
+              }
+            ].map((action, index) => (
+              <Card key={index} className="cursor-pointer hover:shadow-lg transition-all group">
+                <CardContent className="p-4">
+                  <div className={`w-10 h-10 bg-gradient-to-r ${action.color} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                    <action.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">{action.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">{action.description}</p>
+                  <Button size="sm" variant="outline" className="w-full">
+                    {action.action}
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Activity & Top Workflows */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
               Recent Activity
             </CardTitle>
-            <CardDescription>Latest workflow executions and system events</CardDescription>
+            <CardDescription>Latest updates from your workflows</CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-80">
               <div className="space-y-4">
-                {mockRecentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                    {getStatusIcon(activity.status)}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{activity.name}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{activity.time}</span>
-                        <span>•</span>
-                        <span>{activity.duration}</span>
-                      </div>
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors">
+                    <div className={`p-2 rounded-lg ${
+                      activity.status === 'success' ? 'bg-green-500/10' : 'bg-red-500/10'
+                    }`}>
+                      <activity.icon className={`h-4 w-4 ${
+                        activity.status === 'success' ? 'text-green-600' : 'text-red-600'
+                      }`} />
                     </div>
-                    <Badge variant={activity.status === 'success' ? 'default' : 'destructive'} className="text-xs">
-                      {activity.status}
-                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm">{activity.title}</h4>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{activity.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -269,40 +461,51 @@ function ConsolidatedDashboard() {
           </CardContent>
         </Card>
 
-        {/* AI Insights */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" />
-              AI Insights
+              <Star className="h-5 w-5" />
+              Top Performing Workflows
             </CardTitle>
-            <CardDescription>Smart recommendations to improve your workflows</CardDescription>
+            <CardDescription>Your most active automations</CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-80">
               <div className="space-y-4">
-                {mockAIInsights.map((insight, index) => (
-                  <Card key={index} className={cn("border", getPriorityColor(insight.priority))}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Lightbulb className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-sm">{insight.title}</h4>
-                            <Badge variant="outline" className="text-xs">
-                              {insight.priority}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-3">{insight.description}</p>
-                          <Button size="sm" variant="outline" className="h-7 text-xs">
-                            Apply Suggestion
-                          </Button>
-                        </div>
+                {topWorkflows.map((workflow) => (
+                  <div key={workflow.id} className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium text-sm">{workflow.name}</h4>
+                        <Badge 
+                          variant={workflow.status === 'running' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {workflow.status}
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{workflow.description}</p>
+                      
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{workflow.executions.toLocaleString()} runs</span>
+                        <span>{workflow.successRate}% success</span>
+                        <span>{workflow.avgDuration} avg</span>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <Progress value={workflow.successRate} className="h-1" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Settings className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </ScrollArea>
@@ -312,294 +515,41 @@ function ConsolidatedDashboard() {
     </div>
   );
 
-  // Analytics Dashboard Component
-  const AnalyticsDashboard = () => (
+  // Analytics Tab
+  const AnalyticsTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Advanced Analytics</h2>
-          <p className="text-muted-foreground">Comprehensive metrics and performance insights</p>
+          <h2 className="text-3xl font-bold">Analytics Dashboard</h2>
+          <p className="text-muted-foreground">Detailed insights into your automation performance</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
+        <div className="flex items-center gap-3">
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export Data
+          </Button>
+          <Button variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
         </div>
       </div>
 
-      {/* Performance Charts Placeholder */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Execution Performance</CardTitle>
-            <CardDescription>Workflow execution times over the last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center border rounded-lg bg-muted/10">
-              <div className="text-center">
-                <BarChart3 className="h-12 w-12 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Performance Chart</p>
-                <p className="text-xs text-muted-foreground">Interactive analytics visualization</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Success Rate Trends</CardTitle>
-            <CardDescription>Workflow success rates and error patterns</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center border rounded-lg bg-muted/10">
-              <div className="text-center">
-                <TrendingUp className="h-12 w-12 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Success Rate Chart</p>
-                <p className="text-xs text-muted-foreground">Real-time trend analysis</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">API Usage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Monthly API Calls</span>
-                  <span className="font-medium">{mockMetrics.apiCalls.toLocaleString()}</span>
-                </div>
-                <Progress value={65} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-1">65% of monthly limit</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">System Health</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Uptime</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium">{mockMetrics.systemUptime}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Active Connections</span>
-                <span className="text-sm font-medium">1,247</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Avg Response Time</span>
-                <span className="text-sm font-medium">120ms</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Resource Usage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span>CPU Usage</span>
-                  <span className="font-medium">34%</span>
-                </div>
-                <Progress value={34} className="h-2" />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Memory Usage</span>
-                  <span className="font-medium">67%</span>
-                </div>
-                <Progress value={67} className="h-2" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-
-  // AI Intelligence Dashboard Component  
-  const AIIntelligenceDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            AI Intelligence Center
-          </h2>
-          <p className="text-muted-foreground">Advanced AI capabilities and god-tier features</p>
-        </div>
-        <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2">
-          <Crown className="h-4 w-4 mr-2" />
-          God-Tier Enabled
-        </Badge>
-      </div>
-
-      {/* AI Capabilities Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="group hover:shadow-lg transition-all duration-300 border-purple-200 dark:border-purple-800">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
-                <Brain className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Quantum Simulation</h3>
-                <p className="text-sm text-muted-foreground">99.1% accuracy predictions</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Active Simulations</span>
-                <span className="font-medium">47</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Processing Power</span>
-                <span className="font-medium">1.18 Quintillion states</span>
-              </div>
-            </div>
-            <Button className="w-full mt-4 bg-gradient-to-r from-purple-500 to-pink-500">
-              Launch Simulation
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="group hover:shadow-lg transition-all duration-300 border-blue-200 dark:border-blue-800">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
-                <Shield className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold">HIPAA Compliance</h3>
-                <p className="text-sm text-muted-foreground">95.8% compliance score</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Audit Trails</span>
-                <span className="font-medium">Complete</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>PHI Protection</span>
-                <span className="font-medium">Verified</span>
-              </div>
-            </div>
-            <Button className="w-full mt-4 bg-gradient-to-r from-blue-500 to-cyan-500">
-              View Compliance
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="group hover:shadow-lg transition-all duration-300 border-green-200 dark:border-green-800">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
-                <Globe className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Global Consciousness</h3>
-                <p className="text-sm text-muted-foreground">1B+ connected devices</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Active Streams</span>
-                <span className="font-medium">89M</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Countries</span>
-                <span className="font-medium">195</span>
-              </div>
-            </div>
-            <Button className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-500">
-              Access Feed
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* AI Performance Metrics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            AI Performance Metrics
-          </CardTitle>
-          <CardDescription>Real-time AI model performance and capabilities</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">10+</div>
-              <div className="text-sm text-muted-foreground">AI Models</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">50+</div>
-              <div className="text-sm text-muted-foreground">Languages</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">99.9%</div>
-              <div className="text-sm text-muted-foreground">Accuracy</div>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">< 1s</div>
-              <div className="text-sm text-muted-foreground">Response Time</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  // Performance Monitoring Component
-  const PerformanceDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">Performance Monitor</h2>
-          <p className="text-muted-foreground">Real-time system performance and monitoring</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-muted-foreground">Live Monitoring</span>
-          </div>
-        </div>
-      </div>
-
-      {/* System Metrics */}
+      {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">CPU Usage</p>
-                <p className="text-2xl font-bold">34.2%</p>
+                <p className="text-sm font-medium text-muted-foreground">Monthly Executions</p>
+                <p className="text-2xl font-bold">{dashboardStats.monthlyExecutions.toLocaleString()}</p>
               </div>
-              <Cpu className="h-8 w-8 text-blue-500" />
+              <LineChart className="h-8 w-8 text-blue-600" />
             </div>
-            <Progress value={34.2} className="mt-4" />
+            <div className="mt-2">
+              <Progress value={75} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">75% of quota used</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -607,12 +557,17 @@ function ConsolidatedDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Memory Usage</p>
-                <p className="text-2xl font-bold">67.8%</p>
+                <p className="text-sm font-medium text-muted-foreground">Avg Response Time</p>
+                <p className="text-2xl font-bold">{dashboardStats.avgResponseTime}ms</p>
               </div>
-              <MemoryStick className="h-8 w-8 text-green-500" />
+              <Gauge className="h-8 w-8 text-green-600" />
             </div>
-            <Progress value={67.8} className="mt-4" />
+            <div className="mt-2">
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <TrendingDown className="h-3 w-3" />
+                12% faster than last month
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -620,12 +575,17 @@ function ConsolidatedDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Disk Usage</p>
-                <p className="text-2xl font-bold">23.4%</p>
+                <p className="text-sm font-medium text-muted-foreground">Error Rate</p>
+                <p className="text-2xl font-bold">{dashboardStats.errorRate}%</p>
               </div>
-              <HardDrive className="h-8 w-8 text-purple-500" />
+              <AlertTriangle className="h-8 w-8 text-orange-600" />
             </div>
-            <Progress value={23.4} className="mt-4" />
+            <div className="mt-2">
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <TrendingDown className="h-3 w-3" />
+                0.5% improvement
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -633,66 +593,105 @@ function ConsolidatedDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Network I/O</p>
-                <p className="text-2xl font-bold">156 MB/s</p>
+                <p className="text-sm font-medium text-muted-foreground">Active Workflows</p>
+                <p className="text-2xl font-bold">{dashboardStats.activeWorkflows}</p>
               </div>
-              <Wifi className="h-8 w-8 text-orange-500" />
+              <Activity className="h-8 w-8 text-purple-600" />
             </div>
-            <div className="mt-4 text-xs text-muted-foreground">
-              ↑ 89 MB/s ↓ 67 MB/s
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground">
+                {dashboardStats.totalWorkflows - dashboardStats.activeWorkflows} paused
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Run History */}
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Execution Trends
+            </CardTitle>
+            <CardDescription>Workflow executions over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80 flex items-center justify-center bg-muted/30 rounded-lg">
+              <div className="text-center text-muted-foreground">
+                <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <p>Execution trend chart would appear here</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="h-5 w-5" />
+              Workflow Categories
+            </CardTitle>
+            <CardDescription>Distribution by category</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80 flex items-center justify-center bg-muted/30 rounded-lg">
+              <div className="text-center text-muted-foreground">
+                <PieChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <p>Category distribution chart would appear here</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Analytics */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Recent Workflow Runs
+            <Activity className="h-5 w-5" />
+            Performance Breakdown
           </CardTitle>
-          <CardDescription>Detailed execution history and performance metrics</CardDescription>
+          <CardDescription>Detailed performance metrics by workflow</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search workflow runs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-          </div>
-          
-          <div className="space-y-2">
-            {mockRunHistory.map((run) => (
-              <div key={run.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                {getStatusIcon(run.status)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium truncate">{run.workflow}</p>
-                    <Badge variant="outline" className="text-xs">
-                      {run.id}
-                    </Badge>
+          <div className="space-y-4">
+            {topWorkflows.map((workflow) => (
+              <div key={workflow.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Workflow className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                    <span>{run.startTime}</span>
-                    <span>Duration: {run.duration}</span>
-                    <span>Executions: {run.executions}</span>
+                  <div>
+                    <h4 className="font-semibold">{workflow.name}</h4>
+                    <p className="text-sm text-muted-foreground">{workflow.category}</p>
                   </div>
                 </div>
+                
+                <div className="grid grid-cols-4 gap-8 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Executions</p>
+                    <p className="font-semibold">{workflow.executions.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Success Rate</p>
+                    <p className="font-semibold">{workflow.successRate}%</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Duration</p>
+                    <p className="font-semibold">{workflow.avgDuration}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant={workflow.status === 'running' ? 'default' : 'secondary'}>
+                      {workflow.status}
+                    </Badge>
+                  </div>
+                </div>
+                
                 <Button variant="ghost" size="sm">
                   <Eye className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </div>
             ))}
@@ -702,148 +701,323 @@ function ConsolidatedDashboard() {
     </div>
   );
 
-  // Insights Dashboard Component
-  const InsightsDashboard = () => (
+  // AI Intelligence Tab
+  const AITab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">AI-Powered Insights</h2>
-          <p className="text-muted-foreground">Smart analytics and predictive recommendations</p>
+          <h2 className="text-3xl font-bold">AI Intelligence Center</h2>
+          <p className="text-muted-foreground">AI-powered insights and advanced automation features</p>
         </div>
-        <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 px-4 py-2">
-          <Flame className="h-4 w-4 mr-2" />
-          Live Insights
+        <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2">
+          <Brain className="h-4 w-4 mr-2" />
+          AI Powered
         </Badge>
       </div>
 
-      {/* Insight Categories */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
-              <TrendingUp className="h-5 w-5" />
-              Performance Opportunities
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-3 bg-background rounded-lg">
-                <h4 className="font-medium text-sm mb-1">Parallel Processing</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Run email and database operations in parallel for 40% speed improvement
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs">High Impact</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-xs">Apply</Button>
-                </div>
-              </div>
-              <div className="p-3 bg-background rounded-lg">
-                <h4 className="font-medium text-sm mb-1">Caching Strategy</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Add Redis caching to reduce API response times by 65%
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs">Medium Impact</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-xs">Apply</Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-              <Shield className="h-5 w-5" />
-              Reliability Improvements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-3 bg-background rounded-lg">
-                <h4 className="font-medium text-sm mb-1">Retry Logic</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Add exponential backoff to payment processing workflows
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs">High Priority</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-xs">Implement</Button>
-                </div>
-              </div>
-              <div className="p-3 bg-background rounded-lg">
-                <h4 className="font-medium text-sm mb-1">Health Checks</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Monitor integration endpoints for proactive error handling
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs">Medium Priority</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-xs">Enable</Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-950/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
-              <Star className="h-5 w-5" />
-              Feature Recommendations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-3 bg-background rounded-lg">
-                <h4 className="font-medium text-sm mb-1">Smart Routing</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Route high-priority leads to senior sales team members
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs">New Feature</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-xs">Add</Button>
-                </div>
-              </div>
-              <div className="p-3 bg-background rounded-lg">
-                <h4 className="font-medium text-sm mb-1">AI Validation</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Use ML to validate data quality before processing
-                </p>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs">AI Enhanced</Badge>
-                  <Button size="sm" variant="outline" className="h-6 text-xs">Enable</Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Predictive Analytics */}
+      {/* AI Insights */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Predictive Analytics
+            <Sparkles className="h-5 w-5" />
+            AI Recommendations
           </CardTitle>
-          <CardDescription>AI-powered predictions and trend analysis</CardDescription>
+          <CardDescription>Intelligent suggestions to optimize your workflows</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {aiInsights.map((insight) => (
+              <Card key={insight.id} className="hover:shadow-lg transition-all">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 bg-gradient-to-r ${insight.color} rounded-lg flex items-center justify-center`}>
+                      <insight.icon className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{insight.title}</h3>
+                        <Badge variant={
+                          insight.impact === 'High' ? 'destructive' : 
+                          insight.impact === 'Medium' ? 'default' : 'secondary'
+                        }>
+                          {insight.impact} Impact
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">{insight.description}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm">
+                          Apply Suggestion
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          Learn More
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* God-Tier Features */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Crown className="h-5 w-5" />
+            God-Tier Features
+          </CardTitle>
+          <CardDescription>Advanced AI capabilities for enterprise automation</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {godTierFeatures.map((feature) => (
+              <Card key={feature.id} className="border-primary/20 hover:shadow-lg transition-all">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 bg-gradient-to-r ${feature.color} rounded-lg flex items-center justify-center`}>
+                      <feature.icon className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-semibold">{feature.name}</h3>
+                        <Badge variant={feature.status === 'active' ? 'default' : 'secondary'}>
+                          {feature.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">{feature.description}</p>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Accuracy:</span>
+                          <span className="font-medium">{feature.accuracy}%</span>
+                        </div>
+                        <Progress value={feature.accuracy} className="h-2" />
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Speed Improvement:</span>
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            {feature.speedup}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 mt-4">
+                        <Button size="sm" className="flex-1">
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Performance Metrics */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            AI Performance Metrics
+          </CardTitle>
+          <CardDescription>Real-time AI system performance and usage statistics</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-6 border rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
-              <div className="text-3xl font-bold text-blue-600 mb-2">+127%</div>
-              <div className="text-sm font-medium mb-1">Predicted Growth</div>
-              <div className="text-xs text-muted-foreground">Next 30 days</div>
+            <div className="text-center p-6 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg">
+              <Bot className="h-12 w-12 mx-auto mb-4 text-purple-600" />
+              <h3 className="text-2xl font-bold mb-2">94.7%</h3>
+              <p className="text-sm text-muted-foreground">AI Prediction Accuracy</p>
             </div>
-            <div className="text-center p-6 border rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20">
-              <div className="text-3xl font-bold text-green-600 mb-2">99.2%</div>
-              <div className="text-sm font-medium mb-1">Expected Uptime</div>
-              <div className="text-xs text-muted-foreground">This month</div>
+            
+            <div className="text-center p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg">
+              <Zap className="h-12 w-12 mx-auto mb-4 text-blue-600" />
+              <h3 className="text-2xl font-bold mb-2">127ms</h3>
+              <p className="text-sm text-muted-foreground">Average AI Response Time</p>
             </div>
-            <div className="text-center p-6 border rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
-              <div className="text-3xl font-bold text-purple-600 mb-2">$2.4K</div>
-              <div className="text-sm font-medium mb-1">Cost Savings</div>
-              <div className="text-xs text-muted-foreground">Potential monthly</div>
+            
+            <div className="text-center p-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg">
+              <Target className="h-12 w-12 mx-auto mb-4 text-green-600" />
+              <h3 className="text-2xl font-bold mb-2">12.3K</h3>
+              <p className="text-sm text-muted-foreground">AI-Generated Workflows</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Monitoring Tab
+  const MonitoringTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold">System Monitoring</h2>
+          <p className="text-muted-foreground">Real-time monitoring of workflows and system health</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            All Systems Operational
+          </Badge>
+          <Button variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* System Status */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { name: 'API Gateway', status: 'healthy', uptime: '99.9%', responseTime: '45ms', color: 'text-green-600' },
+          { name: 'Workflow Engine', status: 'healthy', uptime: '99.8%', responseTime: '120ms', color: 'text-green-600' },
+          { name: 'Database', status: 'healthy', uptime: '100%', responseTime: '12ms', color: 'text-green-600' },
+          { name: 'AI Services', status: 'warning', uptime: '98.2%', responseTime: '340ms', color: 'text-yellow-600' }
+        ].map((service, index) => (
+          <Card key={index}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">{service.name}</h3>
+                <div className={`w-3 h-3 rounded-full ${
+                  service.status === 'healthy' ? 'bg-green-500' : 
+                  service.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Uptime:</span>
+                  <span className="font-medium">{service.uptime}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Response:</span>
+                  <span className="font-medium">{service.responseTime}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Active Workflows Monitor */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Monitor className="h-5 w-5" />
+            Active Workflows
+          </CardTitle>
+          <CardDescription>Real-time workflow execution monitoring</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {topWorkflows.filter(w => w.status === 'running').map((workflow) => (
+              <div key={workflow.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
+                    <PlayCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">{workflow.name}</h4>
+                    <p className="text-sm text-muted-foreground">Last run: {workflow.lastRun}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Executions</p>
+                    <p className="font-semibold">{workflow.executions.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Success Rate</p>
+                    <p className="font-semibold text-green-600">{workflow.successRate}%</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Avg Duration</p>
+                    <p className="font-semibold">{workflow.avgDuration}</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm">
+                      <Pause className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Error Logs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Recent Errors & Warnings
+          </CardTitle>
+          <CardDescription>System errors and warnings from the last 24 hours</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[
+              {
+                type: 'error',
+                message: 'API rate limit exceeded for Shopify integration',
+                workflow: 'Order Processing Pipeline',
+                timestamp: '2 minutes ago',
+                count: 3
+              },
+              {
+                type: 'warning',
+                message: 'Slow response time detected for email service',
+                workflow: 'Customer Onboarding Flow',
+                timestamp: '15 minutes ago',
+                count: 1
+              },
+              {
+                type: 'error',
+                message: 'Database connection timeout',
+                workflow: 'Lead Qualification & Routing',
+                timestamp: '1 hour ago',
+                count: 2
+              }
+            ].map((log, index) => (
+              <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
+                <div className={`p-1 rounded ${
+                  log.type === 'error' ? 'bg-red-500/10' : 'bg-yellow-500/10'
+                }`}>
+                  <AlertTriangle className={`h-4 w-4 ${
+                    log.type === 'error' ? 'text-red-600' : 'text-yellow-600'
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">{log.message}</h4>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {log.count}x
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{log.timestamp}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Workflow: {log.workflow}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -853,56 +1027,42 @@ function ConsolidatedDashboard() {
   return (
     <EnhancedAppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        {/* Consolidated Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex items-center justify-between">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
               <TabsTrigger value="overview" className="flex items-center gap-2">
-                <LayoutDashboard className="h-4 w-4" />
+                <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>
               </TabsTrigger>
               <TabsTrigger value="analytics" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
+                <Activity className="h-4 w-4" />
                 <span className="hidden sm:inline">Analytics</span>
               </TabsTrigger>
-              <TabsTrigger value="ai-intelligence" className="flex items-center gap-2">
+              <TabsTrigger value="ai" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" />
                 <span className="hidden sm:inline">AI Intelligence</span>
               </TabsTrigger>
-              <TabsTrigger value="performance" className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                <span className="hidden sm:inline">Performance</span>
-              </TabsTrigger>
-              <TabsTrigger value="insights" className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                <span className="hidden sm:inline">Insights</span>
+              <TabsTrigger value="monitoring" className="flex items-center gap-2">
+                <Monitor className="h-4 w-4" />
+                <span className="hidden sm:inline">Monitoring</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
-          {/* Dashboard Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <OverviewDashboard />
+            <OverviewTab />
           </TabsContent>
 
-          {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
-            <AnalyticsDashboard />
+            <AnalyticsTab />
           </TabsContent>
 
-          {/* AI Intelligence Tab */}
-          <TabsContent value="ai-intelligence" className="space-y-6">
-            <AIIntelligenceDashboard />
+          <TabsContent value="ai" className="space-y-6">
+            <AITab />
           </TabsContent>
 
-          {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-6">
-            <PerformanceDashboard />
-          </TabsContent>
-
-          {/* Insights Tab */}
-          <TabsContent value="insights" className="space-y-6">
-            <InsightsDashboard />
+          <TabsContent value="monitoring" className="space-y-6">
+            <MonitoringTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -910,4 +1070,4 @@ function ConsolidatedDashboard() {
   );
 }
 
-export default withAuth(ConsolidatedDashboard);
+export default withAuth(DashboardPage);
