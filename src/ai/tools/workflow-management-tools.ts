@@ -220,7 +220,7 @@ export const googleDriveFindFileTool = ai.defineTool({
         userId: z.string().describe("The user's ID, needed to retrieve their service account key."),
     }),
     outputSchema: z.object({ fileId: z.string(), name: z.string(), mimeType: z.string() }).optional(),
-}, async ({ name, userId }) => {
+}, async ({ name, userId }: { name: string; userId: string }) => {
     console.log(`[Agent Tool] Google Drive integration disabled - Google APIs removed`);
     throw new Error('Google Drive integration is not available in this version. Please use alternative file storage methods.');
 });
