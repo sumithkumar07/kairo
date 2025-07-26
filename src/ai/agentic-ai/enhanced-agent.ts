@@ -283,7 +283,8 @@ Return a structured JSON response with the analysis.
 
       // Parse the result if it's JSON
       try {
-        return JSON.parse(result.content || result);
+        const contentToProcess = typeof result === 'string' ? result : result.content || '';
+        return JSON.parse(contentToProcess);
       } catch {
         return { analysis: { user_intent: prompt }, workflow_design: { nodes: [], connections: [] } };
       }
