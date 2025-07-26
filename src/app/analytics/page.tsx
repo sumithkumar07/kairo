@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { 
   BarChart3, 
   TrendingUp,
@@ -30,6 +34,7 @@ import {
   Eye,
   Play,
   Pause,
+  Square,
   StopCircle,
   ArrowUp,
   ArrowDown,
@@ -54,11 +59,25 @@ import {
   Gauge,
   ThermometerSun,
   Wifi,
+  WifiOff,
   ShieldCheck,
-  Lock
+  Lock,
+  Bell,
+  AlertTriangle,
+  Info,
+  CheckCircle2,
+  Search,
+  MapPin,
+  Terminal,
+  Code,
+  Timer,
+  Network
 } from 'lucide-react';
 
-// Sample analytics data
+// Analytics Super Dashboard - Consolidated from /reports, /analytics, /monitoring
+// This combines all analytics, reporting, and monitoring functionality in one unified interface
+
+// Sample data (consolidated from all three previous pages)
 const overviewMetrics = {
   totalWorkflows: { value: 247, change: 12.5, trend: 'up' },
   totalExecutions: { value: 89247, change: 8.3, trend: 'up' },
@@ -66,6 +85,30 @@ const overviewMetrics = {
   avgExecutionTime: { value: 2.8, change: -15.7, trend: 'up' },
   activeUsers: { value: 156, change: 23.1, trend: 'up' },
   costSavings: { value: 45289, change: 18.9, trend: 'up' }
+};
+
+const systemStatus = {
+  overall: 'healthy',
+  uptime: '99.98%',
+  lastIncident: '12 days ago',
+  activeAlerts: 3,
+  services: [
+    { name: 'API Gateway', status: 'healthy', uptime: '99.99%', responseTime: '45ms' },
+    { name: 'Workflow Engine', status: 'healthy', uptime: '99.97%', responseTime: '120ms' },
+    { name: 'Database Cluster', status: 'warning', uptime: '99.95%', responseTime: '200ms' },
+    { name: 'Integration Hub', status: 'healthy', uptime: '99.98%', responseTime: '85ms' },
+    { name: 'AI Processing', status: 'healthy', uptime: '99.96%', responseTime: '300ms' },
+    { name: 'Notification Service', status: 'maintenance', uptime: '99.94%', responseTime: '60ms' }
+  ]
+};
+
+const liveMetrics = {
+  cpu: { current: 42, average: 38, peak: 78 },
+  memory: { current: 68, average: 65, peak: 89 },
+  disk: { current: 23, average: 25, peak: 45 },
+  network: { in: '45.2 MB/s', out: '32.1 MB/s' },
+  requests: { current: 1247, average: 1156, errors: 12 },
+  latency: { p50: '124ms', p95: '450ms', p99: '800ms' }
 };
 
 const workflowMetrics = [
@@ -101,28 +144,6 @@ const workflowMetrics = [
     lastRun: '8 minutes ago',
     status: 'active',
     trend: 'stable'
-  },
-  {
-    id: 4,
-    name: 'Support Ticket Routing',
-    category: 'Support',
-    executions: 6745,
-    successRate: 89.7,
-    avgTime: 0.8,
-    lastRun: '12 minutes ago',
-    status: 'warning',
-    trend: 'down'
-  },
-  {
-    id: 5,
-    name: 'Inventory Management',
-    category: 'Operations',
-    executions: 4356,
-    successRate: 92.4,
-    avgTime: 4.1,
-    lastRun: '1 hour ago',
-    status: 'active',
-    trend: 'up'
   }
 ];
 
@@ -130,39 +151,52 @@ const integrationMetrics = [
   { name: 'Salesforce', requests: 23847, success: 98.2, avgLatency: 245, status: 'healthy' },
   { name: 'Slack', requests: 15634, success: 99.1, avgLatency: 120, status: 'healthy' },
   { name: 'Google Sheets', requests: 12456, success: 96.8, avgLatency: 180, status: 'healthy' },
-  { name: 'Shopify', requests: 8923, success: 94.7, avgLatency: 320, status: 'warning' },
-  { name: 'Airtable', requests: 6745, success: 97.3, avgLatency: 150, status: 'healthy' },
-  { name: 'HubSpot', requests: 5634, success: 95.8, avgLatency: 280, status: 'healthy' }
+  { name: 'Shopify', requests: 8923, success: 94.7, avgLatency: 320, status: 'warning' }
 ];
 
-const errorAnalysis = [
-  { type: 'Rate Limit Exceeded', count: 45, percentage: 32.1, category: 'Integration' },
-  { type: 'Authentication Failed', count: 28, percentage: 20.0, category: 'Security' },
-  { type: 'Timeout Error', count: 23, percentage: 16.4, category: 'Performance' },
-  { type: 'Invalid Data Format', count: 19, percentage: 13.6, category: 'Data' },
-  { type: 'Service Unavailable', count: 15, percentage: 10.7, category: 'External' },
-  { type: 'Other', count: 10, percentage: 7.1, category: 'Misc' }
+const alerts = [
+  { 
+    id: 1, 
+    level: 'critical', 
+    title: 'High Error Rate', 
+    description: 'Payment processing workflow showing 5% error rate', 
+    time: '2 minutes ago',
+    service: 'Payment Gateway',
+    status: 'active'
+  },
+  { 
+    id: 2, 
+    level: 'warning', 
+    title: 'Database Connection Pool', 
+    description: 'Connection pool utilization above 80%', 
+    time: '15 minutes ago',
+    service: 'Database',
+    status: 'active'
+  }
 ];
 
-const userActivity = [
-  { name: 'Sarah Johnson', role: 'Admin', workflows: 23, executions: 1247, lastActive: '2 min ago' },
-  { name: 'Michael Chen', role: 'Editor', workflows: 18, executions: 934, lastActive: '5 min ago' },
-  { name: 'Emily Rodriguez', role: 'Editor', workflows: 15, executions: 789, lastActive: '12 min ago' },
-  { name: 'David Kim', role: 'Viewer', workflows: 8, executions: 456, lastActive: '1 hour ago' },
-  { name: 'Lisa Wang', role: 'Editor', workflows: 12, executions: 623, lastActive: '2 hours ago' }
+const recentLogs = [
+  { timestamp: '2025-01-24 10:15:32', level: 'ERROR', service: 'Payment Gateway', message: 'Connection timeout to payment processor' },
+  { timestamp: '2025-01-24 10:14:15', level: 'WARN', service: 'Database', message: 'Slow query detected: SELECT * FROM workflows (2.3s)' },
+  { timestamp: '2025-01-24 10:13:45', level: 'INFO', service: 'Workflow Engine', message: 'Workflow "Lead Nurturing" completed successfully' }
 ];
 
-const performanceData = {
-  cpu: { current: 45, average: 52, peak: 78 },
-  memory: { current: 62, average: 58, peak: 84 },
-  storage: { used: 2.3, total: 10, percentage: 23 },
-  network: { inbound: 125, outbound: 89 },
-  apiCalls: { current: 1247, limit: 10000, percentage: 12.47 }
-};
-
-function AnalyticsPage() {
+function AnalyticsSuperDashboard() {
   const [timeRange, setTimeRange] = useState('7d');
   const [selectedMetric, setSelectedMetric] = useState('all');
+  const [alertFilter, setAlertFilter] = useState('all');
+  const [logFilter, setLogFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      setLastUpdated(new Date());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -171,7 +205,7 @@ function AnalyticsPage() {
       case 'warning': return 'text-yellow-500 bg-yellow-500/10';
       case 'error': 
       case 'critical': return 'text-red-500 bg-red-500/10';
-      case 'paused': return 'text-gray-500 bg-gray-500/10';
+      case 'maintenance': return 'text-blue-500 bg-blue-500/10';
       default: return 'text-gray-500 bg-gray-500/10';
     }
   };
@@ -188,21 +222,41 @@ function AnalyticsPage() {
     return num.toString();
   };
 
+  const getAlertIcon = (level: string) => {
+    switch (level) {
+      case 'critical': return <AlertCircle className="h-4 w-4" />;
+      case 'error': return <XCircle className="h-4 w-4" />;
+      case 'warning': return <AlertTriangle className="h-4 w-4" />;
+      case 'info': return <Info className="h-4 w-4" />;
+      default: return <AlertCircle className="h-4 w-4" />;
+    }
+  };
+
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
+        {/* Enhanced Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold text-foreground mb-2">
-              Analytics <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Dashboard</span>
+              Analytics <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Super Dashboard</span>
             </h1>
             <p className="text-muted-foreground">
-              Comprehensive insights into your automation performance and usage
+              Unified analytics, monitoring, and reporting - all your insights in one place
             </p>
           </div>
           
           <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <div className="flex items-center gap-2">
+              <Switch 
+                checked={autoRefresh} 
+                onCheckedChange={setAutoRefresh} 
+                id="auto-refresh"
+              />
+              <label htmlFor="auto-refresh" className="text-sm text-muted-foreground">
+                Auto-refresh
+              </label>
+            </div>
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -214,6 +268,10 @@ function AnalyticsPage() {
                 <SelectItem value="90d">Last 90 days</SelectItem>
               </SelectContent>
             </Select>
+            <Badge variant="outline" className="flex items-center gap-2">
+              <Activity className="h-3 w-3" />
+              {systemStatus.overall === 'healthy' ? 'All Systems Operational' : 'Issues Detected'}
+            </Badge>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
               Refresh
@@ -225,302 +283,401 @@ function AnalyticsPage() {
           </div>
         </div>
 
+        {/* Last Updated */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <Clock className="h-4 w-4" />
+          Last updated: {lastUpdated.toLocaleTimeString()}
+        </div>
+
         {/* Overview Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Workflows</p>
-                  <div className="text-2xl font-bold">{overviewMetrics.totalWorkflows.value}</div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getTrendIcon(overviewMetrics.totalWorkflows.trend, overviewMetrics.totalWorkflows.change)}
-                    <span className={overviewMetrics.totalWorkflows.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                      {Math.abs(overviewMetrics.totalWorkflows.change)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Workflow className="h-5 w-5 text-blue-500" />
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Workflows
+                </CardTitle>
+                <Workflow className="h-4 w-4 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-bold">{overviewMetrics.totalWorkflows.value}</div>
+              <div className="flex items-center gap-1 text-sm">
+                {getTrendIcon(overviewMetrics.totalWorkflows.trend, overviewMetrics.totalWorkflows.change)}
+                <span className={overviewMetrics.totalWorkflows.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+                  {Math.abs(overviewMetrics.totalWorkflows.change)}%
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Executions</p>
-                  <div className="text-2xl font-bold">{formatNumber(overviewMetrics.totalExecutions.value)}</div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getTrendIcon(overviewMetrics.totalExecutions.trend, overviewMetrics.totalExecutions.change)}
-                    <span className={overviewMetrics.totalExecutions.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                      {Math.abs(overviewMetrics.totalExecutions.change)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <Play className="h-5 w-5 text-green-500" />
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Executions
+                </CardTitle>
+                <Play className="h-4 w-4 text-green-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-bold">{formatNumber(overviewMetrics.totalExecutions.value)}</div>
+              <div className="flex items-center gap-1 text-sm">
+                {getTrendIcon(overviewMetrics.totalExecutions.trend, overviewMetrics.totalExecutions.change)}
+                <span className={overviewMetrics.totalExecutions.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+                  {Math.abs(overviewMetrics.totalExecutions.change)}%
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-                  <div className="text-2xl font-bold">{overviewMetrics.successRate.value}%</div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getTrendIcon(overviewMetrics.successRate.trend, overviewMetrics.successRate.change)}
-                    <span className={overviewMetrics.successRate.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                      {Math.abs(overviewMetrics.successRate.change)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-purple-500" />
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Success Rate
+                </CardTitle>
+                <CheckCircle className="h-4 w-4 text-purple-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-bold">{overviewMetrics.successRate.value}%</div>
+              <div className="flex items-center gap-1 text-sm">
+                {getTrendIcon(overviewMetrics.successRate.trend, overviewMetrics.successRate.change)}
+                <span className={overviewMetrics.successRate.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+                  {Math.abs(overviewMetrics.successRate.change)}%
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-orange-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Avg Execution Time</p>
-                  <div className="text-2xl font-bold">{overviewMetrics.avgExecutionTime.value}s</div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getTrendIcon('up', overviewMetrics.avgExecutionTime.change)}
-                    <span className="text-green-500">
-                      {Math.abs(overviewMetrics.avgExecutionTime.change)}% faster
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2 bg-orange-500/10 rounded-lg">
-                  <Clock className="h-5 w-5 text-orange-500" />
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Avg Execution Time
+                </CardTitle>
+                <Clock className="h-4 w-4 text-orange-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-bold">{overviewMetrics.avgExecutionTime.value}s</div>
+              <div className="flex items-center gap-1 text-sm">
+                {getTrendIcon('up', overviewMetrics.avgExecutionTime.change)}
+                <span className="text-green-500">
+                  {Math.abs(overviewMetrics.avgExecutionTime.change)}% faster
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Users</p>
-                  <div className="text-2xl font-bold">{overviewMetrics.activeUsers.value}</div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getTrendIcon(overviewMetrics.activeUsers.trend, overviewMetrics.activeUsers.change)}
-                    <span className={overviewMetrics.activeUsers.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                      {Math.abs(overviewMetrics.activeUsers.change)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <Users className="h-5 w-5 text-indigo-500" />
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Active Users
+                </CardTitle>
+                <Users className="h-4 w-4 text-indigo-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-bold">{overviewMetrics.activeUsers.value}</div>
+              <div className="flex items-center gap-1 text-sm">
+                {getTrendIcon(overviewMetrics.activeUsers.trend, overviewMetrics.activeUsers.change)}
+                <span className={overviewMetrics.activeUsers.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+                  {Math.abs(overviewMetrics.activeUsers.change)}%
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Cost Savings</p>
-                  <div className="text-2xl font-bold">${formatNumber(overviewMetrics.costSavings.value)}</div>
-                  <div className="flex items-center gap-1 text-sm">
-                    {getTrendIcon(overviewMetrics.costSavings.trend, overviewMetrics.costSavings.change)}
-                    <span className={overviewMetrics.costSavings.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-                      {Math.abs(overviewMetrics.costSavings.change)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2 bg-yellow-500/10 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-yellow-500" />
-                </div>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Cost Savings
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-yellow-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-2xl font-bold">${formatNumber(overviewMetrics.costSavings.value)}</div>
+              <div className="flex items-center gap-1 text-sm">
+                {getTrendIcon(overviewMetrics.costSavings.trend, overviewMetrics.costSavings.change)}
+                <span className={overviewMetrics.costSavings.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+                  {Math.abs(overviewMetrics.costSavings.change)}%
+                </span>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="workflows" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="workflows">Workflows</TabsTrigger>
-            <TabsTrigger value="integrations">Integrations</TabsTrigger>
+        {/* Consolidated Tabs */}
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="real-time">Real-time</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="errors">Error Analysis</TabsTrigger>
+            <TabsTrigger value="insights">Insights</TabsTrigger>
+            <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
-          {/* Workflows Tab */}
-          <TabsContent value="workflows" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Workflow Performance</CardTitle>
-                <CardDescription>Detailed metrics for your active workflows</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {workflowMetrics.map((workflow) => (
-                    <div key={workflow.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+          {/* Overview Tab - Key metrics & KPIs */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workflow Performance</CardTitle>
+                  <CardDescription>Top performing workflows and their metrics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {workflowMetrics.map((workflow) => (
+                      <div key={workflow.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
+                        <div className="flex items-center gap-4">
                           <div className={`w-3 h-3 rounded-full ${getStatusColor(workflow.status)}`} />
                           <div>
                             <div className="font-semibold">{workflow.name}</div>
                             <div className="text-sm text-muted-foreground">{workflow.category}</div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-8 text-sm">
-                        <div className="text-center">
-                          <div className="font-semibold">{formatNumber(workflow.executions)}</div>
-                          <div className="text-muted-foreground">Executions</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{workflow.successRate}%</div>
-                          <div className="text-muted-foreground">Success Rate</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{workflow.avgTime}s</div>
-                          <div className="text-muted-foreground">Avg Time</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{workflow.lastRun}</div>
-                          <div className="text-muted-foreground">Last Run</div>
-                        </div>
-                        <div className="text-center">
-                          {getTrendIcon(workflow.trend, 0)}
+                        <div className="flex items-center gap-8 text-sm">
+                          <div className="text-center">
+                            <div className="font-semibold">{formatNumber(workflow.executions)}</div>
+                            <div className="text-muted-foreground">Executions</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold">{workflow.successRate}%</div>
+                            <div className="text-muted-foreground">Success</div>
+                          </div>
+                          <div className="text-center">
+                            {getTrendIcon(workflow.trend, 0)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Integrations Tab */}
-          <TabsContent value="integrations" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Integration Health</CardTitle>
-                <CardDescription>Monitor the health and performance of your integrations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {integrationMetrics.map((integration) => (
-                    <Card key={integration.name} className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold">{integration.name}</h3>
-                        <Badge className={getStatusColor(integration.status)}>
-                          {integration.status}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Requests:</span>
-                          <span className="font-medium">{formatNumber(integration.requests)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Success Rate:</span>
-                          <span className="font-medium">{integration.success}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Avg Latency:</span>
-                          <span className="font-medium">{integration.avgLatency}ms</span>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>System Performance</CardTitle>
-                  <CardDescription>Real-time system resource usage</CardDescription>
+                  <CardTitle>Integration Health</CardTitle>
+                  <CardDescription>Monitor the health of your integrations</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">CPU Usage</span>
-                        <span className="text-sm text-muted-foreground">{performanceData.cpu.current}%</span>
+                  <div className="space-y-4">
+                    {integrationMetrics.map((integration) => (
+                      <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${getStatusColor(integration.status)}`} />
+                          <span className="font-medium">{integration.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="text-center">
+                            <div className="font-semibold">{integration.success}%</div>
+                            <div className="text-muted-foreground">Success</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold">{integration.avgLatency}ms</div>
+                            <div className="text-muted-foreground">Latency</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${performanceData.cpu.current}%` }}
-                        />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Real-time Tab - Live monitoring & alerts */}
+          <TabsContent value="real-time" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* CPU Usage */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
+                    <Cpu className="h-4 w-4 text-blue-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span>Current</span>
+                      <span className="font-bold">{liveMetrics.cpu.current}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${liveMetrics.cpu.current}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Avg: {liveMetrics.cpu.average}%</span>
+                      <span>Peak: {liveMetrics.cpu.peak}%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Memory Usage */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
+                    <MemoryStick className="h-4 w-4 text-green-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span>Current</span>
+                      <span className="font-bold">{liveMetrics.memory.current}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${liveMetrics.memory.current}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Avg: {liveMetrics.memory.average}%</span>
+                      <span>Peak: {liveMetrics.memory.peak}%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Network I/O */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Network I/O</CardTitle>
+                    <Wifi className="h-4 w-4 text-orange-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span>Inbound</span>
+                      <span className="font-bold">{liveMetrics.network.in}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Outbound</span>
+                      <span className="font-bold">{liveMetrics.network.out}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Active Alerts */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Alerts</CardTitle>
+                <CardDescription>Recent alerts and system notifications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {alerts.map((alert) => (
+                    <div key={alert.id} className="flex items-start gap-4 p-4 rounded-lg border bg-card/50">
+                      <div className={`p-2 rounded-full ${getStatusColor(alert.level)}`}>
+                        {getAlertIcon(alert.level)}
                       </div>
-                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span>Avg: {performanceData.cpu.average}%</span>
-                        <span>Peak: {performanceData.cpu.peak}%</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold">{alert.title}</h4>
+                          <Badge 
+                            variant={alert.status === 'active' ? 'destructive' : 'outline'}
+                            className="text-xs"
+                          >
+                            {alert.status}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {alert.level}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{alert.description}</p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {alert.time}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Server className="h-3 w-3" />
+                            {alert.service}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Memory Usage</span>
-                        <span className="text-sm text-muted-foreground">{performanceData.memory.current}%</span>
+          {/* Performance Tab - System health & resources */}
+          <TabsContent value="performance" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Service Status</CardTitle>
+                <CardDescription>Real-time status of all system components</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {systemStatus.services.map((service, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-full ${getStatusColor(service.status)}`}>
+                          {service.status === 'healthy' ? <CheckCircle className="h-4 w-4" /> :
+                           service.status === 'warning' ? <AlertTriangle className="h-4 w-4" /> :
+                           service.status === 'maintenance' ? <Settings className="h-4 w-4" /> :
+                           <XCircle className="h-4 w-4" />}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold">{service.name}</h4>
+                          <p className="text-sm text-muted-foreground capitalize">{service.status}</p>
+                        </div>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${performanceData.memory.current}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span>Avg: {performanceData.memory.average}%</span>
-                        <span>Peak: {performanceData.memory.peak}%</span>
+                      <div className="flex items-center gap-6 text-sm">
+                        <div className="text-center">
+                          <div className="font-semibold">{service.uptime}</div>
+                          <div className="text-muted-foreground">Uptime</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="font-semibold">{service.responseTime}</div>
+                          <div className="text-muted-foreground">Response</div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Storage Usage</span>
-                        <span className="text-sm text-muted-foreground">
-                          {performanceData.storage.used}GB / {performanceData.storage.total}GB
-                        </span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${performanceData.storage.percentage}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {performanceData.storage.percentage}% used
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">API Usage</span>
-                        <span className="text-sm text-muted-foreground">
-                          {performanceData.apiCalls.current} / {formatNumber(performanceData.apiCalls.limit)}
-                        </span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-orange-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${performanceData.apiCalls.percentage}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {performanceData.apiCalls.percentage.toFixed(1)}% of limit
-                      </div>
+          {/* Insights Tab - Advanced analytics & trends */}
+          <TabsContent value="insights" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance Trends</CardTitle>
+                  <CardDescription>Workflow performance over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-2" />
+                      <p>Performance chart visualization would go here</p>
                     </div>
                   </div>
                 </CardContent>
@@ -528,59 +685,14 @@ function AnalyticsPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Network Activity</CardTitle>
-                  <CardDescription>Real-time network usage statistics</CardDescription>
+                  <CardTitle>Usage Analytics</CardTitle>
+                  <CardDescription>User activity and engagement metrics</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
-                      <div className="text-3xl font-bold text-primary mb-2">
-                        {performanceData.network.inbound + performanceData.network.outbound} MB/s
-                      </div>
-                      <div className="text-sm text-muted-foreground">Total Network Traffic</div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 rounded-lg bg-green-500/10">
-                        <div className="text-2xl font-bold text-green-600 mb-1">
-                          {performanceData.network.inbound} MB/s
-                        </div>
-                        <div className="text-sm text-muted-foreground">Inbound</div>
-                      </div>
-                      <div className="text-center p-4 rounded-lg bg-blue-500/10">
-                        <div className="text-2xl font-bold text-blue-600 mb-1">
-                          {performanceData.network.outbound} MB/s
-                        </div>
-                        <div className="text-sm text-muted-foreground">Outbound</div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <Wifi className="h-4 w-4 text-green-500" />
-                          Connection Status
-                        </span>
-                        <Badge className="text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400">
-                          Stable
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-blue-500" />
-                          Latency
-                        </span>
-                        <span className="font-medium">24ms</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-purple-500" />
-                          CDN Status
-                        </span>
-                        <Badge className="text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400">
-                          Optimal
-                        </Badge>
-                      </div>
+                      <PieChart className="h-12 w-12 mx-auto mb-2" />
+                      <p>Usage analytics chart would go here</p>
                     </div>
                   </div>
                 </CardContent>
@@ -588,41 +700,34 @@ function AnalyticsPage() {
             </div>
           </TabsContent>
 
-          {/* Users Tab */}
-          <TabsContent value="users" className="space-y-6">
+          {/* Monitoring Tab - System logs and monitoring */}
+          <TabsContent value="monitoring" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>User Activity</CardTitle>
-                <CardDescription>Monitor team member engagement and usage patterns</CardDescription>
+                <CardTitle>System Logs</CardTitle>
+                <CardDescription>Recent system events and activities</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {userActivity.map((user, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-card/50">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-r from-primary to-purple-600 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-white">
-                            {user.name.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-semibold">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">{user.role}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-8 text-sm">
-                        <div className="text-center">
-                          <div className="font-semibold">{user.workflows}</div>
-                          <div className="text-muted-foreground">Workflows</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{user.executions}</div>
-                          <div className="text-muted-foreground">Executions</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold">{user.lastActive}</div>
-                          <div className="text-muted-foreground">Last Active</div>
-                        </div>
+                <div className="space-y-2">
+                  {recentLogs.map((log, index) => (
+                    <div key={index} className="font-mono text-xs p-3 rounded-lg border bg-card/30 hover:bg-card/50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <span className="text-muted-foreground shrink-0">
+                          {log.timestamp}
+                        </span>
+                        <Badge 
+                          variant={log.level === 'ERROR' ? 'destructive' : 
+                                 log.level === 'WARN' ? 'secondary' : 'outline'}
+                          className="text-xs shrink-0"
+                        >
+                          {log.level}
+                        </Badge>
+                        <span className="text-primary font-medium shrink-0">
+                          [{log.service}]
+                        </span>
+                        <span className="text-foreground">
+                          {log.message}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -631,79 +736,48 @@ function AnalyticsPage() {
             </Card>
           </TabsContent>
 
-          {/* Error Analysis Tab */}
-          <TabsContent value="errors" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Error Analysis</CardTitle>
-                <CardDescription>Identify and analyze workflow execution errors</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Error Breakdown</h3>
-                    <div className="space-y-3">
-                      {errorAnalysis.map((error, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full bg-red-500" />
-                            <div>
-                              <div className="font-medium">{error.type}</div>
-                              <div className="text-sm text-muted-foreground">{error.category}</div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-semibold">{error.count}</div>
-                            <div className="text-sm text-muted-foreground">{error.percentage}%</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Resolution Recommendations</h3>
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-lg border bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
-                        <div className="flex items-start gap-3">
-                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                          <div>
-                            <div className="font-semibold text-yellow-800 dark:text-yellow-200">Rate Limiting</div>
-                            <div className="text-sm text-yellow-700 dark:text-yellow-300">
-                              Consider implementing exponential backoff in your integrations to handle rate limits more gracefully.
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                        <div className="flex items-start gap-3">
-                          <ShieldCheck className="h-5 w-5 text-blue-600 mt-0.5" />
-                          <div>
-                            <div className="font-semibold text-blue-800 dark:text-blue-200">Authentication</div>
-                            <div className="text-sm text-blue-700 dark:text-blue-300">
-                              Review API credentials and ensure they haven't expired. Consider implementing automatic token refresh.
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                          <div>
-                            <div className="font-semibold text-green-800 dark:text-green-200">Overall Health</div>
-                            <div className="text-sm text-green-700 dark:text-green-300">
-                              Your workflow error rate is within acceptable limits. Keep monitoring for any sudden spikes.
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Reports Tab - Generate and export reports */}
+          <TabsContent value="reports" className="space-y-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance Report</CardTitle>
+                  <CardDescription>Comprehensive workflow performance analysis</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Generate Report
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Usage Summary</CardTitle>
+                  <CardDescription>Monthly usage and billing summary</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export Summary
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Executive Dashboard</CardTitle>
+                  <CardDescription>High-level metrics for leadership</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Dashboard
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -711,4 +785,4 @@ function AnalyticsPage() {
   );
 }
 
-export default withAuth(AnalyticsPage);
+export default withAuth(AnalyticsSuperDashboard);
