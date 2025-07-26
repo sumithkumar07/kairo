@@ -1,40 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { AppLayout } from '@/components/app-layout';
-import { withAuth } from '@/components/auth/with-auth';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { RedirectComponent } from '@/components/redirect-component';
 
-function DocsRedirect() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to learn with documentation tab
-    router.replace('/learn?tab=documentation');
-  }, [router]);
-
+export default function DocsRedirect() {
   return (
-    <AppLayout>
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold mb-2">Redirecting to Learning Center</h2>
-            <p className="text-muted-foreground mb-4">
-              Documentation has been consolidated into the Learning Center
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <span>/docs</span>
-              <ArrowRight className="h-4 w-4" />
-              <span>/learn?tab=documentation</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </AppLayout>
+    <RedirectComponent
+      to="/help"
+      tab="docs"
+      title="Documentation"
+      description="Complete guides and references for the Kairo platform"
+      reason="Documentation is now part of the unified help center"
+    />
   );
 }
-
-export default withAuth(DocsRedirect);

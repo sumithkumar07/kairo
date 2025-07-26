@@ -1,40 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { AppLayout } from '@/components/app-layout';
-import { withAuth } from '@/components/auth/with-auth';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { RedirectComponent } from '@/components/redirect-component';
 
-function PermissionsRedirect() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to account with security tab
-    router.replace('/account?tab=security');
-  }, [router]);
-
+export default function PermissionsRedirect() {
   return (
-    <AppLayout>
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold mb-2">Redirecting to Account</h2>
-            <p className="text-muted-foreground mb-4">
-              Permissions have been consolidated into the Account Management Hub
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <span>/permissions</span>
-              <ArrowRight className="h-4 w-4" />
-              <span>/account?tab=security</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </AppLayout>
+    <RedirectComponent
+      to="/account"
+      tab="security"
+      title="Permissions & Access"
+      description="Manage user permissions and access controls"
+      reason="Permission management is now part of the unified account security center"
+    />
   );
 }
-
-export default withAuth(PermissionsRedirect);

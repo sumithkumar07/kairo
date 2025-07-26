@@ -1,22 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { RedirectComponent } from '@/components/redirect-component';
 
 export default function AgentHubRedirect() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Redirect to the consolidated AI studio page
-    router.replace('/ai-studio?tab=agent-hub');
-  }, [router]);
-
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Redirecting to AI Studio...</h1>
-        <p className="text-muted-foreground">Agent Hub has been consolidated into AI Studio.</p>
-      </div>
-    </div>
+    <RedirectComponent
+      to="/editor"
+      tab="ai"
+      title="AI Agent Hub"
+      description="Discover and configure AI agents for your workflows"
+      reason="AI agents are now integrated into the unified workflow editor"
+    />
   );
 }

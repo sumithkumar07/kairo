@@ -1,22 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { RedirectComponent } from '@/components/redirect-component';
 
 export default function GettingStartedRedirect() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Redirect to the consolidated help page with getting-started tab
-    router.replace('/help?tab=getting-started');
-  }, [router]);
-
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Redirecting to Help Center...</h1>
-        <p className="text-muted-foreground">Getting Started guide has been consolidated into Help Center.</p>
-      </div>
-    </div>
+    <RedirectComponent
+      to="/help"
+      tab="getting-started"
+      title="Getting Started"
+      description="Quick start guides and onboarding materials"
+      reason="Getting started content is now part of the unified help center"
+    />
   );
 }

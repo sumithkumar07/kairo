@@ -1,40 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { AppLayout } from '@/components/app-layout';
-import { withAuth } from '@/components/auth/with-auth';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { RedirectComponent } from '@/components/redirect-component';
 
-function ApiDocsRedirect() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to learn with api-reference tab
-    router.replace('/learn?tab=api-reference');
-  }, [router]);
-
+export default function ApiDocsRedirect() {
   return (
-    <AppLayout>
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold mb-2">Redirecting to Learning Center</h2>
-            <p className="text-muted-foreground mb-4">
-              API Documentation has been consolidated into the Learning Center
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <span>/api-docs</span>
-              <ArrowRight className="h-4 w-4" />
-              <span>/learn?tab=api-reference</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </AppLayout>
+    <RedirectComponent
+      to="/help"
+      tab="api"
+      title="API Documentation"
+      description="Complete API reference with examples and code samples"
+      reason="API documentation is now part of the unified help center"
+    />
   );
 }
-
-export default withAuth(ApiDocsRedirect);
