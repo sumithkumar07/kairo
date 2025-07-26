@@ -98,7 +98,13 @@ export const runWorkflowTool = ai.defineTool(
             summary: z.string().describe("A brief summary of the execution, including any error messages."),
         }),
     },
-    async ({ userId, nodes, connections, initialData, isSimulation }) => {
+    async ({ userId, nodes, connections, initialData, isSimulation }: { 
+      userId: string; 
+      nodes: any[]; 
+      connections: any[]; 
+      initialData: any; 
+      isSimulation: boolean; 
+    }) => {
         if (!userId) {
             return {
                 status: 'Failed',
