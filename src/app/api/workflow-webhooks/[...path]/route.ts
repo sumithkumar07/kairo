@@ -179,9 +179,10 @@ export async function POST(
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> }
 ) {
-    const pathSuffix = params.path.join('/');
+    const { path } = await params;
+    const pathSuffix = path.join('/');
     console.log(`[API Webhook] Received GET request for path: /api/workflow-webhooks/${pathSuffix}`);
     // For some services, GET is used for webhook validation (e.g. Facebook Messenger, Slack)
     // Example: Slack challenge
