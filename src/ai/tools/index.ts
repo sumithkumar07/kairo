@@ -25,9 +25,6 @@ const createTool = (
   icon,
   category: service
 });
-  service,
-  genkitTool,
-});
 
 // Create and register tools from workflow-management-tools.ts
 const kairoIcon = AVAILABLE_NODES_CONFIG.find(n => n.type === 'workflowNode')?.icon!;
