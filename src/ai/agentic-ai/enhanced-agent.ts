@@ -414,7 +414,8 @@ Be helpful, concise, and actionable.
         max_tokens: 1000
       });
 
-      return result.content || result || 'I can help you with workflow automation. What specific assistance do you need?';
+      const responseContent = typeof result === 'string' ? result : result.content || '';
+      return responseContent || 'I can help you with workflow automation. What specific assistance do you need?';
     } catch (error) {
       console.error('[EnhancedAgent] Error in provideContextualHelp:', error);
       return 'I can help you with workflow automation. What specific assistance do you need?';
