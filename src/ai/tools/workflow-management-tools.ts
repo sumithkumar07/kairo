@@ -68,7 +68,7 @@ export const getWorkflowDefinitionTool = ai.defineTool(
         connections: z.array(WorkflowConnectionInputSchema),
     }).optional(),
   },
-  async ({ name, userId }) => {
+  async ({ name, userId }: { name: string; userId: string }) => {
     console.log(`[Agent Tool] Getting definition for workflow: ${name} from storage for user ${userId}...`);
     const workflow = await getWorkflowByName(name, userId);
     if (workflow) {
