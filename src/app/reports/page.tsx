@@ -1,60 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React from 'react';
 import { AppLayout } from '@/components/app-layout';
 import { withAuth } from '@/components/auth/with-auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DatePicker } from '@/components/ui/date-picker';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Activity, 
-  Clock, 
-  Users, 
-  Zap,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  TrendingDown,
-  Calendar,
-  Filter,
-  Download,
-  Eye,
-  Play,
-  Pause,
-  Square,
-  Search,
-  RefreshCw,
-  FileText,
-  LineChart,
-  PieChart,
-  BarChart,
-  ArrowUp,
-  ArrowDown,
-  Minus,
-  Database,
-  Globe,
-  Cpu,
-  Target,
-  Workflow,
-  Timer,
-  DollarSign,
-  Gauge,
-  History,
-  MoreVertical,
-  ExternalLink,
-  Info,
-  Star
-} from 'lucide-react';
+import { EnhancedAnalyticsDashboard } from '@/components/enhanced-analytics-dashboard';
 
 // Mock data for analytics
 const analyticsData = {
