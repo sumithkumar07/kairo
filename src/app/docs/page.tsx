@@ -11,8 +11,8 @@ function DocsRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to learn with docs tab
-    router.replace('/learn?tab=docs');
+    // Redirect to learn with documentation tab
+    router.replace('/learn?tab=documentation');
   }, [router]);
 
   return (
@@ -23,12 +23,12 @@ function DocsRedirect() {
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
             <h2 className="text-xl font-semibold mb-2">Redirecting to Learning Center</h2>
             <p className="text-muted-foreground mb-4">
-              Documentation has been consolidated into the Learning & Knowledge Center
+              Documentation has been consolidated into the Learning Center
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <span>/docs</span>
               <ArrowRight className="h-4 w-4" />
-              <span>/learn?tab=docs</span>
+              <span>/learn?tab=documentation</span>
             </div>
           </CardContent>
         </Card>

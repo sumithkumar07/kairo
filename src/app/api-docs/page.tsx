@@ -11,8 +11,8 @@ function ApiDocsRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to learn with api tab
-    router.replace('/learn?tab=api');
+    // Redirect to learn with api-reference tab
+    router.replace('/learn?tab=api-reference');
   }, [router]);
 
   return (
@@ -23,12 +23,12 @@ function ApiDocsRedirect() {
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
             <h2 className="text-xl font-semibold mb-2">Redirecting to Learning Center</h2>
             <p className="text-muted-foreground mb-4">
-              API Documentation has been consolidated into the Learning & Knowledge Center
+              API Documentation has been consolidated into the Learning Center
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <span>/api-docs</span>
               <ArrowRight className="h-4 w-4" />
-              <span>/learn?tab=api</span>
+              <span>/learn?tab=api-reference</span>
             </div>
           </CardContent>
         </Card>
