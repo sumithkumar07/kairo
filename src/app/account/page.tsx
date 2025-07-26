@@ -307,7 +307,11 @@ function AccountManagementHub() {
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <Tabs 
+          value={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') || activeTab : activeTab}
+          onValueChange={setActiveTab} 
+          className="space-y-8"
+        >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
