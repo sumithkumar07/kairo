@@ -70,6 +70,7 @@ import {
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import TrinityDashboard from '@/components/trinity/trinity-dashboard';
+import { EnhancedAIStudio } from '@/components/enhanced-ai-studio';
 
 // Import types and services for Agent Hub functionality
 import type { McpCommandRecord, Tool, ManagedCredential, DisplayUserApiKey, Workflow as WorkflowType, RequiredCredentialInfo } from '@/types/workflow';
