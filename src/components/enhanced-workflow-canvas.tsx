@@ -1,1174 +1,507 @@
 'use client';
 
-import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { 
+  Plus, 
+  Save, 
+  Play, 
+  Download, 
+  Upload,
   ZoomIn, 
   ZoomOut, 
-  MousePointer, 
-  Grid, 
-  Move, 
-  Undo2, 
-  Redo2,
-  Copy,
-  Clipboard,
-  Trash2,
-  Select,
-  Hand,
-  Search,
-  Filter,
-  Layers,
-  Settings,
-  Info,
   Maximize,
-  Minimize,
+  Grid,
+  Move,
+  MousePointer,
   RotateCcw,
+  Copy,
+  Trash2,
+  Settings,
+  Link,
+  Unlink,
+  GitBranch,
+  Clock,
+  Mail,
+  Database,
+  Globe,
+  Brain,
+  Zap,
+  Filter,
+  CheckCircle,
+  AlertCircle,
+  Layers,
   Eye,
   EyeOff,
-  Lock,
-  Unlock,
-  Zap,
-  X
+  Workflow,
+  ArrowRight,
+  ChevronDown,
+  Search,
+  Palette,
+  Type,
+  Hash
 } from 'lucide-react';
-import type { WorkflowNode, WorkflowConnection, AvailableNodeType } from '@/types/workflow';
-import { WorkflowNodeItem } from '@/components/workflow-node-item';
-import { getNodeTypeConfig, NODE_HEIGHT, NODE_WIDTH } from '@/config/nodes';
 
-// Enhanced canvas configuration
-const GRID_SIZE = 20;
-const GRID_COLOR = 'hsl(var(--border))';
-const GRID_DASH = '2,2';
-const ALIGNMENT_GUIDE_COLOR = 'hsl(var(--primary))';
-const ALIGNMENT_THRESHOLD = 10;
-const SNAP_THRESHOLD = 15;
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 3;
-const ZOOM_STEP = 0.1;
+// Enhanced Node Types
+const nodeTypes = {
+  trigger: {
+    category: 'Triggers',
+    color: 'from-blue-500 to-cyan-500',
+    borderColor: 'border-blue-500',
+    icon: Zap,
+    nodes: [
+      { id: 'webhook', name: 'Webhook', description: 'Receive HTTP requests', icon: Globe },
+      { id: 'schedule', name: 'Schedule', description: 'Time-based triggers', icon: Clock },
+      { id: 'email', name: 'Email Received', description: 'New email triggers', icon: Mail },
+      { id: 'database', name: 'Database Change', description: 'DB change events', icon: Database }
+    ]
+  },
+  action: {
+    category: 'Actions',
+    color: 'from-green-500 to-emerald-500',
+    borderColor: 'border-green-500',
+    icon: CheckCircle,
+    nodes: [
+      { id: 'send-email', name: 'Send Email', description: 'Send email messages', icon: Mail },
+      { id: 'database-update', name: 'Update Database', description: 'Modify database records', icon: Database },
+      { id: 'api-request', name: 'API Request', description: 'Make HTTP requests', icon: Globe },
+      { id: 'ai-process', name: 'AI Processing', description: 'Use AI for data processing', icon: Brain }
+    ]
+  },
+  logic: {
+    category: 'Logic & Flow',
+    color: 'from-purple-500 to-pink-500',
+    borderColor: 'border-purple-500',
+    icon: GitBranch,
+    nodes: [
+      { id: 'condition', name: 'Condition', description: 'If/then logic branches', icon: GitBranch },
+      { id: 'loop', name: 'Loop', description: 'Repeat actions', icon: RotateCcw },
+      { id: 'delay', name: 'Delay', description: 'Wait before next action', icon: Clock },
+      { id: 'filter', name: 'Filter', description: 'Filter data', icon: Filter }
+    ]
+  }
+};
 
-interface ConnectionPreview {
-  startNodeId: string;
-  startHandleId: string;
-  previewPosition: { x: number; y: number } | null;
+// Canvas Node Component
+interface CanvasNode {
+  id: string;
+  type: string;
+  label: string;
+  x: number;
+  y: number;
+  inputs?: string[];
+  outputs?: string[];
+  config?: any;
 }
 
-interface MultiSelectState {
-  isSelecting: boolean;
-  startPosition: { x: number; y: number } | null;
-  selectionBox: { x: number; y: number; width: number; height: number } | null;
-  selectedNodes: string[];
+// Connection Interface
+interface Connection {
+  id: string;
+  from: string;
+  to: string;
+  fromOutput?: string;
+  toInput?: string;
 }
 
-interface AlignmentGuides {
-  vertical: number | null;
-  horizontal: number | null;
-}
-
-interface EnhancedWorkflowCanvasProps {
-  nodes: WorkflowNode[];
-  connections: WorkflowConnection[];
-  selectedNodeId: string | null;
-  selectedConnectionId: string | null;
-  canvasOffset: { x: number; y: number };
-  zoomLevel: number;
-  isConnecting: boolean;
-  connectionPreview: ConnectionPreview | null;
-  readOnly?: boolean;
-  executionData?: Record<string, any>;
+const NodeComponent = ({ 
+  node, 
+  isSelected, 
+  onSelect, 
+  onDrag, 
+  onDelete,
+  onConfigure,
+  scale = 1 
+}: {
+  node: CanvasNode;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onDrag: (id: string, x: number, y: number) => void;
+  onDelete: (id: string) => void;
+  onConfigure: (id: string) => void;
+  scale: number;
+}) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
-  // Event handlers
-  onNodeClick: (nodeId: string) => void;
-  onConnectionClick: (connectionId: string) => void;
-  onCanvasClick: (event: React.MouseEvent) => void;
-  onCanvasDrop: (nodeType: AvailableNodeType, position: { x: number; y: number }) => void;
-  onNodeDragStop: (nodeId: string, position: { x: number; y: number }) => void;
-  onStartConnection: (nodeId: string, handleId: string, position: { x: number; y: number }) => void;
-  onCompleteConnection: (nodeId: string, handleId: string) => void;
-  onCancelConnection: () => void;
-  onUpdateConnectionPreview: (position: { x: number; y: number }) => void;
-  onDeleteSelectedConnection: () => void;
-  onCanvasOffsetChange: (offset: { x: number; y: number }) => void;
-  onZoomChange: (zoom: number) => void;
-  onCanvasPanStart: (event: React.MouseEvent) => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  
-  // Enhanced features
-  canUndo: boolean;
-  canRedo: boolean;
-  isPanningForCursor: boolean;
-  connectionStartNodeId: string | null;
-  connectionStartHandleId: string | null;
-}
-
-export function EnhancedWorkflowCanvas({
-  nodes,
-  connections,
-  selectedNodeId,
-  selectedConnectionId,
-  canvasOffset,
-  zoomLevel,
-  isConnecting,
-  connectionPreview,
-  readOnly = false,
-  executionData,
-  onNodeClick,
-  onConnectionClick,
-  onCanvasClick,
-  onCanvasDrop,
-  onNodeDragStop,
-  onStartConnection,
-  onCompleteConnection,
-  onCancelConnection,
-  onUpdateConnectionPreview,
-  onDeleteSelectedConnection,
-  onCanvasOffsetChange,
-  onZoomChange,
-  onCanvasPanStart,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
-  isPanningForCursor,
-  connectionStartNodeId,
-  connectionStartHandleId
-}: EnhancedWorkflowCanvasProps) {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [showGrid, setShowGrid] = useState(true);
-  const [snapToGrid, setSnapToGrid] = useState(true);
-  const [snapToNodes, setSnapToNodes] = useState(true);
-  const [draggingNodeOffset, setDraggingNodeOffset] = useState<{ x: number; y: number } | null>(null);
-  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuides>({ vertical: null, horizontal: null });
-  const [multiSelect, setMultiSelect] = useState<MultiSelectState>({
-    isSelecting: false,
-    startPosition: null,
-    selectionBox: null,
-    selectedNodes: []
-  });
-  const [copiedNodes, setCopiedNodes] = useState<WorkflowNode[]>([]);
-  const [showMinimap, setShowMinimap] = useState(true);
-  const [lockedNodes, setLockedNodes] = useState<Set<string>>(new Set());
-  const [hiddenNodes, setHiddenNodes] = useState<Set<string>>(new Set());
-
-  // Snapping functions
-  const snapToGridPosition = useCallback((position: { x: number; y: number }) => {
-    if (!snapToGrid) return position;
+  const nodeTypeInfo = Object.values(nodeTypes)
+    .flatMap(category => category.nodes)
+    .find(n => n.id === node.type);
     
-    return {
-      x: Math.round(position.x / GRID_SIZE) * GRID_SIZE,
-      y: Math.round(position.y / GRID_SIZE) * GRID_SIZE
-    };
-  }, [snapToGrid]);
+  const categoryInfo = Object.values(nodeTypes)
+    .find(category => category.nodes.some(n => n.id === node.type));
 
-  const snapToNodesPosition = useCallback((position: { x: number; y: number }) => {
-    if (!snapToNodes) return { ...position, guides: { vertical: null, horizontal: null } };
-    
-    const guides: AlignmentGuides = { vertical: null, horizontal: null };
-    let snappedPosition = { ...position };
-    
-    for (const node of nodes) {
-      if (hiddenNodes.has(node.id)) continue;
-      
-      // Vertical alignment
-      const nodeRight = node.position.x + NODE_WIDTH;
-      const nodeLeft = node.position.x;
-      const nodeCenter = node.position.x + NODE_WIDTH / 2;
-      
-      const positionRight = position.x + NODE_WIDTH;
-      const positionCenter = position.x + NODE_WIDTH / 2;
-      
-      if (Math.abs(nodeLeft - position.x) < ALIGNMENT_THRESHOLD) {
-        snappedPosition.x = nodeLeft;
-        guides.vertical = nodeLeft;
-      } else if (Math.abs(nodeRight - position.x) < ALIGNMENT_THRESHOLD) {
-        snappedPosition.x = nodeRight;
-        guides.vertical = nodeRight;
-      } else if (Math.abs(nodeCenter - positionCenter) < ALIGNMENT_THRESHOLD) {
-        snappedPosition.x = nodeCenter - NODE_WIDTH / 2;
-        guides.vertical = nodeCenter;
-      }
-      
-      // Horizontal alignment
-      const nodeTop = node.position.y;
-      const nodeBottom = node.position.y + NODE_HEIGHT;
-      const nodeVerticalCenter = node.position.y + NODE_HEIGHT / 2;
-      
-      const positionBottom = position.y + NODE_HEIGHT;
-      const positionVerticalCenter = position.y + NODE_HEIGHT / 2;
-      
-      if (Math.abs(nodeTop - position.y) < ALIGNMENT_THRESHOLD) {
-        snappedPosition.y = nodeTop;
-        guides.horizontal = nodeTop;
-      } else if (Math.abs(nodeBottom - position.y) < ALIGNMENT_THRESHOLD) {
-        snappedPosition.y = nodeBottom;
-        guides.horizontal = nodeBottom;
-      } else if (Math.abs(nodeVerticalCenter - positionVerticalCenter) < ALIGNMENT_THRESHOLD) {
-        snappedPosition.y = nodeVerticalCenter - NODE_HEIGHT / 2;
-        guides.horizontal = nodeVerticalCenter;
-      }
-    }
-    
-    return { ...snappedPosition, guides };
-  }, [nodes, snapToNodes, hiddenNodes]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (readOnly) return;
-      
-      const isInputField = (event.target as HTMLElement).tagName === 'INPUT' || 
-                          (event.target as HTMLElement).tagName === 'TEXTAREA' ||
-                          (event.target as HTMLElement).contentEditable === 'true';
-      
-      if (isInputField) return;
-      
-      // Prevent default for known shortcuts
-      const shortcutKeys = ['z', 'y', 'c', 'v', 'a', 'Delete', 'Backspace', 'Escape'];
-      if (event.ctrlKey || event.metaKey) {
-        if (shortcutKeys.includes(event.key.toLowerCase())) {
-          event.preventDefault();
-        }
-      } else if (['Delete', 'Backspace', 'Escape'].includes(event.key)) {
-        event.preventDefault();
-      }
-      
-      // Handle shortcuts
-      if (event.ctrlKey || event.metaKey) {
-        switch (event.key.toLowerCase()) {
-          case 'z':
-            if (event.shiftKey) {
-              onRedo();
-            } else {
-              onUndo();
-            }
-            break;
-          case 'y':
-            onRedo();
-            break;
-          case 'c':
-            handleCopyNodes();
-            break;
-          case 'v':
-            handlePasteNodes();
-            break;
-          case 'a':
-            handleSelectAll();
-            break;
-          case 'd':
-            handleDuplicateNodes();
-            break;
-        }
-      } else {
-        switch (event.key) {
-          case 'Delete':
-          case 'Backspace':
-            handleDeleteSelected();
-            break;
-          case 'Escape':
-            handleClearSelection();
-            break;
-          case 'g':
-            setShowGrid(!showGrid);
-            break;
-          case 's':
-            setSnapToGrid(!snapToGrid);
-            break;
-          case 'm':
-            setShowMinimap(!showMinimap);
-            break;
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [readOnly, onUndo, onRedo, showGrid, snapToGrid, showMinimap, multiSelect.selectedNodes]);
-
-  // Multi-select operations
-  const handleCopyNodes = useCallback(() => {
-    const selectedNodes = multiSelect.selectedNodes.length > 0 
-      ? nodes.filter(node => multiSelect.selectedNodes.includes(node.id))
-      : selectedNodeId ? [nodes.find(node => node.id === selectedNodeId)!].filter(Boolean) : [];
-    
-    setCopiedNodes(selectedNodes);
-  }, [nodes, multiSelect.selectedNodes, selectedNodeId]);
-
-  const handlePasteNodes = useCallback(() => {
-    if (copiedNodes.length === 0) return;
-    
-    const baseOffset = { x: 50, y: 50 };
-    const newNodes = copiedNodes.map((node, index) => ({
-      ...node,
-      id: `${node.type}_${Date.now()}_${index}`,
-      position: {
-        x: node.position.x + baseOffset.x,
-        y: node.position.y + baseOffset.y
-      }
-    }));
-    
-    // This would need to be implemented in the parent component
-    // onPasteNodes(newNodes);
-  }, [copiedNodes]);
-
-  const handleSelectAll = useCallback(() => {
-    const visibleNodes = nodes.filter(node => !hiddenNodes.has(node.id));
-    setMultiSelect(prev => ({
-      ...prev,
-      selectedNodes: visibleNodes.map(node => node.id)
-    }));
-  }, [nodes, hiddenNodes]);
-
-  const handleDuplicateNodes = useCallback(() => {
-    handleCopyNodes();
-    setTimeout(() => handlePasteNodes(), 100);
-  }, [handleCopyNodes, handlePasteNodes]);
-
-  const handleDeleteSelected = useCallback(() => {
-    if (multiSelect.selectedNodes.length > 0) {
-      // This would need to be implemented in the parent component
-      // onDeleteNodes(multiSelect.selectedNodes);
-    } else if (selectedNodeId) {
-      // onDeleteNode(selectedNodeId);
-    } else if (selectedConnectionId) {
-      onDeleteSelectedConnection();
-    }
-  }, [multiSelect.selectedNodes, selectedNodeId, selectedConnectionId, onDeleteSelectedConnection]);
-
-  const handleClearSelection = useCallback(() => {
-    setMultiSelect(prev => ({
-      ...prev,
-      selectedNodes: []
-    }));
-    if (isConnecting) {
-      onCancelConnection();
-    }
-  }, [isConnecting, onCancelConnection]);
-
-  // Node visibility and locking
-  const toggleNodeVisibility = useCallback((nodeId: string) => {
-    setHiddenNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - node.x * scale,
+      y: e.clientY - node.y * scale
     });
-  }, []);
-
-  const toggleNodeLock = useCallback((nodeId: string) => {
-    setLockedNodes(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(nodeId)) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
-      }
-      return newSet;
-    });
-  }, []);
-
-  // Event handlers
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    if (readOnly || !canvasRef.current) return;
-
-    const canvasRect = canvasRef.current.getBoundingClientRect();
-    const scrollLeft = canvasRef.current.scrollLeft;
-    const scrollTop = canvasRef.current.scrollTop;
-
-    let dropXView = (event.clientX - canvasRect.left + scrollLeft) / zoomLevel;
-    let dropYView = (event.clientY - canvasRect.top + scrollTop) / zoomLevel;
-
-    const dropXContent = dropXView - canvasOffset.x;
-    const dropYContent = dropYView - canvasOffset.y;
-
-    const draggedNodeData = event.dataTransfer.getData('application/json');
-    const draggedNodeId = event.dataTransfer.getData('application/nodeId');
-
-    if (draggedNodeData) {
-      const nodeType = JSON.parse(draggedNodeData) as AvailableNodeType;
-      const initialPosition = { x: dropXContent - (NODE_WIDTH / 2), y: dropYContent - (NODE_HEIGHT / 2) };
-      
-      // Apply snapping
-      const snappedPosition = snapToGridPosition(initialPosition);
-      const finalPosition = snapToNodesPosition(snappedPosition);
-      
-      setAlignmentGuides(finalPosition.guides);
-      setTimeout(() => setAlignmentGuides({ vertical: null, horizontal: null }), 1000);
-      
-      onCanvasDrop(nodeType, { x: Math.max(0, finalPosition.x), y: Math.max(0, finalPosition.y) });
-    } else if (draggedNodeId && draggingNodeOffset) {
-      const initialPosition = { x: dropXContent - draggingNodeOffset.x, y: dropYContent - draggingNodeOffset.y };
-      const snappedPosition = snapToGridPosition(initialPosition);
-      const finalPosition = snapToNodesPosition(snappedPosition);
-      
-      setAlignmentGuides(finalPosition.guides);
-      setTimeout(() => setAlignmentGuides({ vertical: null, horizontal: null }), 1000);
-      
-      onNodeDragStop(draggedNodeId, { x: Math.max(0, finalPosition.x), y: Math.max(0, finalPosition.y) });
-    }
-    setDraggingNodeOffset(null);
-    event.dataTransfer.clearData();
-  }, [onCanvasDrop, onNodeDragStop, draggingNodeOffset, canvasOffset, zoomLevel, readOnly, snapToGridPosition, snapToNodesPosition]);
-
-  const handleNodeDragStartInternal = useCallback((event: React.DragEvent<HTMLDivElement>, nodeId: string) => {
-    if (readOnly || lockedNodes.has(nodeId)) return;
-    
-    event.dataTransfer.setData('application/nodeId', nodeId);
-    event.dataTransfer.effectAllowed = 'move';
-
-    const nodeElement = document.getElementById(`node-${nodeId}`);
-    if (nodeElement) {
-      const nodeRect = nodeElement.getBoundingClientRect();
-      if (canvasRef.current) {
-        setDraggingNodeOffset({
-          x: (event.clientX - nodeRect.left) / zoomLevel,
-          y: (event.clientY - nodeRect.top) / zoomLevel,
-        });
-      }
-    }
-  }, [zoomLevel, readOnly, lockedNodes]);
-
-  // Zoom controls
-  const handleZoomIn = useCallback(() => {
-    const newZoom = Math.min(zoomLevel + ZOOM_STEP, MAX_ZOOM);
-    onZoomChange(newZoom);
-  }, [zoomLevel, onZoomChange]);
-
-  const handleZoomOut = useCallback(() => {
-    const newZoom = Math.max(zoomLevel - ZOOM_STEP, MIN_ZOOM);
-    onZoomChange(newZoom);
-  }, [zoomLevel, onZoomChange]);
-
-  const handleZoomReset = useCallback(() => {
-    onZoomChange(1);
-    onCanvasOffsetChange({ x: 0, y: 0 });
-  }, [onZoomChange, onCanvasOffsetChange]);
-
-  const handleZoomToFit = useCallback(() => {
-    if (nodes.length === 0) return;
-    
-    const minX = Math.min(...nodes.map(n => n.position.x));
-    const maxX = Math.max(...nodes.map(n => n.position.x + NODE_WIDTH));
-    const minY = Math.min(...nodes.map(n => n.position.y));
-    const maxY = Math.max(...nodes.map(n => n.position.y + NODE_HEIGHT));
-    
-    const padding = 50;
-    const contentWidth = maxX - minX + padding * 2;
-    const contentHeight = maxY - minY + padding * 2;
-    
-    const containerWidth = canvasRef.current?.clientWidth || 800;
-    const containerHeight = canvasRef.current?.clientHeight || 600;
-    
-    const scaleX = containerWidth / contentWidth;
-    const scaleY = containerHeight / contentHeight;
-    const scale = Math.min(scaleX, scaleY, 1);
-    
-    onZoomChange(scale);
-    onCanvasOffsetChange({
-      x: -(minX - padding) * scale,
-      y: -(minY - padding) * scale
-    });
-  }, [nodes, onZoomChange, onCanvasOffsetChange]);
-
-  // Multi-select handling
-  const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (readOnly) return;
-    
-    const target = event.target as HTMLElement;
-    const isCanvas = target === event.currentTarget || 
-                     target.classList.contains('pannable-content-wrapper') ||
-                     target.closest('svg') === event.currentTarget?.querySelector('svg');
-    
-    const clickedOnConnectionTarget = target.closest('[data-connection-click-target="true"], [data-delete-connection-button="true"]');
-    const clickedOnNode = target.closest('.workflow-node-item');
-    const clickedOnHandle = target.closest('[data-handle-id]');
-
-    if (isCanvas && !clickedOnConnectionTarget && !clickedOnNode && !clickedOnHandle) {
-      if (event.button === 0) {
-        // Start multi-select or pan
-        if (event.ctrlKey || event.metaKey) {
-          // Start multi-select
-          setMultiSelect(prev => ({
-            ...prev,
-            isSelecting: true,
-            startPosition: { x: event.clientX, y: event.clientY },
-            selectionBox: { x: event.clientX, y: event.clientY, width: 0, height: 0 }
-          }));
-        } else {
-          // Start panning
-          onCanvasClick(event);
-          onCanvasPanStart(event);
-        }
-      }
-    }
-  }, [readOnly, onCanvasClick, onCanvasPanStart]);
-
-  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (readOnly) return;
-    
-    // Handle multi-select box
-    if (multiSelect.isSelecting && multiSelect.startPosition) {
-      const currentX = event.clientX;
-      const currentY = event.clientY;
-      const startX = multiSelect.startPosition.x;
-      const startY = multiSelect.startPosition.y;
-      
-      setMultiSelect(prev => ({
-        ...prev,
-        selectionBox: {
-          x: Math.min(startX, currentX),
-          y: Math.min(startY, currentY),
-          width: Math.abs(currentX - startX),
-          height: Math.abs(currentY - startY)
-        }
-      }));
-    }
-
-    // Handle connection preview
-    if (isConnecting && connectionPreview?.previewPosition && canvasRef.current) {
-      const canvasRect = canvasRef.current.getBoundingClientRect();
-      onUpdateConnectionPreview({
-        x: (event.clientX - canvasRect.left + canvasRef.current.scrollLeft) / zoomLevel - canvasOffset.x,
-        y: (event.clientY - canvasRect.top + canvasRef.current.scrollTop) / zoomLevel - canvasOffset.y,
-      });
-    }
-  }, [readOnly, multiSelect.isSelecting, multiSelect.startPosition, isConnecting, connectionPreview, onUpdateConnectionPreview, canvasOffset, zoomLevel]);
-
-  const handleMouseUp = useCallback(() => {
-    if (multiSelect.isSelecting) {
-      // Process multi-select results
-      if (multiSelect.selectionBox && canvasRef.current) {
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        const selectedNodeIds: string[] = [];
-        
-        nodes.forEach(node => {
-          if (hiddenNodes.has(node.id)) return;
-          
-          const nodeScreenX = (node.position.x + canvasOffset.x) * zoomLevel;
-          const nodeScreenY = (node.position.y + canvasOffset.y) * zoomLevel;
-          const nodeScreenWidth = NODE_WIDTH * zoomLevel;
-          const nodeScreenHeight = NODE_HEIGHT * zoomLevel;
-          
-          const selectionBox = multiSelect.selectionBox!;
-          const selectionLeft = selectionBox.x - canvasRect.left;
-          const selectionTop = selectionBox.y - canvasRect.top;
-          const selectionRight = selectionLeft + selectionBox.width;
-          const selectionBottom = selectionTop + selectionBox.height;
-          
-          // Check if node intersects with selection box
-          if (nodeScreenX < selectionRight && 
-              nodeScreenX + nodeScreenWidth > selectionLeft && 
-              nodeScreenY < selectionBottom && 
-              nodeScreenY + nodeScreenHeight > selectionTop) {
-            selectedNodeIds.push(node.id);
-          }
-        });
-        
-        setMultiSelect(prev => ({
-          ...prev,
-          selectedNodes: selectedNodeIds
-        }));
-      }
-      
-      setMultiSelect(prev => ({
-        ...prev,
-        isSelecting: false,
-        selectionBox: null,
-        startPosition: null
-      }));
-    }
-  }, [multiSelect.isSelecting, multiSelect.selectionBox, nodes, hiddenNodes, canvasOffset, zoomLevel]);
-
-  const getHandlePosition = (node: WorkflowNode, handleId: string, isOutput: boolean): { x: number, y: number } => {
-    const nodeTypeConfig = getNodeTypeConfig(node.type);
-    const handles = isOutput ? nodeTypeConfig?.outputHandles : nodeTypeConfig?.inputHandles;
-    const numHandles = handles?.length || 1;
-    const handleIndex = handles?.findIndex(h => h === handleId) ?? 0;
-
-    const y = node.position.y + (NODE_HEIGHT / (numHandles + 1)) * (handleIndex + 1);
-    const x = isOutput ? node.position.x + NODE_WIDTH : node.position.x;
-    return { x, y };
+    onSelect(node.id);
   };
 
-  const startNodeForPreview = connectionPreview?.startNodeId ? nodes.find(n => n.id === connectionPreview.startNodeId) : null;
-  let previewStartPos: {x: number, y: number} | null = null;
-  if (startNodeForPreview && connectionPreview?.startHandleId) {
-    previewStartPos = getHandlePosition(startNodeForPreview, connectionPreview.startHandleId, true);
-  }
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      const newX = (e.clientX - dragStart.x) / scale;
+      const newY = (e.clientY - dragStart.y) / scale;
+      onDrag(node.id, newX, newY);
+    }
+  };
 
-  const visibleNodes = nodes.filter(node => !hiddenNodes.has(node.id));
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        const newX = (e.clientX - dragStart.x) / scale;
+        const newY = (e.clientY - dragStart.y) / scale;
+        onDrag(node.id, newX, newY);
+      };
+
+      const handleGlobalMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+    }
+  }, [isDragging, dragStart, scale, node.id, onDrag]);
+
+  const IconComponent = nodeTypeInfo?.icon || CheckCircle;
 
   return (
-    <div className="relative w-full h-full">
-      {/* Enhanced Toolbar */}
-      <div className="absolute top-4 left-4 z-50 flex items-center gap-2 bg-background/95 backdrop-blur-sm border rounded-lg p-2 shadow-lg">
-        <TooltipProvider>
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleZoomIn}
-                  disabled={zoomLevel >= MAX_ZOOM}
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom In (Ctrl +)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleZoomOut}
-                  disabled={zoomLevel <= MIN_ZOOM}
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom Out (Ctrl -)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleZoomReset}
-                >
-                  <MousePointer className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Reset View (100%)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleZoomToFit}
-                >
-                  <Maximize className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Zoom to Fit</TooltipContent>
-            </Tooltip>
-          </div>
-
-          <div className="w-px h-4 bg-border" />
-
-          {/* View Controls */}
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showGrid ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setShowGrid(!showGrid)}
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Toggle Grid (G)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={snapToGrid ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setSnapToGrid(!snapToGrid)}
-                >
-                  <Move className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Snap to Grid (S)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showMinimap ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setShowMinimap(!showMinimap)}
-                >
-                  <Layers className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Toggle Minimap (M)</TooltipContent>
-            </Tooltip>
-          </div>
-
-          <div className="w-px h-4 bg-border" />
-
-          {/* Edit Controls */}
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onUndo}
-                  disabled={!canUndo}
-                >
-                  <Undo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRedo}
-                  disabled={!canRedo}
-                >
-                  <Redo2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCopyNodes}
-                  disabled={multiSelect.selectedNodes.length === 0 && !selectedNodeId}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Copy (Ctrl+C)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handlePasteNodes}
-                  disabled={copiedNodes.length === 0}
-                >
-                  <Clipboard className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Paste (Ctrl+V)</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDeleteSelected}
-                  disabled={multiSelect.selectedNodes.length === 0 && !selectedNodeId && !selectedConnectionId}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Delete (Del)</TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
-      </div>
-
-      {/* Zoom level indicator */}
-      <div className="absolute top-4 right-4 z-50 bg-background/95 backdrop-blur-sm border rounded-lg px-3 py-1 text-sm font-mono">
-        {Math.round(zoomLevel * 100)}%
-      </div>
-
-      {/* Selection info */}
-      {multiSelect.selectedNodes.length > 0 && (
-        <div className="absolute top-16 right-4 z-50 bg-background/95 backdrop-blur-sm border rounded-lg px-3 py-1 text-sm">
-          {multiSelect.selectedNodes.length} nodes selected
-        </div>
-      )}
-
-      <ScrollArea className="flex-1 bg-muted/20">
-        <div
-          ref={canvasRef}
-          className={cn(
-            "relative w-full h-full min-w-[2000px] min-h-[1500px] p-4 overflow-auto select-none",
-            isPanningForCursor ? 'cursor-grabbing' : (isConnecting ? 'crosshair' : (readOnly ? 'default' : 'grab'))
-          )}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-        >
-          <div
-            className="absolute top-0 left-0 w-full h-full pannable-content-wrapper"
-            style={{
-              transform: `translate(${canvasOffset.x * zoomLevel}px, ${canvasOffset.y * zoomLevel}px) scale(${zoomLevel})`,
-              transformOrigin: 'top left',
-              minWidth: 'inherit',
-              minHeight: 'inherit',
-            }}
-          >
-            {/* Grid */}
-            {showGrid && (
-              <svg
-                className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                style={{ minWidth: 'inherit', minHeight: 'inherit' }}
+    <div
+      className={`
+        absolute cursor-pointer transition-all duration-200 select-none
+        ${isSelected ? 'z-20 scale-105' : 'z-10'}
+        ${isDragging ? 'shadow-2xl' : 'hover:shadow-lg'}
+      `}
+      style={{
+        left: node.x * scale,
+        top: node.y * scale,
+        transform: `scale(${scale})`
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
+      <Card className={`
+        w-48 transition-all duration-200
+        ${isSelected ? `ring-2 ring-offset-2 ${categoryInfo?.borderColor || 'ring-primary'}` : ''}
+        ${isDragging ? 'shadow-2xl' : ''}
+        hover:shadow-md
+      `}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className={`
+              p-2 rounded-lg bg-gradient-to-r ${categoryInfo?.color || 'from-gray-500 to-gray-600'}
+              flex items-center justify-center
+            `}>
+              <IconComponent className="h-4 w-4 text-white" />
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onConfigure(node.id);
+                }}
+                className="h-6 w-6 p-0"
               >
-                <defs>
-                  <pattern id="grid" width={GRID_SIZE} height={GRID_SIZE} patternUnits="userSpaceOnUse">
-                    <path
-                      d={`M ${GRID_SIZE} 0 L 0 0 0 ${GRID_SIZE}`}
-                      fill="none"
-                      stroke={GRID_COLOR}
-                      strokeWidth="0.5"
-                      strokeDasharray={GRID_DASH}
-                    />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-              </svg>
-            )}
-
-            {/* Alignment guides */}
-            {alignmentGuides.vertical && (
-              <line
-                x1={alignmentGuides.vertical}
-                y1="0"
-                x2={alignmentGuides.vertical}
-                y2="100%"
-                stroke={ALIGNMENT_GUIDE_COLOR}
-                strokeWidth="2"
-                strokeDasharray="5,5"
-                className="pointer-events-none"
-              />
-            )}
-            {alignmentGuides.horizontal && (
-              <line
-                x1="0"
-                y1={alignmentGuides.horizontal}
-                x2="100%"
-                y2={alignmentGuides.horizontal}
-                stroke={ALIGNMENT_GUIDE_COLOR}
-                strokeWidth="2"
-                strokeDasharray="5,5"
-                className="pointer-events-none"
-              />
-            )}
-
-            {/* Multi-select box */}
-            {multiSelect.selectionBox && (
-              <div
-                className="absolute border-2 border-primary/50 bg-primary/10 pointer-events-none"
-                style={{
-                  position: 'fixed',
-                  left: multiSelect.selectionBox.x,
-                  top: multiSelect.selectionBox.y,
-                  width: multiSelect.selectionBox.width,
-                  height: multiSelect.selectionBox.height,
-                  zIndex: 1000
+                <Settings className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(node.id);
                 }}
-              />
-            )}
-
-            {/* Connections SVG */}
-            <svg
-              className="absolute top-0 left-0 w-full h-full pointer-events-none"
-              style={{ minWidth: 'inherit', minHeight: 'inherit' }}
-            >
-              <defs>
-                <marker id="arrow" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--primary))" />
-                </marker>
-                <marker id="arrow-selected" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--destructive))" />
-                </marker>
-                <marker id="arrow-error" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--destructive) / 0.7)" />
-                </marker>
-                <marker id="arrow-preview" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                  <path d="M0,0 L0,7 L7,3.5 z" fill="hsl(var(--accent))" />
-                </marker>
-              </defs>
-              
-              {/* Render connections */}
-              {connections.map((conn) => {
-                const sourceNode = nodes.find(n => n.id === conn.sourceNodeId);
-                const targetNode = nodes.find(n => n.id === conn.targetNodeId);
-                if (!sourceNode || !targetNode) return null;
-                if (hiddenNodes.has(sourceNode.id) || hiddenNodes.has(targetNode.id)) return null;
-
-                const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
-                const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
-
-                const isSelected = conn.id === selectedConnectionId;
-                const isErrorPath = conn.sourceHandle === 'error';
-
-                let strokeColor = 'hsl(var(--primary))';
-                let strokeWidth = 1.5;
-                let marker = 'url(#arrow)';
-                let strokeDasharray = undefined as (string | undefined);
-
-                if (isErrorPath) {
-                  strokeColor = 'hsl(var(--destructive) / 0.7)';
-                  strokeDasharray = "6, 4";
-                  marker = 'url(#arrow-error)';
-                }
-
-                if (isSelected) {
-                  strokeColor = 'hsl(var(--destructive))';
-                  strokeWidth = 2.5;
-                  marker = 'url(#arrow-selected)';
-                }
-
-                const c1x = sourcePos.x + Math.abs(targetPos.x - sourcePos.x) / 2;
-                const c1y = sourcePos.y;
-                const c2x = targetPos.x - Math.abs(targetPos.x - sourcePos.x) / 2;
-                const c2y = targetPos.y;
-                const pathD = `M ${sourcePos.x} ${sourcePos.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${targetPos.x} ${targetPos.y}`;
-
-                return (
-                  <g key={conn.id}>
-                    <path d={pathD} stroke={strokeColor} strokeWidth={strokeWidth} fill="none" markerEnd={marker} strokeDasharray={strokeDasharray} />
-                    <path
-                      data-connection-click-target="true"
-                      d={pathD}
-                      stroke="transparent"
-                      strokeWidth="10"
-                      fill="none"
-                      className={cn("pointer-events-stroke", !readOnly && "cursor-pointer")}
-                      onClick={(e) => { if(!readOnly) { e.stopPropagation(); onConnectionClick(conn.id || ''); } }}
-                    />
-                  </g>
-                );
-              })}
-              
-              {/* Connection preview */}
-              {isConnecting && previewStartPos && connectionPreview?.previewPosition && (
-                <path
-                  d={`M ${previewStartPos.x} ${previewStartPos.y} C ${previewStartPos.x + 50} ${previewStartPos.y} ${connectionPreview.previewPosition.x - 50} ${connectionPreview.previewPosition.y} ${connectionPreview.previewPosition.x} ${connectionPreview.previewPosition.y}`}
-                  stroke="hsl(var(--accent))" strokeWidth="2" strokeDasharray="5,5"
-                  fill="none"
-                  markerEnd="url(#arrow-preview)"
-                />
-              )}
-            </svg>
-
-            {/* Render delete button for selected connection */}
-            {selectedConnectionId && !readOnly && connections.find(c => c.id === selectedConnectionId) && (() => {
-              const conn = connections.find(c => c.id === selectedConnectionId)!;
-              const sourceNode = nodes.find(n => n.id === conn.sourceNodeId);
-              const targetNode = nodes.find(n => n.id === conn.targetNodeId);
-              if (!sourceNode || !targetNode) return null;
-              if (hiddenNodes.has(sourceNode.id) || hiddenNodes.has(targetNode.id)) return null;
-
-              const sourcePos = conn.sourceHandle ? getHandlePosition(sourceNode, conn.sourceHandle, true) : { x: sourceNode.position.x + NODE_WIDTH / 2, y: sourceNode.position.y + NODE_HEIGHT / 2 };
-              const targetPos = conn.targetHandle ? getHandlePosition(targetNode, conn.targetHandle, false) : { x: targetNode.position.x + NODE_WIDTH / 2, y: targetNode.position.y + NODE_HEIGHT / 2 };
-              
-              // Bezier curve midpoint approximation
-              const t = 0.5;
-              const mt = 1 - t;
-              const midX = (mt * mt * mt * sourcePos.x) + (3 * mt * mt * t * (sourcePos.x + Math.abs(targetPos.x - sourcePos.x) / 2)) + (3 * mt * t * t * (targetPos.x - Math.abs(targetPos.x - sourcePos.x) / 2)) + (t * t * t * targetPos.x);
-              const midY = (mt * mt * mt * sourcePos.y) + (3 * mt * mt * t * sourcePos.y) + (3 * mt * t * t * targetPos.y) + (t * t * t * targetPos.y);
-
-              return (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        data-delete-connection-button="true"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute w-7 h-7 rounded-full shadow-lg z-10 pointer-events-auto flex items-center justify-center"
-                        style={{
-                          left: `${midX - 14}px`,
-                          top: `${midY - 14}px`,
-                          transform: `scale(${1 / zoomLevel})`,
-                          transformOrigin: 'center center',
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteSelectedConnection();
-                        }}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Delete Connection</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })()}
-
-            {/* Render nodes */}
-            {visibleNodes.map((node) => {
-              const isSelected = selectedNodeId === node.id || multiSelect.selectedNodes.includes(node.id);
-              const isLocked = lockedNodes.has(node.id);
-              
-              return (
-                <div
-                  key={node.id}
-                  className={cn(
-                    "absolute",
-                    isSelected && "ring-2 ring-primary ring-offset-2",
-                    isLocked && "opacity-60"
-                  )}
-                  style={{
-                    left: node.position.x,
-                    top: node.position.y,
-                    width: NODE_WIDTH,
-                    height: NODE_HEIGHT
-                  }}
-                >
-                  <WorkflowNodeItem
-                    node={node}
-                    nodeType={getNodeTypeConfig(node.type)}
-                    isSelected={isSelected}
-                    onClick={onNodeClick}
-                    onDragStartInternal={handleNodeDragStartInternal}
-                    onHandleClick={(nodeId, handleId, handleType, handlePosition) => {
-                      if (readOnly || isLocked) return;
-                      const absoluteHandlePosition = {
-                        x: handlePosition.x,
-                        y: handlePosition.y
-                      };
-                      if (handleType === 'output' && !isConnecting) {
-                        onStartConnection(nodeId, handleId, absoluteHandlePosition);
-                      } else if (handleType === 'input' && isConnecting) {
-                        onCompleteConnection(nodeId, handleId);
-                      }
-                    }}
-                    isConnecting={isConnecting}
-                    connectionStartNodeId={connectionStartNodeId}
-                    connectionStartHandleId={connectionStartHandleId}
-                    connections={connections}
-                    readOnly={readOnly || isLocked}
-                    executionData={executionData ? executionData[node.id] : undefined}
-                  />
-                  
-                  {/* Node controls */}
-                  {!readOnly && (
-                    <div className="absolute -top-2 -right-2 flex gap-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 bg-background/80 hover:bg-background"
-                              onClick={() => toggleNodeLock(node.id)}
-                            >
-                              {isLocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isLocked ? 'Unlock Node' : 'Lock Node'}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 bg-background/80 hover:bg-background"
-                              onClick={() => toggleNodeVisibility(node.id)}
-                            >
-                              <EyeOff className="h-3 w-3" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Hide Node
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Empty state */}
-          {visibleNodes.length === 0 && !isConnecting && !readOnly && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center p-8 bg-background/80 rounded-lg shadow-xl backdrop-blur-sm">
-                <div className="p-4 bg-primary/10 rounded-full inline-block mb-4">
-                  <Zap className="h-12 w-12 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Start Building Your Workflow</h3>
-                <p className="text-muted-foreground text-sm max-w-sm">
-                  Drag nodes from the library, or ask the AI assistant to generate a workflow from a prompt.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Minimap */}
-      {showMinimap && (
-        <div className="absolute bottom-4 right-4 w-48 h-32 bg-background/90 border rounded-lg shadow-lg z-40">
-          <div className="relative w-full h-full overflow-hidden">
-            <div className="text-xs text-muted-foreground p-1 border-b">Minimap</div>
-            <div className="relative flex-1 p-2">
-              {visibleNodes.map(node => (
-                <div
-                  key={node.id}
-                  className={cn(
-                    "absolute bg-primary/20 border border-primary/40 rounded cursor-pointer hover:bg-primary/30",
-                    selectedNodeId === node.id && "bg-primary/40 border-primary",
-                    multiSelect.selectedNodes.includes(node.id) && "bg-primary/40 border-primary"
-                  )}
-                  style={{
-                    left: `${(node.position.x / 2000) * 100}%`,
-                    top: `${(node.position.y / 1500) * 100}%`,
-                    width: '4px',
-                    height: '4px'
-                  }}
-                  onClick={() => {
-                    // Center view on clicked node
-                    const centerX = -(node.position.x - 400);
-                    const centerY = -(node.position.y - 300);
-                    onCanvasOffsetChange({ x: centerX, y: centerY });
-                  }}
-                />
-              ))}
-              
-              {/* Viewport indicator */}
-              <div
-                className="absolute border-2 border-primary bg-primary/10 pointer-events-none"
-                style={{
-                  left: `${(-canvasOffset.x / 2000) * 100}%`,
-                  top: `${(-canvasOffset.y / 1500) * 100}%`,
-                  width: `${(800 / 2000) * 100}%`,
-                  height: `${(600 / 1500) * 100}%`
-                }}
-              />
+                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+          
+          <div>
+            <h4 className="font-semibold text-sm mb-1">{node.label}</h4>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {nodeTypeInfo?.description || 'Custom node'}
+            </p>
+          </div>
+
+          {/* Connection Points */}
+          <div className="flex justify-between mt-3">
+            <div className="w-2 h-2 bg-primary rounded-full -ml-1 border border-background" />
+            <div className="w-2 h-2 bg-primary rounded-full -mr-1 border border-background" />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export const EnhancedWorkflowCanvas = () => {
+  const [nodes, setNodes] = useState<CanvasNode[]>([
+    { id: 'start', type: 'webhook', label: 'Webhook Trigger', x: 100, y: 100 },
+    { id: 'process', type: 'condition', label: 'Check Status', x: 350, y: 100 },
+    { id: 'action1', type: 'send-email', label: 'Send Email', x: 600, y: 50 },
+    { id: 'action2', type: 'database-update', label: 'Update Database', x: 600, y: 150 }
+  ]);
+
+  const [connections, setConnections] = useState<Connection[]>([
+    { id: 'c1', from: 'start', to: 'process' },
+    { id: 'c2', from: 'process', to: 'action1' },
+    { id: 'c3', from: 'process', to: 'action2' }
+  ]);
+
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [showGrid, setShowGrid] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('trigger');
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Canvas interaction handlers
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setSelectedNodes([]);
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - canvasOffset.x, y: e.clientY - canvasOffset.y });
+    }
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setCanvasOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  // Node operations
+  const handleNodeSelect = (id: string) => {
+    setSelectedNodes([id]);
+  };
+
+  const handleNodeDrag = (id: string, x: number, y: number) => {
+    setNodes(prev => prev.map(node => 
+      node.id === id ? { ...node, x, y } : node
+    ));
+  };
+
+  const handleNodeDelete = (id: string) => {
+    setNodes(prev => prev.filter(node => node.id !== id));
+    setConnections(prev => prev.filter(conn => 
+      conn.from !== id && conn.to !== id
+    ));
+  };
+
+  const handleNodeConfigure = (id: string) => {
+    console.log('Configure node:', id);
+  };
+
+  const addNode = (nodeType: any) => {
+    const newNode: CanvasNode = {
+      id: `node_${Date.now()}`,
+      type: nodeType.id,
+      label: nodeType.name,
+      x: 200 + Math.random() * 300,
+      y: 200 + Math.random() * 200
+    };
+    setNodes(prev => [...prev, newNode]);
+  };
+
+  // Zoom controls
+  const zoomIn = () => setCanvasScale(prev => Math.min(prev + 0.1, 2));
+  const zoomOut = () => setCanvasScale(prev => Math.max(prev - 0.1, 0.5));
+  const resetZoom = () => setCanvasScale(1);
+
+  return (
+    <div className="flex h-[600px] border rounded-lg overflow-hidden bg-background">
+      {/* Enhanced Node Library */}
+      <div className="w-80 border-r bg-muted/30 flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">Node Library</h3>
+            <Button variant="ghost" size="sm">
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Category Tabs */}
+          <div className="flex gap-1 mb-3">
+            {Object.entries(nodeTypes).map(([key, category]) => (
+              <Button
+                key={key}
+                variant={selectedCategory === key ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSelectedCategory(key)}
+                className="text-xs flex-1"
+              >
+                <category.icon className="h-3 w-3 mr-1" />
+                {category.category.split(' ')[0]}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {nodeTypes[selectedCategory as keyof typeof nodeTypes]?.nodes.map((node) => (
+            <div
+              key={node.id}
+              className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+              draggable
+              onClick={() => addNode(node)}
+            >
+              <div className={`
+                p-2 rounded-md bg-gradient-to-r ${nodeTypes[selectedCategory as keyof typeof nodeTypes].color}
+                flex items-center justify-center
+              `}>
+                <node.icon className="h-4 w-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm">{node.name}</div>
+                <div className="text-xs text-muted-foreground line-clamp-1">
+                  {node.description}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Enhanced Canvas */}
+      <div className="flex-1 flex flex-col">
+        {/* Canvas Toolbar */}
+        <div className="flex items-center justify-between p-3 border-b bg-muted/20">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm">
+              <MousePointer className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm">
+              <Move className="h-4 w-4" />
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="ghost" size="sm" onClick={() => setShowGrid(!showGrid)}>
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm">
+              <Layers className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={zoomOut}>
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[60px] text-center">
+              {Math.round(canvasScale * 100)}%
+            </span>
+            <Button variant="ghost" size="sm" onClick={zoomIn}>
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={resetZoom}>
+              <Maximize className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <Save className="h-4 w-4 mr-1" />
+              Save
+            </Button>
+            <Button size="sm">
+              <Play className="h-4 w-4 mr-1" />
+              Test
+            </Button>
+          </div>
+        </div>
+
+        {/* Canvas Area */}
+        <div className="flex-1 relative overflow-hidden">
+          <div
+            ref={canvasRef}
+            className="w-full h-full relative cursor-grab active:cursor-grabbing"
+            style={{
+              backgroundImage: showGrid ? 
+                `radial-gradient(circle, #e5e7eb 1px, transparent 1px)` : 
+                'none',
+              backgroundSize: showGrid ? '20px 20px' : 'none',
+              transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`
+            }}
+            onMouseDown={handleCanvasMouseDown}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+          >
+            {/* Render Nodes */}
+            {nodes.map((node) => (
+              <NodeComponent
+                key={node.id}
+                node={node}
+                isSelected={selectedNodes.includes(node.id)}
+                onSelect={handleNodeSelect}
+                onDrag={handleNodeDrag}
+                onDelete={handleNodeDelete}
+                onConfigure={handleNodeConfigure}
+                scale={canvasScale}
+              />
+            ))}
+
+            {/* Render Connections */}
+            <svg className="absolute inset-0 pointer-events-none">
+              {connections.map((connection) => {
+                const fromNode = nodes.find(n => n.id === connection.from);
+                const toNode = nodes.find(n => n.id === connection.to);
+                if (!fromNode || !toNode) return null;
+
+                const startX = (fromNode.x + 190) * canvasScale + canvasOffset.x;
+                const startY = (fromNode.y + 80) * canvasScale + canvasOffset.y;
+                const endX = (toNode.x + 2) * canvasScale + canvasOffset.x;
+                const endY = (toNode.y + 80) * canvasScale + canvasOffset.y;
+
+                const controlX1 = startX + (endX - startX) * 0.5;
+                const controlY1 = startY;
+                const controlX2 = startX + (endX - startX) * 0.5;
+                const controlY2 = endY;
+
+                return (
+                  <path
+                    key={connection.id}
+                    d={`M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="2"
+                    fill="none"
+                    className="drop-shadow-sm"
+                  />
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
