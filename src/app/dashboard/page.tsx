@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { EnhancedAppLayout } from '@/components/enhanced-app-layout';
 import { withAuth } from '@/components/auth/with-auth';
 import { AIFloatingAssistant } from '@/components/ai-chat-assistant';
 import { RealTimeCharts } from '@/components/real-time-charts';
@@ -15,6 +14,8 @@ import { InteractiveGodTierFeatures } from '@/components/interactive-godtier-fea
 import { IntegrationMarketplace } from '@/components/integration-marketplace';
 import { TemplateLibrary } from '@/components/template-library';
 import { EnhancedMonitoring } from '@/components/enhanced-monitoring';
+import { EnhancedDashboardWidgets } from '@/components/enhanced-dashboard-widgets';
+import { ResponsiveLayout, ResponsiveGrid, ResponsiveCard } from '@/components/responsive-layout';
 import {
   Activity,
   BarChart3,
@@ -183,92 +184,6 @@ const topWorkflows = [
   }
 ];
 
-const aiInsights = [
-  {
-    id: 1,
-    type: 'optimization',
-    title: 'Workflow Performance Boost',
-    description: 'Adding a condition check before API calls could reduce execution time by 23%',
-    impact: 'High',
-    workflowId: 1,
-    icon: Zap,
-    color: 'from-yellow-500 to-orange-500'
-  },
-  {
-    id: 2,
-    type: 'cost_saving',
-    title: 'API Usage Optimization',
-    description: 'Batch processing could reduce your monthly API costs by $127',
-    impact: 'Medium',
-    workflowId: 2,
-    icon: DollarSign,
-    color: 'from-green-500 to-emerald-500'
-  },
-  {
-    id: 3,
-    type: 'reliability',
-    title: 'Error Prevention Suggestion',
-    description: 'Add error handling for network timeouts to prevent 15% of failures',
-    impact: 'High',
-    workflowId: 3,
-    icon: Shield,
-    color: 'from-blue-500 to-cyan-500'
-  },
-  {
-    id: 4,
-    type: 'scaling',
-    title: 'Auto-scaling Recommendation',
-    description: 'Enable auto-scaling to handle 300% traffic spikes during peak hours',
-    impact: 'Medium',
-    workflowId: 1,
-    icon: TrendingUp,
-    color: 'from-purple-500 to-pink-500'
-  }
-];
-
-const godTierFeatures = [
-  {
-    id: 1,
-    name: 'Quantum Workflow Processing',
-    description: 'Leverage quantum computing for complex optimization',
-    status: 'active',
-    accuracy: 99.1,
-    speedup: '50x',
-    icon: Zap,
-    color: 'from-blue-500 to-cyan-500'
-  },
-  {
-    id: 2,
-    name: 'AI Prophet Predictions',
-    description: 'Predict workflow outcomes before execution',
-    status: 'active',
-    accuracy: 94.8,
-    speedup: '10x',
-    icon: Brain,
-    color: 'from-purple-500 to-pink-500'
-  },
-  {
-    id: 3,
-    name: 'Reality Fabrication Engine',
-    description: 'Control IoT devices and physical systems',
-    status: 'active',
-    accuracy: 97.3,
-    speedup: '25x',
-    icon: Globe,
-    color: 'from-green-500 to-emerald-500'
-  },
-  {
-    id: 4,
-    name: 'Global Consciousness Network',
-    description: 'Tap into worldwide data streams and insights',
-    status: 'training',
-    accuracy: 91.2,
-    speedup: '100x',
-    icon: Monitor,
-    color: 'from-orange-500 to-red-500'
-  }
-];
-
 function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
@@ -276,123 +191,51 @@ function DashboardPage() {
   // AI Assistant handlers
   const handleWorkflowGenerate = (description: string) => {
     console.log('Generating workflow:', description);
-    setActiveTab('templates'); // Navigate to templates tab
+    setActiveTab('templates');
   };
 
   const handleGodTierActivate = (feature: string) => {
     console.log('Activating god-tier feature:', feature);
-    setActiveTab('ai'); // Navigate to AI tab
+    setActiveTab('ai');
   };
 
   const handleIntegrationSetup = (service: string) => {
     console.log('Setting up integration:', service);
-    setActiveTab('integrations'); // Navigate to integrations tab
+    setActiveTab('integrations');
   };
 
-  // Overview Tab
+  // Overview Tab with Enhanced Widgets
   const OverviewTab = () => (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold">Welcome back! 👋</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">Welcome back! 👋</h2>
           <p className="text-muted-foreground">Here's what's happening with your automations today</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <select
             value={selectedTimeRange}
             onChange={(e) => setSelectedTimeRange(e.target.value)}
-            className="px-3 py-2 border rounded-md text-sm"
+            className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
           >
             <option value="24h">Last 24 hours</option>
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
             <option value="90d">Last 90 days</option>
           </select>
-          <Button>
+          <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Create Workflow
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Workflows</p>
-                <p className="text-2xl font-bold">{dashboardStats.totalWorkflows}</p>
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +12% from last month
-                </p>
-              </div>
-              <div className="p-3 bg-blue-500/10 rounded-lg">
-                <Workflow className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Enhanced Dashboard Widgets */}
+      <EnhancedDashboardWidgets />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Executions</p>
-                <p className="text-2xl font-bold">{dashboardStats.totalExecutions.toLocaleString()}</p>
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +18% from last month
-                </p>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-lg">
-                <Activity className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-                <p className="text-2xl font-bold">{dashboardStats.successRate}%</p>
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +2.3% from last month
-                </p>
-              </div>
-              <div className="p-3 bg-purple-500/10 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Integrations</p>
-                <p className="text-2xl font-bold">{dashboardStats.totalIntegrations}</p>
-                <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +3 new this month
-                </p>
-              </div>
-              <div className="p-3 bg-orange-500/10 rounded-lg">
-                <Globe className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <Card>
+      {/* Quick Actions - Mobile Responsive */}
+      <ResponsiveCard className="mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
@@ -401,7 +244,7 @@ function DashboardPage() {
           <CardDescription>Get started with common tasks</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ResponsiveGrid className="sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
                 title: 'Build with AI',
@@ -433,26 +276,26 @@ function DashboardPage() {
               }
             ].map((action, index) => (
               <Card key={index} className="cursor-pointer hover:shadow-lg transition-all group">
-                <CardContent className="p-4">
+                <CardContent className="p-4 sm:p-6">
                   <div className={`w-10 h-10 bg-gradient-to-r ${action.color} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                     <action.icon className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-1">{action.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">{action.description}</p>
-                  <Button size="sm" variant="outline" className="w-full">
+                  <h3 className="font-semibold mb-1 text-sm sm:text-base">{action.title}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">{action.description}</p>
+                  <Button size="sm" variant="outline" className="w-full text-xs sm:text-sm">
                     {action.action}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </ResponsiveGrid>
         </CardContent>
-      </Card>
+      </ResponsiveCard>
 
-      {/* Recent Activity & Top Workflows */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+      {/* Recent Activity & Top Workflows - Mobile Responsive */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ResponsiveCard>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
@@ -465,7 +308,7 @@ function DashboardPage() {
               <div className="space-y-4">
                 {recentActivity.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors">
-                    <div className={`p-2 rounded-lg ${
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${
                       activity.status === 'success' ? 'bg-green-500/10' : 'bg-red-500/10'
                     }`}>
                       <activity.icon className={`h-4 w-4 ${
@@ -482,9 +325,9 @@ function DashboardPage() {
               </div>
             </ScrollArea>
           </CardContent>
-        </Card>
+        </ResponsiveCard>
 
-        <Card>
+        <ResponsiveCard>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Star className="h-5 w-5" />
@@ -499,17 +342,17 @@ function DashboardPage() {
                   <div key={workflow.id} className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="font-medium text-sm">{workflow.name}</h4>
+                        <h4 className="font-medium text-sm line-clamp-1">{workflow.name}</h4>
                         <Badge 
                           variant={workflow.status === 'running' ? 'default' : 'secondary'}
-                          className="text-xs"
+                          className="text-xs flex-shrink-0 ml-2"
                         >
                           {workflow.status}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{workflow.description}</p>
                       
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-2">
                         <span>{workflow.executions.toLocaleString()} runs</span>
                         <span>{workflow.successRate}% success</span>
                         <span>{workflow.avgDuration} avg</span>
@@ -520,7 +363,7 @@ function DashboardPage() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <Button variant="ghost" size="sm">
                         <Eye className="h-3 w-3" />
                       </Button>
@@ -533,7 +376,7 @@ function DashboardPage() {
               </div>
             </ScrollArea>
           </CardContent>
-        </Card>
+        </ResponsiveCard>
       </div>
     </div>
   );
@@ -541,24 +384,23 @@ function DashboardPage() {
   // Analytics Tab with Enhanced Real-time Charts
   const AnalyticsTab = () => (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold">Analytics Dashboard</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">Analytics Dashboard</h2>
           <p className="text-muted-foreground">Real-time insights into your automation performance</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export Data
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
         </div>
       </div>
 
-      {/* Enhanced Real-time Charts Component */}
       <RealTimeCharts />
     </div>
   );
@@ -566,9 +408,9 @@ function DashboardPage() {
   // AI Intelligence Tab with Interactive God-Tier Features
   const AITab = () => (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold">AI Intelligence Center</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">AI Intelligence Center</h2>
           <p className="text-muted-foreground">AI-powered insights and interactive advanced automation features</p>
         </div>
         <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2">
@@ -577,7 +419,6 @@ function DashboardPage() {
         </Badge>
       </div>
 
-      {/* Interactive God-Tier Features Component */}
       <InteractiveGodTierFeatures />
     </div>
   );
@@ -592,34 +433,34 @@ function DashboardPage() {
   const TemplatesTab = () => <TemplateLibrary />;
 
   return (
-    <EnhancedAppLayout>
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <ResponsiveLayout>
+      <div className="flex-1 space-y-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex items-center justify-between">
-            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
-              <TabsTrigger value="overview" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Overview</span>
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 lg:w-auto lg:grid-cols-6">
+              <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2">
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Overview</span>
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                <span className="hidden sm:inline">Analytics</span>
+              <TabsTrigger value="analytics" className="flex items-center gap-1 sm:gap-2">
+                <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Analytics</span>
               </TabsTrigger>
-              <TabsTrigger value="ai" className="flex items-center gap-2">
-                <Brain className="h-4 w-4" />
-                <span className="hidden sm:inline">AI Intelligence</span>
+              <TabsTrigger value="ai" className="flex items-center gap-1 sm:gap-2">
+                <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">AI Intelligence</span>
               </TabsTrigger>
-              <TabsTrigger value="monitoring" className="flex items-center gap-2">
-                <Monitor className="h-4 w-4" />
-                <span className="hidden sm:inline">Monitoring</span>
+              <TabsTrigger value="monitoring" className="flex items-center gap-1 sm:gap-2">
+                <Monitor className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Monitoring</span>
               </TabsTrigger>
-              <TabsTrigger value="integrations" className="flex items-center gap-2">
-                <Puzzle className="h-4 w-4" />
-                <span className="hidden sm:inline">Integrations</span>
+              <TabsTrigger value="integrations" className="flex items-center gap-1 sm:gap-2">
+                <Puzzle className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Integrations</span>
               </TabsTrigger>
-              <TabsTrigger value="templates" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Templates</span>
+              <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-2">
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Templates</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -650,13 +491,15 @@ function DashboardPage() {
         </Tabs>
       </div>
 
-      {/* AI Floating Assistant */}
-      <AIFloatingAssistant
-        onWorkflowGenerate={handleWorkflowGenerate}
-        onGodTierActivate={handleGodTierActivate}
-        onIntegrationSetup={handleIntegrationSetup}
-      />
-    </EnhancedAppLayout>
+      {/* AI Floating Assistant - Hidden on mobile to save space */}
+      <div className="hidden lg:block">
+        <AIFloatingAssistant
+          onWorkflowGenerate={handleWorkflowGenerate}
+          onGodTierActivate={handleGodTierActivate}
+          onIntegrationSetup={handleIntegrationSetup}
+        />
+      </div>
+    </ResponsiveLayout>
   );
 }
 
