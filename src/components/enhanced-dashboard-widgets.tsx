@@ -57,7 +57,7 @@ import {
   Flame,
   Gauge,
   PieChart,
-  LineChart,
+  LineChart as LineChartIcon,
   DollarSign,
   Percent,
   Calculator,
