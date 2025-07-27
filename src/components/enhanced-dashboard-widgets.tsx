@@ -321,7 +321,7 @@ const InteractiveChartWidget = ({ title, data, type = 'line' }: {
             <option value="30d">Last 30 days</option>
           </select>
           <Button variant="ghost" size="sm" onClick={() => setChartType('line')}>
-            <LineChart className="h-3 w-3" />
+            <LineChartIcon className="h-3 w-3" />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setChartType('area')}>
             <BarChart3 className="h-3 w-3" />
