@@ -87,8 +87,8 @@ export class Database {
       try {
         client = await this.pool.connect();
         
-        // Set a query timeout
-        await client.query('SET statement_timeout = $1', ['30s']);
+        // Set a query timeout (static value to avoid parameter binding conflicts)
+        await client.query('SET statement_timeout = 30000');
         
         const result = await client.query(text, params);
         this.reconnectAttempts = 0; // Reset on successful query
