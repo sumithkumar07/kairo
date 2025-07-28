@@ -77,22 +77,49 @@ export async function signUp(email: string, password: string): Promise<{ user: U
 }
 
 export async function signIn(email: string, password: string): Promise<{ user: User; message: string }> {
-  const response = await fetch('/api/auth/signin', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ email, password })
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
   
-  const data = await response.json();
-  
-  if (!response.ok) {
-    throw new Error(data.message || 'Login failed');
+  try {
+    const response = await fetch('/api/auth/signin', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Enhanced error handling for different status codes
+      if (response.status === 401) {
+        throw new Error('Invalid email or password. Please check your credentials and try again.');
+      } else if (response.status === 429) {
+        throw new Error('Too many login attempts. Please try again in a few minutes.');
+      } else if (response.status >= 500) {
+        throw new Error('Server error occurred. Please try again in a moment.');
+      }
+      throw new Error(data.message || 'Login failed');
+    }
+    
+    return data;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Login request timed out. Please check your connection and try again.');
+    }
+    
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error('Unable to connect to server. Please check your internet connection.');
+    }
+    
+    throw error;
   }
-  
-  return data;
 }
 
 export async function signOut(): Promise<void> {
