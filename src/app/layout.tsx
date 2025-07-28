@@ -17,8 +17,9 @@ const inter = Inter({
   adjustFontFallback: false, 
 });
 
+// Enhanced metadata configuration
 export const metadata: Metadata = {
-  metadataBase: new URL('https://kairo.ai'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
     default: 'Kairo AI - Build Workflows at the Speed of Thought',
     template: '%s | Kairo AI'
@@ -45,12 +46,12 @@ export const metadata: Metadata = {
     telephone: false,
   },
   robots: {
-    index: true,
-    follow: true,
+    index: process.env.NODE_ENV === 'production',
+    follow: process.env.NODE_ENV === 'production',
     nocache: false,
     googleBot: {
-      index: true,
-      follow: true,
+      index: process.env.NODE_ENV === 'production',
+      follow: process.env.NODE_ENV === 'production',
       noimageindex: false,
       'max-video-preview': -1,
       'max-image-preview': 'large',
@@ -91,7 +92,7 @@ export const metadata: Metadata = {
     siteName: 'Kairo AI',
     title: 'Kairo AI - Build Workflows at the Speed of Thought',
     description: 'The world\'s most advanced AI-powered workflow automation platform with quantum computing capabilities. Transform your business with intelligent automation.',
-    url: 'https://kairo.ai',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     images: [
       {
         url: '/og-image.png',
@@ -121,17 +122,19 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://kairo.ai',
+    canonical: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     languages: {
-      'en-US': 'https://kairo.ai',
-      'x-default': 'https://kairo.ai',
+      'en-US': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      'x-default': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     },
   },
   category: 'technology',
   classification: 'Business Software',
-  other: {
-    'google-site-verification': 'your-google-verification-code',
-    'msvalidate.01': 'your-bing-verification-code',
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: {
+      'msvalidate.01': process.env.BING_VERIFICATION,
+    },
   },
 };
 
@@ -140,7 +143,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Initialize database on server start with error handling
+  // Initialize database on server start with enhanced error handling
   if (typeof window === 'undefined') {
     initializeDatabase().catch((error) => {
       console.error('[LAYOUT] Database initialization failed:', error);
@@ -171,19 +174,21 @@ export default function RootLayout({
         <link rel="preconnect" href="https://js.puter.com" />
         <link rel="dns-prefetch" href="https://js.puter.com" />
         
-        {/* Load Puter.js with enhanced error handling */}
-        <script 
-          src="https://js.puter.com/v2/" 
-          defer 
-          onError="console.warn('Failed to load Puter.js - AI features may be limited')"
-        />
+        {/* Load Puter.js with enhanced error handling - only in production */}
+        {process.env.NODE_ENV === 'production' && (
+          <script 
+            src="https://js.puter.com/v2/" 
+            defer 
+            onError="console.warn('Failed to load Puter.js - AI features may be limited')"
+          />
+        )}
         
         {/* Enhanced Progressive Web App Scripts */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               // Enhanced Service Worker Registration
-              if ('serviceWorker' in navigator) {
+              if ('serviceWorker' in navigator && '${process.env.NODE_ENV}' === 'production') {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js', {
                     scope: '/',
@@ -203,17 +208,19 @@ export default function RootLayout({
                 });
               }
               
-              // Enhanced error tracking
-              window.addEventListener('error', function(e) {
-                console.error('[Global Error]:', e.error);
-              });
-              
-              window.addEventListener('unhandledrejection', function(e) {
-                console.error('[Unhandled Promise Rejection]:', e.reason);
-              });
+              // Enhanced error tracking (only in development)
+              if ('${process.env.NODE_ENV}' === 'development') {
+                window.addEventListener('error', function(e) {
+                  console.error('[Global Error]:', e.error);
+                });
+                
+                window.addEventListener('unhandledrejection', function(e) {
+                  console.error('[Unhandled Promise Rejection]:', e.reason);
+                });
+              }
               
               // Performance monitoring
-              if ('performance' in window) {
+              if ('performance' in window && '${process.env.NODE_ENV}' === 'development') {
                 window.addEventListener('load', () => {
                   setTimeout(() => {
                     const perfData = performance.getEntriesByType('navigation')[0];
