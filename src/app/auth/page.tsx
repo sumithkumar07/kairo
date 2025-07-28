@@ -196,12 +196,25 @@ export default function ConsolidatedAuthPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await signup(signupForm.email, signupForm.password, signupForm.name);
       setShowOnboarding(true);
     } catch (error) {
       console.error("Sign up failed", error);
+      // Clear form errors and show API error
+      setFormErrors({
+        name: '',
+        email: '',
+        password: '',
+        terms: ''
+      });
     } finally {
       setIsSubmitting(false);
     }
