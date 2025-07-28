@@ -121,7 +121,7 @@ export function MarketingHeader() {
                     <ChevronDown className="ml-1 h-3 w-3" />
                   </button>
                   
-                  {activeDropdown === item.name && (
+                  {activeDropdown === item.name && !isMobile && (
                     <div 
                       className="absolute top-full left-0 mt-2 w-64 bg-background border rounded-lg shadow-lg p-2 z-50"
                       onMouseEnter={() => setActiveDropdown(item.name)}
