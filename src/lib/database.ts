@@ -47,8 +47,8 @@ pool.on('error', (err) => {
 
 pool.on('connect', (client) => {
   console.log('[DATABASE] New client connected to pool');
-  // Set connection-specific settings for better performance
-  client.query('SET application_name = $1', ['kairo_app']);
+  // Set connection-specific settings for better performance (static value)
+  client.query('SET application_name = \'kairo_app\'');
 });
 
 pool.on('acquire', (client) => {
