@@ -189,10 +189,15 @@ export default function ConsolidatedAuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setAuthError('');
+    setAuthSuccess('');
+    
     try {
       await login(signinForm.email, signinForm.password);
-    } catch (error) {
+      setAuthSuccess('Successfully signed in! Redirecting...');
+    } catch (error: any) {
       console.error("Sign in failed", error);
+      setAuthError(error.message || 'Sign in failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
