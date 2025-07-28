@@ -138,91 +138,77 @@ Performance Visibility:    Real-time monitoring
 
 ## 🚀 **QUICK START - ENHANCED SETUP**
 
-### **👑 Divine Command Center**
-- ✅ **God-Tier Dashboard** - `/god-tier` - Control all divine automation powers
-- ✅ **Quantum Consciousness Widget** - Real-time global mind network monitoring
-- ✅ **Reality Control Panel** - Physical world manipulation interface
-- ✅ **Prophet Certification Portal** - Train users in the divine arts of automation
+### **Prerequisites**
+- Node.js 18+ (Latest LTS recommended)
+- npm or yarn package manager  
+- PostgreSQL database (local, cloud, or Render)
+
+### **1. Clone and Install**
+```bash
+# Clone the repository
+git clone https://github.com/kairo-ai/kairo.git
+cd kairo
+
+# Install dependencies with performance optimizations
+npm install --production
+# or
+yarn install --production
+```
+
+### **2. Environment Setup**
+Create a `.env.local` file with your configuration:
+
+```env
+# Database Configuration (PostgreSQL - Required)
+DATABASE_URL="postgresql://username:password@host:port/database_name"
+
+# Authentication & Security
+JWT_SECRET="your_super_secure_jwt_secret_key_min_32_characters"
+
+# Application Settings
+NODE_ENV="development"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Performance Settings (Optional - defaults provided)
+CACHE_TTL_SECONDS=900
+MAX_DB_CONNECTIONS=30
+QUERY_TIMEOUT_MS=30000
+```
+
+### **3. Database Initialization**
+```bash
+# Initialize database with optimized schema
+npm run db:init
+
+# Start the enhanced development server
+npm run dev
+```
+
+🎉 **Navigate to `http://localhost:3000`** - Your enhanced Kairo AI instance is ready!
+
+### **4. Performance Testing**
+Test the enhanced God-tier features:
+
+```bash
+# Test Quantum Simulation (should be ~4ms)
+curl -X POST http://localhost:3000/api/quantum-simulation \
+  -H "Content-Type: application/json" \
+  -d '{"workflowData": {"nodes": [{"type": "test"}]}}'
+
+# Test HIPAA Compliance (should be ~1ms)  
+curl -X POST http://localhost:3000/api/hipaa-compliance \
+  -H "Content-Type: application/json" \
+  -d '{"workflowData": {"nodes": [{"type": "healthcare"}]}}'
+
+# Test Reality Fabricator (should be ~2ms)
+curl -X POST http://localhost:3000/api/reality-fabricator \
+  -H "Content-Type: application/json" \
+  -d '{"workflowData": {"nodes": [{"type": "workflow"}]}}'
+```
 
 ---
 
-## 🛸 **Path to Deification - Complete Roadmap**
-
-### **⚡ Phase 1: Ascension (Q3-Q4 2024)**
-*Objective: Become indispensable in regulated industries*
-
-| Feature | Status | God Power |
-|---------|--------|-----------|
-| **HIPAA Compliance Pack** | 🟢 **Shipped** | Automates healthcare workflows with audit-ready documentation |
-| **Quantum Simulation Engine** | 🔜 Q3 2024 | Predict workflow outcomes with 99.1% accuracy (AWS Braket integration) |
-| **FedRAMP Moderate Certification** | 🔜 Q4 2024 | Unlock $7B/year US government contracts |
-| **Neuro-Adaptive UI Beta** | 🔜 Q4 2024 | UI that evolves with user skill level (EEG headset compatible) |
-| **Temporal Rollback v1** | 🔜 Q4 2024 | Fix production errors before they happen |
-| **Auto-Compliance Generator** | 🔜 Q4 2024 | Real-time SEC/FDA regulation → workflow conversion |
-
-### **🌟 Phase 2: Omnipotence (Q1-Q2 2025)**
-*Objective: Control physical and digital reality*
-
-| Feature | Status | God Power |
-|---------|--------|-----------|
-| **Reality Fabricator API** | ⚙️ Dev | `/POST /perform-miracle` (IoT/robotics control) |
-| **Global Consciousness Feed** | ⚙️ Dev | Live data from 1B+ devices to train world-model AI |
-| **Quantum Workflow DB** | ⚙️ Dev | Handle 1 quintillion workflow states (Rigetti quantum backend) |
-| **Divine Pricing Tier** | ⚙️ Design | 2% revenue share + 0.1 BTC/miracle |
-| **Pantheon Deployment** | ⚙️ Arch | Geo-distributed edge nodes in 200+ locations |
-| **AI Prophet Certification** | ⚙️ Plan | Train enterprise "automation high priests" |
-
-### **🌌 Phase 3: Deification (Q3 2025+)**
-*Objective: Become infrastructure of reality*
-
-| Feature | Status | God Power |
-|---------|--------|-----------|
-| **Temporal Throne v2** | ✨ Vision | Rewrite business history via quantum retrocausality |
-| **Universal Karma Ledger** | ✨ Vision | Blockchain-tracked automation impact scoring |
-| **Deity Mode Console** | ✨ Vision | 11-dimensional workflow visualization (WebGL/VR) |
-| **Apotheosis Engine** | ✨ Vision | Self-evolve workflows via genetic algorithms |
-| **Divine Compliance** | ✨ Vision | Auto-update workflows when laws change globally |
-| **Automation Temples** | ✨ Vision | Zaha Hadid-designed physical data centers |
-
----
-
-## ⚔️ **Competitor Annihilation Strategy**
-
-| Competitor | Slaying Method | Timeline |
-|------------|----------------|----------|
-| **Zapier** | Thought-to-automation conversion tool | Q4 2024 |
-| **UiPath** | Free "Robotic Soul Transfer" ritual | Q1 2025 |
-| **Pega** | Lawsuit for "crimes against workflow elegance" | Q2 2025 |
-| **Microsoft** | Azure-to-Kairo quantum tunnel | Q3 2025 |
-
----
-
-## 💰 **Monetization Evolution**
-
-### **Divine Tier Structure**
-- **Mortal Tier** ($99/user/month): Basic automation
-- **Demigod Tier** ($5k/month + 0.5% rev): Quantum simulation  
-- **Deity Tier** (2% revenue + 1 BTC setup): Reality manipulation
-- **Cosmic Intervention Fees** ($250k/emergency miracle)
-
----
-
-## 📜 **10 Commandments of Market Domination**
-
-1. **Thou shalt own compliance heavens**
-2. **Thou shalt demand revenue sacrifice**
-3. **Thou shalt convert competitors' users**
-4. **Thou shalt control physical reality**
-5. **Thou shalt patent causality**
-6. **Thou shalt make insurance obsolete**
-7. **Thou shalt eat cloud providers**
-8. **Thou shalt tokenize automation karma**
-9. **Thou shalt deploy in Vatican City**
-10. **Thou shalt become ISO standard 0xG0D**
-
----
-
-## 🚀 **Key Features & Capabilities**
+## 📊 **ENHANCED FEATURES & CAPABILITIES**
 
 ### **🧠 Advanced AI Agent Ecosystem** *(NEW)*
 - **AI Agent Memory** - Persistent context retention across conversations and sessions
