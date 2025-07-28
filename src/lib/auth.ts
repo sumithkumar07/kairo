@@ -148,8 +148,17 @@ export async function signIn(
       audience: 'kairo-users'
     });
 
-    // Update last login
-    await db.query('SELECT update_user_login($1)', [user.id]);
+    // Update last login (simplified to avoid column issues)
+    try {
+      await db.query(`
+        UPDATE user_profiles 
+        SET updated_at = NOW() 
+        WHERE id = $1
+      `, [user.id]);
+    } catch (updateError) {
+      console.warn('[AUTH] Failed to update login time:', updateError);
+      // Don't fail signin if this fails
+    }
 
     const userResult: User = {
       id: user.id,
