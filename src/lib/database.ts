@@ -153,8 +153,8 @@ export class Database {
     while (attempt < maxRetries) {
       try {
         const client = await this.pool.connect();
-        // Set client-specific settings
-        await client.query('SET application_name = $1', ['kairo_app']);
+        // Set client-specific settings (static value to avoid parameter binding conflicts)
+        await client.query('SET application_name = \'kairo_app\'');
         return client;
         
       } catch (error: any) {
