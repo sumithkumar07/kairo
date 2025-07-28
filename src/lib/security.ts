@@ -148,12 +148,14 @@ export function createRateLimiter(config: RateLimitConfig) {
       );
     }
 
-    // Add rate limit headers
+    // Add rate limit headers (will be added in withSecurity wrapper)
     const remaining = Math.max(0, max - entry.count);
-    const response = NextResponse.next();
-    response.headers.set('X-RateLimit-Limit', max.toString());
-    response.headers.set('X-RateLimit-Remaining', remaining.toString());
-    response.headers.set('X-RateLimit-Reset', entry.resetTime.toString());
+    // Store headers in request context for later use
+    (request as any).rateLimitHeaders = {
+      'X-RateLimit-Limit': max.toString(),
+      'X-RateLimit-Remaining': remaining.toString(),
+      'X-RateLimit-Reset': entry.resetTime.toString()
+    };
 
     return null; // Continue processing
   };
