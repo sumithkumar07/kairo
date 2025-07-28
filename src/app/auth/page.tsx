@@ -657,13 +657,17 @@ export default function ConsolidatedAuthPage() {
                   
                   <CardContent className="pt-0">
                     <Button 
-                      className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-medium" 
+                      className={`w-full h-11 font-medium transition-all duration-200 ${
+                        isFormValid && !isSubmitting
+                          ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl' 
+                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      }`}
                       type="submit" 
-                      disabled={isSubmitting || !signupForm.agreeToTerms}
+                      disabled={!isFormValid || isSubmitting}
                     >
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {isSubmitting ? 'Creating Account...' : 'Start Free Trial'}
-                      {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4" />}
+                      {!isSubmitting && isFormValid && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
                   </CardContent>
                 </form>
