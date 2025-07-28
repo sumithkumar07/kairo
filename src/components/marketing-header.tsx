@@ -16,7 +16,8 @@ import {
   BookOpen,
   Users,
   Phone,
-  Mail
+  Mail,
+  ArrowRight
 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 
@@ -169,16 +170,16 @@ export function MarketingHeader() {
           )}
         </div>
 
-        {/* Mobile menu button - Enhanced visibility */}
+        {/* Enhanced Mobile menu button - More Prominent */}
         <div className="md:hidden">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsOpen(!isOpen)}
-            className={`border-2 transition-all duration-200 ${
+            className={`border-2 transition-all duration-300 transform ${
               isOpen 
-                ? 'border-primary bg-primary text-white shadow-lg' 
-                : 'border-border hover:border-primary hover:shadow-md'
+                ? 'border-primary bg-primary text-white shadow-lg scale-105' 
+                : 'border-border hover:border-primary hover:shadow-md hover:scale-105'
             }`}
             aria-label={isOpen ? 'Close menu' : 'Open menu'}
           >
@@ -187,108 +188,141 @@ export function MarketingHeader() {
             ) : (
               <Menu className="h-5 w-5" />
             )}
-            <span className="ml-2 text-xs font-medium">
+            <span className="ml-2 text-sm font-semibold">
               {isOpen ? 'Close' : 'Menu'}
             </span>
           </Button>
         </div>
       </nav>
 
-      {/* Enhanced Mobile Navigation */}
+      {/* Enhanced Mobile Navigation - More Prominent */}
       {isOpen && (
-        <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background/95 backdrop-blur-md border-b shadow-2xl">
-          <div className="container py-6 space-y-6 max-h-[calc(100vh-4rem)] overflow-y-auto">
-            {/* Quick Actions */}
-            <div className="bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-lg p-4 border border-primary/20">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-foreground flex items-center">
-                  <Sparkles className="h-4 w-4 mr-2 text-primary" />
-                  Quick Actions
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {isLoggedIn ? (
-                  <>
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      <Link href="/dashboard" onClick={() => setIsOpen(false)}>
-                        Dashboard
-                      </Link>
-                    </Button>
-                    <Button size="sm" className="w-full bg-gradient-to-r from-primary to-purple-600" asChild>
-                      <Link href="/editor" onClick={() => setIsOpen(false)}>
-                        <Workflow className="mr-1 h-3 w-3" />
-                        Create
-                      </Link>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      <Link href="/auth?tab=signin" onClick={() => setIsOpen(false)}>
-                        Sign In
-                      </Link>
-                    </Button>
-                    <Button size="sm" className="w-full bg-gradient-to-r from-primary to-purple-600" asChild>
-                      <Link href="/auth?tab=signup" onClick={() => setIsOpen(false)}>
-                        <Sparkles className="mr-1 h-3 w-3" />
-                        Free Trial
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Navigation Items */}
-            {navigation.main.map((item) => (
-              <div key={item.name} className="space-y-3">
-                <h3 className="font-semibold text-foreground flex items-center border-b border-border/50 pb-2">
-                  {item.name}
-                </h3>
-                {item.children ? (
-                  <div className="pl-2 space-y-2">
-                    {item.children.map((child) => (
-                      <Link
-                        key={child.name}
-                        href={child.href}
-                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/80 transition-all duration-200 border border-transparent hover:border-primary/20"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <div className="p-1 bg-primary/10 rounded-md">
-                          <child.icon className="h-3 w-3 text-primary" />
-                        </div>
-                        <span className="text-sm font-medium">{child.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className="block p-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-200"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                )}
-              </div>
-            ))}
-            
-            {/* Contact Info */}
-            <div className="pt-4 border-t space-y-3">
-              <h3 className="font-semibold text-foreground text-sm">Need Help?</h3>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center space-x-1">
-                  <Mail className="h-3 w-3" />
-                  <span>support@kairo.ai</span>
+        <>
+          {/* Backdrop */}
+          <div className="md:hidden fixed inset-0 top-16 bg-background/80 backdrop-blur-md z-40" />
+          
+          {/* Mobile Menu */}
+          <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background/98 backdrop-blur-lg border-b shadow-2xl">
+            <div className="container py-8 space-y-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
+              {/* Enhanced Quick Actions with better visibility */}
+              <div className="bg-gradient-to-r from-primary/20 to-purple-600/20 rounded-xl p-6 border border-primary/30 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-lg text-foreground flex items-center">
+                    <Sparkles className="h-5 w-5 mr-2 text-primary" />
+                    Quick Actions
+                  </h3>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Phone className="h-3 w-3" />
-                  <span>24/7 Support</span>
+                <div className="grid grid-cols-1 gap-3">
+                  {isLoggedIn ? (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="w-full h-12 font-medium border-2 hover:bg-background/80" 
+                        asChild
+                      >
+                        <Link href="/dashboard" onClick={() => setIsOpen(false)}>
+                          <Zap className="mr-2 h-4 w-4" />
+                          Dashboard
+                        </Link>
+                      </Button>
+                      <Button 
+                        size="lg" 
+                        className="w-full h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 font-medium shadow-lg" 
+                        asChild
+                      >
+                        <Link href="/editor" onClick={() => setIsOpen(false)}>
+                          <Workflow className="mr-2 h-4 w-4" />
+                          Create Workflow
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="w-full h-12 font-medium border-2 hover:bg-background/80" 
+                        asChild
+                      >
+                        <Link href="/auth?tab=signin" onClick={() => setIsOpen(false)}>
+                          Sign In
+                        </Link>
+                      </Button>
+                      <Button 
+                        size="lg" 
+                        className="w-full h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 font-medium shadow-lg" 
+                        asChild
+                      >
+                        <Link href="/auth?tab=signup" onClick={() => setIsOpen(false)}>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Start Free Trial
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Enhanced Navigation Items */}
+              {navigation.main.map((item) => (
+                <div key={item.name} className="space-y-4">
+                  <h3 className="font-bold text-lg text-foreground flex items-center border-b border-border/50 pb-3">
+                    {item.name}
+                  </h3>
+                  {item.children ? (
+                    <div className="pl-2 space-y-3">
+                      {item.children.map((child) => (
+                        <Link
+                          key={child.name}
+                          href={child.href}
+                          className="flex items-center space-x-4 p-4 rounded-xl hover:bg-primary/10 transition-all duration-300 border border-transparent hover:border-primary/20 group"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <div className="p-2 bg-primary/15 rounded-lg group-hover:bg-primary/25 transition-colors">
+                            <child.icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <span className="font-medium text-foreground group-hover:text-primary transition-colors">{child.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="block p-4 text-lg font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl transition-all duration-300"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      {item.name}
+                    </Link>
+                  )}
+                </div>
+              ))}
+              
+              {/* Enhanced Contact Info */}
+              <div className="pt-6 border-t space-y-4 bg-muted/30 rounded-xl p-6">
+                <h3 className="font-bold text-lg text-foreground">Need Help?</h3>
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="font-medium">Email Support</span>
+                    </div>
+                    <span className="text-muted-foreground">support@kairo.ai</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Phone className="h-4 w-4 text-primary" />
+                      <span className="font-medium">24/7 Support</span>
+                    </div>
+                    <span className="text-muted-foreground">Available</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );

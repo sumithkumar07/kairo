@@ -35,7 +35,10 @@ import {
   Users,
   Globe,
   Crown,
-  Gift
+  Gift,
+  Eye,
+  EyeOff,
+  AlertCircle
 } from 'lucide-react';
 
 const onboardingSteps = [
@@ -97,6 +100,7 @@ export default function ConsolidatedAuthPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   // Form states
   const [signinForm, setSigninForm] = useState({
@@ -113,7 +117,7 @@ export default function ConsolidatedAuthPage() {
     agreeToTerms: false
   });
 
-  // Form validation states
+  // Enhanced form validation states
   const [formErrors, setFormErrors] = useState({
     name: '',
     email: '',
@@ -121,49 +125,90 @@ export default function ConsolidatedAuthPage() {
     terms: ''
   });
 
+  const [fieldTouched, setFieldTouched] = useState({
+    name: false,
+    email: false,
+    password: false,
+    terms: false
+  });
+
   // Auth error states
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
 
-  // Validate form in real-time
-  const validateForm = () => {
-    const errors = {
-      name: '',
-      email: '',
-      password: '',
-      terms: ''
-    };
-
-    if (!signupForm.name.trim()) {
-      errors.name = 'Full name is required';
+  // Enhanced validation function
+  const validateField = (field: string, value: any) => {
+    const errors = { ...formErrors };
+    
+    switch (field) {
+      case 'name':
+        if (!value || !value.trim()) {
+          errors.name = 'Full name is required';
+        } else if (value.trim().length < 2) {
+          errors.name = 'Name must be at least 2 characters';
+        } else if (!/^[a-zA-Z\s'-]+$/.test(value.trim())) {
+          errors.name = 'Name can only contain letters, spaces, apostrophes, and hyphens';
+        } else {
+          errors.name = '';
+        }
+        break;
+        
+      case 'email':
+        if (!value || !value.trim()) {
+          errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          errors.email = 'Please enter a valid email address';
+        } else {
+          errors.email = '';
+        }
+        break;
+        
+      case 'password':
+        if (!value) {
+          errors.password = 'Password is required';
+        } else if (value.length < 8) {
+          errors.password = 'Password must be at least 8 characters';
+        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
+          errors.password = 'Password must contain at least one uppercase letter, lowercase letter, and number';
+        } else {
+          errors.password = '';
+        }
+        break;
+        
+      case 'terms':
+        if (!value) {
+          errors.terms = 'You must agree to the Terms of Service and Privacy Policy';
+        } else {
+          errors.terms = '';
+        }
+        break;
     }
-
-    if (!signupForm.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-
-    if (!signupForm.password) {
-      errors.password = 'Password is required';
-    } else if (signupForm.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters long';
-    }
-
-    if (!signupForm.agreeToTerms) {
-      errors.terms = 'You must agree to the Terms of Service';
-    }
-
+    
     setFormErrors(errors);
-    return Object.values(errors).every(error => !error);
+    return !errors[field as keyof typeof errors];
   };
 
-  // Check if form is valid for button state
-  const isFormValid = signupForm.name.trim() && 
-                     signupForm.email.trim() && 
-                     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email) &&
-                     signupForm.password.length >= 8 && 
-                     signupForm.agreeToTerms;
+  // Real-time form validation
+  const validateForm = () => {
+    const nameValid = validateField('name', signupForm.name);
+    const emailValid = validateField('email', signupForm.email);
+    const passwordValid = validateField('password', signupForm.password);
+    const termsValid = validateField('terms', signupForm.agreeToTerms);
+    
+    return nameValid && emailValid && passwordValid && termsValid;
+  };
+
+  // Enhanced form validity check
+  const isFormValid = 
+    signupForm.name.trim().length >= 2 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email) &&
+    signupForm.password.length >= 8 &&
+    /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(signupForm.password) &&
+    signupForm.agreeToTerms &&
+    !formErrors.name && 
+    !formErrors.email && 
+    !formErrors.password && 
+    !formErrors.terms;
 
   const [onboardingForm, setOnboardingForm] = useState({
     goals: [],
@@ -197,7 +242,7 @@ export default function ConsolidatedAuthPage() {
       setAuthSuccess('Successfully signed in! Redirecting...');
     } catch (error: any) {
       console.error("Sign in failed", error);
-      setAuthError(error.message || 'Sign in failed. Please try again.');
+      setAuthError(error.message || 'Sign in failed. Please check your credentials and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -205,6 +250,14 @@ export default function ConsolidatedAuthPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Mark all fields as touched
+    setFieldTouched({
+      name: true,
+      email: true,
+      password: true,
+      terms: true
+    });
     
     // Validate form before submission
     if (!validateForm()) {
@@ -216,22 +269,47 @@ export default function ConsolidatedAuthPage() {
     setAuthSuccess('');
     
     try {
-      await signup(signinForm.email, signinForm.password, signupForm.name);
+      await signup(signupForm.email, signupForm.password, signupForm.name);
       setAuthSuccess('Account created successfully! Setting up your workspace...');
       setShowOnboarding(true);
     } catch (error: any) {
       console.error("Sign up failed", error);
-      setAuthError(error.message || 'Account creation failed. Please try again.');
-      // Clear form errors and show API error
-      setFormErrors({
-        name: '',
-        email: '',
-        password: '',
-        terms: ''
-      });
+      const errorMessage = error.message || 'Account creation failed. Please try again.';
+      
+      // Handle specific error cases
+      if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+        setAuthError('An account with this email address already exists. Please sign in instead.');
+      } else {
+        setAuthError(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFieldChange = (field: string, value: any) => {
+    if (field === 'name') {
+      setSignupForm(prev => ({ ...prev, name: value }));
+    } else if (field === 'email') {
+      setSignupForm(prev => ({ ...prev, email: value }));
+    } else if (field === 'password') {
+      setSignupForm(prev => ({ ...prev, password: value }));
+    } else if (field === 'agreeToTerms') {
+      setSignupForm(prev => ({ ...prev, agreeToTerms: value }));
+    }
+    
+    // Clear auth errors when user starts typing
+    if (authError) setAuthError('');
+    
+    // Validate field if it has been touched
+    if (fieldTouched[field as keyof typeof fieldTouched]) {
+      setTimeout(() => validateField(field, value), 300);
+    }
+  };
+
+  const handleFieldBlur = (field: string, value: any) => {
+    setFieldTouched(prev => ({ ...prev, [field]: true }));
+    validateField(field, value);
   };
 
   const handleOnboardingNext = () => {
@@ -313,6 +391,7 @@ export default function ConsolidatedAuthPage() {
                   </div>
                 )}
 
+                {/* Other onboarding steps remain the same... */}
                 {onboardingStep === 1 && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -357,6 +436,7 @@ export default function ConsolidatedAuthPage() {
                   </div>
                 )}
 
+                {/* Rest of onboarding steps... */}
                 {onboardingStep === 2 && (
                   <div className="space-y-6">
                     <div className="text-center mb-6">
@@ -499,15 +579,17 @@ export default function ConsolidatedAuthPage() {
                       </p>
                     </div>
 
-                    {/* Auth Messages */}
+                    {/* Enhanced Auth Messages */}
                     {authError && (
-                      <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-red-600 dark:text-red-400">{authError}</p>
                       </div>
                     )}
                     
                     {authSuccess && (
-                      <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-green-600 dark:text-green-400">{authSuccess}</p>
                       </div>
                     )}
@@ -531,19 +613,32 @@ export default function ConsolidatedAuthPage() {
                     
                     <div className="space-y-2">
                       <Label htmlFor="signin-password">Password</Label>
-                      <Input
-                        id="signin-password"
-                        type="password"
-                        placeholder="Enter your password"
-                        required
-                        value={signinForm.password}
-                        onChange={(e) => {
-                          setSigninForm(prev => ({ ...prev, password: e.target.value }));
-                          if (authError) setAuthError('');
-                        }}
-                        disabled={isSubmitting}
-                        className="bg-background/50 border-border/50 focus:border-primary/50 h-11"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="signin-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          required
+                          value={signinForm.password}
+                          onChange={(e) => {
+                            setSigninForm(prev => ({ ...prev, password: e.target.value }));
+                            if (authError) setAuthError('');
+                          }}
+                          disabled={isSubmitting}
+                          className="bg-background/50 border-border/50 focus:border-primary/50 h-11 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between">
@@ -559,7 +654,7 @@ export default function ConsolidatedAuthPage() {
                   
                   <CardContent className="pt-0">
                     <Button 
-                      className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-medium" 
+                      className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-medium transition-all duration-200" 
                       type="submit" 
                       disabled={isSubmitting || !signinForm.email || !signinForm.password}
                     >
@@ -581,15 +676,17 @@ export default function ConsolidatedAuthPage() {
                       </p>
                     </div>
 
-                    {/* Auth Messages */}
+                    {/* Enhanced Auth Messages */}
                     {authError && (
-                      <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-red-600 dark:text-red-400">{authError}</p>
                       </div>
                     )}
                     
                     {authSuccess && (
-                      <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-green-600 dark:text-green-400">{authSuccess}</p>
                       </div>
                     )}
@@ -602,17 +699,18 @@ export default function ConsolidatedAuthPage() {
                           placeholder="Enter your full name"
                           required
                           value={signupForm.name}
-                          onChange={(e) => {
-                            setSignupForm(prev => ({ ...prev, name: e.target.value }));
-                            if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
-                          }}
+                          onChange={(e) => handleFieldChange('name', e.target.value)}
+                          onBlur={(e) => handleFieldBlur('name', e.target.value)}
                           disabled={isSubmitting}
-                          className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 ${
-                            formErrors.name ? 'border-red-500 focus:border-red-500' : ''
+                          className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 transition-all duration-200 ${
+                            formErrors.name && fieldTouched.name ? 'border-red-500 focus:border-red-500' : ''
                           }`}
                         />
-                        {formErrors.name && (
-                          <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>
+                        {formErrors.name && fieldTouched.name && (
+                          <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {formErrors.name}
+                          </p>
                         )}
                       </div>
                       
@@ -637,42 +735,57 @@ export default function ConsolidatedAuthPage() {
                         placeholder="Enter your email"
                         required
                         value={signupForm.email}
-                        onChange={(e) => {
-                          setSignupForm(prev => ({ ...prev, email: e.target.value }));
-                          if (formErrors.email) setFormErrors(prev => ({ ...prev, email: '' }));
-                        }}
+                        onChange={(e) => handleFieldChange('email', e.target.value)}
+                        onBlur={(e) => handleFieldBlur('email', e.target.value)}
                         disabled={isSubmitting}
-                        className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 ${
-                          formErrors.email ? 'border-red-500 focus:border-red-500' : ''
+                        className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 transition-all duration-200 ${
+                          formErrors.email && fieldTouched.email ? 'border-red-500 focus:border-red-500' : ''
                         }`}
                       />
-                      {formErrors.email && (
-                        <p className="text-sm text-red-500 mt-1">{formErrors.email}</p>
+                      {formErrors.email && fieldTouched.email && (
+                        <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {formErrors.email}
+                        </p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">Password *</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="Create a strong password"
-                        required
-                        value={signupForm.password}
-                        onChange={(e) => {
-                          setSignupForm(prev => ({ ...prev, password: e.target.value }));
-                          if (formErrors.password) setFormErrors(prev => ({ ...prev, password: '' }));
-                        }}
-                        disabled={isSubmitting}
-                        className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 ${
-                          formErrors.password ? 'border-red-500 focus:border-red-500' : ''
-                        }`}
-                      />
-                      {formErrors.password ? (
-                        <p className="text-sm text-red-500 mt-1">{formErrors.password}</p>
+                      <div className="relative">
+                        <Input
+                          id="signup-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a strong password"
+                          required
+                          value={signupForm.password}
+                          onChange={(e) => handleFieldChange('password', e.target.value)}
+                          onBlur={(e) => handleFieldBlur('password', e.target.value)}
+                          disabled={isSubmitting}
+                          className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 pr-10 transition-all duration-200 ${
+                            formErrors.password && fieldTouched.password ? 'border-red-500 focus:border-red-500' : ''
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {formErrors.password && fieldTouched.password ? (
+                        <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {formErrors.password}
+                        </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          Password must be at least 8 characters long
+                          Password must be at least 8 characters with uppercase, lowercase, and number
                         </p>
                       )}
                     </div>
@@ -683,18 +796,20 @@ export default function ConsolidatedAuthPage() {
                           id="terms" 
                           required
                           checked={signupForm.agreeToTerms}
-                          onCheckedChange={(checked) => {
-                            setSignupForm(prev => ({ ...prev, agreeToTerms: !!checked }));
-                            if (formErrors.terms) setFormErrors(prev => ({ ...prev, terms: '' }));
-                          }}
-                          className={formErrors.terms ? 'border-red-500' : ''}
+                          onCheckedChange={(checked) => handleFieldChange('agreeToTerms', !!checked)}
+                          className={`transition-all duration-200 ${
+                            formErrors.terms && fieldTouched.terms ? 'border-red-500' : ''
+                          }`}
                         />
                         <div className="space-y-1">
                           <Label htmlFor="terms" className="text-sm leading-relaxed">
                             I agree to the <Button variant="link" className="p-0 h-auto text-sm underline">Terms of Service</Button> and <Button variant="link" className="p-0 h-auto text-sm underline">Privacy Policy</Button>
                           </Label>
-                          {formErrors.terms && (
-                            <p className="text-sm text-red-500">{formErrors.terms}</p>
+                          {formErrors.terms && fieldTouched.terms && (
+                            <p className="text-sm text-red-500 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              {formErrors.terms}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -703,10 +818,10 @@ export default function ConsolidatedAuthPage() {
                   
                   <CardContent className="pt-0">
                     <Button 
-                      className={`w-full h-11 font-medium transition-all duration-200 ${
+                      className={`w-full h-11 font-medium transition-all duration-300 transform ${
                         isFormValid && !isSubmitting
-                          ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl' 
-                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          ? 'bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]' 
+                          : 'bg-muted/50 text-muted-foreground cursor-not-allowed border border-border/50'
                       }`}
                       type="submit" 
                       disabled={!isFormValid || isSubmitting}
@@ -715,15 +830,25 @@ export default function ConsolidatedAuthPage() {
                       {isSubmitting ? 'Creating Account...' : 'Start Free Trial'}
                       {!isSubmitting && isFormValid && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
+                    
+                    {/* Form validation summary */}
+                    {!isFormValid && (fieldTouched.name || fieldTouched.email || fieldTouched.password || fieldTouched.terms) && (
+                      <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Please complete all required fields correctly to continue.
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </form>
               </TabsContent>
             </Tabs>
           </Card>
           
-          {/* Trust Indicators */}
+          {/* Enhanced Trust Indicators */}
           <div className="mt-8 text-center space-y-4">
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-4 md:gap-6 text-sm text-muted-foreground flex-wrap">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <span>Enterprise Security</span>
