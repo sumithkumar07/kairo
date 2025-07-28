@@ -60,7 +60,6 @@ export async function GET(request: NextRequest) {
       trial_end_date: profile.trial_end_date,
       monthly_workflow_runs: profile.monthly_workflow_runs,
       monthly_ai_generations: profile.monthly_ai_generations,
-      last_login_at: profile.last_login_at,
       created_at: profile.created_at,
       updated_at: profile.updated_at,
       user_created_at: profile.user_created_at
