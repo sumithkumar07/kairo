@@ -121,6 +121,10 @@ export default function ConsolidatedAuthPage() {
     terms: ''
   });
 
+  // Auth error states
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+
   // Validate form in real-time
   const validateForm = () => {
     const errors = {
