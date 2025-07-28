@@ -194,31 +194,77 @@ export function MarketingHeader() {
         </div>
       </nav>
 
-      {/* Mobile Navigation */}
+      {/* Enhanced Mobile Navigation */}
       {isOpen && (
-        <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background border-b shadow-lg">
-          <div className="container py-6 space-y-6">
+        <div className="md:hidden fixed inset-x-0 top-16 z-50 bg-background/95 backdrop-blur-md border-b shadow-2xl">
+          <div className="container py-6 space-y-6 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            {/* Quick Actions */}
+            <div className="bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-lg p-4 border border-primary/20">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-foreground flex items-center">
+                  <Sparkles className="h-4 w-4 mr-2 text-primary" />
+                  Quick Actions
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {isLoggedIn ? (
+                  <>
+                    <Button variant="outline" size="sm" className="w-full" asChild>
+                      <Link href="/dashboard" onClick={() => setIsOpen(false)}>
+                        Dashboard
+                      </Link>
+                    </Button>
+                    <Button size="sm" className="w-full bg-gradient-to-r from-primary to-purple-600" asChild>
+                      <Link href="/editor" onClick={() => setIsOpen(false)}>
+                        <Workflow className="mr-1 h-3 w-3" />
+                        Create
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" className="w-full" asChild>
+                      <Link href="/auth?tab=signin" onClick={() => setIsOpen(false)}>
+                        Sign In
+                      </Link>
+                    </Button>
+                    <Button size="sm" className="w-full bg-gradient-to-r from-primary to-purple-600" asChild>
+                      <Link href="/auth?tab=signup" onClick={() => setIsOpen(false)}>
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        Free Trial
+                      </Link>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation Items */}
             {navigation.main.map((item) => (
               <div key={item.name} className="space-y-3">
-                <h3 className="font-semibold text-foreground">{item.name}</h3>
+                <h3 className="font-semibold text-foreground flex items-center border-b border-border/50 pb-2">
+                  {item.name}
+                </h3>
                 {item.children ? (
-                  <div className="pl-4 space-y-2">
+                  <div className="pl-2 space-y-2">
                     {item.children.map((child) => (
                       <Link
                         key={child.name}
                         href={child.href}
-                        className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted transition-colors"
+                        className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted/80 transition-all duration-200 border border-transparent hover:border-primary/20"
                         onClick={() => setIsOpen(false)}
                       >
-                        <child.icon className="h-4 w-4 text-primary" />
-                        <span className="text-sm">{child.name}</span>
+                        <div className="p-1 bg-primary/10 rounded-md">
+                          <child.icon className="h-3 w-3 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium">{child.name}</span>
                       </Link>
                     ))}
                   </div>
                 ) : (
                   <Link
                     href={item.href}
-                    className="block p-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="block p-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-200"
                     onClick={() => setIsOpen(false)}
                   >
                     {item.name}
@@ -227,36 +273,19 @@ export function MarketingHeader() {
               </div>
             ))}
             
-            <div className="pt-6 border-t space-y-3">
-              {isLoggedIn ? (
-                <div className="space-y-3">
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href="/dashboard" onClick={() => setIsOpen(false)}>
-                      Dashboard
-                    </Link>
-                  </Button>
-                  <Button className="w-full" asChild>
-                    <Link href="/editor" onClick={() => setIsOpen(false)}>
-                      <Workflow className="mr-2 h-4 w-4" />
-                      Create Workflow
-                    </Link>
-                  </Button>
+            {/* Contact Info */}
+            <div className="pt-4 border-t space-y-3">
+              <h3 className="font-semibold text-foreground text-sm">Need Help?</h3>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center space-x-1">
+                  <Mail className="h-3 w-3" />
+                  <span>support@kairo.ai</span>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <Button variant="ghost" className="w-full" asChild>
-                    <Link href="/auth?tab=signin" onClick={() => setIsOpen(false)}>
-                      Sign In
-                    </Link>
-                  </Button>
-                  <Button className="w-full bg-gradient-to-r from-primary to-purple-600" asChild>
-                    <Link href="/auth?tab=signup" onClick={() => setIsOpen(false)}>
-                      Get Started Free
-                      <Sparkles className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
+                <div className="flex items-center space-x-1">
+                  <Phone className="h-3 w-3" />
+                  <span>24/7 Support</span>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
