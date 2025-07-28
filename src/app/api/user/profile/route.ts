@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
         trial_end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
         monthly_workflow_runs: 0,
         monthly_ai_generations: 0,
-        last_login_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
