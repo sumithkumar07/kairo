@@ -550,16 +550,24 @@ export default function ConsolidatedAuthPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="signup-name">Full Name</Label>
+                        <Label htmlFor="signup-name">Full Name *</Label>
                         <Input
                           id="signup-name"
                           placeholder="Enter your full name"
                           required
                           value={signupForm.name}
-                          onChange={(e) => setSignupForm(prev => ({ ...prev, name: e.target.value }))}
+                          onChange={(e) => {
+                            setSignupForm(prev => ({ ...prev, name: e.target.value }));
+                            if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                          }}
                           disabled={isSubmitting}
-                          className="bg-background/50 border-border/50 focus:border-primary/50 h-11"
+                          className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 ${
+                            formErrors.name ? 'border-red-500 focus:border-red-500' : ''
+                          }`}
                         />
+                        {formErrors.name && (
+                          <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>
+                        )}
                       </div>
                       
                       <div className="space-y-2">
@@ -576,46 +584,74 @@ export default function ConsolidatedAuthPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="signup-email">Email Address</Label>
+                      <Label htmlFor="signup-email">Email Address *</Label>
                       <Input
                         id="signup-email"
                         type="email"
                         placeholder="Enter your email"
                         required
                         value={signupForm.email}
-                        onChange={(e) => setSignupForm(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={(e) => {
+                          setSignupForm(prev => ({ ...prev, email: e.target.value }));
+                          if (formErrors.email) setFormErrors(prev => ({ ...prev, email: '' }));
+                        }}
                         disabled={isSubmitting}
-                        className="bg-background/50 border-border/50 focus:border-primary/50 h-11"
+                        className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 ${
+                          formErrors.email ? 'border-red-500 focus:border-red-500' : ''
+                        }`}
                       />
+                      {formErrors.email && (
+                        <p className="text-sm text-red-500 mt-1">{formErrors.email}</p>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="signup-password">Password</Label>
+                      <Label htmlFor="signup-password">Password *</Label>
                       <Input
                         id="signup-password"
                         type="password"
                         placeholder="Create a strong password"
                         required
                         value={signupForm.password}
-                        onChange={(e) => setSignupForm(prev => ({ ...prev, password: e.target.value }))}
+                        onChange={(e) => {
+                          setSignupForm(prev => ({ ...prev, password: e.target.value }));
+                          if (formErrors.password) setFormErrors(prev => ({ ...prev, password: '' }));
+                        }}
                         disabled={isSubmitting}
-                        className="bg-background/50 border-border/50 focus:border-primary/50 h-11"
+                        className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 ${
+                          formErrors.password ? 'border-red-500 focus:border-red-500' : ''
+                        }`}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Password must be at least 8 characters long
-                      </p>
+                      {formErrors.password ? (
+                        <p className="text-sm text-red-500 mt-1">{formErrors.password}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Password must be at least 8 characters long
+                        </p>
+                      )}
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="terms" 
-                        required
-                        checked={signupForm.agreeToTerms}
-                        onCheckedChange={(checked) => setSignupForm(prev => ({ ...prev, agreeToTerms: !!checked }))}
-                      />
-                      <Label htmlFor="terms" className="text-sm">
-                        I agree to the <Button variant="link" className="p-0 h-auto text-sm">Terms of Service</Button> and <Button variant="link" className="p-0 h-auto text-sm">Privacy Policy</Button>
-                      </Label>
+                    <div className="space-y-2">
+                      <div className="flex items-start space-x-2">
+                        <Checkbox 
+                          id="terms" 
+                          required
+                          checked={signupForm.agreeToTerms}
+                          onCheckedChange={(checked) => {
+                            setSignupForm(prev => ({ ...prev, agreeToTerms: !!checked }));
+                            if (formErrors.terms) setFormErrors(prev => ({ ...prev, terms: '' }));
+                          }}
+                          className={formErrors.terms ? 'border-red-500' : ''}
+                        />
+                        <div className="space-y-1">
+                          <Label htmlFor="terms" className="text-sm leading-relaxed">
+                            I agree to the <Button variant="link" className="p-0 h-auto text-sm underline">Terms of Service</Button> and <Button variant="link" className="p-0 h-auto text-sm underline">Privacy Policy</Button>
+                          </Label>
+                          {formErrors.terms && (
+                            <p className="text-sm text-red-500">{formErrors.terms}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                   
