@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Any, Optional
 
 # Configuration
-BASE_URL = "https://demobackend.emergentagent.com"
+BASE_URL = "http://localhost:3000"
 TIMEOUT = 30
 
 class AuthAPITester:
