@@ -1,18 +1,42 @@
 import { Pool, PoolClient } from 'pg';
 import crypto from 'crypto';
 
-// Database connection configuration
+// Enhanced database connection configuration with better error handling and connection pooling
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://kairo_db_user:KiMxEtyNTN0ngQr6weLgRU4fgPw5sQvw@dpg-d1rrl36r433s73amt4g0-a.oregon-postgres.render.com/kairo_db';
 
-// Create a connection pool
+// Create a connection pool with enhanced stability settings
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   },
-  max: 20,
+  // Enhanced connection pool settings for stability
+  max: 25, // Increased pool size
+  min: 5,  // Minimum connections to maintain
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased timeout
+  acquireTimeoutMillis: 60000,    // Time to wait for connection
+  createTimeoutMillis: 20000,     // Time to wait for new connection
+  reapIntervalMillis: 1000,       // Check for idle connections
+  createRetryIntervalMillis: 200, // Retry interval for failed connections
+  reconnectOnDatabaseIsStartingError: true
+});
+
+// Enhanced error handling for pool
+pool.on('error', (err) => {
+  console.error('[DATABASE] Pool error:', err);
+});
+
+pool.on('connect', (client) => {
+  console.log('[DATABASE] New client connected');
+});
+
+pool.on('acquire', (client) => {
+  console.log('[DATABASE] Client acquired from pool');
+});
+
+pool.on('remove', (client) => {
+  console.log('[DATABASE] Client removed from pool');
 });
 
 // Database connection singleton
