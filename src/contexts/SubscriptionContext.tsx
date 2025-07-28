@@ -31,7 +31,7 @@ export interface SubscriptionContextType {
   loading: boolean;
   // Auth methods
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, name?: string) => Promise<void>;
   isAuthLoading: boolean;
   // Additional properties for compatibility
   currentTier: string;
@@ -89,28 +89,32 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Auth methods
+  // Auth methods with improved error handling
   const login = async (email: string, password: string) => {
     try {
       await signIn(email, password);
-      await refreshUser(); // Refresh the user context after login
+      if (refreshUser) {
+        await refreshUser();
+      }
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   };
 
-  const signup = async (email: string, password: string) => {
+  const signup = async (email: string, password: string, name: string = '') => {
     try {
       await signUp(email, password);
-      await refreshUser(); // Refresh the user context after signup
+      if (refreshUser) {
+        await refreshUser();
+      }
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
     }
   };
 
-  // Fetch subscription data
+  // Fetch subscription data with retry logic
   useEffect(() => {
     const fetchSubscriptionData = async () => {
       if (!isAuthenticated || !user?.id || authLoading) {
@@ -118,29 +122,58 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      try {
-        setLoading(true);
-        
-        // Fetch user profile
-        const profileResponse = await fetch('/api/user/profile');
-        if (profileResponse.ok) {
-          const profile = await profileResponse.json();
-          setSubscriptionTier(profile.subscription_tier || 'Free');
-          setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
-          setUsage({
-            monthlyRuns: profile.monthly_workflow_runs || 0,
-            monthlyGenerations: profile.monthly_ai_generations || 0
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (retryCount < maxRetries) {
+        try {
+          setLoading(true);
+          
+          const profileResponse = await fetch('/api/user/profile', {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
           });
+
+          if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            setSubscriptionTier(profile.subscription_tier || 'Free');
+            setTrialEndDate(profile.trial_end_date ? new Date(profile.trial_end_date) : null);
+            setUsage({
+              monthlyRuns: profile.monthly_workflow_runs || 0,
+              monthlyGenerations: profile.monthly_ai_generations || 0
+            });
+            break;
+          } else if (profileResponse.status === 404 || profileResponse.status === 401) {
+            // User profile doesn't exist or user not authenticated, use defaults
+            setSubscriptionTier('Free');
+            setTrialEndDate(null);
+            setUsage({ monthlyRuns: 0, monthlyGenerations: 0 });
+            break;
+          }
+
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          }
+        } catch (error) {
+          console.error(`Error fetching subscription data (attempt ${retryCount + 1}):`, error);
+          retryCount++;
+          
+          if (retryCount >= maxRetries) {
+            // Set defaults on final failure
+            setSubscriptionTier('Free');
+            setTrialEndDate(null);
+            setUsage({ monthlyRuns: 0, monthlyGenerations: 0 });
+            break;
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
         }
-      } catch (error) {
-        console.error('Error fetching subscription data:', error);
-        // Set defaults on error
-        setSubscriptionTier('Free');
-        setTrialEndDate(null);
-        setUsage({ monthlyRuns: 0, monthlyGenerations: 0 });
-      } finally {
-        setLoading(false);
       }
+
+      setLoading(false);
     };
 
     fetchSubscriptionData();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { MarketingHeader } from '@/components/marketing-header';
 import { MarketingFooter } from '@/components/marketing-footer';
 import { 
@@ -117,98 +116,50 @@ export default function ConsolidatedAuthPage() {
     agreeToTerms: false
   });
 
-  // Enhanced form validation states
-  const [formErrors, setFormErrors] = useState({
+  // Simplified validation states
+  const [errors, setErrors] = useState({
     name: '',
     email: '',
     password: '',
     terms: ''
   });
 
-  const [fieldTouched, setFieldTouched] = useState({
-    name: false,
-    email: false,
-    password: false,
-    terms: false
-  });
-
   // Auth error states
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
 
-  // Enhanced validation function
+  // Simplified validation function
   const validateField = (field: string, value: any) => {
-    const errors = { ...formErrors };
+    const newErrors = { ...errors };
     
     switch (field) {
       case 'name':
-        if (!value || !value.trim()) {
-          errors.name = 'Full name is required';
-        } else if (value.trim().length < 2) {
-          errors.name = 'Name must be at least 2 characters';
-        } else if (!/^[a-zA-Z\s'-]+$/.test(value.trim())) {
-          errors.name = 'Name can only contain letters, spaces, apostrophes, and hyphens';
-        } else {
-          errors.name = '';
-        }
+        newErrors.name = !value || value.trim().length < 2 ? 'Name must be at least 2 characters' : '';
         break;
-        
       case 'email':
-        if (!value || !value.trim()) {
-          errors.email = 'Email is required';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          errors.email = 'Please enter a valid email address';
-        } else {
-          errors.email = '';
-        }
+        newErrors.email = !value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'Valid email required' : '';
         break;
-        
       case 'password':
-        if (!value) {
-          errors.password = 'Password is required';
-        } else if (value.length < 8) {
-          errors.password = 'Password must be at least 8 characters';
-        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
-          errors.password = 'Password must contain at least one uppercase letter, lowercase letter, and number';
-        } else {
-          errors.password = '';
-        }
+        newErrors.password = !value || value.length < 8 ? 'Password must be at least 8 characters' : '';
         break;
-        
       case 'terms':
-        if (!value) {
-          errors.terms = 'You must agree to the Terms of Service and Privacy Policy';
-        } else {
-          errors.terms = '';
-        }
+        newErrors.terms = !value ? 'You must agree to the terms' : '';
         break;
     }
     
-    setFormErrors(errors);
-    return !errors[field as keyof typeof errors];
+    setErrors(newErrors);
   };
 
-  // Real-time form validation
-  const validateForm = () => {
-    const nameValid = validateField('name', signupForm.name);
-    const emailValid = validateField('email', signupForm.email);
-    const passwordValid = validateField('password', signupForm.password);
-    const termsValid = validateField('terms', signupForm.agreeToTerms);
+  // Simplified form validation with useMemo for performance
+  const isFormValid = useMemo(() => {
+    const hasValidName = signupForm.name.trim().length >= 2;
+    const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email);
+    const hasValidPassword = signupForm.password.length >= 8;
+    const hasAgreedToTerms = signupForm.agreeToTerms;
+    const hasNoErrors = !errors.name && !errors.email && !errors.password && !errors.terms;
     
-    return nameValid && emailValid && passwordValid && termsValid;
-  };
-
-  // Enhanced form validity check
-  const isFormValid = 
-    signupForm.name.trim().length >= 2 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email) &&
-    signupForm.password.length >= 8 &&
-    /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(signupForm.password) &&
-    signupForm.agreeToTerms &&
-    !formErrors.name && 
-    !formErrors.email && 
-    !formErrors.password && 
-    !formErrors.terms;
+    return hasValidName && hasValidEmail && hasValidPassword && hasAgreedToTerms && hasNoErrors;
+  }, [signupForm.name, signupForm.email, signupForm.password, signupForm.agreeToTerms, errors]);
 
   const [onboardingForm, setOnboardingForm] = useState({
     goals: [],
@@ -251,16 +202,15 @@ export default function ConsolidatedAuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Mark all fields as touched
-    setFieldTouched({
-      name: true,
-      email: true,
-      password: true,
-      terms: true
-    });
+    // Validate all fields
+    validateField('name', signupForm.name);
+    validateField('email', signupForm.email);
+    validateField('password', signupForm.password);
+    validateField('terms', signupForm.agreeToTerms);
     
-    // Validate form before submission
-    if (!validateForm()) {
+    // Check if form is valid after validation
+    if (!isFormValid) {
+      setAuthError('Please fill in all required fields correctly.');
       return;
     }
 
@@ -290,26 +240,20 @@ export default function ConsolidatedAuthPage() {
   const handleFieldChange = (field: string, value: any) => {
     if (field === 'name') {
       setSignupForm(prev => ({ ...prev, name: value }));
+      validateField('name', value);
     } else if (field === 'email') {
       setSignupForm(prev => ({ ...prev, email: value }));
+      validateField('email', value);
     } else if (field === 'password') {
       setSignupForm(prev => ({ ...prev, password: value }));
+      validateField('password', value);
     } else if (field === 'agreeToTerms') {
       setSignupForm(prev => ({ ...prev, agreeToTerms: value }));
+      validateField('terms', value);
     }
     
     // Clear auth errors when user starts typing
     if (authError) setAuthError('');
-    
-    // Validate field if it has been touched
-    if (fieldTouched[field as keyof typeof fieldTouched]) {
-      setTimeout(() => validateField(field, value), 300);
-    }
-  };
-
-  const handleFieldBlur = (field: string, value: any) => {
-    setFieldTouched(prev => ({ ...prev, [field]: true }));
-    validateField(field, value);
   };
 
   const handleOnboardingNext = () => {
@@ -700,16 +644,15 @@ export default function ConsolidatedAuthPage() {
                           required
                           value={signupForm.name}
                           onChange={(e) => handleFieldChange('name', e.target.value)}
-                          onBlur={(e) => handleFieldBlur('name', e.target.value)}
                           disabled={isSubmitting}
                           className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 transition-all duration-200 ${
-                            formErrors.name && fieldTouched.name ? 'border-red-500 focus:border-red-500' : ''
+                            errors.name ? 'border-red-500 focus:border-red-500' : ''
                           }`}
                         />
-                        {formErrors.name && fieldTouched.name && (
+                        {errors.name && (
                           <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
-                            {formErrors.name}
+                            {errors.name}
                           </p>
                         )}
                       </div>
@@ -736,16 +679,15 @@ export default function ConsolidatedAuthPage() {
                         required
                         value={signupForm.email}
                         onChange={(e) => handleFieldChange('email', e.target.value)}
-                        onBlur={(e) => handleFieldBlur('email', e.target.value)}
                         disabled={isSubmitting}
                         className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 transition-all duration-200 ${
-                          formErrors.email && fieldTouched.email ? 'border-red-500 focus:border-red-500' : ''
+                          errors.email ? 'border-red-500 focus:border-red-500' : ''
                         }`}
                       />
-                      {formErrors.email && fieldTouched.email && (
+                      {errors.email && (
                         <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
-                          {formErrors.email}
+                          {errors.email}
                         </p>
                       )}
                     </div>
@@ -760,10 +702,9 @@ export default function ConsolidatedAuthPage() {
                           required
                           value={signupForm.password}
                           onChange={(e) => handleFieldChange('password', e.target.value)}
-                          onBlur={(e) => handleFieldBlur('password', e.target.value)}
                           disabled={isSubmitting}
                           className={`bg-background/50 border-border/50 focus:border-primary/50 h-11 pr-10 transition-all duration-200 ${
-                            formErrors.password && fieldTouched.password ? 'border-red-500 focus:border-red-500' : ''
+                            errors.password ? 'border-red-500 focus:border-red-500' : ''
                           }`}
                         />
                         <button
@@ -778,14 +719,14 @@ export default function ConsolidatedAuthPage() {
                           )}
                         </button>
                       </div>
-                      {formErrors.password && fieldTouched.password ? (
+                      {errors.password ? (
                         <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
-                          {formErrors.password}
+                          {errors.password}
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          Password must be at least 8 characters with uppercase, lowercase, and number
+                          Password must be at least 8 characters
                         </p>
                       )}
                     </div>
@@ -798,17 +739,17 @@ export default function ConsolidatedAuthPage() {
                           checked={signupForm.agreeToTerms}
                           onCheckedChange={(checked) => handleFieldChange('agreeToTerms', !!checked)}
                           className={`transition-all duration-200 ${
-                            formErrors.terms && fieldTouched.terms ? 'border-red-500' : ''
+                            errors.terms ? 'border-red-500' : ''
                           }`}
                         />
                         <div className="space-y-1">
                           <Label htmlFor="terms" className="text-sm leading-relaxed">
                             I agree to the <Button variant="link" className="p-0 h-auto text-sm underline">Terms of Service</Button> and <Button variant="link" className="p-0 h-auto text-sm underline">Privacy Policy</Button>
                           </Label>
-                          {formErrors.terms && fieldTouched.terms && (
+                          {errors.terms && (
                             <p className="text-sm text-red-500 flex items-center gap-1">
                               <AlertCircle className="h-3 w-3" />
-                              {formErrors.terms}
+                              {errors.terms}
                             </p>
                           )}
                         </div>
@@ -832,7 +773,7 @@ export default function ConsolidatedAuthPage() {
                     </Button>
                     
                     {/* Form validation summary */}
-                    {!isFormValid && (fieldTouched.name || fieldTouched.email || fieldTouched.password || fieldTouched.terms) && (
+                    {!isFormValid && (errors.name || errors.email || errors.password || errors.terms) && (
                       <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                         <p className="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
                           <AlertCircle className="h-4 w-4" />
@@ -845,28 +786,6 @@ export default function ConsolidatedAuthPage() {
               </TabsContent>
             </Tabs>
           </Card>
-          
-          {/* Enhanced Trust Indicators */}
-          <div className="mt-8 text-center space-y-4">
-            <div className="flex items-center justify-center gap-4 md:gap-6 text-sm text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Enterprise Security</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>99.9% Uptime</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>24/7 Support</span>
-              </div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground">
-              Trusted by thousands of companies worldwide
-            </p>
-          </div>
         </div>
       </main>
       <MarketingFooter />
