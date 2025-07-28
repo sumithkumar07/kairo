@@ -212,11 +212,16 @@ export default function ConsolidatedAuthPage() {
     }
 
     setIsSubmitting(true);
+    setAuthError('');
+    setAuthSuccess('');
+    
     try {
-      await signup(signupForm.email, signupForm.password, signupForm.name);
+      await signup(signinForm.email, signinForm.password, signupForm.name);
+      setAuthSuccess('Account created successfully! Setting up your workspace...');
       setShowOnboarding(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Sign up failed", error);
+      setAuthError(error.message || 'Account creation failed. Please try again.');
       // Clear form errors and show API error
       setFormErrors({
         name: '',
