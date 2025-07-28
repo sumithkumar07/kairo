@@ -60,28 +60,82 @@ export class Database {
     try {
       const result = await client.query(text, params);
       return result.rows;
+    } catch (error: any) {
+      console.error('[DATABASE] Query error:', error);
+      
+      // Enhanced error handling for connection issues
+      if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        console.log('[DATABASE] Connection issue detected, retrying...');
+        // Wait a bit and retry once
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+          const retryResult = await client.query(text, params);
+          return retryResult.rows;
+        } catch (retryError) {
+          console.error('[DATABASE] Retry failed:', retryError);
+          throw retryError;
+        }
+      }
+      throw error;
     } finally {
       client.release();
     }
   }
 
   public async getClient(): Promise<PoolClient> {
-    return await this.pool.connect();
+    try {
+      return await this.pool.connect();
+    } catch (error: any) {
+      console.error('[DATABASE] Failed to get client:', error);
+      
+      // Enhanced connection recovery
+      if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        console.log('[DATABASE] Attempting connection recovery...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return await this.pool.connect();
+      }
+      throw error;
+    }
   }
 
   public async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.pool.connect();
+    const client = await this.getClient();
     try {
       await client.query('BEGIN');
       const result = await callback(client);
       await client.query('COMMIT');
       return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
+    } catch (error: any) {
+      console.error('[DATABASE] Transaction error:', error);
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('[DATABASE] Rollback error:', rollbackError);
+      }
       throw error;
     } finally {
       client.release();
     }
+  }
+
+  // New method for connection health check
+  public async healthCheck(): Promise<boolean> {
+    try {
+      const result = await this.query('SELECT 1 as health');
+      return result.length > 0 && result[0].health === 1;
+    } catch (error) {
+      console.error('[DATABASE] Health check failed:', error);
+      return false;
+    }
+  }
+
+  // New method to get pool stats
+  public getPoolStats() {
+    return {
+      totalCount: this.pool.totalCount,
+      idleCount: this.pool.idleCount,
+      waitingCount: this.pool.waitingCount
+    };
   }
 }
 
