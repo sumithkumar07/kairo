@@ -51,20 +51,29 @@ export async function signUp(
     const passwordHash = await hashPassword(password);
     const userId = uuidv4();
 
-    // Create user with transaction for consistency
-    await db.transaction(async (client) => {
+    // Create user with direct queries (simplified for debugging)
+    try {
       // Insert user
-      await client.query(`
+      await db.query(`
         INSERT INTO users (id, email, password_hash, created_at, updated_at)
         VALUES ($1, $2, $3, NOW(), NOW())
       `, [userId, email.toLowerCase(), passwordHash]);
 
       // Insert user profile with trial
-      await client.query(`
+      await db.query(`
         INSERT INTO user_profiles (id, subscription_tier, trial_end_date, created_at, updated_at)
         VALUES ($1, 'Free', NOW() + interval '15 days', NOW(), NOW())
       `, [userId]);
-    });
+    } catch (dbError: any) {
+      console.error('[AUTH] Database insert error:', dbError);
+      
+      // Handle specific database errors
+      if (dbError.code === '23505') { // Unique violation
+        throw new Error('An account with this email address already exists');
+      }
+      
+      throw new Error(`Database error: ${dbError.message}`);
+    }
 
     // Generate JWT token
     const token = jwt.sign({ userId, email: email.toLowerCase() }, JWT_SECRET, { 
