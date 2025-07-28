@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signUp, logUserAction } from '@/lib/auth';
-import { validateRequest, schemas, APIResponse } from '@/lib/validation';
-import { withSecurity, rateLimiters } from '@/lib/security';
 
-async function handleSignup(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    // Validate request data
-    const validation = await validateRequest(schemas.signup)(request);
-    if (validation.error) {
-      return APIResponse.validation([validation.error]);
+    const { email, password, name, company } = await request.json();
+    
+    if (!email || !password) {
+      return NextResponse.json(
+        { message: 'Email and password are required' },
+        { status: 400 }
+      );
     }
-
-    const { email, password, name, company } = validation.data;
 
     // Get client info for security logging
     const userAgent = request.headers.get('user-agent');
@@ -59,16 +58,17 @@ async function handleSignup(request: NextRequest) {
   } catch (error: any) {
     console.error('[AUTH] Signup error:', error);
     
-    return APIResponse.error(
-      error.message || 'Signup failed',
-      'SIGNUP_FAILED',
-      400,
-      { originalError: process.env.NODE_ENV === 'development' ? error.stack : undefined }
+    return NextResponse.json(
+      { 
+        success: false,
+        error: {
+          message: error.message || 'Signup failed',
+          code: 'SIGNUP_FAILED',
+          details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+          timestamp: new Date().toISOString()
+        }
+      },
+      { status: 400 }
     );
   }
 }
-
-export const POST = withSecurity(handleSignup, {
-  rateLimiter: rateLimiters.auth,
-  allowedMethods: ['POST']
-});
