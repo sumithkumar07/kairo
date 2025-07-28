@@ -360,10 +360,8 @@ export async function securityMiddleware(request: NextRequest): Promise<NextResp
     await SuspiciousActivityDetector.logSuspiciousActivity(request, 'Pattern matching');
     ipBlocker.markSuspicious(context.ipAddress);
     
-    // Continue processing but mark as suspicious
-    const response = NextResponse.next();
-    response.headers.set('X-Suspicious-Activity', 'detected');
-    return response;
+    // Mark as suspicious in request context
+    (request as any).suspiciousActivity = true;
   }
 
   return null; // Continue processing
