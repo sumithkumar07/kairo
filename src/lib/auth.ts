@@ -39,7 +39,10 @@ export async function signUp(
     }
 
     // Check if user already exists
-    const existingUsers = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    const existingUsers = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+    
+    console.log('[DEBUG] Checking user:', email.trim().toLowerCase(), 'Found:', existingUsers.length);
+    
     if (existingUsers.length > 0) {
       throw new Error('An account with this email address already exists');
     }
