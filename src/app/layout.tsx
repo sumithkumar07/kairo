@@ -17,43 +17,80 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Kairo AI - Workflow Automation Platform',
+  title: {
+    default: 'Kairo AI - Workflow Automation Platform',
+    template: '%s | Kairo AI'
+  },
   description: 'Build workflows at the speed of thought with AI-powered automation, quantum computing, and enterprise-grade security.',
-  keywords: 'workflow automation, AI, productivity, integration, no-code, enterprise',
-  authors: [{ name: 'Kairo Team' }],
+  keywords: ['workflow automation', 'AI', 'productivity', 'integration', 'no-code', 'enterprise', 'puter.js', 'quantum'],
+  authors: [{ name: 'Kairo Team', url: 'https://kairo.ai' }],
   creator: 'Kairo AI',
   publisher: 'Kairo AI',
-  robots: 'index, follow',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   manifest: '/manifest.json',
-  themeColor: '#3b82f6',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#3b82f6' },
+    { media: '(prefers-color-scheme: dark)', color: '#3b82f6' },
+  ],
   colorScheme: 'light dark',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Kairo AI',
+    startupImage: [
+      {
+        url: '/icons/icon-192x192.png',
+        media: '(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)',
+      },
+    ],
   },
   openGraph: {
     type: 'website',
+    locale: 'en_US',
     siteName: 'Kairo AI',
-    title: 'Kairo AI - Workflow Automation Platform',
-    description: 'Build workflows at the speed of thought with AI-powered automation',
+    title: 'Kairo AI - Build Workflows at the Speed of Thought',
+    description: 'The world\'s most advanced AI-powered workflow automation platform with quantum computing capabilities.',
     url: 'https://kairo.ai',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Kairo AI Workflow Automation Platform',
+        alt: 'Kairo AI Workflow Automation Platform - Build workflows at the speed of thought',
+        type: 'image/png',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@KairoAI',
+    creator: '@KairoAI',
     title: 'Kairo AI - Workflow Automation Platform',
-    description: 'Build workflows at the speed of thought with AI-powered automation',
-    images: ['/og-image.png'],
+    description: 'Build workflows at the speed of thought with AI-powered automation and quantum computing.',
+    images: {
+      url: '/og-image.png',
+      alt: 'Kairo AI Platform',
+    },
   },
+  alternates: {
+    canonical: 'https://kairo.ai',
+  },
+  category: 'technology',
 };
 
 export default function RootLayout({
