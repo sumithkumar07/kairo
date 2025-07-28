@@ -169,18 +169,27 @@ export function MarketingHeader() {
           )}
         </div>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu button - Enhanced visibility */}
         <div className="md:hidden">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => setIsOpen(!isOpen)}
+            className={`border-2 transition-all duration-200 ${
+              isOpen 
+                ? 'border-primary bg-primary text-white shadow-lg' 
+                : 'border-border hover:border-primary hover:shadow-md'
+            }`}
+            aria-label={isOpen ? 'Close menu' : 'Open menu'}
           >
             {isOpen ? (
               <X className="h-5 w-5" />
             ) : (
               <Menu className="h-5 w-5" />
             )}
+            <span className="ml-2 text-xs font-medium">
+              {isOpen ? 'Close' : 'Menu'}
+            </span>
           </Button>
         </div>
       </nav>
