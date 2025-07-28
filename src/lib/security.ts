@@ -426,7 +426,22 @@ export function withSecurity(
       }
 
       // Execute the handler
-      return await handler(request);
+      const response = await handler(request);
+      
+      // Add rate limit headers if they exist
+      const rateLimitHeaders = (request as any).rateLimitHeaders;
+      if (rateLimitHeaders && response instanceof NextResponse) {
+        Object.entries(rateLimitHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value as string);
+        });
+      }
+      
+      // Add suspicious activity header if detected
+      if ((request as any).suspiciousActivity && response instanceof NextResponse) {
+        response.headers.set('X-Suspicious-Activity', 'detected');
+      }
+      
+      return response;
       
     } catch (error) {
       console.error('[API] Unhandled error:', error);
