@@ -11,21 +11,38 @@ export async function getCurrentUser(): Promise<User | null> {
     return null;
   }
   
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  
   try {
     const response = await fetch('/api/auth/me', {
       credentials: 'include', // Include cookies
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
+    
     if (!response.ok) {
+      if (response.status === 401) {
+        // User not authenticated - this is expected, not an error
+        return null;
+      }
+      console.warn('[AUTH] Failed to get current user:', response.status);
       return null;
     }
     
     return await response.json();
-  } catch (error) {
-    console.error('Error getting current user:', error);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('[AUTH] Get current user request timed out');
+    } else {
+      console.error('Error getting current user:', error);
+    }
     return null;
   }
 }
