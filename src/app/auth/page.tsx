@@ -499,6 +499,19 @@ export default function ConsolidatedAuthPage() {
                       </p>
                     </div>
 
+                    {/* Auth Messages */}
+                    {authError && (
+                      <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <p className="text-sm text-red-600 dark:text-red-400">{authError}</p>
+                      </div>
+                    )}
+                    
+                    {authSuccess && (
+                      <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <p className="text-sm text-green-600 dark:text-green-400">{authSuccess}</p>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="signin-email">Email Address</Label>
                       <Input
@@ -507,7 +520,10 @@ export default function ConsolidatedAuthPage() {
                         placeholder="Enter your email"
                         required
                         value={signinForm.email}
-                        onChange={(e) => setSigninForm(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={(e) => {
+                          setSigninForm(prev => ({ ...prev, email: e.target.value }));
+                          if (authError) setAuthError('');
+                        }}
                         disabled={isSubmitting}
                         className="bg-background/50 border-border/50 focus:border-primary/50 h-11"
                       />
@@ -521,7 +537,10 @@ export default function ConsolidatedAuthPage() {
                         placeholder="Enter your password"
                         required
                         value={signinForm.password}
-                        onChange={(e) => setSigninForm(prev => ({ ...prev, password: e.target.value }))}
+                        onChange={(e) => {
+                          setSigninForm(prev => ({ ...prev, password: e.target.value }));
+                          if (authError) setAuthError('');
+                        }}
                         disabled={isSubmitting}
                         className="bg-background/50 border-border/50 focus:border-primary/50 h-11"
                       />
@@ -542,7 +561,7 @@ export default function ConsolidatedAuthPage() {
                     <Button 
                       className="w-full h-11 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-medium" 
                       type="submit" 
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !signinForm.email || !signinForm.password}
                     >
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {isSubmitting ? 'Signing In...' : 'Sign In'}
