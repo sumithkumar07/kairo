@@ -174,21 +174,21 @@ export function MarketingHeader() {
         <div className="md:hidden">
           <Button
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={() => setIsOpen(!isOpen)}
-            className={`border-2 transition-all duration-300 transform ${
+            className={`h-12 px-4 border-2 transition-all duration-300 transform touch-manipulation ${
               isOpen 
-                ? 'border-primary bg-primary text-white shadow-lg scale-105' 
-                : 'border-border hover:border-primary hover:shadow-md hover:scale-105'
+                ? 'border-primary bg-primary text-white shadow-xl scale-105 ring-2 ring-primary/20' 
+                : 'border-primary/50 hover:border-primary hover:bg-primary/10 hover:shadow-lg hover:scale-105'
             }`}
             aria-label={isOpen ? 'Close menu' : 'Open menu'}
           >
             {isOpen ? (
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             ) : (
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             )}
-            <span className="ml-2 text-sm font-semibold">
+            <span className="ml-2 text-base font-bold">
               {isOpen ? 'Close' : 'Menu'}
             </span>
           </Button>
