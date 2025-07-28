@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get user profile with subscription data
+    // Get user profile with subscription data (simplified columns)
     const profileData = await db.query(`
       SELECT 
         up.id,
@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
         up.trial_end_date,
         up.monthly_workflow_runs,
         up.monthly_ai_generations,
-        up.last_login_at,
         up.created_at,
         up.updated_at,
         u.email,
