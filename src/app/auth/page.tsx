@@ -113,6 +113,54 @@ export default function ConsolidatedAuthPage() {
     agreeToTerms: false
   });
 
+  // Form validation states
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    terms: ''
+  });
+
+  // Validate form in real-time
+  const validateForm = () => {
+    const errors = {
+      name: '',
+      email: '',
+      password: '',
+      terms: ''
+    };
+
+    if (!signupForm.name.trim()) {
+      errors.name = 'Full name is required';
+    }
+
+    if (!signupForm.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (!signupForm.password) {
+      errors.password = 'Password is required';
+    } else if (signupForm.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters long';
+    }
+
+    if (!signupForm.agreeToTerms) {
+      errors.terms = 'You must agree to the Terms of Service';
+    }
+
+    setFormErrors(errors);
+    return Object.values(errors).every(error => !error);
+  };
+
+  // Check if form is valid for button state
+  const isFormValid = signupForm.name.trim() && 
+                     signupForm.email.trim() && 
+                     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupForm.email) &&
+                     signupForm.password.length >= 8 && 
+                     signupForm.agreeToTerms;
+
   const [onboardingForm, setOnboardingForm] = useState({
     goals: [],
     teamSize: '',
