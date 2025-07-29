@@ -100,11 +100,11 @@ class KairoAPITester:
         
         success, details, response_time, data = self.make_request('POST', 'auth/signin', payload)
         
-        if success and data and 'token' in data:
-            self.auth_token = data['token']
-            if 'user' in data and 'id' in data['user']:
+        if success and data and 'user' in data:
+            self.is_authenticated = True
+            if 'id' in data['user']:
                 self.demo_user_id = data['user']['id']
-            details += f" - Token acquired, User ID: {self.demo_user_id}"
+            details += f" - Authenticated, User ID: {self.demo_user_id}"
         
         self.log_result('POST /api/auth/signin (Demo Account)', 'PASS' if success else 'FAIL', response_time, details)
         return success
