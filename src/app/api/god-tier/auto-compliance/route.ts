@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     } else if (action === 'add_regulation_monitoring') {
       return await addRegulatoryMonitoring(data);
     } else if (action === 'update_regulation') {
-      return await updateRegulation(data);
+      return await addRegulatoryMonitoring(data); // Use add for now until update function is implemented
     } else if (action === 'compliance_risk_assessment') {
       return await performComplianceRiskAssessment(data);
     }
