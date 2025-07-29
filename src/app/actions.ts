@@ -510,7 +510,7 @@ export async function agentCommandAction(command: string, history: McpCommandRec
     try {
         const agentConfig = await WorkflowStorage.getAgentConfig(userId);
         const chatHistoryForAi = history.slice(-5).map(h => ({
-            sender: h.command ? 'user' : 'ai',
+            sender: (h.command ? 'user' : 'ai') as 'user' | 'ai',
             message: h.command || h.response
         }));
 
