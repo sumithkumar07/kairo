@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Any, List, Tuple
 
 # Configuration
-BASE_URL = "http://localhost:3000"
+BASE_URL = "http://localhost:3001"
 TIMEOUT = 30
 
 class GodTierAPITester:
