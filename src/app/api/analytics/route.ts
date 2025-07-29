@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
         avgTime: '2.1s', // Mock data
         cost: '$12.34' // Mock data
       })),
-      recentExecutions: recentExecutions.map(exec => ({
+      recentExecutions: recentExecutions.map((exec: any) => ({
         id: exec.id,
         workflowName: exec.workflow_name,
         status: exec.status.toLowerCase(),
