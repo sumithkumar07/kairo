@@ -48,4 +48,7 @@ const AvatarFallback = React.forwardRef<
 ))
 AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
 
-export { Avatar, AvatarImage, AvatarFallback }
+// Add AvatarContent as alias to AvatarFallback for backward compatibility
+const AvatarContent = AvatarFallback;
+
+export { Avatar, AvatarImage, AvatarFallback, AvatarContent }
