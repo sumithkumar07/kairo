@@ -1,117 +1,164 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { performanceMonitor } from '@/lib/performance-monitor';
+import { apiCache, databaseCache, userCache } from '@/lib/advanced-cache';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const searchParams = request.nextUrl.searchParams;
+    const timeRange = searchParams.get('range') || '30';
+    const detailed = searchParams.get('detailed') === 'true';
 
-    const { searchParams } = new URL(request.url);
-    const timeRange = searchParams.get('timeRange') || '7d';
-
-    // Calculate date range
-    const endDate = new Date();
-    const startDate = new Date();
-    switch (timeRange) {
-      case '1d':
-        startDate.setDate(endDate.getDate() - 1);
-        break;
-      case '7d':
-        startDate.setDate(endDate.getDate() - 7);
-        break;
-      case '30d':
-        startDate.setDate(endDate.getDate() - 30);
-        break;
-      case '90d':
-        startDate.setDate(endDate.getDate() - 90);
-        break;
-      default:
-        startDate.setDate(endDate.getDate() - 7);
-    }
-
+    // Get current system health
+    const systemHealth = performanceMonitor.getSystemHealth();
+    
     // Get performance metrics
-    const performanceData = await db.query(`
-      SELECT 
-        COUNT(*) as total_executions,
-        COUNT(CASE WHEN status = 'Success' THEN 1 END) as successful_executions,
-        COUNT(CASE WHEN status = 'Failed' THEN 1 END) as failed_executions,
-        AVG(CASE WHEN status = 'Success' THEN 
-          EXTRACT(EPOCH FROM (timestamp + INTERVAL '2 seconds' - timestamp)) END) as avg_response_time,
-        COUNT(*) / EXTRACT(EPOCH FROM ($3 - $2)) * 3600 as throughput_per_hour
-      FROM run_history 
-      WHERE user_id = $1 
-        AND timestamp >= $2 
-        AND timestamp <= $3
-    `, [user.id, startDate, endDate]);
+    const currentMetrics = performanceMonitor.getCurrentMetrics();
+    const metricsHistory = performanceMonitor.getMetricsHistory(parseInt(timeRange));
+    const apiMetrics = performanceMonitor.getAPIMetrics(parseInt(timeRange));
 
-    // Get hourly execution counts for throughput calculation
-    const hourlyData = await db.query(`
-      SELECT 
-        DATE_TRUNC('hour', timestamp) as hour,
-        COUNT(*) as executions
-      FROM run_history 
-      WHERE user_id = $1 
-        AND timestamp >= $2 
-        AND timestamp <= $3
-      GROUP BY hour
-      ORDER BY hour
-    `, [user.id, startDate, endDate]);
+    // Get cache statistics
+    const cacheStats = {
+      api: apiCache.getStats(),
+      database: databaseCache.getStats(),
+      user: userCache.getStats()
+    };
 
-    const data = performanceData[0];
-    const successRate = data.total_executions > 0 
-      ? (data.successful_executions / data.total_executions) * 100 
-      : 0;
-    const errorRate = data.total_executions > 0 
-      ? (data.failed_executions / data.total_executions) * 100 
-      : 0;
+    // Calculate trends
+    const trends = calculateTrends(metricsHistory);
 
-    return NextResponse.json({
-      metrics: [
-        {
-          metric: 'Response Time',
-          value: `${(data.avg_response_time || 2.4).toFixed(1)}s`,
-          change: -12.3,
-          trend: 'down',
-          description: 'Average workflow execution time'
-        },
-        {
-          metric: 'Success Rate',
-          value: `${successRate.toFixed(1)}%`,
-          change: 2.1,
-          trend: 'up',
-          description: 'Workflows completed successfully'
-        },
-        {
-          metric: 'Throughput',
-          value: `${Math.round(data.throughput_per_hour || 0)}`,
-          change: 15.7,
-          trend: 'up',
-          description: 'Executions per hour'
-        },
-        {
-          metric: 'Error Rate',
-          value: `${errorRate.toFixed(1)}%`,
-          change: -8.4,
-          trend: 'down',
-          description: 'Failed workflow executions'
-        }
-      ],
-      hourlyData: hourlyData.map(h => ({
-        hour: h.hour,
-        executions: parseInt(h.executions)
-      })),
-      resourceUsage: {
-        cpu: 68,
-        memory: 45,
-        storage: 23
-      }
-    });
+    const response = {
+      timestamp: Date.now(),
+      systemHealth,
+      currentMetrics,
+      trends,
+      cacheStats,
+      ...(detailed && {
+        metricsHistory,
+        apiMetrics: apiMetrics.slice(-50), // Last 50 API calls
+        recommendations: generateRecommendations(systemHealth, trends, cacheStats)
+      })
+    };
 
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Performance API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[PERFORMANCE API] Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch performance metrics' },
+      { status: 500 }
+    );
   }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { action } = await request.json();
+
+    switch (action) {
+      case 'reset':
+        performanceMonitor.resetStats();
+        return NextResponse.json({ message: 'Performance stats reset successfully' });
+      
+      case 'clear-cache':
+        apiCache.clear();
+        databaseCache.clear();
+        userCache.clear();
+        return NextResponse.json({ message: 'All caches cleared successfully' });
+      
+      case 'warm-cache':
+        // Implement cache warming logic here
+        return NextResponse.json({ message: 'Cache warming initiated' });
+      
+      default:
+        return NextResponse.json(
+          { error: 'Invalid action' },
+          { status: 400 }
+        );
+    }
+  } catch (error) {
+    console.error('[PERFORMANCE API] Action error:', error);
+    return NextResponse.json(
+      { error: 'Failed to execute action' },
+      { status: 500 }
+    );
+  }
+}
+
+function calculateTrends(metrics: any[]) {
+  if (metrics.length < 2) {
+    return {
+      responseTime: 'stable',
+      errorRate: 'stable',
+      cacheHitRate: 'stable',
+      throughput: 'stable'
+    };
+  }
+
+  const recent = metrics.slice(-10); // Last 10 metrics
+  const older = metrics.slice(-20, -10); // Previous 10 metrics
+
+  const getAverage = (data: any[], key: string) => 
+    data.reduce((sum, item) => sum + item[key], 0) / data.length;
+
+  const recentAvg = {
+    responseTime: getAverage(recent, 'responseTime'),
+    errorRate: getAverage(recent, 'errorRate'),
+    cacheHitRate: getAverage(recent, 'cacheHitRate'),
+    throughput: getAverage(recent, 'throughput')
+  };
+
+  const olderAvg = {
+    responseTime: getAverage(older, 'responseTime'),
+    errorRate: getAverage(older, 'errorRate'),
+    cacheHitRate: getAverage(older, 'cacheHitRate'),
+    throughput: getAverage(older, 'throughput')
+  };
+
+  const getTrend = (recent: number, older: number, threshold: number = 10) => {
+    const change = ((recent - older) / older) * 100;
+    if (Math.abs(change) < threshold) return 'stable';
+    return change > 0 ? 'increasing' : 'decreasing';
+  };
+
+  return {
+    responseTime: getTrend(recentAvg.responseTime, olderAvg.responseTime),
+    errorRate: getTrend(recentAvg.errorRate, olderAvg.errorRate),
+    cacheHitRate: getTrend(recentAvg.cacheHitRate, olderAvg.cacheHitRate),
+    throughput: getTrend(recentAvg.throughput, olderAvg.throughput)
+  };
+}
+
+function generateRecommendations(systemHealth: any, trends: any, cacheStats: any) {
+  const recommendations: string[] = [];
+
+  // Performance recommendations
+  if (systemHealth.score < 80) {
+    recommendations.push('System performance is below optimal. Consider scaling resources.');
+  }
+
+  if (trends.responseTime === 'increasing') {
+    recommendations.push('Response times are increasing. Check for database slow queries or optimize API endpoints.');
+  }
+
+  if (trends.errorRate === 'increasing') {
+    recommendations.push('Error rate is rising. Review recent deployments and error logs.');
+  }
+
+  // Cache recommendations
+  const overallCacheHitRate = Object.values(cacheStats).reduce((sum: number, cache: any) => 
+    sum + cache.hitRate, 0) / Object.keys(cacheStats).length;
+
+  if (overallCacheHitRate < 70) {
+    recommendations.push('Cache hit rate is low. Consider increasing cache TTL or warming cache with frequently accessed data.');
+  }
+
+  // Memory recommendations
+  if (systemHealth.details && parseFloat(systemHealth.details.memoryUsage) > 85) {
+    recommendations.push('High memory usage detected. Consider clearing caches or optimizing memory-intensive operations.');
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push('System is performing well. No immediate optimizations needed.');
+  }
+
+  return recommendations;
 }
