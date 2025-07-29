@@ -84,7 +84,7 @@ async function getGodTierOverview(timeframe: string) {
     '1y': '1 year'
   };
   
-  const intervalClause = timeframeMap[timeframe] || '30 days';
+  const intervalClause = timeframeMap[timeframe as keyof typeof timeframeMap] || '30 days';
 
   // Gather metrics from all god-tier features
   const [
