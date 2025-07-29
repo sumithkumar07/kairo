@@ -1,10 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Loader2, Zap, Database, Brain, Workflow, CheckCircle, AlertCircle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  RefreshCw,
+  Zap,
+  Brain,
+  Database,
+  Shield,
+  Sparkles,
+  Wand2,
+  Cpu,
+  Network,
+  Clock,
+  Target,
+  Activity,
+  TrendingUp,
+  Workflow
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// Enhanced Loading States Component
 
 interface LoadingStateProps {
   type?: 'default' | 'quantum' | 'hipaa' | 'reality' | 'consciousness' | 'workflow' | 'database';
