@@ -674,7 +674,7 @@ function estimateComplianceCostSavings(request: ComplianceGenerationRequest, wor
   };
   
   const totalMultiplier = request.industry_focus.reduce((sum, industry) => {
-    return sum + (industryMultipliers[industry] || 1.0);
+    return sum + (industryMultipliers[industry as keyof typeof industryMultipliers] || 1.0);
   }, 0) / request.industry_focus.length;
   
   const complexityMultiplier = {
