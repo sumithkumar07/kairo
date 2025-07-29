@@ -80,7 +80,9 @@ import {
   SkipForward,
   Rewind,
   FastForward,
-  Puzzle
+  Puzzle,
+  Radio,
+  TestTube
 } from 'lucide-react';
 
 // Mock data for dashboard
