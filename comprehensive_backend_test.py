@@ -20,8 +20,9 @@ class KairoAPITester:
         self.total_tests = 0
         self.passed_tests = 0
         self.failed_tests = 0
-        self.auth_token = None
+        self.session = requests.Session()  # Use session to handle cookies
         self.demo_user_id = None
+        self.is_authenticated = False
         
     def log_result(self, endpoint: str, status: str, response_time: float, details: str):
         """Log test result"""
