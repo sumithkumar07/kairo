@@ -1,246 +1,285 @@
-'use client';
+import { Performance } from 'perf_hooks';
 
-// Performance monitoring utilities
-export class PerformanceMonitor {
-  private metrics: Map<string, number> = new Map();
-  private observers: PerformanceObserver[] = [];
+export interface PerformanceMetrics {
+  timestamp: number;
+  responseTime: number;
+  memoryUsage: NodeJS.MemoryUsage;
+  cpuUsage: number;
+  activeConnections: number;
+  cacheHitRate: number;
+  errorRate: number;
+  throughput: number;
+}
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      this.initializeObservers();
+export interface APIPerformanceData {
+  endpoint: string;
+  method: string;
+  responseTime: number;
+  statusCode: number;
+  timestamp: number;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+export class EnhancedPerformanceMonitor {
+  private static instance: EnhancedPerformanceMonitor;
+  private metrics: PerformanceMetrics[] = [];
+  private apiMetrics: APIPerformanceData[] = [];
+  private cacheStats = {
+    hits: 0,
+    misses: 0,
+    total: 0
+  };
+  private errorCount = 0;
+  private requestCount = 0;
+  private startTime = Date.now();
+
+  private constructor() {
+    // Start collecting metrics every 30 seconds
+    setInterval(() => {
+      this.collectMetrics();
+    }, 30000);
+
+    // Clean up old metrics every 5 minutes
+    setInterval(() => {
+      this.cleanupOldMetrics();
+    }, 300000);
+  }
+
+  public static getInstance(): EnhancedPerformanceMonitor {
+    if (!EnhancedPerformanceMonitor.instance) {
+      EnhancedPerformanceMonitor.instance = new EnhancedPerformanceMonitor();
+    }
+    return EnhancedPerformanceMonitor.instance;
+  }
+
+  private async collectMetrics(): Promise<void> {
+    try {
+      const memoryUsage = process.memoryUsage();
+      const now = Date.now();
+      
+      // Calculate CPU usage (simplified)
+      const cpuUsage = process.cpuUsage();
+      const cpuPercent = (cpuUsage.user + cpuUsage.system) / 1000000; // Convert to seconds
+
+      const metric: PerformanceMetrics = {
+        timestamp: now,
+        responseTime: this.getAverageResponseTime(),
+        memoryUsage,
+        cpuUsage: cpuPercent,
+        activeConnections: this.getActiveConnections(),
+        cacheHitRate: this.getCacheHitRate(),
+        errorRate: this.getErrorRate(),
+        throughput: this.getThroughput()
+      };
+
+      this.metrics.push(metric);
+      
+      // Keep only last 100 metrics (50 minutes of data)
+      if (this.metrics.length > 100) {
+        this.metrics = this.metrics.slice(-100);
+      }
+    } catch (error) {
+      console.error('[PERFORMANCE] Error collecting metrics:', error);
     }
   }
 
-  private initializeObservers() {
-    // Monitor Long Tasks (> 50ms)
-    if ('PerformanceObserver' in window) {
-      try {
-        const longTaskObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            if (entry.duration > 50) {
-              console.warn(`Long task detected: ${entry.duration}ms`, entry);
-            }
-          }
-        });
-        longTaskObserver.observe({ entryTypes: ['longtask'] });
-        this.observers.push(longTaskObserver);
-      } catch (e) {
-        // Browser doesn't support longtask
-      }
-
-      // Monitor Layout Shifts
-      try {
-        const clsObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            if ((entry as any).value > 0.1) {
-              console.warn(`Layout shift detected: ${(entry as any).value}`, entry);
-            }
-          }
-        });
-        clsObserver.observe({ entryTypes: ['layout-shift'] });
-        this.observers.push(clsObserver);
-      } catch (e) {
-        // Browser doesn't support layout-shift
-      }
-
-      // Monitor First Input Delay
-      try {
-        const fidObserver = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            const fid = entry.processingStart - entry.startTime;
-            if (fid > 100) {
-              console.warn(`High First Input Delay: ${fid}ms`, entry);
-            }
-          }
-        });
-        fidObserver.observe({ entryTypes: ['first-input'] });
-        this.observers.push(fidObserver);
-      } catch (e) {
-        // Browser doesn't support first-input
-      }
-    }
-  }
-
-  // Measure function execution time
-  measureFunction<T>(name: string, fn: () => T): T {
-    const start = performance.now();
-    const result = fn();
-    const end = performance.now();
-    const duration = end - start;
-    
-    this.metrics.set(name, duration);
-    
-    if (duration > 100) {
-      console.warn(`Slow function execution: ${name} took ${duration}ms`);
-    }
-    
-    return result;
-  }
-
-  // Measure async function execution time
-  async measureAsyncFunction<T>(name: string, fn: () => Promise<T>): Promise<T> {
-    const start = performance.now();
-    const result = await fn();
-    const end = performance.now();
-    const duration = end - start;
-    
-    this.metrics.set(name, duration);
-    
-    if (duration > 500) {
-      console.warn(`Slow async function execution: ${name} took ${duration}ms`);
-    }
-    
-    return result;
-  }
-
-  // Get Web Vitals
-  getWebVitals(): Promise<{
-    fcp?: number;
-    lcp?: number;
-    cls?: number;
-    fid?: number;
-    ttfb?: number;
-  }> {
-    return new Promise((resolve) => {
-      const vitals: any = {};
-
-      // First Contentful Paint
-      const fcpObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          if (entry.name === 'first-contentful-paint') {
-            vitals.fcp = entry.startTime;
-          }
-        }
-      });
-      fcpObserver.observe({ entryTypes: ['paint'] });
-
-      // Largest Contentful Paint
-      const lcpObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          vitals.lcp = entry.startTime;
-        }
-      });
-      lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
-
-      // Time to First Byte
-      const navigationEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-      if (navigationEntry) {
-        vitals.ttfb = navigationEntry.responseStart - navigationEntry.requestStart;
-      }
-
-      // Return vitals after a short delay to collect metrics
-      setTimeout(() => {
-        fcpObserver.disconnect();
-        lcpObserver.disconnect();
-        resolve(vitals);
-      }, 2000);
+  public recordAPICall(data: APIPerformanceData): void {
+    this.apiMetrics.push({
+      ...data,
+      timestamp: Date.now()
     });
+    
+    this.requestCount++;
+    
+    if (data.statusCode >= 400) {
+      this.errorCount++;
+    }
+
+    // Keep only last 1000 API calls
+    if (this.apiMetrics.length > 1000) {
+      this.apiMetrics = this.apiMetrics.slice(-1000);
+    }
   }
 
-  // Memory usage monitoring
-  getMemoryUsage() {
-    if ('memory' in performance) {
-      const memory = (performance as any).memory;
+  public recordCacheHit(): void {
+    this.cacheStats.hits++;
+    this.cacheStats.total++;
+  }
+
+  public recordCacheMiss(): void {
+    this.cacheStats.misses++;
+    this.cacheStats.total++;
+  }
+
+  private getAverageResponseTime(): number {
+    if (this.apiMetrics.length === 0) return 0;
+    
+    const recentMetrics = this.apiMetrics.slice(-50); // Last 50 requests
+    const totalTime = recentMetrics.reduce((sum, metric) => sum + metric.responseTime, 0);
+    return Math.round(totalTime / recentMetrics.length);
+  }
+
+  private getActiveConnections(): number {
+    // This would normally come from your server instance
+    // For now, return a calculated estimate
+    return Math.max(1, Math.min(20, this.apiMetrics.filter(m => 
+      Date.now() - m.timestamp < 60000 // Active in last minute
+    ).length));
+  }
+
+  private getCacheHitRate(): number {
+    if (this.cacheStats.total === 0) return 0;
+    return Math.round((this.cacheStats.hits / this.cacheStats.total) * 100);
+  }
+
+  private getErrorRate(): number {
+    if (this.requestCount === 0) return 0;
+    return Math.round((this.errorCount / this.requestCount) * 100);
+  }
+
+  private getThroughput(): number {
+    const timeRunning = (Date.now() - this.startTime) / 1000; // seconds
+    return Math.round(this.requestCount / timeRunning * 60); // requests per minute
+  }
+
+  private cleanupOldMetrics(): void {
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    this.apiMetrics = this.apiMetrics.filter(m => m.timestamp > oneHourAgo);
+  }
+
+  public getCurrentMetrics(): PerformanceMetrics | null {
+    return this.metrics[this.metrics.length - 1] || null;
+  }
+
+  public getMetricsHistory(minutes: number = 30): PerformanceMetrics[] {
+    const cutoff = Date.now() - (minutes * 60 * 1000);
+    return this.metrics.filter(m => m.timestamp > cutoff);
+  }
+
+  public getAPIMetrics(minutes: number = 30): APIPerformanceData[] {
+    const cutoff = Date.now() - (minutes * 60 * 1000);
+    return this.apiMetrics.filter(m => m.timestamp > cutoff);
+  }
+
+  public getSystemHealth(): {
+    status: 'healthy' | 'degraded' | 'critical';
+    details: any;
+    score: number;
+  } {
+    const current = this.getCurrentMetrics();
+    if (!current) {
       return {
-        used: Math.round(memory.usedJSHeapSize / 1048576), // MB
-        total: Math.round(memory.totalJSHeapSize / 1048576), // MB
-        limit: Math.round(memory.jsHeapSizeLimit / 1048576), // MB
+        status: 'critical',
+        details: { error: 'No metrics available' },
+        score: 0
       };
     }
-    return null;
-  }
 
-  // Bundle size analysis
-  analyzeBundleSize() {
-    const scripts = Array.from(document.querySelectorAll('script[src]')) as HTMLScriptElement[];
-    const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]')) as HTMLLinkElement[];
-    
-    const analysis = {
-      scripts: scripts.length,
-      stylesheets: links.length,
-      totalRequests: scripts.length + links.length,
-    };
-
-    console.log('Bundle Analysis:', analysis);
-    return analysis;
-  }
-
-  // Network performance
-  getNetworkPerformance() {
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-    
-    if (navigation) {
-      return {
-        dnsLookup: navigation.domainLookupEnd - navigation.domainLookupStart,
-        tcpConnect: navigation.connectEnd - navigation.connectStart,
-        tlsNegotiation: navigation.connectEnd - navigation.secureConnectionStart,
-        requestResponse: navigation.responseEnd - navigation.requestStart,
-        domParsing: navigation.domContentLoadedEventEnd - navigation.responseEnd,
-        resourceLoad: navigation.loadEventEnd - navigation.domContentLoadedEventEnd,
-      };
-    }
-    
-    return null;
-  }
-
-  // Clean up observers
-  cleanup() {
-    this.observers.forEach(observer => observer.disconnect());
-    this.observers = [];
-  }
-
-  // Get all collected metrics
-  getMetrics() {
-    return Object.fromEntries(this.metrics);
-  }
-
-  // Report performance issues
-  reportIssues() {
-    const memory = this.getMemoryUsage();
-    const network = this.getNetworkPerformance();
-    
+    let score = 100;
     const issues: string[] = [];
 
-    if (memory && memory.used > memory.total * 0.8) {
-      issues.push('High memory usage detected');
+    // Check response time (should be < 500ms for healthy)
+    if (current.responseTime > 1000) {
+      score -= 30;
+      issues.push(`High response time: ${current.responseTime}ms`);
+    } else if (current.responseTime > 500) {
+      score -= 15;
+      issues.push(`Moderate response time: ${current.responseTime}ms`);
     }
 
-    if (network) {
-      if (network.dnsLookup > 100) issues.push('Slow DNS lookup');
-      if (network.requestResponse > 1000) issues.push('Slow server response');
-      if (network.domParsing > 2000) issues.push('Slow DOM parsing');
+    // Check error rate (should be < 5% for healthy)
+    if (current.errorRate > 10) {
+      score -= 25;
+      issues.push(`High error rate: ${current.errorRate}%`);
+    } else if (current.errorRate > 5) {
+      score -= 10;
+      issues.push(`Moderate error rate: ${current.errorRate}%`);
     }
 
-    this.metrics.forEach((duration, name) => {
-      if (duration > 100) {
-        issues.push(`Slow function: ${name} (${duration}ms)`);
+    // Check memory usage (should be < 80% for healthy)
+    const memoryPercent = (current.memoryUsage.heapUsed / current.memoryUsage.heapTotal) * 100;
+    if (memoryPercent > 90) {
+      score -= 20;
+      issues.push(`High memory usage: ${memoryPercent.toFixed(1)}%`);
+    } else if (memoryPercent > 80) {
+      score -= 10;
+      issues.push(`Moderate memory usage: ${memoryPercent.toFixed(1)}%`);
+    }
+
+    // Check cache hit rate (should be > 70% for healthy)
+    if (current.cacheHitRate < 50) {
+      score -= 15;
+      issues.push(`Low cache hit rate: ${current.cacheHitRate}%`);
+    } else if (current.cacheHitRate < 70) {
+      score -= 5;
+      issues.push(`Moderate cache hit rate: ${current.cacheHitRate}%`);
+    }
+
+    const status = score >= 80 ? 'healthy' : score >= 60 ? 'degraded' : 'critical';
+
+    return {
+      status,
+      score,
+      details: {
+        responseTime: `${current.responseTime}ms`,
+        errorRate: `${current.errorRate}%`,
+        memoryUsage: `${memoryPercent.toFixed(1)}%`,
+        cacheHitRate: `${current.cacheHitRate}%`,
+        throughput: `${current.throughput} req/min`,
+        issues: issues.length > 0 ? issues : ['All systems operating normally'],
+        lastUpdated: new Date(current.timestamp).toISOString()
       }
-    });
+    };
+  }
 
-    return issues;
+  public resetStats(): void {
+    this.cacheStats = { hits: 0, misses: 0, total: 0 };
+    this.errorCount = 0;
+    this.requestCount = 0;
+    this.startTime = Date.now();
+    this.metrics = [];
+    this.apiMetrics = [];
   }
 }
 
-// Global performance monitor instance
-let performanceMonitor: PerformanceMonitor | null = null;
-
-export function getPerformanceMonitor(): PerformanceMonitor {
-  if (!performanceMonitor && typeof window !== 'undefined') {
-    performanceMonitor = new PerformanceMonitor();
-  }
-  return performanceMonitor!;
-}
-
-// React hook for performance monitoring
-export function usePerformanceMonitor() {
-  const monitor = getPerformanceMonitor();
-  
-  return {
-    measureFunction: monitor?.measureFunction.bind(monitor),
-    measureAsyncFunction: monitor?.measureAsyncFunction.bind(monitor),
-    getWebVitals: monitor?.getWebVitals.bind(monitor),
-    getMemoryUsage: monitor?.getMemoryUsage.bind(monitor),
-    getMetrics: monitor?.getMetrics.bind(monitor),
-    reportIssues: monitor?.reportIssues.bind(monitor),
+// Middleware for automatic API performance tracking
+export function withPerformanceTracking<T extends any[], R>(
+  fn: (...args: T) => Promise<R>,
+  endpoint: string,
+  method: string = 'POST'
+) {
+  return async (...args: T): Promise<R> => {
+    const start = performance.now();
+    const monitor = EnhancedPerformanceMonitor.getInstance();
+    
+    try {
+      const result = await fn(...args);
+      const responseTime = Math.round(performance.now() - start);
+      
+      monitor.recordAPICall({
+        endpoint,
+        method,
+        responseTime,
+        statusCode: 200,
+        timestamp: Date.now()
+      });
+      
+      return result;
+    } catch (error) {
+      const responseTime = Math.round(performance.now() - start);
+      
+      monitor.recordAPICall({
+        endpoint,
+        method,
+        responseTime,
+        statusCode: 500,
+        timestamp: Date.now()
+      });
+      
+      throw error;
+    }
   };
 }
+
+export const performanceMonitor = EnhancedPerformanceMonitor.getInstance();

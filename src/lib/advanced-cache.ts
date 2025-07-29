@@ -1,320 +1,234 @@
-'use client';
+import { performanceMonitor } from './performance-monitor';
 
-// Advanced caching utilities for better performance
-
-interface CacheItem<T> {
-  data: T;
-  timestamp: number;
-  ttl: number;
-  key: string;
+export interface CacheOptions {
+  ttl?: number; // Time to live in milliseconds
+  maxSize?: number; // Maximum number of entries
+  compress?: boolean; // Whether to compress stored data
 }
 
-class AdvancedCache {
-  private cache = new Map<string, CacheItem<any>>();
-  private cleanupInterval?: NodeJS.Timeout;
+export interface CacheEntry<T> {
+  value: T;
+  timestamp: number;
+  ttl: number;
+  hits: number;
+  compressed?: boolean;
+}
 
-  constructor(cleanupIntervalMs = 60000) { // Clean up every minute
-    if (typeof window !== 'undefined') {
-      this.cleanupInterval = setInterval(() => {
-        this.cleanup();
-      }, cleanupIntervalMs);
+export class AdvancedCache<T = any> {
+  private cache = new Map<string, CacheEntry<T>>();
+  private accessOrder: string[] = []; // For LRU eviction
+  private maxSize: number;
+  private defaultTTL: number;
+  private stats = {
+    hits: 0,
+    misses: 0,
+    sets: 0,
+    deletes: 0,
+    evictions: 0
+  };
+
+  constructor(options: CacheOptions = {}) {
+    this.maxSize = options.maxSize || 1000;
+    this.defaultTTL = options.ttl || 5 * 60 * 1000; // 5 minutes default
+    
+    // Clean up expired entries every 2 minutes
+    setInterval(() => {
+      this.cleanup();
+    }, 2 * 60 * 1000);
+  }
+
+  public set(key: string, value: T, ttl?: number): void {
+    const now = Date.now();
+    const entryTTL = ttl || this.defaultTTL;
+    
+    // Remove existing entry if present
+    if (this.cache.has(key)) {
+      this.accessOrder = this.accessOrder.filter(k => k !== key);
+    }
+
+    // Add new entry
+    this.cache.set(key, {
+      value,
+      timestamp: now,
+      ttl: entryTTL,
+      hits: 0
+    });
+
+    this.accessOrder.push(key);
+    this.stats.sets++;
+
+    // Evict oldest entries if cache is full
+    while (this.cache.size > this.maxSize) {
+      this.evictOldest();
     }
   }
 
-  // Set item with TTL (time to live in milliseconds)
-  set<T>(key: string, data: T, ttl = 300000): void { // Default 5 minutes
-    const item: CacheItem<T> = {
-      data,
-      timestamp: Date.now(),
-      ttl,
-      key,
-    };
-
-    this.cache.set(key, item);
-  }
-
-  // Get item from cache
-  get<T>(key: string): T | null {
-    const item = this.cache.get(key);
+  public get(key: string): T | null {
+    const entry = this.cache.get(key);
     
-    if (!item) {
+    if (!entry) {
+      this.stats.misses++;
+      performanceMonitor.recordCacheMiss();
       return null;
     }
 
-    // Check if item has expired
-    if (Date.now() - item.timestamp > item.ttl) {
-      this.cache.delete(key);
+    // Check if entry has expired
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.delete(key);
+      this.stats.misses++;
+      performanceMonitor.recordCacheMiss();
       return null;
     }
 
-    return item.data as T;
+    // Update access order and hit count
+    entry.hits++;
+    this.accessOrder = this.accessOrder.filter(k => k !== key);
+    this.accessOrder.push(key);
+    
+    this.stats.hits++;
+    performanceMonitor.recordCacheHit();
+    
+    return entry.value;
   }
 
-  // Get or set pattern - if item doesn't exist or is expired, execute fn and cache result
-  async getOrSet<T>(
-    key: string, 
-    fn: () => Promise<T> | T, 
-    ttl = 300000
-  ): Promise<T> {
-    const cached = this.get<T>(key);
+  public has(key: string): boolean {
+    const entry = this.cache.get(key);
     
-    if (cached !== null) {
-      return cached;
-    }
-
-    const data = await fn();
-    this.set(key, data, ttl);
-    return data;
-  }
-
-  // Check if key exists and is not expired
-  has(key: string): boolean {
-    const item = this.cache.get(key);
-    
-    if (!item) {
+    if (!entry) {
       return false;
     }
 
-    if (Date.now() - item.timestamp > item.ttl) {
-      this.cache.delete(key);
+    // Check if entry has expired
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.delete(key);
       return false;
     }
 
     return true;
   }
 
-  // Delete specific key
-  delete(key: string): boolean {
-    return this.cache.delete(key);
+  public delete(key: string): boolean {
+    const deleted = this.cache.delete(key);
+    
+    if (deleted) {
+      this.accessOrder = this.accessOrder.filter(k => k !== key);
+      this.stats.deletes++;
+    }
+    
+    return deleted;
   }
 
-  // Clear all cache
-  clear(): void {
+  public clear(): void {
     this.cache.clear();
-  }
-
-  // Clear cache by pattern
-  clearPattern(pattern: string): number {
-    let cleared = 0;
-    const regex = new RegExp(pattern);
-    
-    for (const key of this.cache.keys()) {
-      if (regex.test(key)) {
-        this.cache.delete(key);
-        cleared++;
-      }
-    }
-    
-    return cleared;
-  }
-
-  // Get cache stats
-  getStats() {
-    const now = Date.now();
-    let expired = 0;
-    let active = 0;
-
-    for (const item of this.cache.values()) {
-      if (now - item.timestamp > item.ttl) {
-        expired++;
-      } else {
-        active++;
-      }
-    }
-
-    return {
-      total: this.cache.size,
-      active,
-      expired,
-      hitRate: this.hitCount / (this.hitCount + this.missCount) || 0,
-      hits: this.hitCount,
-      misses: this.missCount,
+    this.accessOrder = [];
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0,
+      evictions: 0
     };
   }
 
-  private hitCount = 0;
-  private missCount = 0;
-
-  // Override get method to track hits/misses
-  private trackingGet<T>(key: string): T | null {
-    const result = this.get<T>(key);
+  private evictOldest(): void {
+    if (this.accessOrder.length === 0) return;
     
-    if (result !== null) {
-      this.hitCount++;
-    } else {
-      this.missCount++;
-    }
-
-    return result;
+    const oldestKey = this.accessOrder[0];
+    this.cache.delete(oldestKey);
+    this.accessOrder.shift();
+    this.stats.evictions++;
   }
 
-  // Clean up expired items
   private cleanup(): void {
     const now = Date.now();
     const keysToDelete: string[] = [];
 
-    for (const [key, item] of this.cache.entries()) {
-      if (now - item.timestamp > item.ttl) {
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
         keysToDelete.push(key);
       }
     }
 
-    keysToDelete.forEach(key => this.cache.delete(key));
+    keysToDelete.forEach(key => this.delete(key));
   }
 
-  // Destroy cache and cleanup
-  destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-    this.cache.clear();
+  public getStats() {
+    return {
+      ...this.stats,
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      hitRate: this.stats.hits + this.stats.misses > 0 
+        ? Math.round((this.stats.hits / (this.stats.hits + this.stats.misses)) * 100)
+        : 0,
+      entries: Array.from(this.cache.entries()).map(([key, entry]) => ({
+        key,
+        hits: entry.hits,
+        age: Date.now() - entry.timestamp,
+        ttl: entry.ttl
+      })).sort((a, b) => b.hits - a.hits).slice(0, 10) // Top 10 most accessed
+    };
   }
-}
 
-// Specialized caches for different data types
-class APICache extends AdvancedCache {
-  constructor() {
-    super(30000); // Clean up every 30 seconds for API data
-  }
-
-  // Cache API response with automatic key generation
-  async cacheAPICall<T>(
-    url: string,
-    options: RequestInit = {},
-    ttl = 300000 // 5 minutes default for API calls
-  ): Promise<T> {
-    const key = `api:${url}:${JSON.stringify(options)}`;
+  // Utility methods for common caching patterns
+  public async getOrSet<R>(
+    key: string, 
+    factory: () => Promise<R>, 
+    ttl?: number
+  ): Promise<R> {
+    const cached = this.get(key) as R;
     
-    return this.getOrSet(key, async () => {
-      const response = await fetch(url, options);
-      
-      if (!response.ok) {
-        throw new Error(`API call failed: ${response.status}`);
-      }
-      
-      return response.json();
-    }, ttl);
-  }
-}
-
-class ComponentCache extends AdvancedCache {
-  constructor() {
-    super(120000); // Clean up every 2 minutes for component data
-  }
-
-  // Cache component props or computed values
-  cacheComponentData<T>(
-    componentName: string,
-    props: Record<string, any>,
-    computeFn: () => T,
-    ttl = 60000 // 1 minute default for component data
-  ): T {
-    const key = `component:${componentName}:${JSON.stringify(props)}`;
-    
-    const cached = this.get<T>(key);
     if (cached !== null) {
       return cached;
     }
 
-    const result = computeFn();
-    this.set(key, result, ttl);
-    return result;
+    const value = await factory();
+    this.set(key, value as T, ttl);
+    return value;
+  }
+
+  public memoize<Args extends any[], Return>(
+    fn: (...args: Args) => Promise<Return>,
+    keyGenerator?: (...args: Args) => string,
+    ttl?: number
+  ) {
+    return async (...args: Args): Promise<Return> => {
+      const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+      return this.getOrSet(key, () => fn(...args), ttl) as Promise<Return>;
+    };
   }
 }
 
-class AssetCache extends AdvancedCache {
-  constructor() {
-    super(300000); // Clean up every 5 minutes for assets
-  }
+// Global cache instances for different types of data
+export const apiCache = new AdvancedCache({
+  ttl: 5 * 60 * 1000, // 5 minutes
+  maxSize: 500
+});
 
-  // Cache images and other assets
-  async cacheAsset(url: string, ttl = 3600000): Promise<string> { // 1 hour default
-    const key = `asset:${url}`;
+export const databaseCache = new AdvancedCache({
+  ttl: 15 * 60 * 1000, // 15 minutes
+  maxSize: 200
+});
+
+export const userCache = new AdvancedCache({
+  ttl: 30 * 60 * 1000, // 30 minutes
+  maxSize: 1000
+});
+
+export const staticCache = new AdvancedCache({
+  ttl: 60 * 60 * 1000, // 1 hour
+  maxSize: 100
+});
+
+// Cache warming functions
+export async function warmCache(): Promise<void> {
+  console.log('[CACHE] Starting cache warming...');
+  
+  try {
+    // Warm up common API responses
+    // This would be customized based on your most common API calls
     
-    return this.getOrSet(key, async () => {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
-    }, ttl);
+    console.log('[CACHE] Cache warming completed');
+  } catch (error) {
+    console.error('[CACHE] Cache warming failed:', error);
   }
-}
-
-// Global cache instances
-export const apiCache = new APICache();
-export const componentCache = new ComponentCache();
-export const assetCache = new AssetCache();
-export const globalCache = new AdvancedCache();
-
-// Utility functions for easier cache usage
-export function withCache<T>(
-  key: string,
-  fn: () => T,
-  ttl?: number
-): T {
-  const cached = globalCache.get<T>(key);
-  
-  if (cached !== null) {
-    return cached;
-  }
-
-  const result = fn();
-  globalCache.set(key, result, ttl);
-  return result;
-}
-
-export async function withAsyncCache<T>(
-  key: string,
-  fn: () => Promise<T>,
-  ttl?: number
-): Promise<T> {
-  return globalCache.getOrSet(key, fn, ttl);
-}
-
-// React hooks for cache usage
-export function useCachedData<T>(
-  key: string,
-  fn: () => T,
-  ttl?: number,
-  deps: any[] = []
-): T {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoKey = `${key}:${JSON.stringify(deps)}`;
-  
-  return withCache(memoKey, fn, ttl);
-}
-
-export function useCachedAsyncData<T>(
-  key: string,
-  fn: () => Promise<T>,
-  ttl?: number,
-  deps: any[] = []
-): Promise<T> {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoKey = `${key}:${JSON.stringify(deps)}`;
-  
-  return withAsyncCache(memoKey, fn, ttl);
-}
-
-// Cache warming utility
-export function warmCache(entries: Array<{ key: string; fn: () => any; ttl?: number }>) {
-  entries.forEach(({ key, fn, ttl }) => {
-    if (!globalCache.has(key)) {
-      try {
-        const result = fn();
-        globalCache.set(key, result, ttl);
-      } catch (error) {
-        console.warn(`Failed to warm cache for key: ${key}`, error);
-      }
-    }
-  });
-}
-
-// Cleanup all caches on page unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    apiCache.destroy();
-    componentCache.destroy();
-    assetCache.destroy();
-    globalCache.destroy();
-  });
 }

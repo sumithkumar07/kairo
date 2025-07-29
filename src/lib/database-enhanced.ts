@@ -1,386 +1,266 @@
-import { Pool, PoolClient } from 'pg';
-import { db } from './database-server';
+import { Database, db } from './database';
+import { databaseCache, AdvancedCache } from './advanced-cache';
+import { performanceMonitor } from './performance-monitor';
 
-// Database connection pool wrapper with advanced features
-export class DatabaseConnectionManager {
-  private static instance: DatabaseConnectionManager;
-  private connectionAttempts = 0;
-  private maxRetries = 5;
-  private retryDelay = 1000; // Start with 1 second
-  private isHealthy = true;
-  private lastHealthCheck = 0;
-  private healthCheckInterval = 30000; // 30 seconds
+export interface QueryOptions {
+  cache?: boolean;
+  cacheTTL?: number;
+  timeout?: number;
+  retries?: number;
+}
 
-  private constructor() {
-    this.startHealthCheckTimer();
+export class EnhancedDatabase extends Database {
+  private queryCache: AdvancedCache<any>;
+  private connectionPool: any;
+  private queryStats = new Map<string, {
+    count: number;
+    totalTime: number;
+    avgTime: number;
+    errors: number;
+  }>();
+
+  constructor() {
+    super();
+    this.queryCache = new AdvancedCache({
+      ttl: 10 * 60 * 1000, // 10 minutes default
+      maxSize: 500
+    });
   }
 
-  public static getInstance(): DatabaseConnectionManager {
-    if (!DatabaseConnectionManager.instance) {
-      DatabaseConnectionManager.instance = new DatabaseConnectionManager();
-    }
-    return DatabaseConnectionManager.instance;
-  }
-
-  // Execute query with automatic retry and circuit breaker
-  public async executeQuery<T = any>(
-    query: string,
-    params?: any[],
-    options: {
-      maxRetries?: number;
-      timeout?: number;
-      priority?: 'high' | 'normal' | 'low';
-    } = {}
-  ): Promise<T[]> {
-    const { maxRetries = this.maxRetries, timeout = 30000, priority = 'normal' } = options;
-
-    // Circuit breaker - if database is unhealthy, fail fast for low priority queries
-    if (!this.isHealthy && priority === 'low') {
-      throw new Error('Database is currently unhealthy, skipping low priority query');
-    }
-
-    let lastError: Error | null = null;
+  public async query(
+    text: string, 
+    params?: any[], 
+    options: QueryOptions = {}
+  ): Promise<any> {
+    const startTime = performance.now();
+    const queryHash = this.hashQuery(text, params);
     
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const result = await Promise.race([
-          db.query(query, params),
-          new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Query timeout')), timeout)
-          )
-        ]);
-
-        // Reset connection attempts on success
-        this.connectionAttempts = 0;
-        this.isHealthy = true;
-        
-        return result;
-      } catch (error) {
-        lastError = error as Error;
-        this.connectionAttempts++;
-
-        console.warn(`[DATABASE] Query attempt ${attempt + 1} failed:`, {
-          error: lastError.message,
-          query: query.substring(0, 100),
-          attempt: attempt + 1,
-          maxRetries
-        });
-
-        // Mark as unhealthy if too many failures
-        if (this.connectionAttempts >= 3) {
-          this.isHealthy = false;
-        }
-
-        // Don't retry on certain errors
-        if (this.isNonRetryableError(lastError)) {
-          break;
-        }
-
-        // Wait before retrying with exponential backoff
-        if (attempt < maxRetries - 1) {
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
+    // Check cache first if enabled
+    if (options.cache !== false) {
+      const cached = this.queryCache.get(queryHash);
+      if (cached) {
+        return cached;
       }
     }
 
-    throw lastError || new Error('Database query failed after all retries');
-  }
-
-  // Execute transaction with automatic retry
-  public async executeTransaction<T>(
-    callback: (client: PoolClient) => Promise<T>,
-    options: { maxRetries?: number; timeout?: number } = {}
-  ): Promise<T> {
-    const { maxRetries = 3, timeout = 60000 } = options;
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const result = await Promise.race([
-          db.transaction(callback),
-          new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('Transaction timeout')), timeout)
-          )
-        ]);
-
-        this.connectionAttempts = 0;
-        this.isHealthy = true;
-        return result;
-      } catch (error) {
-        lastError = error as Error;
-        console.warn(`[DATABASE] Transaction attempt ${attempt + 1} failed:`, lastError.message);
-
-        // Don't retry on certain errors
-        if (this.isNonRetryableError(lastError)) {
-          break;
-        }
-
-        if (attempt < maxRetries - 1) {
-          const delay = this.retryDelay * Math.pow(2, attempt);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-
-    throw lastError || new Error('Database transaction failed after all retries');
-  }
-
-  // Check if error should not be retried
-  private isNonRetryableError(error: Error): boolean {
-    const nonRetryablePatterns = [
-      /unique constraint/i,
-      /foreign key constraint/i,
-      /check constraint/i,
-      /not null violation/i,
-      /permission denied/i,
-      /relation.*does not exist/i,
-      /column.*does not exist/i,
-      /function.*does not exist/i,
-      /syntax error/i
-    ];
-
-    return nonRetryablePatterns.some(pattern => pattern.test(error.message));
-  }
-
-  // Periodic health check
-  private startHealthCheckTimer(): void {
-    setInterval(async () => {
-      try {
-        const now = Date.now();
-        if (now - this.lastHealthCheck < this.healthCheckInterval) {
-          return;
-        }
-
-        await this.executeQuery('SELECT 1', [], { maxRetries: 1, priority: 'high' });
-        this.isHealthy = true;
-        this.lastHealthCheck = now;
-      } catch (error) {
-        this.isHealthy = false;
-        console.error('[DATABASE] Health check failed:', error);
-      }
-    }, this.healthCheckInterval);
-  }
-
-  // Get current health status
-  public getHealthStatus(): {
-    healthy: boolean;
-    connectionAttempts: number;
-    lastHealthCheck: number;
-    poolStats: any;
-  } {
-    return {
-      healthy: this.isHealthy,
-      connectionAttempts: this.connectionAttempts,
-      lastHealthCheck: this.lastHealthCheck,
-      poolStats: db.getPoolStats()
-    };
-  }
-
-  // Force health check
-  public async checkHealth(): Promise<boolean> {
     try {
-      await this.executeQuery('SELECT 1', [], { maxRetries: 1, priority: 'high' });
-      this.isHealthy = true;
-      this.lastHealthCheck = Date.now();
-      return true;
+      const result = await super.query(text, params);
+      const duration = performance.now() - startTime;
+      
+      // Update query statistics
+      this.updateQueryStats(text, duration, false);
+      
+      // Cache the result if it's a SELECT query and caching is enabled
+      if (options.cache !== false && text.trim().toLowerCase().startsWith('select')) {
+        const cacheTTL = options.cacheTTL || 10 * 60 * 1000; // 10 minutes default
+        this.queryCache.set(queryHash, result, cacheTTL);
+      }
+
+      return result;
+      
     } catch (error) {
-      this.isHealthy = false;
-      return false;
+      const duration = performance.now() - startTime;
+      this.updateQueryStats(text, duration, true);
+      throw error;
     }
   }
-}
 
-// Database query builder for common operations
-export class QueryBuilder {
-  private query = '';
-  private params: any[] = [];
-  private paramCount = 0;
-
-  static select(columns: string[] | string = '*'): QueryBuilder {
-    const qb = new QueryBuilder();
-    const cols = Array.isArray(columns) ? columns.join(', ') : columns;
-    qb.query = `SELECT ${cols}`;
-    return qb;
+  private hashQuery(text: string, params?: any[]): string {
+    return `${text}:${params ? JSON.stringify(params) : ''}`;
   }
 
-  static insert(table: string): QueryBuilder {
-    const qb = new QueryBuilder();
-    qb.query = `INSERT INTO ${table}`;
-    return qb;
-  }
+  private updateQueryStats(query: string, duration: number, isError: boolean): void {
+    const key = query.split(' ').slice(0, 3).join(' '); // First 3 words for grouping
+    const stats = this.queryStats.get(key) || {
+      count: 0,
+      totalTime: 0,
+      avgTime: 0,
+      errors: 0
+    };
 
-  static update(table: string): QueryBuilder {
-    const qb = new QueryBuilder();
-    qb.query = `UPDATE ${table}`;
-    return qb;
-  }
-
-  static delete(table: string): QueryBuilder {
-    const qb = new QueryBuilder();
-    qb.query = `DELETE FROM ${table}`;
-    return qb;
-  }
-
-  from(table: string): QueryBuilder {
-    this.query += ` FROM ${table}`;
-    return this;
-  }
-
-  where(condition: string, value?: any): QueryBuilder {
-    const operator = this.query.includes('WHERE') ? 'AND' : 'WHERE';
+    stats.count++;
+    stats.totalTime += duration;
+    stats.avgTime = stats.totalTime / stats.count;
     
-    if (value !== undefined) {
-      this.paramCount++;
-      this.query += ` ${operator} ${condition.replace('?', `$${this.paramCount}`)}`;
-      this.params.push(value);
-    } else {
-      this.query += ` ${operator} ${condition}`;
+    if (isError) {
+      stats.errors++;
     }
-    
-    return this;
+
+    this.queryStats.set(key, stats);
   }
 
-  orWhere(condition: string, value?: any): QueryBuilder {
-    if (value !== undefined) {
-      this.paramCount++;
-      this.query += ` OR ${condition.replace('?', `$${this.paramCount}`)}`;
-      this.params.push(value);
-    } else {
-      this.query += ` OR ${condition}`;
+  public async queryWithCache<T>(
+    text: string,
+    params?: any[],
+    cacheTTL: number = 10 * 60 * 1000
+  ): Promise<T[]> {
+    return this.query(text, params, { cache: true, cacheTTL });
+  }
+
+  public async queryWithoutCache<T>(
+    text: string,
+    params?: any[]
+  ): Promise<T[]> {
+    return this.query(text, params, { cache: false });
+  }
+
+  // Optimized user queries with intelligent caching
+  public async getUserWithCache(userId: string): Promise<any> {
+    return this.queryCache.getOrSet(
+      `user:${userId}`,
+      async () => {
+        const users = await this.query(
+          'SELECT id, email, created_at FROM users WHERE id = $1',
+          [userId]
+        );
+        return users[0] || null;
+      },
+      30 * 60 * 1000 // 30 minutes
+    );
+  }
+
+  public async getUserProfileWithCache(userId: string): Promise<any> {
+    return this.queryCache.getOrSet(
+      `profile:${userId}`,
+      async () => {
+        const profiles = await this.query(`
+          SELECT u.id, u.email, u.created_at, 
+                 up.subscription_tier, up.trial_end_date, 
+                 up.monthly_workflow_runs, up.monthly_ai_generations
+          FROM users u
+          LEFT JOIN user_profiles up ON u.id = up.id
+          WHERE u.id = $1
+        `, [userId]);
+        return profiles[0] || null;
+      },
+      15 * 60 * 1000 // 15 minutes
+    );
+  }
+
+  public async getWorkflowsWithCache(userId: string): Promise<any[]> {
+    return this.queryCache.getOrSet(
+      `workflows:${userId}`,
+      async () => {
+        return this.query(
+          'SELECT name, workflow_data, created_at, updated_at FROM workflows WHERE user_id = $1 ORDER BY updated_at DESC',
+          [userId]
+        );
+      },
+      5 * 60 * 1000 // 5 minutes
+    );
+  }
+
+  // Batch operations for better performance
+  public async batchInsert(
+    table: string,
+    columns: string[],
+    values: any[][],
+    options: { batchSize?: number } = {}
+  ): Promise<void> {
+    const batchSize = options.batchSize || 100;
+    const columnStr = columns.join(', ');
+    
+    for (let i = 0; i < values.length; i += batchSize) {
+      const batch = values.slice(i, i + batchSize);
+      const valueStrings: string[] = [];
+      const allParams: any[] = [];
+      
+      batch.forEach((row, rowIndex) => {
+        const rowParams = row.map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`);
+        valueStrings.push(`(${rowParams.join(', ')})`);
+        allParams.push(...row);
+      });
+      
+      const query = `INSERT INTO ${table} (${columnStr}) VALUES ${valueStrings.join(', ')}`;
+      await this.query(query, allParams, { cache: false });
     }
+  }
+
+  // Performance analysis methods
+  public getQueryStats(): Map<string, any> {
+    return this.queryStats;
+  }
+
+  public getCacheStats() {
+    return this.queryCache.getStats();
+  }
+
+  public getTopSlowQueries(limit: number = 10) {
+    return Array.from(this.queryStats.entries())
+      .sort(([, a], [, b]) => b.avgTime - a.avgTime)
+      .slice(0, limit)
+      .map(([query, stats]) => ({
+        query,
+        avgTime: Math.round(stats.avgTime),
+        count: stats.count,
+        errors: stats.errors,
+        errorRate: Math.round((stats.errors / stats.count) * 100)
+      }));
+  }
+
+  public clearQueryCache(): void {
+    this.queryCache.clear();
+  }
+
+  public invalidateUserCache(userId: string): void {
+    this.queryCache.delete(`user:${userId}`);
+    this.queryCache.delete(`profile:${userId}`);
+    this.queryCache.delete(`workflows:${userId}`);
+  }
+
+  // Enhanced health check with detailed performance metrics
+  public async enhancedHealthCheck(): Promise<{
+    healthy: boolean;
+    performance: any;
+    cache: any;
+    queries: any;
+  }> {
+    const baseHealth = await this.healthCheck();
+    const cacheStats = this.getCacheStats();
+    const topSlowQueries = this.getTopSlowQueries(5);
     
-    return this;
-  }
-
-  join(table: string, condition: string): QueryBuilder {
-    this.query += ` JOIN ${table} ON ${condition}`;
-    return this;
-  }
-
-  leftJoin(table: string, condition: string): QueryBuilder {
-    this.query += ` LEFT JOIN ${table} ON ${condition}`;
-    return this;
-  }
-
-  orderBy(column: string, direction: 'ASC' | 'DESC' = 'ASC'): QueryBuilder {
-    this.query += ` ORDER BY ${column} ${direction}`;
-    return this;
-  }
-
-  limit(count: number): QueryBuilder {
-    this.paramCount++;
-    this.query += ` LIMIT $${this.paramCount}`;
-    this.params.push(count);
-    return this;
-  }
-
-  offset(count: number): QueryBuilder {
-    this.paramCount++;
-    this.query += ` OFFSET $${this.paramCount}`;
-    this.params.push(count);
-    return this;
-  }
-
-  values(data: Record<string, any>): QueryBuilder {
-    const columns = Object.keys(data);
-    const placeholders = columns.map(() => {
-      this.paramCount++;
-      return `$${this.paramCount}`;
-    });
-
-    this.query += ` (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
-    this.params.push(...Object.values(data));
-    return this;
-  }
-
-  set(data: Record<string, any>): QueryBuilder {
-    const updates = Object.keys(data).map(key => {
-      this.paramCount++;
-      return `${key} = $${this.paramCount}`;
-    });
-
-    this.query += ` SET ${updates.join(', ')}`;
-    this.params.push(...Object.values(data));
-    return this;
-  }
-
-  returning(columns: string[] | string = '*'): QueryBuilder {
-    const cols = Array.isArray(columns) ? columns.join(', ') : columns;
-    this.query += ` RETURNING ${cols}`;
-    return this;
-  }
-
-  build(): { query: string; params: any[] } {
     return {
-      query: this.query,
-      params: this.params
+      healthy: baseHealth.healthy,
+      performance: {
+        ...baseHealth.details,
+        queryCount: Array.from(this.queryStats.values()).reduce((sum, stat) => sum + stat.count, 0),
+        avgQueryTime: this.getAverageQueryTime(),
+        errorRate: this.getQueryErrorRate()
+      },
+      cache: {
+        hitRate: cacheStats.hitRate,
+        size: cacheStats.size,
+        maxSize: cacheStats.maxSize,
+        hits: cacheStats.hits,
+        misses: cacheStats.misses
+      },
+      queries: {
+        slowQueries: topSlowQueries,
+        totalQueries: this.queryStats.size
+      }
     };
   }
 
-  async execute<T = any>(): Promise<T[]> {
-    const dbManager = DatabaseConnectionManager.getInstance();
-    return await dbManager.executeQuery<T>(this.query, this.params);
+  private getAverageQueryTime(): number {
+    const stats = Array.from(this.queryStats.values());
+    if (stats.length === 0) return 0;
+    
+    const totalTime = stats.reduce((sum, stat) => sum + stat.totalTime, 0);
+    const totalCount = stats.reduce((sum, stat) => sum + stat.count, 0);
+    
+    return totalCount > 0 ? Math.round(totalTime / totalCount) : 0;
+  }
+
+  private getQueryErrorRate(): number {
+    const stats = Array.from(this.queryStats.values());
+    if (stats.length === 0) return 0;
+    
+    const totalErrors = stats.reduce((sum, stat) => sum + stat.errors, 0);
+    const totalCount = stats.reduce((sum, stat) => sum + stat.count, 0);
+    
+    return totalCount > 0 ? Math.round((totalErrors / totalCount) * 100) : 0;
   }
 }
 
-// Database migration utilities
-export class DatabaseMigrator {
-  private static migrations: Array<{
-    version: string;
-    description: string;
-    up: (db: DatabaseConnectionManager) => Promise<void>;
-    down: (db: DatabaseConnectionManager) => Promise<void>;
-  }> = [];
-
-  static addMigration(migration: {
-    version: string;
-    description: string;
-    up: (db: DatabaseConnectionManager) => Promise<void>;
-    down: (db: DatabaseConnectionManager) => Promise<void>;
-  }): void {
-    this.migrations.push(migration);
-    this.migrations.sort((a, b) => a.version.localeCompare(b.version));
-  }
-
-  static async runMigrations(): Promise<void> {
-    const dbManager = DatabaseConnectionManager.getInstance();
-
-    // Create migrations table if it doesn't exist
-    await dbManager.executeQuery(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        version VARCHAR(255) PRIMARY KEY,
-        description TEXT,
-        applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
-    `);
-
-    // Get applied migrations
-    const appliedMigrations = await dbManager.executeQuery<{ version: string }>(
-      'SELECT version FROM schema_migrations ORDER BY version'
-    );
-    const appliedVersions = new Set(appliedMigrations.map(m => m.version));
-
-    // Run pending migrations
-    for (const migration of this.migrations) {
-      if (!appliedVersions.has(migration.version)) {
-        console.log(`[MIGRATION] Running migration ${migration.version}: ${migration.description}`);
-        
-        try {
-          await migration.up(dbManager);
-          await dbManager.executeQuery(
-            'INSERT INTO schema_migrations (version, description) VALUES ($1, $2)',
-            [migration.version, migration.description]
-          );
-          console.log(`[MIGRATION] Migration ${migration.version} completed successfully`);
-        } catch (error) {
-          console.error(`[MIGRATION] Migration ${migration.version} failed:`, error);
-          throw error;
-        }
-      }
-    }
-  }
-}
-
-// Export singleton instance
-export const dbManager = DatabaseConnectionManager.getInstance();
+// Export enhanced database instance
+export const enhancedDb = new EnhancedDatabase();
