@@ -1,4 +1,4 @@
-import { db, hashPassword } from './src/lib/database-server';
+import { db, hashPassword } from './src/lib/database';
 
 async function createDemoAccount() {
   try {
