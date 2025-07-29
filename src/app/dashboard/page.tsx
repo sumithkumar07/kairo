@@ -15,6 +15,12 @@ import { IntegrationMarketplace } from '@/components/integration-marketplace';
 import { TemplateLibrary } from '@/components/template-library';
 import { EnhancedMonitoring } from '@/components/enhanced-monitoring';
 import { EnhancedDashboardWidgets } from '@/components/enhanced-dashboard-widgets';
+import { PerformanceDashboard } from '@/components/performance-dashboard';
+import { RealTimeDashboard } from '@/components/realtime-dashboard';
+import { TestingDashboard } from '@/components/testing-dashboard';
+import { EnhancedLoadingState, SkeletonLoader } from '@/components/enhanced-loading-states';
+import { EnhancedErrorHandler, useErrorHandler } from '@/components/enhanced-error-handling';
+import { MobileOptimizedLayout, ResponsiveGrid, MobileOptimizedCard } from '@/components/mobile-optimized-layout';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveCard } from '@/components/responsive-layout';
 import {
   Activity,
