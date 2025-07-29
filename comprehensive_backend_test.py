@@ -392,8 +392,8 @@ class KairoAPITester:
         
         # Authentication status
         print(f"\n🔑 AUTHENTICATION STATUS:")
-        print(f"  Demo Account Login: {'✅ Success' if self.auth_token else '❌ Failed'}")
-        print(f"  Auth Token: {'✅ Available' if self.auth_token else '❌ Not Available'}")
+        print(f"  Demo Account Login: {'✅ Success' if self.is_authenticated else '❌ Failed'}")
+        print(f"  Session Cookie: {'✅ Available' if self.is_authenticated else '❌ Not Available'}")
         print(f"  User ID: {self.demo_user_id if self.demo_user_id else '❌ Not Available'}")
         
         print("=" * 80)
