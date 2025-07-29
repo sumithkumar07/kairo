@@ -57,6 +57,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { FREE_TIER_FEATURES, GOLD_TIER_FEATURES, DIAMOND_TIER_FEATURES } from '@/types/subscription';
 import type { SubscriptionTier, SubscriptionFeatures } from '@/types/subscription';
 
+// Export types for use in other modules
+export type { AssistantChatInput, AssistantChatOutput } from '@/ai/flows/assistant-chat-flow';
 
 // ================================================================= //
 // ========================= PUBLIC ACTIONS ======================== //
