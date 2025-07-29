@@ -525,40 +525,7 @@ function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="realtime" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Radio className="h-5 w-5" />
-                  Real-Time Dashboard
-                </CardTitle>
-                <CardDescription>Live system monitoring and analytics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Active Users</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">1,247</div>
-                      <p className="text-sm text-muted-foreground">Currently online</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">System Status</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span className="text-lg font-semibold">Healthy</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">All systems operational</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
+            <RealTimeDashboard />
           </TabsContent>
 
           <TabsContent value="testing" className="space-y-6">
