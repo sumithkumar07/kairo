@@ -296,8 +296,8 @@ class KairoAPITester:
     
     def test_god_tier_dashboard(self):
         """Test God-tier dashboard endpoint"""
-        if not self.auth_token:
-            self.log_result('GET /api/god-tier/dashboard', 'SKIP', 0, 'No auth token available')
+        if not self.is_authenticated:
+            self.log_result('GET /api/god-tier/dashboard', 'SKIP', 0, 'Not authenticated')
             return False
         
         success, details, response_time, data = self.make_request('GET', 'god-tier/dashboard')
