@@ -153,8 +153,8 @@ class KairoAPITester:
     
     def test_notifications(self):
         """Test notifications endpoint"""
-        if not self.auth_token:
-            self.log_result('GET /api/notifications', 'SKIP', 0, 'No auth token available')
+        if not self.is_authenticated:
+            self.log_result('GET /api/notifications', 'SKIP', 0, 'Not authenticated')
             return False
         
         success, details, response_time, data = self.make_request('GET', 'notifications')
@@ -163,8 +163,8 @@ class KairoAPITester:
     
     def test_learning_progress(self):
         """Test learning progress endpoint"""
-        if not self.auth_token:
-            self.log_result('GET /api/learning/progress', 'SKIP', 0, 'No auth token available')
+        if not self.is_authenticated:
+            self.log_result('GET /api/learning/progress', 'SKIP', 0, 'Not authenticated')
             return False
         
         success, details, response_time, data = self.make_request('GET', 'learning/progress')
