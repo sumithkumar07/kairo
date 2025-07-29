@@ -452,21 +452,21 @@ function DashboardPage() {
                 <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="text-xs sm:text-sm hidden sm:inline">Analytics</span>
               </TabsTrigger>
-              <TabsTrigger value="ai" className="flex items-center gap-1 sm:gap-2">
-                <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm hidden sm:inline">AI Intelligence</span>
+              <TabsTrigger value="performance" className="flex items-center gap-1 sm:gap-2">
+                <Zap className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Performance</span>
               </TabsTrigger>
-              <TabsTrigger value="monitoring" className="flex items-center gap-1 sm:gap-2">
-                <Monitor className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm hidden sm:inline">Monitoring</span>
+              <TabsTrigger value="realtime" className="flex items-center gap-1 sm:gap-2">
+                <Radio className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Real-time</span>
+              </TabsTrigger>
+              <TabsTrigger value="testing" className="flex items-center gap-1 sm:gap-2">
+                <TestTube className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Testing</span>
               </TabsTrigger>
               <TabsTrigger value="integrations" className="flex items-center gap-1 sm:gap-2">
                 <Puzzle className="h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="text-xs sm:text-sm hidden sm:inline">Integrations</span>
-              </TabsTrigger>
-              <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-2">
-                <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm hidden sm:inline">Templates</span>
               </TabsTrigger>
             </TabsList>
           </div>
