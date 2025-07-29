@@ -481,20 +481,20 @@ function DashboardPage() {
             <AnalyticsTab />
           </TabsContent>
 
-          <TabsContent value="ai" className="space-y-6">
-            <AITab />
+          <TabsContent value="performance" className="space-y-6">
+            <PerformanceDashboard />
           </TabsContent>
 
-          <TabsContent value="monitoring" className="space-y-6">
-            <MonitoringTab />
+          <TabsContent value="realtime" className="space-y-6">
+            <RealTimeDashboard />
+          </TabsContent>
+
+          <TabsContent value="testing" className="space-y-6">
+            <TestingDashboard />
           </TabsContent>
 
           <TabsContent value="integrations" className="space-y-6">
             <IntegrationsTab />
-          </TabsContent>
-
-          <TabsContent value="templates" className="space-y-6">
-            <TemplatesTab />
           </TabsContent>
         </Tabs>
       </div>
