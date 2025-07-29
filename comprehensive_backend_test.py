@@ -111,8 +111,8 @@ class KairoAPITester:
     
     def test_auth_me(self):
         """Test current user endpoint"""
-        if not self.auth_token:
-            self.log_result('GET /api/auth/me', 'SKIP', 0, 'No auth token available')
+        if not self.is_authenticated:
+            self.log_result('GET /api/auth/me', 'SKIP', 0, 'Not authenticated')
             return False
         
         success, details, response_time, data = self.make_request('GET', 'auth/me')
@@ -121,8 +121,8 @@ class KairoAPITester:
     
     def test_user_profile(self):
         """Test user profile endpoint"""
-        if not self.auth_token:
-            self.log_result('GET /api/user/profile', 'SKIP', 0, 'No auth token available')
+        if not self.is_authenticated:
+            self.log_result('GET /api/user/profile', 'SKIP', 0, 'Not authenticated')
             return False
         
         success, details, response_time, data = self.make_request('GET', 'user/profile')
@@ -131,8 +131,8 @@ class KairoAPITester:
     
     def test_user_activity(self):
         """Test user activity endpoint"""
-        if not self.auth_token:
-            self.log_result('GET /api/user/activity', 'SKIP', 0, 'No auth token available')
+        if not self.is_authenticated:
+            self.log_result('GET /api/user/activity', 'SKIP', 0, 'Not authenticated')
             return False
         
         success, details, response_time, data = self.make_request('GET', 'user/activity')
