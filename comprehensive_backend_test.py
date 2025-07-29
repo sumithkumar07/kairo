@@ -42,13 +42,11 @@ class KairoAPITester:
         print(f"[{status}] {endpoint} - {details} ({result['response_time_ms']}ms)")
     
     def make_request(self, method: str, endpoint: str, payload: Dict[Any, Any] = None, headers: Dict[str, str] = None) -> Tuple[bool, str, float, Any]:
-        """Make HTTP request with error handling"""
+        """Make HTTP request with error handling using session for cookies"""
         url = f"{BASE_URL}/api/{endpoint}"
         
         # Default headers
         default_headers = {'Content-Type': 'application/json'}
-        if self.auth_token:
-            default_headers['Authorization'] = f'Bearer {self.auth_token}'
         if headers:
             default_headers.update(headers)
         
@@ -56,13 +54,13 @@ class KairoAPITester:
             start_time = time.time()
             
             if method == 'GET':
-                response = requests.get(url, headers=default_headers, timeout=TIMEOUT)
+                response = self.session.get(url, headers=default_headers, timeout=TIMEOUT)
             elif method == 'POST':
-                response = requests.post(url, json=payload, headers=default_headers, timeout=TIMEOUT)
+                response = self.session.post(url, json=payload, headers=default_headers, timeout=TIMEOUT)
             elif method == 'PUT':
-                response = requests.put(url, json=payload, headers=default_headers, timeout=TIMEOUT)
+                response = self.session.put(url, json=payload, headers=default_headers, timeout=TIMEOUT)
             elif method == 'DELETE':
-                response = requests.delete(url, headers=default_headers, timeout=TIMEOUT)
+                response = self.session.delete(url, headers=default_headers, timeout=TIMEOUT)
             else:
                 return False, f"Unsupported method: {method}", 0, None
             
