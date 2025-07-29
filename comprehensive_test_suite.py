@@ -305,7 +305,8 @@ class ComprehensiveTestSuite:
         try:
             start_time = time.time()
             
-            async with websockets.connect(WS_URL, timeout=10) as websocket:
+            # Use connect with proper timeout handling
+            async with websockets.connect(WS_URL, close_timeout=10, ping_timeout=10) as websocket:
                 # Test connection
                 connection_time = time.time() - start_time
                 
@@ -316,35 +317,38 @@ class ComprehensiveTestSuite:
                 }))
                 
                 # Wait for confirmation
-                response = await asyncio.wait_for(websocket.recv(), timeout=5)
-                data = json.loads(response)
-                
-                if data.get('type') == 'subscription_confirmed':
-                    self.log_result('REAL-TIME', 'WebSocket Connection', 'PASS',
-                                  connection_time, f"Connected and subscribed to channels: {data.get('channels', [])}")
+                try:
+                    response = await asyncio.wait_for(websocket.recv(), timeout=5)
+                    data = json.loads(response)
                     
-                    # Test data request
-                    await websocket.send(json.dumps({
-                        'type': 'request_data',
-                        'dataType': 'performance_metrics'
-                    }))
-                    
-                    # Wait for data response
-                    data_response = await asyncio.wait_for(websocket.recv(), timeout=5)
-                    data_result = json.loads(data_response)
-                    
-                    if data_result.get('type') == 'data_response':
-                        self.log_result('REAL-TIME', 'WebSocket Data Request', 'PASS',
-                                      0, f"Received data for: {data_result.get('dataType')}")
+                    if data.get('type') == 'subscription_confirmed':
+                        self.log_result('REAL-TIME', 'WebSocket Connection', 'PASS',
+                                      connection_time, f"Connected and subscribed to channels: {data.get('channels', [])}")
+                        
+                        # Test data request
+                        await websocket.send(json.dumps({
+                            'type': 'request_data',
+                            'dataType': 'performance_metrics'
+                        }))
+                        
+                        # Wait for data response
+                        data_response = await asyncio.wait_for(websocket.recv(), timeout=5)
+                        data_result = json.loads(data_response)
+                        
+                        if data_result.get('type') == 'data_response':
+                            self.log_result('REAL-TIME', 'WebSocket Data Request', 'PASS',
+                                          0, f"Received data for: {data_result.get('dataType')}")
+                        else:
+                            self.log_result('REAL-TIME', 'WebSocket Data Request', 'FAIL',
+                                          0, f"Unexpected response: {data_result.get('type')}")
                     else:
-                        self.log_result('REAL-TIME', 'WebSocket Data Request', 'FAIL',
-                                      0, f"Unexpected response: {data_result.get('type')}")
-                else:
-                    self.log_result('REAL-TIME', 'WebSocket Connection', 'FAIL',
-                                  connection_time, f"Unexpected response: {data.get('type')}")
+                        self.log_result('REAL-TIME', 'WebSocket Connection', 'FAIL',
+                                      connection_time, f"Unexpected response: {data.get('type')}")
+                except asyncio.TimeoutError:
+                    self.log_result('REAL-TIME', 'WebSocket Connection', 'FAIL', connection_time, "Response timeout")
                     
-        except asyncio.TimeoutError:
-            self.log_result('REAL-TIME', 'WebSocket Connection', 'FAIL', 0, "Connection timeout")
+        except ConnectionRefusedError:
+            self.log_result('REAL-TIME', 'WebSocket Connection', 'FAIL', 0, "WebSocket server not running on port 8080")
         except Exception as e:
             self.log_result('REAL-TIME', 'WebSocket Connection', 'FAIL', 0, f"Error: {str(e)}")
 
