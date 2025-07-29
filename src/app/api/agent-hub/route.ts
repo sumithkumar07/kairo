@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   let command = '';
   let status: 'Success' | 'Failed' = 'Success';
   let aiResponseText = '';
-  let userId = '';
+  let userId: string | null = null;
 
   try {
     // --- API Key Authentication ---
