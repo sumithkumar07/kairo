@@ -365,3 +365,225 @@ export function CardSkeletonLoader({
     </Card>
   );
 }
+
+// Enhanced Error Boundary with Recovery Options
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: any;
+  retryCount: number;
+}
+
+interface EnhancedErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ComponentType<{ error: Error; retry: () => void }>;
+  onError?: (error: Error, errorInfo: any) => void;
+  maxRetries?: number;
+}
+
+export class EnhancedErrorBoundary extends React.Component<
+  EnhancedErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  constructor(props: EnhancedErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      retryCount: 0
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+    return {
+      hasError: true,
+      error
+    };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    this.setState({ errorInfo });
+    
+    // Log error to monitoring service
+    console.error('Enhanced Error Boundary caught an error:', error, errorInfo);
+    
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    }
+  }
+
+  retry = () => {
+    const maxRetries = this.props.maxRetries || 3;
+    
+    if (this.state.retryCount < maxRetries) {
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+        retryCount: this.state.retryCount + 1
+      });
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        const FallbackComponent = this.props.fallback;
+        return <FallbackComponent error={this.state.error!} retry={this.retry} />;
+      }
+
+      return <DefaultErrorFallback error={this.state.error!} retry={this.retry} />;
+    }
+
+    return this.props.children;
+  }
+}
+
+// Default Error Fallback Component
+export function DefaultErrorFallback({ 
+  error, 
+  retry 
+}: { 
+  error: Error; 
+  retry: () => void; 
+}) {
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    setTimeout(() => {
+      setIsRetrying(false);
+      retry();
+    }, 1000);
+  };
+
+  return (
+    <Card className="max-w-md mx-auto border-red-200 dark:border-red-800">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-red-600">
+          <AlertCircle className="h-5 w-5" />
+          Something went wrong
+        </CardTitle>
+        <CardDescription>
+          An unexpected error occurred while processing your request.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="font-mono text-xs">
+            {error.message}
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleRetry} 
+            disabled={isRetrying}
+            variant="default"
+            className="flex items-center gap-2"
+          >
+            {isRetrying ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Try Again
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()}
+          >
+            Reload Page
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Loading State Manager Hook
+export function useLoadingState(initialState: boolean = false) {
+  const [isLoading, setIsLoading] = useState(initialState);
+  const [error, setError] = useState<Error | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  const startLoading = () => {
+    setIsLoading(true);
+    setError(null);
+    setProgress(0);
+  };
+
+  const stopLoading = () => {
+    setIsLoading(false);
+    setProgress(100);
+  };
+
+  const setLoadingError = (error: Error) => {
+    setError(error);
+    setIsLoading(false);
+  };
+
+  const updateProgress = (value: number) => {
+    setProgress(Math.min(100, Math.max(0, value)));
+  };
+
+  return {
+    isLoading,
+    error,
+    progress,
+    startLoading,
+    stopLoading,
+    setError: setLoadingError,
+    updateProgress
+  };
+}
+
+// Smart Loading Component that adapts based on expected duration
+export function SmartLoader({ 
+  expectedDuration = 2000,
+  children,
+  fallback
+}: {
+  expectedDuration?: number;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
+  const [showLoader, setShowLoader] = useState(true);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    // Simulate progressive loading
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        const increment = Math.random() * 15 + 5; // 5-20% increments
+        return Math.min(95, prev + increment);
+      });
+    }, expectedDuration / 10);
+
+    const completeTimer = setTimeout(() => {
+      setProgress(100);
+      setTimeout(() => setShowLoader(false), 300);
+    }, expectedDuration);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(completeTimer);
+    };
+  }, [expectedDuration]);
+
+  if (showLoader) {
+    return fallback || (
+      <EnhancedLoadingState 
+        type="default"
+        showProgress 
+        progress={progress} 
+        message="Loading content..."
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
