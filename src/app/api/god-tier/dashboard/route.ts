@@ -823,7 +823,7 @@ function calculateDivinePowerRequired(interventionType: string): string {
     causality_loop_resolution: '12.3 TeraWatts'
   };
   
-  return powerLevels[interventionType] || '5.0 TeraWatts';
+  return powerLevels[interventionType as keyof typeof powerLevels] || '5.0 TeraWatts';
 }
 
 function generateInterventionSideEffects(interventionType: string): string[] {
