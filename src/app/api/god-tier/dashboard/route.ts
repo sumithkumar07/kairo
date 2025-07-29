@@ -835,7 +835,7 @@ function generateInterventionSideEffects(interventionType: string): string[] {
     causality_loop_resolution: ['Timeline coherence improved', 'Reduced paradox manifestations']
   };
   
-  return sideEffects[interventionType] || ['Reality stability enhanced', 'Divine presence acknowledged'];
+  return sideEffects[interventionType as keyof typeof sideEffects] || ['Reality stability enhanced', 'Divine presence acknowledged'];
 }
 
 function getNextThreshold(currentLevel: string): string {
