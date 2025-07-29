@@ -289,7 +289,7 @@ export async function enhanceAndGenerateWorkflow(input: { originalPrompt: string
             }
         }
 
-        const enhancementResult = await enhanceUserPrompt({ originalPrompt: input.originalPrompt });
+        const enhancementResult = await enhanceUserPrompt({ userPrompt: input.originalPrompt });
         const promptForGeneration = enhancementResult?.enhancedPrompt || input.originalPrompt;
 
         const result = await generateWorkflow({ prompt: promptForGeneration }, userId);
