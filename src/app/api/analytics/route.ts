@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         monthlyGrowth: 12.8, // Mock data - would calculate from historical data
         costs: 67.23 // Mock data - would calculate from usage data
       },
-      topWorkflows: topWorkflows.map(wf => ({
+      topWorkflows: topWorkflows.map((wf: any) => ({
         name: wf.workflow_name,
         executions: parseInt(wf.execution_count),
         successRate: wf.execution_count > 0 
