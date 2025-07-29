@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
       
       // Invalidate session in database
-      await invalidateSession(token);
+      await invalidateSession(request);
     }
 
     // Create response
