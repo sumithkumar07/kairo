@@ -221,6 +221,85 @@ export async function getCurrentUserFromRequest(request: NextRequest): Promise<U
   }
 }
 
+// Enhanced getCurrentUser function for use in server actions and API routes
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    // This is used in server actions, we need to get current request context
+    const { cookies } = await import('next/headers');
+    const token = cookies().get('session-token')?.value;
+    
+    if (!token) {
+      return null;
+    }
+
+    // Verify JWT
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      issuer: 'kairo-ai',
+      audience: 'kairo-users'
+    }) as any;
+    
+    if (!decoded || !decoded.userId) {
+      return null;
+    }
+
+    // Get user from database to ensure they still exist
+    const users = await db.query(
+      'SELECT id, email, created_at FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (users.length === 0) {
+      return null;
+    }
+
+    return {
+      id: users[0].id,
+      email: users[0].email,
+      created_at: users[0].created_at
+    };
+  } catch (error: any) {
+    console.error('[AUTH] Token verification error:', error);
+    return null;
+  }
+}
+
+// Get user profile with subscription information
+export async function getUserProfile(userId: string): Promise<any> {
+  try {
+    const users = await db.query(`
+      SELECT u.id, u.email, u.created_at, 
+             up.subscription_tier, up.trial_end_date, up.monthly_workflow_runs, up.monthly_ai_generations
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up.id
+      WHERE u.id = $1
+    `, [userId]);
+
+    if (users.length === 0) {
+      return null;
+    }
+
+    return users[0];
+  } catch (error: any) {
+    console.error('[AUTH] Get user profile error:', error);
+    return null;
+  }
+}
+
+// Invalidate session (logout)
+export async function invalidateSession(request: NextRequest): Promise<void> {
+  try {
+    const user = await getCurrentUserFromRequest(request);
+    if (user) {
+      // Log logout action
+      await logUserAction(user.id, 'logout', 'user', user.id, {
+        method: 'session_invalidation'
+      });
+    }
+  } catch (error: any) {
+    console.error('[AUTH] Invalidate session error:', error);
+  }
+}
+
 // Enhanced audit logging
 export async function logUserAction(
   userId: string,
