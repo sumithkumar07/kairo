@@ -421,7 +421,7 @@ export async function generateImageAction(prompt: string) {
         if (!features.accessToAdvancedNodes) { // Gating image generation as an "advanced" feature
             throw new Error('AI Image Generation is a premium feature. Please upgrade your plan.');
         }
-        return await generateImage({ prompt });
+        return await generateImage({ prompt, size: '1024x1024' });
     } catch (e: any) {
         console.error(`[generateImageAction] Error: ${e.message}`);
         throw new Error(`Failed to generate image: ${e.message}`);
