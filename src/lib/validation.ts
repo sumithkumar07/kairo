@@ -345,13 +345,19 @@ export async function performHealthCheck(): Promise<HealthCheckResult> {
     };
   }
   
-  // Check cache/memory
+  // Check cache/memory - improved thresholds
   try {
     const cacheStart = Date.now();
     const memoryUsage = process.memoryUsage();
-    const isHealthy = memoryUsage.heapUsed / memoryUsage.heapTotal < 0.9; // Less than 90% memory usage
+    const memoryUtilization = memoryUsage.heapUsed / memoryUsage.heapTotal;
+    
+    // More realistic memory thresholds
+    let cacheStatus = 'healthy';
+    if (memoryUtilization > 0.95) cacheStatus = 'unhealthy';
+    else if (memoryUtilization > 0.85) cacheStatus = 'degraded';
+    
     services.cache = {
-      status: isHealthy ? 'healthy' : 'degraded',
+      status: cacheStatus,
       responseTime: Date.now() - cacheStart
     };
   } catch (error) {
