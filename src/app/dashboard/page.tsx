@@ -21,7 +21,8 @@ import { EnhancedDashboardWidgets } from '@/components/enhanced-dashboard-widget
 // import { EnhancedLoadingState, SkeletonLoader } from '@/components/enhanced-loading-states';
 // import { EnhancedErrorHandler, useErrorHandler } from '@/components/enhanced-error-handling';
 // import { MobileOptimizedLayout, ResponsiveGrid, MobileOptimizedCard } from '@/components/mobile-optimized-layout';
-import { ResponsiveLayout, ResponsiveGrid, ResponsiveCard } from '@/components/responsive-layout';
+import { RealTimeDashboard } from '@/components/dashboard/realtime-dashboard';
+import { EnhancedLoadingState, EnhancedErrorHandler, ResponsiveContainer } from '@/components/ui/enhanced-ui';
 import {
   Activity,
   BarChart3,
