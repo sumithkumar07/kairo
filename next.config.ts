@@ -109,21 +109,8 @@ const nextConfig: NextConfig = {
         sideEffects: false,
       };
 
-      // Tree shaking improvements
-      config.module.rules.push({
-        test: /\.(js|ts|tsx)$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: [
-              ['@babel/preset-env', { modules: false }],
-              '@babel/preset-react',
-              '@babel/preset-typescript'
-            ],
-          },
-        },
-      });
+      // Removed custom Babel loader to fix Server Actions compatibility
+      // Next.js handles TypeScript/JavaScript compilation natively
     }
     
     // Enhanced module resolution
