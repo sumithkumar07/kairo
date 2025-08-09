@@ -1287,7 +1287,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
   // Add all integrations to available nodes
   ...ALL_INTEGRATIONS,
   
-  // Add Puter.js AI integrations
+  // Add GROQ AI integrations
   ...GROQ_AI_INTEGRATIONS,
   
   // Add advanced nodes
