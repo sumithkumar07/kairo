@@ -105,7 +105,7 @@
 - ✅ Next.js 15 with TypeScript
 - ✅ PostgreSQL database (hosted on Render)
 - ✅ JWT authentication with HTTP-only cookies
-- ✅ Puter.js AI integration (unlimited AI capabilities)
+- ✅ GROQ API integration (fast AI inference)
 - ✅ Tailwind CSS for styling
 - ✅ Comprehensive API structure
 
