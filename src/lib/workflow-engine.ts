@@ -307,7 +307,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     
     return { output: result.content || result };
   } catch (error: any) {
-    throw new Error(`Puter.js AI task failed: ${error.message}`);
+    throw new Error(`GROQ AI task failed: ${error.message}`);
   }
 }
 
