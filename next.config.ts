@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   
   // Server external packages
-  serverExternalPackages: ['puter', 'pg'],
+  serverExternalPackages: ['groq-sdk', 'pg'],
   
   // Enhanced image optimization
   images: {
