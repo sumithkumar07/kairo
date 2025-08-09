@@ -291,7 +291,7 @@ Analyze and return JSON with:
 7. resource_requirements
 `;
 
-  const messages: PuterChatMessage[] = [
+  const messages: GroqChatMessage[] = [
     { role: 'system', content: 'You are an expert technical architect. Analyze technical requirements and provide detailed specifications.' },
     { role: 'user', content: prompt }
   ];
