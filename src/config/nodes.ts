@@ -258,8 +258,8 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
       modelProvider: {
         label: 'Model Provider',
         type: 'select',
-        options: ['puter'],
-        defaultValue: 'puter',
+        options: ['groq'],
+        defaultValue: 'groq',
         required: true,
         helperText: 'Select the AI provider - Puter.js provides unlimited usage.'
       },
