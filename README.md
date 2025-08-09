@@ -447,7 +447,7 @@ curl -X POST http://localhost:3000/api/reality-fabricator \
 
 ### **Technology Stack**
 - **Frontend**: Next.js 15 (App Router) + TypeScript + Tailwind CSS + Radix UI
-- **AI Engine**: Puter.js (meta-llama/llama-4-maverick) + Unlimited Usage
+- **AI Engine**: GROQ API (Llama 3.1 models) + Fast Inference
 - **Database**: PostgreSQL with optimized connection pooling and query caching
 - **Authentication**: JWT-based with Row Level Security
 - **Deployment**: Multi-platform (Vercel, Firebase, Netlify)
