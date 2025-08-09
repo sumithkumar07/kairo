@@ -582,7 +582,8 @@ JWT_SECRET="your_production_jwt_secret_64_characters_or_more_for_security"
 ENCRYPTION_SECRET_KEY="your_production_encryption_key_32_chars"
 
 # AI Configuration (No API keys needed)
-# GROQ provides fast inference with Llama models
+# AI Configuration (GROQ API key required)
+GROQ_API_KEY="your_groq_api_key_here"
 
 # Performance
 NODE_ENV="production"
