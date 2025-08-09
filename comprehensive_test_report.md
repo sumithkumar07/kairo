@@ -166,7 +166,7 @@
 - ✅ User authentication and registration
 - ✅ Workflow automation platform
 - ✅ Integration marketplace (100+ integrations)
-- ✅ AI-powered features via Puter.js
+- ✅ AI-powered features via GROQ API
 - ✅ Template system
 - ✅ Pricing and billing structure
 
