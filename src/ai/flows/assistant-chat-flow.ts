@@ -6,7 +6,7 @@
  * or analyze the current workflow for issues, providing suggestions or asking for clarification.
  */
 
-import { assistantChat as puterAssistantChat } from '@/lib/puter';
+import { assistantChat as groqAssistantChat } from '@/lib/groq';
 import { z } from 'zod';
 
 // Minimal Schemas for workflow context analysis by the chat AI
