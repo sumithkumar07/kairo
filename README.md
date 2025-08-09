@@ -732,7 +732,7 @@ npm run test:performance
 - **React Components** - All UI components with Jest + Testing Library
 - **API Endpoints** - Full API testing with mock data
 - **Workflow Engine** - Node execution and connection logic
-- **AI Integration** - Puter.js meta-llama/llama-4-maverick responses and error handling
+- **AI Integration** - GROQ API with Llama models responses and error handling
 - **Database Operations** - CRUD operations and data integrity
 - **Authentication** - User flows and security features
 - **CARES Framework** - All explainability and collaboration features
