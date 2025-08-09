@@ -1,50 +1,110 @@
-'use server';
 /**
- * @fileOverview An AI flow to convert text to speech using Puter.js meta-llama/llama-4-maverick.
- *
- * - textToSpeech - Converts a string of text into an audio data URI.
- * - TextToSpeechInput - The input type for the textToSpeech function.
- * - TextToSpeechOutput - The return type for the textToSpeech function.
+ * @fileOverview AI flow for text-to-speech generation with voice customization
+ * Note: This flow provides text-to-speech guidance using GROQ API for voice suggestions
  */
 
-import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
+import { generate } from '@genkit-ai/ai';
+import { chatWithGroq, GroqChatMessage } from '@/lib/groq';
 
-// Input and Output Schemas
 const TextToSpeechInputSchema = z.object({
-  text: z.string().describe('The text to be converted to speech.'),
-  voice: z.string().optional().default('neutral').describe('The voice preference for the speech synthesis.'),
+  text: z.string(),
+  voiceType: z.enum(['natural', 'professional', 'friendly', 'authoritative']).optional().default('natural'),
+  language: z.string().optional().default('en'),
+  speed: z.number().optional().default(1.0),
+  customizations: z.string().optional(),
 });
-export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
 const TextToSpeechOutputSchema = z.object({
-  audioDataUri: z.string().describe("The generated audio description as a data URI. Note: This is a placeholder implementation."),
+  processedText: z.string(),
+  voiceRecommendations: z.array(z.object({
+    voiceName: z.string(),
+    description: z.string(),
+    suitability: z.string(),
+  })),
+  pronunciationGuide: z.array(z.object({
+    word: z.string(),
+    phonetic: z.string(),
+    note: z.string(),
+  })),
+  instructions: z.string(),
 });
+
+export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
 
-// Exported wrapper function
-export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpeechOutput> {
-  // Note: This is a placeholder implementation since we're using Puter.js
-  // For actual TTS functionality, you would need a dedicated TTS service
-  const messages: PuterChatMessage[] = [
-    { 
-      role: 'system', 
-      content: 'You are a text-to-speech converter. Convert the given text to a phonetic representation and provide a description of how it should be spoken.' 
-    },
-    { 
-      role: 'user', 
-      content: `Convert this text to speech with ${input.voice || 'neutral'} voice: "${input.text}"` 
+export const textToSpeechFlow = generate({
+  name: 'textToSpeech',
+  inputSchema: TextToSpeechInputSchema,
+  outputSchema: TextToSpeechOutputSchema,
+  fn: async (input: TextToSpeechInput): Promise<TextToSpeechOutput> => {
+    const { text, voiceType, language } = input;
+
+    const messages: GroqChatMessage[] = [
+      {
+        role: 'system',
+        content: `You are a text-to-speech optimization expert. Help prepare text for optimal speech synthesis.
+
+Your task is to:
+1. Optimize the text for speech (add pauses, emphasis, etc.)
+2. Recommend appropriate voice types
+3. Identify words that might need pronunciation guidance
+4. Provide setup instructions for TTS systems
+
+Respond with a JSON object:
+{
+  "processedText": "Text optimized for speech synthesis with proper formatting",
+  "voiceRecommendations": [
+    {
+      "voiceName": "Voice Name",
+      "description": "Description of the voice",
+      "suitability": "Why this voice works for this content"
     }
-  ];
+  ],
+  "pronunciationGuide": [
+    {
+      "word": "difficult word",
+      "phonetic": "phonetic spelling",
+      "note": "pronunciation note"
+    }
+  ],
+  "instructions": "Step-by-step instructions for implementing TTS"
+}`
+      },
+      {
+        role: 'user',
+        content: `Optimize this text for text-to-speech synthesis:
 
-  const response = await chatWithPuter(messages, {
-    model: 'meta-llama/llama-4-maverick',
-    temperature: 0.3,
-    max_tokens: 500
-  });
+Text: "${text}"
+Voice Type: ${voiceType}
+Language: ${language}
 
-  // Return a placeholder data URI (in a real implementation, this would be actual audio)
-  return {
-    audioDataUri: `data:text/plain;base64,${Buffer.from(response.content).toString('base64')}`
-  };
-}
+Please provide recommendations for voice selection, pronunciation guidance, and optimized text formatting for natural-sounding speech.`
+      }
+    ];
+
+    const response = await chatWithGroq(messages, {
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0.4,
+      max_tokens: 2000
+    });
+
+    try {
+      return JSON.parse(response.content);
+    } catch (error) {
+      // Fallback response
+      return {
+        processedText: text,
+        voiceRecommendations: [
+          {
+            voiceName: 'Standard Voice',
+            description: 'Clear, neutral voice suitable for most content',
+            suitability: 'Good general-purpose choice'
+          }
+        ],
+        pronunciationGuide: [],
+        instructions: 'Use any standard TTS service with the provided text and voice recommendations.'
+      };
+    }
+  },
+});

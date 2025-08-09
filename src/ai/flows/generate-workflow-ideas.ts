@@ -1,93 +1,102 @@
-'use server';
 /**
- * @fileOverview An AI flow to generate workflow ideas using Puter.js meta-llama/llama-4-maverick.
+ * @fileOverview AI flow for generating creative workflow ideas based on user context
  */
 
-import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
+import { generate } from '@genkit-ai/ai';
+import { chatWithGroq, GroqChatMessage } from '@/lib/groq';
 
-// Input and Output Schemas
-const GenerateWorkflowIdeasInputSchema = z.object({
-  industry: z.string().optional().describe('The industry or domain for workflow ideas'),
-  useCase: z.string().optional().describe('Specific use case or problem to solve'),
-  complexity: z.enum(['simple', 'medium', 'complex']).optional().default('medium').describe('Desired complexity level'),
-  keywords: z.array(z.string()).optional().describe('Keywords related to the workflow'),
+const WorkflowIdeasInputSchema = z.object({
+  industry: z.string().optional(),
+  businessFunction: z.string().optional(),
+  currentChallenges: z.string().optional(),
+  availableTools: z.array(z.string()).optional(),
+  complexity: z.enum(['simple', 'medium', 'complex']).optional(),
 });
-export type GenerateWorkflowIdeasInput = z.infer<typeof GenerateWorkflowIdeasInputSchema>;
 
-const GenerateWorkflowIdeasOutputSchema = z.object({
+const WorkflowIdeasOutputSchema = z.object({
   ideas: z.array(z.object({
-    title: z.string().describe('Title of the workflow idea'),
-    description: z.string().describe('Description of what the workflow does'),
-    useCase: z.string().describe('Primary use case for this workflow'),
-    complexity: z.enum(['simple', 'medium', 'complex']).describe('Complexity level'),
-    estimatedTime: z.string().describe('Estimated time to implement'),
-    benefits: z.array(z.string()).describe('Key benefits of this workflow'),
-    requiredIntegrations: z.array(z.string()).describe('Required third-party integrations'),
-  })).describe('Array of workflow ideas'),
+    title: z.string(),
+    description: z.string(),
+    benefits: z.array(z.string()),
+    complexity: z.string(),
+    estimatedTime: z.string(),
+    requiredIntegrations: z.array(z.string()),
+  })),
+  recommendation: z.string(),
 });
-export type GenerateWorkflowIdeasOutput = z.infer<typeof GenerateWorkflowIdeasOutputSchema>;
 
-// Exported wrapper function
-export async function generateWorkflowIdeas(input: GenerateWorkflowIdeasInput): Promise<GenerateWorkflowIdeasOutput> {
-  const systemPrompt = `You are an expert workflow automation consultant. Generate creative and practical workflow ideas based on the given criteria. Focus on:
-1. Real-world applicability
-2. Clear business value
-3. Realistic implementation
-4. Diverse use cases
+export type WorkflowIdeasInput = z.infer<typeof WorkflowIdeasInputSchema>;
+export type WorkflowIdeasOutput = z.infer<typeof WorkflowIdeasOutputSchema>;
 
-Provide 3-5 workflow ideas with detailed information for each.`;
+export const generateWorkflowIdeasFlow = generate({
+  name: 'generateWorkflowIdeas',
+  inputSchema: WorkflowIdeasInputSchema,
+  outputSchema: WorkflowIdeasOutputSchema,
+  fn: async (input: WorkflowIdeasInput): Promise<WorkflowIdeasOutput> => {
+    const { industry, businessFunction, currentChallenges } = input;
 
-  const messages: PuterChatMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { 
-      role: 'user', 
-      content: `Generate workflow ideas based on these criteria:
-      
-Industry: ${input.industry || 'Any industry'}
-Use Case: ${input.useCase || 'General automation'}
-Complexity: ${input.complexity || 'medium'}
-Keywords: ${input.keywords?.join(', ') || 'automation, efficiency'}
+    const messages: GroqChatMessage[] = [
+      {
+        role: 'system',
+        content: `You are a workflow automation consultant that generates creative and practical workflow ideas.
 
-Please provide 3-5 practical workflow ideas with details about implementation, benefits, and required integrations.` 
+Generate 5-7 workflow ideas that would be valuable for the user's context. Focus on:
+1. Real business value and impact
+2. Practical implementation
+3. Clear benefits and outcomes
+4. Appropriate complexity level
+
+Respond with a JSON object:
+{
+  "ideas": [
+    {
+      "title": "Workflow Title",
+      "description": "Detailed description",
+      "benefits": ["benefit1", "benefit2"],
+      "complexity": "simple|medium|complex",
+      "estimatedTime": "time to implement",
+      "requiredIntegrations": ["integration1", "integration2"]
     }
-  ];
+  ],
+  "recommendation": "Overall recommendation on where to start"
+}`
+      },
+      {
+        role: 'user',
+        content: `Generate workflow automation ideas for:
 
-  const response = await chatWithPuter(messages, {
-    model: 'meta-llama/llama-4-maverick',
-    temperature: 0.8,
-    max_tokens: 2000
-  });
+${industry ? `Industry: ${industry}` : ''}
+${businessFunction ? `Business Function: ${businessFunction}` : ''}
+${currentChallenges ? `Current Challenges: ${currentChallenges}` : ''}
 
-  try {
-    const parsed = JSON.parse(response.content);
-    return {
-      ideas: parsed.ideas || [
-        {
-          title: 'Automated Data Processing',
-          description: 'Process and transform data from multiple sources',
-          useCase: 'Data management and analysis',
-          complexity: 'medium',
-          estimatedTime: '2-3 hours',
-          benefits: ['Time savings', 'Error reduction', 'Consistency'],
-          requiredIntegrations: ['Database', 'File storage', 'Email notifications']
-        }
-      ]
-    };
-  } catch (error) {
-    // Fallback if JSON parsing fails
-    return {
-      ideas: [
-        {
-          title: 'Custom Workflow Solution',
-          description: response.content,
-          useCase: input.useCase || 'General automation',
-          complexity: input.complexity || 'medium',
-          estimatedTime: '1-2 hours',
-          benefits: ['Improved efficiency', 'Reduced manual work'],
-          requiredIntegrations: ['API connections', 'Data storage']
-        }
-      ]
-    };
-  }
-}
+Please suggest practical workflow automation ideas that would provide real business value.`
+      }
+    ];
+
+    const response = await chatWithGroq(messages, {
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0.7,
+      max_tokens: 2500
+    });
+
+    try {
+      return JSON.parse(response.content);
+    } catch (error) {
+      // Fallback response
+      return {
+        ideas: [
+          {
+            title: 'Data Processing Automation',
+            description: 'Automate routine data processing tasks',
+            benefits: ['Save time', 'Reduce errors'],
+            complexity: 'medium',
+            estimatedTime: '2-3 hours to setup',
+            requiredIntegrations: ['Database', 'Email']
+          }
+        ],
+        recommendation: 'Start with simple data processing workflows to build familiarity with the platform'
+      };
+    }
+  },
+});

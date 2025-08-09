@@ -1,70 +1,74 @@
-'use server';
 /**
- * @fileOverview An AI flow to enhance user prompts using Puter.js meta-llama/llama-4-maverick.
+ * @fileOverview AI flow for enhancing and expanding user prompts for better workflow generation
  */
 
-import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
+import { generate } from '@genkit-ai/ai';
+import { chatWithGroq, GroqChatMessage } from '@/lib/groq';
 
-// Input and Output Schemas
-const EnhanceUserPromptInputSchema = z.object({
-  userPrompt: z.string().describe('The original user prompt to enhance'),
-  context: z.string().optional().describe('Additional context about the intended use'),
+const PromptEnhancementInputSchema = z.object({
+  originalPrompt: z.string(),
+  userContext: z.string().optional(),
+  intendedComplexity: z.enum(['simple', 'medium', 'complex']).optional(),
 });
-export type EnhanceUserPromptInput = z.infer<typeof EnhanceUserPromptInputSchema>;
 
-const EnhanceUserPromptOutputSchema = z.object({
-  enhancedPrompt: z.string().describe('The enhanced and improved prompt'),
-  improvements: z.array(z.string()).describe('List of improvements made'),
-  originalPrompt: z.string().describe('The original prompt for reference'),
+const PromptEnhancementOutputSchema = z.object({
+  enhancedPrompt: z.string(),
+  suggestedImprovements: z.array(z.string()),
+  clarifyingQuestions: z.array(z.string()),
+  estimatedComplexity: z.string(),
 });
-export type EnhanceUserPromptOutput = z.infer<typeof EnhanceUserPromptOutputSchema>;
 
-// Exported wrapper function
-export async function enhanceUserPrompt(input: EnhanceUserPromptInput): Promise<EnhanceUserPromptOutput> {
-  const systemPrompt = `You are an expert prompt engineer. Your task is to enhance user prompts to be more clear, specific, and actionable. Focus on:
-1. Adding clarity and specificity
-2. Including relevant context
-3. Making the prompt more actionable
-4. Maintaining the original intent
+export type PromptEnhancementInput = z.infer<typeof PromptEnhancementInputSchema>;
+export type PromptEnhancementOutput = z.infer<typeof PromptEnhancementOutputSchema>;
 
-Provide the enhanced prompt and list the improvements you made.`;
+export const enhanceUserPromptFlow = generate({
+  name: 'enhanceUserPrompt',
+  inputSchema: PromptEnhancementInputSchema,
+  outputSchema: PromptEnhancementOutputSchema,
+  fn: async (input: PromptEnhancementInput): Promise<PromptEnhancementOutput> => {
+    const { originalPrompt, userContext } = input;
 
-  const messages: PuterChatMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { 
-      role: 'user', 
-      content: `Please enhance this user prompt:
-      
-Original Prompt: "${input.userPrompt}"
-Context: ${input.context || 'No additional context provided'}
+    const messages: GroqChatMessage[] = [
+      {
+        role: 'system',
+        content: `You are a workflow automation expert that helps users refine their workflow ideas.
 
-Please provide:
-1. An enhanced version of the prompt
-2. A list of improvements you made
-3. Keep the original intent intact` 
+Your task is to enhance user prompts to make them more specific, actionable, and comprehensive for workflow generation.
+
+Respond with a JSON object:
+{
+  "enhancedPrompt": "Improved, more detailed version of the original prompt",
+  "suggestedImprovements": ["improvement1", "improvement2"],
+  "clarifyingQuestions": ["question1", "question2"],
+  "estimatedComplexity": "simple|medium|complex"
+}`
+      },
+      {
+        role: 'user',
+        content: `Original prompt: "${originalPrompt}"
+${userContext ? `User context: ${userContext}` : ''}
+
+Please enhance this prompt to be more specific and actionable for workflow generation. Include relevant details, suggest improvements, and ask clarifying questions if needed.`
+      }
+    ];
+
+    const response = await chatWithGroq(messages, {
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0.6,
+      max_tokens: 1500
+    });
+
+    try {
+      return JSON.parse(response.content);
+    } catch (error) {
+      // Fallback response
+      return {
+        enhancedPrompt: originalPrompt,
+        suggestedImprovements: ['Add more specific details about inputs and outputs'],
+        clarifyingQuestions: ['What specific data sources will you be working with?'],
+        estimatedComplexity: 'medium'
+      };
     }
-  ];
-
-  const response = await chatWithPuter(messages, {
-    model: 'meta-llama/llama-4-maverick',
-    temperature: 0.5,
-    max_tokens: 1000
-  });
-
-  try {
-    const parsed = JSON.parse(response.content);
-    return {
-      enhancedPrompt: parsed.enhancedPrompt || response.content,
-      improvements: parsed.improvements || ['Enhanced clarity and specificity'],
-      originalPrompt: input.userPrompt
-    };
-  } catch (error) {
-    // Fallback if JSON parsing fails
-    return {
-      enhancedPrompt: response.content,
-      improvements: ['Enhanced clarity and specificity'],
-      originalPrompt: input.userPrompt
-    };
-  }
-}
+  },
+});
