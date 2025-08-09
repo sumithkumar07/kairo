@@ -1,68 +1,81 @@
-'use server';
 /**
- * @fileOverview An AI flow to diagnose workflow errors using Puter.js meta-llama/llama-4-maverick.
+ * @fileOverview AI flow for diagnosing workflow errors with detailed analysis
  */
 
-import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
 import { z } from 'zod';
+import { generate } from '@genkit-ai/ai';
+import { chatWithGroq, GroqChatMessage } from '@/lib/groq';
 
-// Input and Output Schemas
-const DiagnoseWorkflowErrorInputSchema = z.object({
-  workflowData: z.any().describe('The workflow data that failed'),
-  errorMessage: z.string().describe('The error message that occurred'),
-  executionContext: z.any().optional().describe('Additional context about the execution'),
+const WorkflowErrorInputSchema = z.object({
+  workflowData: z.any(),
+  errorMessage: z.string(),
+  nodeId: z.string().optional(),
+  executionLog: z.array(z.any()).optional(),
 });
-export type DiagnoseWorkflowErrorInput = z.infer<typeof DiagnoseWorkflowErrorInputSchema>;
 
-const DiagnoseWorkflowErrorOutputSchema = z.object({
-  diagnosis: z.string().describe('The diagnosis of the workflow error'),
-  suggestions: z.array(z.string()).describe('Suggested fixes for the error'),
-  severity: z.enum(['low', 'medium', 'high', 'critical']).describe('The severity of the error'),
+const WorkflowErrorOutputSchema = z.object({
+  diagnosis: z.string(),
+  possibleCauses: z.array(z.string()),
+  recommendations: z.array(z.string()),
+  severity: z.enum(['low', 'medium', 'high', 'critical']),
+  quickFix: z.string().optional(),
 });
-export type DiagnoseWorkflowErrorOutput = z.infer<typeof DiagnoseWorkflowErrorOutputSchema>;
 
-// Exported wrapper function
-export async function diagnoseWorkflowError(input: DiagnoseWorkflowErrorInput): Promise<DiagnoseWorkflowErrorOutput> {
-  const systemPrompt = `You are an expert workflow automation engineer. Analyze the given workflow error and provide:
-1. A clear diagnosis of what went wrong
-2. Specific suggestions to fix the issue
-3. The severity level of the error
+export type WorkflowErrorInput = z.infer<typeof WorkflowErrorInputSchema>;
+export type WorkflowErrorOutput = z.infer<typeof WorkflowErrorOutputSchema>;
 
-Focus on practical, actionable solutions.`;
+export const diagnoseWorkflowErrorFlow = generate({
+  name: 'diagnoseWorkflowError',
+  inputSchema: WorkflowErrorInputSchema,
+  outputSchema: WorkflowErrorOutputSchema,
+  fn: async (input: WorkflowErrorInput): Promise<WorkflowErrorOutput> => {
+    const { workflowData, errorMessage, nodeId } = input;
 
-  const messages: PuterChatMessage[] = [
-    { role: 'system', content: systemPrompt },
-    { 
-      role: 'user', 
-      content: `Analyze this workflow error:
-      
-Error Message: ${input.errorMessage}
-Workflow Data: ${JSON.stringify(input.workflowData, null, 2)}
-Execution Context: ${JSON.stringify(input.executionContext || {}, null, 2)}
+    const messages: GroqChatMessage[] = [
+      {
+        role: 'system',
+        content: `You are an expert workflow debugging assistant. Analyze workflow errors and provide comprehensive diagnostics.
+        
+Your response must be a valid JSON object with the following structure:
+{
+  "diagnosis": "Clear explanation of what went wrong",
+  "possibleCauses": ["cause1", "cause2", "cause3"],
+  "recommendations": ["recommendation1", "recommendation2", "recommendation3"],
+  "severity": "low|medium|high|critical",
+  "quickFix": "Optional quick fix suggestion"
+}`
+      },
+      {
+        role: 'user',
+        content: `Please diagnose this workflow error:
 
-Please provide a diagnosis, suggestions, and severity level.` 
+Error Message: ${errorMessage}
+${nodeId ? `Failed Node ID: ${nodeId}` : ''}
+
+Workflow Structure:
+${JSON.stringify(workflowData, null, 2)}
+
+Provide a detailed analysis of what went wrong and how to fix it.`
+      }
+    ];
+
+    const response = await chatWithGroq(messages, {
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0.3,
+      max_tokens: 1500
+    });
+
+    try {
+      return JSON.parse(response.content);
+    } catch (error) {
+      // Fallback response if JSON parsing fails
+      return {
+        diagnosis: response.content,
+        possibleCauses: ['Unable to parse detailed causes'],
+        recommendations: ['Review the workflow configuration and error message'],
+        severity: 'medium' as const,
+        quickFix: 'Check node configurations and connections'
+      };
     }
-  ];
-
-  const response = await chatWithPuter(messages, {
-    model: 'meta-llama/llama-4-maverick',
-    temperature: 0.3,
-    max_tokens: 1000
-  });
-
-  try {
-    const parsed = JSON.parse(response.content);
-    return {
-      diagnosis: parsed.diagnosis || response.content,
-      suggestions: parsed.suggestions || ['Review the error message and check node configurations'],
-      severity: parsed.severity || 'medium'
-    };
-  } catch (error) {
-    // Fallback if JSON parsing fails
-    return {
-      diagnosis: response.content,
-      suggestions: ['Review the error message and check node configurations'],
-      severity: 'medium'
-    };
-  }
-}
+  },
+});

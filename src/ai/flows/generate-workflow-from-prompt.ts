@@ -1,74 +1,83 @@
-// The directive tells the Next.js runtime to execute this code on the server.
-'use server';
-
 /**
- * @fileOverview AI-powered workflow generator from a plain-text prompt using Puter.js meta-llama/llama-4-maverick.
- *
- * - generateWorkflowFromPrompt - A function that takes a plain-text workflow description and returns a JSON representation of the workflow.
- * - GenerateWorkflowFromPromptInput - The input type for the generateWorkflowFromPrompt function.
- * - GenerateWorkflowFromPromptOutput - The return type for the generateWorkflowFromPrompt function, which represents the workflow definition.
+ * @fileOverview AI-powered workflow generator from a plain-text prompt using GROQ API with Llama models.
+ * Converts natural language descriptions into complete, executable workflows.
  */
 
-import { generateWorkflowFromPrompt as puterGenerateWorkflow } from '@/lib/puter';
 import { z } from 'zod';
-import { GenerateWorkflowFromPromptOutputSchema } from '@/ai/schemas';
+import { generate } from '@genkit-ai/ai';
+import { generateWorkflowFromPrompt as groqGenerateWorkflow } from '@/lib/groq';
 
-export type GenerateWorkflowFromPromptOutput = z.infer<typeof GenerateWorkflowFromPromptOutputSchema>;
-
-// Input schema: a simple text prompt describing the desired workflow.
-const GenerateWorkflowFromPromptInputSchema = z.object({
-  prompt: z.string().describe('A plain-text description of the workflow to generate (e.g., "When I upload a YouTube video, download it, generate a transcript, create an AI summary, and post it to Slack channel #updates").'),
+const WorkflowGenerationInputSchema = z.object({
+  prompt: z.string().min(10, 'Prompt must be at least 10 characters'),
+  context: z.string().optional(),
+  complexity: z.enum(['simple', 'medium', 'complex']).optional().default('medium'),
+  integrations: z.array(z.string()).optional(),
 });
 
-export type GenerateWorkflowFromPromptInput = z.infer<typeof GenerateWorkflowFromPromptInputSchema>;
+const WorkflowGenerationOutputSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  nodes: z.array(z.any()),
+  connections: z.array(z.any()),
+  metadata: z.object({
+    estimatedComplexity: z.string(),
+    requiredIntegrations: z.array(z.string()),
+    estimatedExecutionTime: z.string(),
+  }).optional(),
+});
 
-// Exported function to generate a workflow from a prompt.
-export async function generateWorkflowFromPrompt(input: GenerateWorkflowFromPromptInput): Promise<GenerateWorkflowFromPromptOutput> {
-  try {
-    console.log('[WORKFLOW GENERATION] Starting workflow generation with Puter.js meta-llama/llama-4-maverick...');
-    
-    const result = await puterGenerateWorkflow(input.prompt);
-    
-    // Validate the result structure
-    if (!result || typeof result !== 'object') {
-      throw new Error('Invalid workflow structure returned from Puter.js');
-    }
-    
-    // Ensure required fields exist
-    const workflow = {
-      name: result.name || 'Generated Workflow',
-      description: result.description || 'AI-generated workflow',
-      nodes: result.nodes || [],
-      connections: result.connections || []
-    };
-    
-    // Filter out any invalid nodes
-    const validNodes = workflow.nodes.filter((node: any) => {
-      if (typeof node === 'object' && node !== null && node.id && node.type && node.position) {
-        return true;
+export type WorkflowGenerationInput = z.infer<typeof WorkflowGenerationInputSchema>;
+export type WorkflowGenerationOutput = z.infer<typeof WorkflowGenerationOutputSchema>;
+
+export const generateWorkflowFromPromptFlow = generate({
+  name: 'generateWorkflowFromPrompt',
+  inputSchema: WorkflowGenerationInputSchema,
+  outputSchema: WorkflowGenerationOutputSchema,
+  fn: async (input: WorkflowGenerationInput): Promise<WorkflowGenerationOutput> => {
+    const { prompt, context } = input;
+
+    try {
+      const workflow = await groqGenerateWorkflow(prompt);
+      
+      if (!workflow || !workflow.nodes || !Array.isArray(workflow.nodes)) {
+        throw new Error('Invalid workflow structure returned from GROQ API');
       }
-      console.warn('[WORKFLOW GENERATION] Filtering out invalid node:', node);
-      return false;
-    });
-    
-    // Ensure connections have IDs
-    const connectionsWithIds = workflow.connections.map((conn: any) => ({
-      ...conn,
-      id: conn.id || crypto.randomUUID()
-    }));
-    
-    const finalWorkflow = {
-      ...workflow,
-      nodes: validNodes,
-      connections: connectionsWithIds
-    };
-    
-    console.log('[WORKFLOW GENERATION] Successfully generated workflow with', validNodes.length, 'nodes');
-    
-    return finalWorkflow;
-    
-  } catch (error) {
-    console.error('[WORKFLOW GENERATION] Error generating workflow:', error);
-    throw new Error(`Failed to generate workflow: ${(error as Error)?.message || error}`);
-  }
-}
+
+      return {
+        name: workflow.name || 'Generated Workflow',
+        description: workflow.description || 'AI-generated workflow',
+        nodes: workflow.nodes,
+        connections: workflow.connections || [],
+        metadata: {
+          estimatedComplexity: input.complexity || 'medium',
+          requiredIntegrations: workflow.requiredIntegrations || [],
+          estimatedExecutionTime: workflow.estimatedExecutionTime || 'Unknown',
+        }
+      };
+    } catch (error) {
+      console.error('Error generating workflow:', error);
+      
+      // Return a basic fallback workflow
+      return {
+        name: 'Basic Workflow',
+        description: 'A simple workflow template',
+        nodes: [
+          {
+            id: 'start',
+            type: 'trigger',
+            name: 'Start',
+            position: { x: 100, y: 100 },
+            config: {},
+            aiExplanation: 'This is the starting point of your workflow'
+          }
+        ],
+        connections: [],
+        metadata: {
+          estimatedComplexity: 'simple',
+          requiredIntegrations: [],
+          estimatedExecutionTime: '1-2 minutes',
+        }
+      };
+    }
+  },
+});
