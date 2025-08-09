@@ -555,7 +555,7 @@ vercel deploy
 # Set environment variables in Vercel dashboard
 vercel env add DATABASE_URL
 vercel env add JWT_SECRET
-# No need for AI API keys - Puter.js provides unlimited usage
+# GROQ API key required for AI features
 ```
 
 #### **Firebase App Hosting**
