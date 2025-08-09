@@ -555,7 +555,8 @@ vercel deploy
 # Set environment variables in Vercel dashboard
 vercel env add DATABASE_URL
 vercel env add JWT_SECRET
-# GROQ API key required for AI features
+# AI Configuration (GROQ API key required)
+GROQ_API_KEY="your_groq_api_key_here"
 ```
 
 #### **Firebase App Hosting**
