@@ -197,7 +197,7 @@ export function getSecurityHeaders() {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://api.puter.com https:",
+      "connect-src 'self' https://api.groq.com https:",
       "worker-src 'self' blob:",
       "frame-src 'none'"
     ].join('; '),
