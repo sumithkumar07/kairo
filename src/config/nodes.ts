@@ -272,7 +272,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         helperText: 'The Meta Llama model to use via Puter.js. Llama-4-Maverick recommended for best performance.'
       },
       prompt: { label: 'Prompt', type: 'textarea', placeholder: 'Summarize the following text: {{input.text}}', required: true },
-      simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response from Puter.js.', helperText: 'Text output from the AI model when in simulation mode.' },
+      simulatedOutput: { label: 'Simulated AI Output (String for Simulation Mode)', type: 'string', placeholder: 'This is a simulated AI response from GROQ API.', helperText: 'Text output from the AI model when in simulation mode.' },
       ...GENERIC_RETRY_CONFIG_SCHEMA,
       ...GENERIC_ON_ERROR_WEBHOOK_SCHEMA,
     },
