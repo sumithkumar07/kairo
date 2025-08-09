@@ -252,7 +252,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         modelProvider: 'puter',
         model: 'meta-llama/llama-4-maverick',
         prompt: '',
-        simulatedOutput: 'This is a simulated AI response from meta-llama/llama-4-maverick via Puter.js.' 
+        simulatedOutput: 'This is a simulated AI response from Llama via GROQ API.' 
     },
     configSchema: {
       modelProvider: {
