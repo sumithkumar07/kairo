@@ -67,7 +67,7 @@ export async function assistantChat(input: AssistantChatInput): Promise<Assistan
       workflowContext += `\nCurrent workflow has ${input.currentWorkflowNodes.length} nodes: ${input.currentWorkflowNodes.map(n => `${n.name || n.id} (${n.type})`).join(', ')}`;
     }
     
-    const result = await puterAssistantChat(
+    const result = await groqAssistantChat(
       input.userMessage,
       input.chatHistory || [],
       workflowContext
