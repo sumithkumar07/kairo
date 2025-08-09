@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     // Generate quantum-enhanced prophecy using GROQ AI
     const prophecyId = uuidv4();
     
-    // Simulate AI-powered market analysis (replace with actual Puter.js integration)
+    // Simulate AI-powered market analysis (replace with actual GROQ integration)
     const confidenceScore = Math.random() * 0.4 + 0.6; // 0.6-1.0 for god-tier accuracy
     
     const insertQuery = `
