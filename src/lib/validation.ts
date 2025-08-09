@@ -193,7 +193,7 @@ export function getSecurityHeaders() {
     // Content Security Policy
     'Content-Security-Policy': [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.puter.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.groq.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https:",
