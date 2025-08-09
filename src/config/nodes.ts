@@ -278,7 +278,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     },
     inputHandles: ['input'],
     outputHandles: ['output', 'error'],
-    aiExplanation: "Performs generative AI tasks using Puter.js meta-llama/llama-4-maverick with unlimited usage. No API keys required - Puter.js provides direct browser-based AI capabilities. The model will generate text based on your prompt using the selected Meta Llama model.",
+    aiExplanation: "Performs generative AI tasks using GROQ API with Llama models for fast and efficient inference. Requires GROQ API key - GROQ provides high-performance AI capabilities. The model will generate text based on your prompt using the selected Llama model.",
   },
   {
     type: 'generateImage',
