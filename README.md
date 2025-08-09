@@ -435,7 +435,7 @@ curl -X POST http://localhost:3000/api/reality-fabricator \
 - **Undo/Redo History** - 30-step history with branching support
 
 ### **🤖 AI-First Architecture**
-- **Puter.js Integration** - Unlimited usage with meta-llama/llama-4-maverick model
+- **GROQ API Integration** - Fast inference with Llama models
 - **Natural Language Processing** - Generate workflows from plain English
 - **Context-Aware Assistant** - Smart suggestions based on workflow context
 - **Intelligent Error Diagnosis** - AI-powered error analysis and resolution
