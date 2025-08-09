@@ -99,7 +99,7 @@ export default function PrivacyPage() {
               <section>
                 <h2 className="text-xl font-semibold mb-4 text-foreground">6. AI and Data Processing</h2>
                 <p className="text-muted-foreground">
-                  We use Puter.js with meta-llama/llama-4-maverick for workflow generation and optimization. Your workflow descriptions may be processed by AI services, 
+                  We use GROQ API with Llama models for workflow generation and optimization. Your workflow descriptions may be processed by AI services, 
                   but we ensure that personal and sensitive data is filtered out before processing.
                 </p>
               </section>
