@@ -261,7 +261,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
         options: ['groq'],
         defaultValue: 'groq',
         required: true,
-        helperText: 'Select the AI provider - Puter.js provides unlimited usage.'
+        helperText: 'Select the AI provider - GROQ provides fast inference with Llama models.'
       },
       model: { 
         label: 'Model ID', 
