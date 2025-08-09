@@ -916,7 +916,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### **Third-party Libraries**
 - **Next.js 15** - MIT License
-- **Puter.js** - MIT License (provides unlimited AI capabilities)
+- **GROQ** - MIT License (provides fast AI inference)
 - **Radix UI** - MIT License
 - **Tailwind CSS** - MIT License
 - **PostgreSQL** - PostgreSQL License
