@@ -752,8 +752,8 @@ npm run test:performance
 ```typescript
 // src/config/ai-settings.ts
 export const AI_CONFIG = {
-  puter: {
-    model: 'meta-llama/llama-4-maverick',
+  groq: {
+    model: 'llama-3.1-70b-versatile',
     maxTokens: 4000,
     temperature: 0.7,
     topP: 0.9
