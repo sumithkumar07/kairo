@@ -581,7 +581,7 @@ JWT_SECRET="your_production_jwt_secret_64_characters_or_more_for_security"
 ENCRYPTION_SECRET_KEY="your_production_encryption_key_32_chars"
 
 # AI Configuration (No API keys needed)
-# Puter.js provides unlimited AI with meta-llama/llama-4-maverick
+# GROQ provides fast inference with Llama models
 
 # Performance
 NODE_ENV="production"
