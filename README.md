@@ -504,7 +504,7 @@ JWT_SECRET="your_jwt_secret_key_here_for_authentication_tokens_min_32_chars"
 ENCRYPTION_SECRET_KEY="your_32_character_encryption_secret_key_here"
 
 # AI Configuration (GROQ API key required)
-# GROQ provides fast inference with Llama models
+GROQ_API_KEY="your_groq_api_key_here"
 
 # Application Configuration  
 NODE_ENV="development"
