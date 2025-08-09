@@ -287,7 +287,7 @@ async function executeHttpRequestNode(node: WorkflowNode, config: any, isSimulat
 
 async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMode: boolean, serverLogs: ServerLogOutput[], allWorkflowData: Record<string, any>, userId: string): Promise<any> {
   if (isSimulationMode) {
-    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AI] SIMULATION: Would process AI task with Puter.js meta-llama/llama-4-maverick`, type: 'info' });
+    serverLogs.push({ timestamp: new Date().toISOString(), message: `[NODE AI] SIMULATION: Would process AI task with GROQ API using Llama models`, type: 'info' });
     return { output: config.simulatedOutput || "Simulated AI response from GROQ API with Llama models" };
   }
 
