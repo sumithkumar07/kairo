@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate quantum-enhanced prophecy using Puter.js AI
+    // Generate quantum-enhanced prophecy using GROQ AI
     const prophecyId = uuidv4();
     
     // Simulate AI-powered market analysis (replace with actual Puter.js integration)
