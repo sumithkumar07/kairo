@@ -161,7 +161,7 @@ const features = [
   },
   {
     icon: Bot,
-    title: 'Advanced Puter.js AI Suite',
+    title: 'Advanced GROQ AI Suite',
     description: 'Leverage state-of-the-art AI models for intelligent code generation, natural language processing, multilingual translation, logical reasoning, and document analysis.',
     badge: 'Next-Gen AI',
     color: 'from-indigo-500 to-purple-500',
