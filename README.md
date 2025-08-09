@@ -476,7 +476,7 @@ curl -X POST http://localhost:3000/api/reality-fabricator \
 - Node.js 18+ (LTS recommended)
 - npm or yarn package manager
 - PostgreSQL database (local, AWS RDS, or Render)
-- No API keys required (uses Puter.js for unlimited AI capabilities)
+- GROQ API key required for AI capabilities
 
 ### **1. Installation**
 ```bash
