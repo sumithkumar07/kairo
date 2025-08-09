@@ -247,7 +247,7 @@ Return as JSON with fields: primary_goal, secondary_goals, success_criteria, ris
     { role: 'user', content: prompt }
   ];
 
-  const result = await chatWithPuter(messages, {
+  const result = await chatWithGroq(messages, {
     model: 'meta-llama/llama-4-maverick',
     temperature: 0.3,
     max_tokens: 1000
