@@ -274,7 +274,7 @@ const testimonials = [
     role: 'CTO',
     company: 'StartupXYZ',
     avatar: 'MC',
-    content: 'The most intuitive automation platform we\'ve ever used. The Puter.js AI integration understands complex business requirements and delivers production-ready workflows instantly. Game-changing technology.',
+    content: 'The most intuitive automation platform we\'ve ever used. The GROQ AI integration understands complex business requirements and delivers production-ready workflows instantly. Game-changing technology.',
     rating: 5,
     results: ['500% ROI increase', '10x faster development', 'Zero downtime'],
     industry: 'Fintech',
