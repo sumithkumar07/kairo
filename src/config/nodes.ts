@@ -249,7 +249,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     description: 'Performs AI tasks using GROQ API with Llama models for fast inference.',
     category: 'ai',
     defaultConfig: { 
-        modelProvider: 'puter',
+        modelProvider: 'groq',
         model: 'meta-llama/llama-4-maverick',
         prompt: '',
         simulatedOutput: 'This is a simulated AI response from Llama via GROQ API.' 
