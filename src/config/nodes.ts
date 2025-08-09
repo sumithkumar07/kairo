@@ -246,7 +246,7 @@ export const AVAILABLE_NODES_CONFIG: AvailableNodeType[] = [
     type: 'aiTask',
     name: 'AI Task',
     icon: Bot,
-    description: 'Performs AI tasks using Puter.js meta-llama/llama-4-maverick with unlimited usage and no API keys required.',
+    description: 'Performs AI tasks using GROQ API with Llama models for fast inference.',
     category: 'ai',
     defaultConfig: { 
         modelProvider: 'puter',
