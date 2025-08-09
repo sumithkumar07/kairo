@@ -295,7 +295,7 @@ async function executeAiTaskNode(node: WorkflowNode, config: any, isSimulationMo
     throw new Error("Prompt is required for AI task.");
   }
 
-  // Use Puter.js meta-llama/llama-4-maverick instead of Mistral AI
+  // Use GROQ API with Llama models instead of Mistral AI
   const model = 'meta-llama/llama-4-maverick';
   
   try {
