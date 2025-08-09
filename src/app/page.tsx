@@ -482,7 +482,7 @@ export default function ConsolidatedHomepage() {
           <div className="animate-fade-in-up mb-8">
             <Badge variant="secondary" className="px-6 py-3 text-base font-medium bg-gradient-to-r from-primary/10 to-purple-500/10 border border-primary/20 hover:from-primary/20 hover:to-purple-500/20 transition-all duration-300">
               <Sparkles className="w-5 h-5 mr-3 animate-pulse" />
-              Powered by Advanced Puter.js AI • Trusted by 10,000+ Companies
+              Powered by Advanced GROQ AI • Trusted by 10,000+ Companies
               <Verified className="w-4 h-4 ml-2 text-primary" />
             </Badge>
           </div>
