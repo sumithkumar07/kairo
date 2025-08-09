@@ -3,7 +3,7 @@
  * @fileOverview Enhanced workflow generation using Puter.js meta-llama/llama-4-maverick.
  */
 
-import { chatWithPuter, PuterChatMessage } from '@/lib/puter';
+import { chatWithGroq, GroqChatMessage } from '@/lib/groq';
 import { z } from 'zod';
 import type { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { AVAILABLE_NODES_CONFIG } from '@/config/nodes';
