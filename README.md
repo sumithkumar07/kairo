@@ -503,8 +503,8 @@ DB_CONNECTION_STRING="postgresql://username:password@host:port/database_name"
 JWT_SECRET="your_jwt_secret_key_here_for_authentication_tokens_min_32_chars"
 ENCRYPTION_SECRET_KEY="your_32_character_encryption_secret_key_here"
 
-# AI Configuration (No API keys required - uses Puter.js)
-# Puter.js provides unlimited AI capabilities with meta-llama/llama-4-maverick
+# AI Configuration (GROQ API key required)
+# GROQ provides fast inference with Llama models
 
 # Application Configuration  
 NODE_ENV="development"
